@@ -72,10 +72,10 @@ const chillChannels: ChillChannel[] = [
   },
   {
     id: '8',
-    name: 'Chill Beats',
-    description: 'Relaxing beats for any time of day',
-    youtubeId: 'DWcJFNfaw9c',
-    category: 'Beats',
+    name: 'Ambient Soundscape',
+    description: 'Peaceful ambient sounds for focus',
+    youtubeId: 'lFcSrYw-ARY',
+    category: 'Ambient',
     live: true
   },
   {
@@ -96,18 +96,18 @@ const chillChannels: ChillChannel[] = [
   },
   {
     id: '11',
-    name: 'Tropical Vibes',
-    description: 'Tropical house and summer beats',
-    youtubeId: 'sTSJYZyouek',
-    category: 'Tropical',
+    name: 'Reggae Vibes',
+    description: 'Smooth reggae beats for relaxation',
+    youtubeId: 'e76DpWphned',
+    category: 'Reggae',
     live: true
   },
   {
     id: '12',
-    name: 'Meditation Space',
-    description: 'Calming sounds for mindfulness',
-    youtubeId: 'ZiN6t7K7txw',
-    category: 'Meditation',
+    name: 'Reggae Chill',
+    description: 'Classic reggae rhythms',
+    youtubeId: 'iji5a2e32n4',
+    category: 'Reggae',
     live: true
   }
 ];
@@ -133,6 +133,7 @@ export function ChillZone() {
         case 'jazz': return 'secondary';
         case 'synthwave': return 'destructive';
         case 'ambient': return 'outline';
+        case 'reggae': return 'secondary';
         default: return 'default';
       }
     };
