@@ -3,30 +3,30 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Menu, X, Search, Heart } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { Link, useLocation } from 'react-router-dom';
 
 interface XRHeaderProps {
   currentPage?: string;
-  onNavigate?: (page: string) => void;
 }
 
-export function XRHeader({ currentPage = 'home', onNavigate }: XRHeaderProps) {
+export function XRHeader({ currentPage }: XRHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoShaking, setIsLogoShaking] = useState(false);
+  const location = useLocation();
 
   const navigation = [
-    { name: 'Home', href: 'home', icon: '🏠' },
-    { name: 'Markets', href: 'markets', icon: '📈' },
-    { name: 'Watchlist', href: 'watchlist', icon: '👀' },
-    { name: 'News', href: 'news', icon: '📰' },
-    { name: 'Store', href: 'store', icon: '🛍️' },
-    { name: 'ChillZone', href: 'chill', icon: '🎵' },
-    { name: 'Support', href: 'support', icon: '❤️' },
+    { name: 'Home', href: '/', icon: '🏠' },
+    { name: 'Markets', href: '/markets', icon: '📈' },
+    { name: 'Watchlist', href: '/watchlist', icon: '👀' },
+    { name: 'News', href: '/news', icon: '📰' },
+    { name: 'Store', href: '/store', icon: '🛍️' },
+    { name: 'ChillZone', href: '/chill', icon: '🎵' },
+    { name: 'Support', href: '/support', icon: '❤️' },
   ];
 
   const handleLogoClick = () => {
     setIsLogoShaking(true);
     setTimeout(() => setIsLogoShaking(false), 600);
-    onNavigate?.('home');
   };
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -36,7 +36,8 @@ export function XRHeader({ currentPage = 'home', onNavigate }: XRHeaderProps) {
       <header className="xr-header">
         <div className="container flex h-16 items-center justify-between px-4">
           {/* Logo & Brand */}
-          <div 
+          <Link 
+            to="/"
             className={`flex items-center space-x-2 cursor-pointer ${isLogoShaking ? 'animate-woof-shake' : ''}`}
             onClick={handleLogoClick}
           >
@@ -49,34 +50,34 @@ export function XRHeader({ currentPage = 'home', onNavigate }: XRHeaderProps) {
             <span className="text-xl font-bold xr-gradient-text sm:hidden">
               XR™
             </span>
-          </div>
+          </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6">
             {navigation.map((item) => (
-              <Button
-                key={item.name}
-                variant={currentPage === item.href ? "default" : "ghost"}
-                className={currentPage === item.href ? "btn-hero" : ""}
-                onClick={() => onNavigate?.(item.href)}
-              >
-                <span className="mr-1">{item.icon}</span>
-                {item.name === 'Support' ? (
-                  <Heart className="w-4 h-4 animate-wiggle" />
-                ) : (
-                  item.name
-                )}
-              </Button>
+              <Link key={item.name} to={item.href}>
+                <Button
+                  variant={location.pathname === item.href ? "default" : "ghost"}
+                  className={location.pathname === item.href ? "btn-hero" : ""}
+                >
+                  <span className="mr-1">{item.icon}</span>
+                  {item.name === 'Support' ? (
+                    <Heart className="w-4 h-4 animate-wiggle" />
+                  ) : (
+                    item.name
+                  )}
+                </Button>
+              </Link>
             ))}
           </nav>
 
           {/* Search & Theme Toggle */}
           <div className="flex items-center space-x-2">
-            {(currentPage === 'home' || currentPage === 'markets') && (
+            {(location.pathname === '/' || location.pathname === '/markets') && (
               <div className="hidden md:flex items-center space-x-2">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder={currentPage === 'home' ? "Search crypto..." : "Search stocks..."}
+                  placeholder={location.pathname === '/' ? "Search crypto..." : "Search stocks..."}
                   className="w-48"
                 />
               </div>
@@ -116,28 +117,25 @@ export function XRHeader({ currentPage = 'home', onNavigate }: XRHeaderProps) {
 
             <nav className="space-y-3">
               {navigation.map((item) => (
-                <Button
-                  key={item.name}
-                  variant={currentPage === item.href ? "default" : "ghost"}
-                  className={`w-full justify-start ${currentPage === item.href ? "btn-hero" : ""}`}
-                  onClick={() => {
-                    onNavigate?.(item.href);
-                    closeMobileMenu();
-                  }}
-                >
-                  <span className="mr-2">{item.icon}</span>
-                  {item.name}
-                  {item.name === 'Support' && <Heart className="ml-auto w-4 h-4 animate-wiggle" />}
-                </Button>
+                <Link key={item.name} to={item.href} onClick={closeMobileMenu}>
+                  <Button
+                    variant={location.pathname === item.href ? "default" : "ghost"}
+                    className={`w-full justify-start ${location.pathname === item.href ? "btn-hero" : ""}`}
+                  >
+                    <span className="mr-2">{item.icon}</span>
+                    {item.name}
+                    {item.name === 'Support' && <Heart className="ml-auto w-4 h-4 animate-wiggle" />}
+                  </Button>
+                </Link>
               ))}
             </nav>
 
-            {(currentPage === 'home' || currentPage === 'markets') && (
+            {(location.pathname === '/' || location.pathname === '/markets') && (
               <div className="mt-6 pt-6 border-t border-border">
                 <div className="flex items-center space-x-2">
                   <Search className="w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder={currentPage === 'home' ? "Search crypto..." : "Search stocks..."}
+                    placeholder={location.pathname === '/' ? "Search crypto..." : "Search stocks..."}
                     className="flex-1"
                   />
                 </div>

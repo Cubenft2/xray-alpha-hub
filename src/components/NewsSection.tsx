@@ -68,21 +68,62 @@ export function NewsSection() {
     }
   ];
 
+  // Enhanced news fetching to work with Cloudflare Worker
   const fetchNews = async () => {
     setIsLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setCryptoNews(mockCryptoNews);
-    setStocksNews(mockStocksNews);
-    setLastUpdated(new Date());
-    setIsLoading(false);
-
-    toast({
-      title: "News Updated",
-      description: "Latest financial news has been loaded.",
-    });
+    try {
+      // Try to fetch from Cloudflare Worker endpoint
+      // Replace with your actual worker domain: xraycrypto.io
+      const workerUrl = 'https://xraycrypto.io/api/news/aggregate?sources=crypto,stocks&q=';
+      
+      try {
+        const response = await fetch(workerUrl);
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Separate crypto and stocks news from worker response
+          const cryptoItems = data.filter((item: any) => 
+            item.category === 'crypto' || 
+            item.title.toLowerCase().includes('bitcoin') ||
+            item.title.toLowerCase().includes('ethereum') ||
+            item.title.toLowerCase().includes('crypto')
+          ).slice(0, 5);
+          
+          const stocksItems = data.filter((item: any) => 
+            item.category === 'stocks' || 
+            item.title.toLowerCase().includes('stock') ||
+            item.title.toLowerCase().includes('market')
+          ).slice(0, 5);
+          
+          setCryptoNews(cryptoItems);
+          setStocksNews(stocksItems);
+        } else {
+          throw new Error('Worker unavailable');
+        }
+      } catch (workerError) {
+        console.log('Using mock data as fallback');
+        // Fallback to mock data
+        setCryptoNews(mockCryptoNews);
+        setStocksNews(mockStocksNews);
+      }
+      
+      setLastUpdated(new Date());
+      
+    } catch (error) {
+      console.error('Error fetching news:', error);
+      // Use mock data as ultimate fallback
+      setCryptoNews(mockCryptoNews);
+      setStocksNews(mockStocksNews);
+      setLastUpdated(new Date());
+    } finally {
+      setIsLoading(false);
+      
+      toast({
+        title: "News Updated",
+        description: "Latest financial news has been loaded.",
+      });
+    }
   };
 
   useEffect(() => {
