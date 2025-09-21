@@ -2,41 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* XRayCrypto™ Design System - Crypto dashboard with dog-themed branding */
 
 @layer base {
   :root {
+    /* Core Theme Colors */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 220 13% 18%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 220 13% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 220 13% 18%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* XRayCrypto Brand Colors */
+    --primary: 194 100% 50%; /* Cyan #00CFFF */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 220 13% 18%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 13% 96%;
+    --muted-foreground: 220 9% 46%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 51 100% 50%; /* Pixel Yellow #FFD700 */
+    --accent-foreground: 220 13% 18%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 194 100% 50%;
 
-    --radius: 0.5rem;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    /* Gradients & Effects */
+    --gradient-primary: linear-gradient(135deg, hsl(194 100% 50%), hsl(194 100% 60%));
+    --gradient-accent: linear-gradient(135deg, hsl(51 100% 50%), hsl(51 100% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(194 100% 50%) 0%, hsl(51 100% 50%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(220 13% 98%) 100%);
+    
+    --glow-primary: 0 0 20px hsl(194 100% 50% / 0.3);
+    --glow-accent: 0 0 20px hsl(51 100% 50% / 0.3);
+    --shadow-card: 0 4px 6px -1px hsl(220 13% 18% / 0.1), 0 2px 4px -2px hsl(220 13% 18% / 0.1);
+    --shadow-elevated: 0 10px 15px -3px hsl(220 13% 18% / 0.1), 0 4px 6px -4px hsl(220 13% 18% / 0.1);
+
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -56,50 +73,154 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    /* Dark Theme Colors */
+    --background: 222 47% 4%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 222 47% 6%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 47% 6%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* XRayCrypto Brand Colors - Dark Mode */
+    --primary: 194 100% 50%; /* Keep cyan bright */
+    --primary-foreground: 222 47% 4%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 222 47% 10%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 222 47% 8%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 51 100% 50%; /* Keep yellow bright */
+    --accent-foreground: 222 47% 4%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 222 47% 12%;
+    --input: 222 47% 12%;
+    --ring: 194 100% 50%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 98%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 98%;
+
+    /* Dark Theme Gradients & Effects */
+    --gradient-card: linear-gradient(145deg, hsl(222 47% 6%) 0%, hsl(222 47% 8%) 100%);
+    --shadow-card: 0 4px 6px -1px hsl(222 47% 2% / 0.3), 0 2px 4px -2px hsl(222 47% 2% / 0.2);
+    --shadow-elevated: 0 10px 15px -3px hsl(222 47% 2% / 0.4), 0 4px 6px -4px hsl(222 47% 2% / 0.3);
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
+@layer components {
+  /* XRayCrypto Component Styles */
+  .xr-card {
+    @apply bg-card text-card-foreground border border-border rounded-lg shadow-sm;
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-card);
   }
 
-  body {
-    @apply bg-background text-foreground;
+  .xr-card-elevated {
+    @apply xr-card;
+    box-shadow: var(--shadow-elevated);
+  }
+
+  .xr-glow-primary {
+    box-shadow: var(--glow-primary);
+  }
+
+  .xr-glow-accent {
+    box-shadow: var(--glow-accent);
+  }
+
+  .xr-gradient-text {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Animations */
+  .xr-woof-shake {
+    animation: woof-shake 0.6s ease-in-out;
+  }
+
+  .xr-wiggle {
+    animation: wiggle 2s ease-in-out infinite;
+  }
+
+  .xr-ticker {
+    @apply bg-muted/50 border-y border-border backdrop-blur-sm;
+  }
+
+  .xr-header {
+    @apply sticky top-0 z-50 w-full border-b border-primary/20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60;
+    box-shadow: 0 1px 3px hsl(var(--primary) / 0.1);
+  }
+
+  /* Button Variants */
+  .btn-hero {
+    @apply bg-primary text-primary-foreground hover:bg-primary/90 border border-primary;
+    background: var(--gradient-primary);
+    transition: all 0.3s ease;
+  }
+
+  .btn-hero:hover {
+    box-shadow: var(--glow-primary);
+    transform: translateY(-1px);
+  }
+
+  .btn-accent {
+    @apply bg-accent text-accent-foreground hover:bg-accent/90 border border-accent;
+    background: var(--gradient-accent);
+    transition: all 0.3s ease;
+  }
+
+  .btn-accent:hover {
+    box-shadow: var(--glow-accent);
+    transform: translateY(-1px);
+  }
+
+  /* Mobile Navigation */
+  .mobile-nav {
+    @apply fixed inset-y-0 left-0 z-50 w-full sm:max-w-sm bg-background border-r border-border transform transition-transform duration-300;
+  }
+
+  .mobile-nav.closed {
+    transform: translateX(-100%);
+  }
+}
+
+@layer utilities {
+  /* Custom Animations */
+  @keyframes woof-shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
+    20%, 40%, 60%, 80% { transform: translateX(3px); }
+  }
+
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(1deg); }
+    75% { transform: rotate(-1deg); }
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% { 
+      opacity: 1;
+      box-shadow: var(--glow-primary);
+    }
+    50% { 
+      opacity: 0.8;
+      box-shadow: var(--glow-primary), var(--glow-accent);
+    }
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
   }
 }
