@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
 
 export function CryptoScreener() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -20,7 +22,7 @@ export function CryptoScreener() {
       defaultScreen: 'crypto_mkt_cap_large',
       market: 'crypto',
       showToolbar: true,
-      colorTheme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+      colorTheme: theme === 'dark' ? 'dark' : 'light',
       locale: 'en',
       isTransparent: false
     };
@@ -33,7 +35,7 @@ export function CryptoScreener() {
         containerRef.current.innerHTML = '';
       }
     };
-  }, []);
+  }, [theme]);
 
   return (
     <div className="xr-card p-4">

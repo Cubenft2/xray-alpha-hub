@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
 
 export function CryptoHeatmap() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -19,7 +21,7 @@ export function CryptoHeatmap() {
       blockColor: 'change',
       locale: 'en',
       symbolUrl: '',
-      colorTheme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+      colorTheme: theme === 'dark' ? 'dark' : 'light',
       hasTopBar: false,
       isDataSetEnabled: false,
       isZoomEnabled: true,
@@ -36,7 +38,7 @@ export function CryptoHeatmap() {
         containerRef.current.innerHTML = '';
       }
     };
-  }, []);
+  }, [theme]);
 
   return (
     <div className="xr-card p-4">
