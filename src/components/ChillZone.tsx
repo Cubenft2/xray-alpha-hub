@@ -32,14 +32,38 @@ const chillChannels: ChillChannel[] = [
   },
   {
     id: '3',
-    name: 'Coffee Shop Radio',
-    description: 'Coffee shop ambience with smooth jazz',
-    youtubeId: '4oStw0r33so',
-    category: 'Jazz',
+    name: 'Peaceful Piano',
+    description: 'Beautiful piano music for relaxation',
+    youtubeId: 'lTRiuFIWV54',
+    category: 'Piano',
     live: true
   },
   {
     id: '4',
+    name: 'Deep Focus Music',
+    description: 'Background music for deep work sessions',
+    youtubeId: 'kgx4WGK0oNU',
+    category: 'Focus',
+    live: true
+  },
+  {
+    id: '5',
+    name: 'Jazz Café',
+    description: 'Smooth jazz for relaxed atmosphere',
+    youtubeId: 'Dx5qFachd3A',
+    category: 'Jazz',
+    live: true
+  },
+  {
+    id: '6',
+    name: 'Ambient Study',
+    description: 'Atmospheric sounds for concentration',
+    youtubeId: 'lFcSrYw-ARY',
+    category: 'Ambient',
+    live: true
+  },
+  {
+    id: '7',
     name: 'Synthwave Radio',
     description: 'Retro synthwave & cyberpunk vibes',
     youtubeId: '4xDzrJKXOOY',
@@ -47,67 +71,43 @@ const chillChannels: ChillChannel[] = [
     live: true
   },
   {
-    id: '5',
-    name: 'Ambient Nature',
-    description: 'Peaceful nature sounds for focus',
-    youtubeId: 'lFcSrYw-ARY',
-    category: 'Ambient',
-    live: true
-  },
-  {
-    id: '6',
-    name: 'Deep Focus',
-    description: 'Deep focus music for productivity',
-    youtubeId: '1fueZCTYkpA',
-    category: 'Focus',
-    live: true
-  },
-  {
-    id: '7',
-    name: 'Crypto Beats',
-    description: 'Electronic beats for crypto trading',
-    youtubeId: '36YnV9STBqc',
-    category: 'Electronic',
-    live: true
-  },
-  {
     id: '8',
-    name: 'Study Vibes',
-    description: 'Calm instrumental music for studying',
+    name: 'Chill Beats',
+    description: 'Relaxing beats for any time of day',
     youtubeId: 'DWcJFNfaw9c',
-    category: 'Study',
+    category: 'Beats',
     live: true
   },
   {
     id: '9',
-    name: 'Rainy Day Jazz',
-    description: 'Smooth jazz with rain sounds',
-    youtubeId: 'Dx5qFachd3A',
-    category: 'Jazz',
+    name: 'Nature Sounds',
+    description: 'Forest sounds and natural ambience',
+    youtubeId: 'btGXsUyDias',
+    category: 'Nature',
     live: true
   },
   {
     id: '10',
-    name: 'Meditation Sounds',
-    description: 'Peaceful meditation & mindfulness',
-    youtubeId: 'ZiN6t7K7txw',
-    category: 'Meditation',
+    name: 'Study With Me',
+    description: 'Productive study atmosphere',
+    youtubeId: 'f02mOEt11OQ',
+    category: 'Study',
     live: true
   },
   {
     id: '11',
-    name: 'Tropical House',
-    description: 'Uplifting tropical house vibes',
+    name: 'Tropical Vibes',
+    description: 'Tropical house and summer beats',
     youtubeId: 'sTSJYZyouek',
-    category: 'House',
+    category: 'Tropical',
     live: true
   },
   {
     id: '12',
-    name: 'Noir Jazz Bar',
-    description: 'Dark, moody jazz bar atmosphere',
-    youtubeId: 'Bx4nRaioQdU',
-    category: 'Noir Jazz',
+    name: 'Meditation Space',
+    description: 'Calming sounds for mindfulness',
+    youtubeId: 'ZiN6t7K7txw',
+    category: 'Meditation',
     live: true
   }
 ];

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTheme } from 'next-themes';
 
 interface XRTickerProps {
   type: 'crypto' | 'stocks';
@@ -7,6 +8,7 @@ interface XRTickerProps {
 
 export function XRTicker({ type, symbols }: XRTickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   const defaultSymbols = {
     crypto: 'BITSTAMP:BTCUSD,BINANCE:ETHUSD,BINANCE:SOLUSD,BINANCE:DOGEUSDT,BITSTAMP:XRPUSD,BINANCE:ADAUSDT,BINANCE:AVAXUSDT,BINANCE:SHIBUSDT,BINANCE:BONKUSDT',
@@ -31,7 +33,7 @@ export function XRTicker({ type, symbols }: XRTickerProps) {
         }))
       ],
       showSymbolLogo: true,
-      colorTheme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+      colorTheme: theme === 'dark' ? 'dark' : 'light',
       isTransparent: false,
       displayMode: 'adaptive',
       locale: 'en'
@@ -45,7 +47,7 @@ export function XRTicker({ type, symbols }: XRTickerProps) {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [type, symbols]);
+  }, [type, symbols, theme]);
 
   return (
     <div className="xr-ticker">
