@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { XRHeader } from '@/components/XRHeader';
 import { XRTicker } from '@/components/XRTicker';
 import { XRFooter } from '@/components/XRFooter';
@@ -8,6 +9,15 @@ import { StocksHeatmap } from '@/components/StocksHeatmap';
 import { NewsSection } from '@/components/NewsSection';
 
 export default function Markets() {
+  const [searchParams] = useSearchParams();
+  const [chartSymbol, setChartSymbol] = useState<string>('NASDAQ:SPY');
+
+  useEffect(() => {
+    const symbolFromUrl = searchParams.get('symbol');
+    if (symbolFromUrl) {
+      setChartSymbol(symbolFromUrl);
+    }
+  }, [searchParams]);
   return (
     <div className="min-h-screen bg-background">
       <XRHeader currentPage="markets" />
@@ -19,7 +29,7 @@ export default function Markets() {
           <p className="text-muted-foreground">Real-time stock market data and analysis</p>
         </div>
 
-        <CryptoChart symbol="NASDAQ:SPY" height={500} />
+        <CryptoChart symbol={chartSymbol} height={500} />
         
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <StocksScreener />

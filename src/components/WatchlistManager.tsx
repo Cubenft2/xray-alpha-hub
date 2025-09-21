@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, TrendingUp } from 'lucide-react';
+import { Plus, X, TrendingUp, ExternalLink } from 'lucide-react';
+import { MiniChart } from './MiniChart';
 
 interface WatchlistItem {
   id: string;
@@ -15,6 +18,8 @@ interface WatchlistItem {
 export function WatchlistManager() {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [newSymbol, setNewSymbol] = useState('');
+  const navigate = useNavigate();
+  const { theme } = useTheme();
 
   useEffect(() => {
     const stored = localStorage.getItem('xr_watchlist');
@@ -58,6 +63,14 @@ export function WatchlistManager() {
 
   const clearWatchlist = () => {
     saveWatchlist([]);
+  };
+
+  const handleChartClick = (item: WatchlistItem) => {
+    if (item.type === 'crypto') {
+      navigate(`/?symbol=${encodeURIComponent(item.symbol)}`);
+    } else {
+      navigate(`/markets?symbol=${encodeURIComponent(item.symbol)}`);
+    }
   };
 
   return (
@@ -129,29 +142,23 @@ export function WatchlistManager() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="h-48 rounded-lg overflow-hidden">
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: `
-                        <div class="tradingview-widget-container" style="height:100%;width:100%">
-                          <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
-                          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js" async>
-                          {
-                            "symbol": "${item.symbol}",
-                            "width": "100%",
-                            "height": "100%",
-                            "locale": "en",
-                            "dateRange": "12M",
-                            "colorTheme": "${document.documentElement.classList.contains('dark') ? 'dark' : 'light'}",
-                            "isTransparent": false,
-                            "autosize": true,
-                            "largeChartUrl": ""
-                          }
-                          </script>
-                        </div>
-                      `
-                    }}
+                <div className="relative h-48 rounded-lg overflow-hidden group">
+                  <MiniChart 
+                    symbol={item.symbol} 
+                    theme={theme} 
+                    onClick={() => handleChartClick(item)}
                   />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <Button 
+                      variant="secondary" 
+                      size="sm"
+                      onClick={() => handleChartClick(item)}
+                      className="backdrop-blur-sm"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-1" />
+                      Open Chart
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

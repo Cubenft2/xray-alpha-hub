@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { XRHeader } from '@/components/XRHeader';
 import { XRTicker } from '@/components/XRTicker';
 import { XRFooter } from '@/components/XRFooter';
@@ -8,6 +9,15 @@ import { CryptoHeatmap } from '@/components/CryptoHeatmap';
 import { NewsSection } from '@/components/NewsSection';
 
 const Index = () => {
+  const [searchParams] = useSearchParams();
+  const [chartSymbol, setChartSymbol] = useState<string>('BINANCE:BTCUSDT');
+
+  useEffect(() => {
+    const symbolFromUrl = searchParams.get('symbol');
+    if (symbolFromUrl) {
+      setChartSymbol(symbolFromUrl);
+    }
+  }, [searchParams]);
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -39,7 +49,7 @@ const Index = () => {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Main Chart - Full width on mobile, 2 cols on desktop */}
             <div className="xl:col-span-2">
-              <CryptoChart />
+              <CryptoChart symbol={chartSymbol} />
             </div>
 
             {/* News Section */}

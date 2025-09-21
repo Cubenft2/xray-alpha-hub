@@ -1,10 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { useTheme } from 'next-themes';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-export function StocksHeatmap() {
+interface MiniChartProps {
+  symbol: string;
+  theme?: string;
+  onClick?: () => void;
+}
+
+export function MiniChart({ symbol, theme, onClick }: MiniChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -13,34 +16,34 @@ export function StocksHeatmap() {
     containerRef.current.innerHTML = '';
 
     const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js';
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
     script.async = true;
     script.innerHTML = JSON.stringify({
-      exchanges: [],
-      dataSource: "SPX500",
-      grouping: "sector",
-      blockSize: "market_cap_basic",
-      blockColor: "change",
-      locale: "en",
-      symbolUrl: "",
-      colorTheme: theme === 'dark' ? 'dark' : 'light',
-      hasTopBar: false,
-      isDataSetEnabled: false,
-      isZoomEnabled: true,
-      hasSymbolTooltip: true,
+      symbol: symbol,
       width: "100%",
-      height: "100%"
+      height: "100%",
+      locale: "en",
+      dateRange: "12M",
+      colorTheme: theme === 'dark' ? 'dark' : 'light',
+      isTransparent: false,
+      autosize: true,
+      largeChartUrl: ""
     });
 
     const widgetContainer = document.createElement('div');
     widgetContainer.className = 'tradingview-widget-container';
     widgetContainer.style.height = '100%';
     widgetContainer.style.width = '100%';
+    widgetContainer.style.cursor = onClick ? 'pointer' : 'default';
 
     const widgetInner = document.createElement('div');
     widgetInner.className = 'tradingview-widget-container__widget';
     widgetInner.style.height = 'calc(100% - 32px)';
     widgetInner.style.width = '100%';
+
+    if (onClick) {
+      widgetContainer.addEventListener('click', onClick);
+    }
 
     widgetContainer.appendChild(widgetInner);
     widgetContainer.appendChild(script);
@@ -50,21 +53,11 @@ export function StocksHeatmap() {
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
+      if (onClick) {
+        widgetContainer.removeEventListener('click', onClick);
+      }
     };
-  }, [theme]);
+  }, [symbol, theme, onClick]);
 
-  return (
-    <Card className="xr-card">
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          🗺️ Stock Market Heatmap
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="h-96 rounded-lg overflow-hidden">
-          <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <div ref={containerRef} style={{ height: '100%', width: '100%' }} />;
 }
