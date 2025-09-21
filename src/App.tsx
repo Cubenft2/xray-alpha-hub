@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
+import MarketBrief from "./pages/MarketBrief";
 import Watchlist from "./pages/Watchlist";
 import News from "./pages/News";
 import Store from "./pages/Store";
@@ -30,6 +31,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/markets" element={<Markets />} />
+            <Route path="/market-brief" element={<MarketBrief />} />
             <Route path="/watchlist" element={<Watchlist />} />
             <Route path="/news" element={<News />} />
             <Route path="/store" element={<Store />} />

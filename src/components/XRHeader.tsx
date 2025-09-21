@@ -17,6 +17,7 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
   const navigation = [
     { name: 'Home', href: '/', icon: '🏠' },
     { name: 'Markets', href: '/markets', icon: '📈' },
+    { name: 'Brief', href: '/market-brief', icon: '📊' },
     { name: 'Watchlist', href: '/watchlist', icon: '👀' },
     { name: 'News', href: '/news', icon: '📰' },
     { name: 'Store', href: '/store', icon: '🛍️' },

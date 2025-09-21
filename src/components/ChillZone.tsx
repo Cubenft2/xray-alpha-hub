@@ -177,11 +177,12 @@ export function ChillZone() {
           
           <div className="aspect-video rounded-lg overflow-hidden bg-black">
             <iframe
-              src={`https://www.youtube.com/embed/${chillChannels.find(c => c.id === activeChannel)?.youtubeId}?autoplay=1&mute=0&controls=1&modestbranding=1&rel=0`}
+              src={`https://www.youtube.com/embed/${chillChannels.find(c => c.id === activeChannel)?.youtubeId}?autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&enablejsapi=1`}
               className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
               title="Chill Zone Player"
+              frameBorder="0"
             />
           </div>
         </div>
