@@ -73,36 +73,46 @@ export function NewsSection() {
     setIsLoading(true);
     
     try {
-      // Try to fetch from Cloudflare Worker endpoint
-      // Replace with your actual worker domain: xraycrypto.io
-      const workerUrl = 'https://xraycrypto.io/api/news/aggregate?sources=crypto,stocks&q=';
+      // Update this URL to your actual Cloudflare Worker domain
+      const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/aggregate?sources=crypto,stocks&q=';
       
       try {
         const response = await fetch(workerUrl);
         if (response.ok) {
           const data = await response.json();
           
+          // Handle the worker response format (expecting { top: [...] } structure)
+          const newsItems = data.top || data || [];
+          
           // Separate crypto and stocks news from worker response
-          const cryptoItems = data.filter((item: any) => 
-            item.category === 'crypto' || 
-            item.title.toLowerCase().includes('bitcoin') ||
-            item.title.toLowerCase().includes('ethereum') ||
-            item.title.toLowerCase().includes('crypto')
+          const cryptoItems = newsItems.filter((item: any) => 
+            item.source?.toLowerCase().includes('crypto') ||
+            item.source?.toLowerCase().includes('coin') ||
+            item.title?.toLowerCase().includes('bitcoin') ||
+            item.title?.toLowerCase().includes('ethereum') ||
+            item.title?.toLowerCase().includes('crypto') ||
+            item.title?.toLowerCase().includes('btc') ||
+            item.title?.toLowerCase().includes('eth')
           ).slice(0, 5);
           
-          const stocksItems = data.filter((item: any) => 
-            item.category === 'stocks' || 
-            item.title.toLowerCase().includes('stock') ||
-            item.title.toLowerCase().includes('market')
+          const stocksItems = newsItems.filter((item: any) => 
+            item.source?.toLowerCase().includes('bloomberg') ||
+            item.source?.toLowerCase().includes('reuters') ||
+            item.source?.toLowerCase().includes('marketwatch') ||
+            item.title?.toLowerCase().includes('stock') ||
+            item.title?.toLowerCase().includes('market') ||
+            item.title?.toLowerCase().includes('fed') ||
+            item.title?.toLowerCase().includes('nasdaq') ||
+            item.title?.toLowerCase().includes('s&p')
           ).slice(0, 5);
           
-          setCryptoNews(cryptoItems);
-          setStocksNews(stocksItems);
+          setCryptoNews(cryptoItems.length > 0 ? cryptoItems : mockCryptoNews);
+          setStocksNews(stocksItems.length > 0 ? stocksItems : mockStocksNews);
         } else {
           throw new Error('Worker unavailable');
         }
       } catch (workerError) {
-        console.log('Using mock data as fallback');
+        console.log('Using mock data as fallback:', workerError);
         // Fallback to mock data
         setCryptoNews(mockCryptoNews);
         setStocksNews(mockStocksNews);
