@@ -15,9 +15,9 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
   const location = useLocation();
 
   const navigation = [
-    { name: 'Home', href: '/', icon: '🏠' },
+    { name: 'MarketBrief', href: '/', icon: '📊' },
+    { name: 'Crypto', href: '/crypto', icon: '🚀' },
     { name: 'Markets', href: '/markets', icon: '📈' },
-    { name: 'Brief', href: '/market-brief', icon: '📊' },
     { name: 'Watchlist', href: '/watchlist', icon: '👀' },
     { name: 'News', href: '/news', icon: '📰' },
     { name: 'Store', href: '/store', icon: '🛍️' },
@@ -74,11 +74,11 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
 
           {/* Search & Theme Toggle */}
           <div className="flex items-center space-x-2">
-            {(location.pathname === '/' || location.pathname === '/markets') && (
+            {(location.pathname === '/crypto' || location.pathname === '/markets') && (
               <div className="hidden md:flex items-center space-x-2">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder={location.pathname === '/' ? "Search crypto..." : "Search stocks..."}
+                  placeholder={location.pathname === '/crypto' ? "Search crypto..." : "Search stocks..."}
                   className="w-48"
                 />
               </div>
@@ -131,12 +131,12 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
               ))}
             </nav>
 
-            {(location.pathname === '/' || location.pathname === '/markets') && (
+            {(location.pathname === '/crypto' || location.pathname === '/markets') && (
               <div className="mt-6 pt-6 border-t border-border">
                 <div className="flex items-center space-x-2">
                   <Search className="w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder={location.pathname === '/' ? "Search crypto..." : "Search stocks..."}
+                    placeholder={location.pathname === '/crypto' ? "Search crypto..." : "Search stocks..."}
                     className="flex-1"
                   />
                 </div>
