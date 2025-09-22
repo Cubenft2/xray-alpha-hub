@@ -21,14 +21,15 @@ export function CryptoScreener() {
 
       const config = {
         width: '100%',
-        height: '500',
+        height: '600',
         defaultColumn: 'overview',
-        defaultScreen: 'crypto_mkt_cap_large',
+        defaultScreen: 'general',
         market: 'crypto',
         showToolbar: true,
         colorTheme: theme === 'dark' ? 'dark' : 'light',
         locale: 'en',
         isTransparent: false,
+        largeChartUrl: '',
         // Add unique container ID for crypto
         container_id: 'crypto-screener-widget'
       };
