@@ -108,13 +108,13 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           {/* Search & Theme Toggle */}
           <div className="flex items-center space-x-2">
             {(location.pathname === '/crypto' || location.pathname === '/markets') && (
-              <div className="flex items-center space-x-2">
-                <Search className="w-4 h-4 text-muted-foreground" />
+              <div className="flex items-center space-x-2 bg-muted/50 rounded-lg px-3 py-2 border border-border">
+                <Search className="w-4 h-4 text-primary" />
                 <Input
                   value={searchTerm}
                   onChange={handleSearchChange}
                   placeholder={location.pathname === '/crypto' ? "Search crypto..." : "Search stocks..."}
-                  className="w-32 md:w-48"
+                  className="w-40 md:w-56 border-0 bg-transparent focus:ring-0 focus:ring-offset-0 px-0"
                 />
               </div>
             )}
