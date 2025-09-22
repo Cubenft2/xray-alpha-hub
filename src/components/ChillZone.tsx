@@ -42,7 +42,7 @@ const chillChannels: ChillChannel[] = [
     id: '4',
     name: 'Deep Focus Music',
     description: 'Background music for deep work sessions',
-    youtubeId: 'kgx4WGK0oNU',
+    youtubeId: '36YnV9STBqc',
     category: 'Focus',
     live: true
   },
@@ -82,7 +82,7 @@ const chillChannels: ChillChannel[] = [
     id: '9',
     name: 'Nature Sounds',
     description: 'Forest sounds and natural ambience',
-    youtubeId: 'btGXsUyDias',
+    youtubeId: 'rlt81BfVXi4',
     category: 'Nature',
     live: true
   },
@@ -98,7 +98,7 @@ const chillChannels: ChillChannel[] = [
     id: '11',
     name: 'Reggae Vibes',
     description: 'Smooth reggae beats for relaxation',
-    youtubeId: 'e76DpWphned',
+    youtubeId: 'i5d-r6RbNNk',
     category: 'Reggae',
     live: true
   },
@@ -106,7 +106,7 @@ const chillChannels: ChillChannel[] = [
     id: '12',
     name: 'Reggae Chill',
     description: 'Classic reggae rhythms',
-    youtubeId: 'iji5a2e32n4',
+    youtubeId: 'qSuAY4Cr-fU',
     category: 'Reggae',
     live: true
   }
