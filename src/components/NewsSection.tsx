@@ -155,6 +155,7 @@ export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
   };
 
   useEffect(() => {
+    console.log('🐕 XRay: NewsSection component mounted, fetching news...');
     fetchNews();
 
     // Auto-refresh every 5 minutes
@@ -239,7 +240,12 @@ export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
         </TabsList>
 
         <TabsContent value="crypto" className="space-y-3 mt-4">
-          {filteredCryptoNews.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center text-muted-foreground py-8">
+              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+              Loading crypto news...
+            </div>
+          ) : filteredCryptoNews.length > 0 ? (
             filteredCryptoNews.map((item, index) => (
               <NewsCard key={index} item={item} />
             ))
@@ -251,7 +257,12 @@ export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
         </TabsContent>
 
         <TabsContent value="stocks" className="space-y-3 mt-4">
-          {filteredStocksNews.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center text-muted-foreground py-8">
+              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+              Loading market news...
+            </div>
+          ) : filteredStocksNews.length > 0 ? (
             filteredStocksNews.map((item, index) => (
               <NewsCard key={index} item={item} />
             ))
