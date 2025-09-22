@@ -109,7 +109,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchSubmit}
-                  placeholder={location.pathname === '/crypto' ? "Search crypto..." : "Search stocks..."}
+                  placeholder={location.pathname === '/crypto' ? "Crypto..." : "Stocks..."}
                   className="w-24 md:w-32"
                 />
               </div>
@@ -169,7 +169,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                     value={searchTerm}
                     onChange={handleSearchChange}
                     onKeyDown={handleSearchSubmit}
-                    placeholder={location.pathname === '/crypto' ? "Search crypto..." : "Search stocks..."}
+                    placeholder={location.pathname === '/crypto' ? "Crypto..." : "Stocks..."}
                     className="flex-1"
                   />
                 </div>
