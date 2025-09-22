@@ -107,7 +107,7 @@ export default function Markets() {
         {/* News with exact nav width */}
         <div className="w-full">
           <div className="container mx-auto">
-            <NewsSection searchTerm={searchTerm} />
+            <NewsSection searchTerm={searchTerm} defaultTab="stocks" />
           </div>
         </div>
       </main>

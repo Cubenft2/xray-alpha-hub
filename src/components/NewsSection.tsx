@@ -14,9 +14,10 @@ interface NewsItem {
 
 interface NewsSectionProps {
   searchTerm?: string;
+  defaultTab?: 'crypto' | 'stocks';
 }
 
-export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
+export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSectionProps) {
   const [cryptoNews, setCryptoNews] = useState<NewsItem[]>([]);
   const [stocksNews, setStocksNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -229,7 +230,7 @@ export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
         </div>
       </div>
 
-      <Tabs defaultValue="crypto" className="w-full">
+      <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="crypto" className="text-xs">
             🚀 Crypto ({filteredCryptoNews.length})
@@ -239,38 +240,42 @@ export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="crypto" className="space-y-3 mt-4">
-          {isLoading ? (
-            <div className="text-center text-muted-foreground py-8">
-              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-              Loading crypto news...
-            </div>
-          ) : filteredCryptoNews.length > 0 ? (
-            filteredCryptoNews.map((item, index) => (
-              <NewsCard key={index} item={item} />
-            ))
-          ) : (
-            <div className="text-center text-muted-foreground py-4">
-              {searchTerm ? `No crypto news found for "${searchTerm}"` : 'No crypto news available'}
-            </div>
-          )}
+        <TabsContent value="crypto" className="mt-4">
+          <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2">
+            {isLoading ? (
+              <div className="text-center text-muted-foreground py-8">
+                <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+                Loading crypto news...
+              </div>
+            ) : filteredCryptoNews.length > 0 ? (
+              filteredCryptoNews.map((item, index) => (
+                <NewsCard key={index} item={item} />
+              ))
+            ) : (
+              <div className="text-center text-muted-foreground py-4">
+                {searchTerm ? `No crypto news found for "${searchTerm}"` : 'No crypto news available'}
+              </div>
+            )}
+          </div>
         </TabsContent>
 
-        <TabsContent value="stocks" className="space-y-3 mt-4">
-          {isLoading ? (
-            <div className="text-center text-muted-foreground py-8">
-              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-              Loading market news...
-            </div>
-          ) : filteredStocksNews.length > 0 ? (
-            filteredStocksNews.map((item, index) => (
-              <NewsCard key={index} item={item} />
-            ))
-          ) : (
-            <div className="text-center text-muted-foreground py-4">
-              {searchTerm ? `No market news found for "${searchTerm}"` : 'No market news available'}
-            </div>
-          )}
+        <TabsContent value="stocks" className="mt-4">
+          <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2">
+            {isLoading ? (
+              <div className="text-center text-muted-foreground py-8">
+                <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+                Loading market news...
+              </div>
+            ) : filteredStocksNews.length > 0 ? (
+              filteredStocksNews.map((item, index) => (
+                <NewsCard key={index} item={item} />
+              ))
+            ) : (
+              <div className="text-center text-muted-foreground py-4">
+                {searchTerm ? `No market news found for "${searchTerm}"` : 'No market news available'}
+              </div>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

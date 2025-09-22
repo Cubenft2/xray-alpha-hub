@@ -119,7 +119,7 @@ const Index = () => {
         {/* News Section - Full nav width */}
         <div className="w-full mb-6">
           <div className="container mx-auto">
-            <NewsSection searchTerm={searchTerm} />
+            <NewsSection searchTerm={searchTerm} defaultTab="crypto" />
           </div>
         </div>
 
