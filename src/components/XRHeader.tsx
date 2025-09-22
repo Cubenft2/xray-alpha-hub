@@ -67,7 +67,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 />
               </div>
               <span className="text-xs text-muted-foreground hidden sm:block font-mono">
-                Powered by XRay Dog 🐕
+                Powered by XRay Dog
               </span>
               <div className="flex items-center space-x-1 sm:hidden">
                 <span className="text-lg xr-pixel-text animate-radioactive-glow">
@@ -139,7 +139,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               <div className="flex items-center space-x-3">
                 <div>
                   <span className="text-xl xr-pixel-text">XRayCrypto™</span>
-                  <p className="text-xs text-muted-foreground font-mono">Powered by XRay Dog 🐕</p>
+                  <p className="text-xs text-muted-foreground font-mono">Powered by XRay Dog</p>
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={closeMobileMenu}>
