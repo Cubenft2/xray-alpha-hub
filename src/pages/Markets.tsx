@@ -34,7 +34,7 @@ export default function Markets() {
           <p className="text-muted-foreground">Real-time stock market data and analysis</p>
         </div>
 
-        <TradingViewChart symbol={chartSymbol} height="500px" />
+        <TradingViewChart symbol={chartSymbol} height="700px" />
         
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <StocksScreener />

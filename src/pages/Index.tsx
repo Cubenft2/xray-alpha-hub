@@ -52,7 +52,7 @@ const Index = () => {
 
           {/* Main Chart - Full width and taller */}
           <div className="w-full mb-6">
-            <TradingViewChart symbol={chartSymbol} height="600px" />
+            <TradingViewChart symbol={chartSymbol} height="700px" />
           </div>
 
           {/* News Section - Full width */}
