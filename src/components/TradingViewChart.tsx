@@ -37,71 +37,91 @@ export function TradingViewChart({
     // Clear previous widget
     containerRef.current.innerHTML = '';
 
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.async = true;
-    
-    // Simplified, valid configuration
-    const config = {
-      allow_symbol_change: allowSymbolChange,
-      calendar: false,
-      details: true,
-      hide_side_toolbar: hideSideToolbar,
-      hide_top_toolbar: hideTopToolbar,
-      hide_legend: false,
-      hide_volume: false,
-      hotlist: true,
-      interval: interval,
-      locale: "en",
-      save_image: true,
-      style: style,
-      symbol: symbol,
-      theme: theme === 'dark' ? 'dark' : 'light',
-      timezone: "Etc/UTC",
-      watchlist: [],
-      withdateranges: true,
-      studies: studies,
-      autosize: true,
-      enable_publishing: true,
-      show_popup_button: true,
-      popup_height: "650",
-      popup_width: "1000"
-    };
+    // Add a slight delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      if (!containerRef.current) return;
 
-    script.innerHTML = JSON.stringify(config);
+      const script = document.createElement('script');
+      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+      script.async = true;
+      script.type = 'text/javascript';
+      
+      // Simplified, valid configuration
+      const config = {
+        allow_symbol_change: allowSymbolChange,
+        calendar: false,
+        details: true,
+        hide_side_toolbar: hideSideToolbar,
+        hide_top_toolbar: hideTopToolbar,
+        hide_legend: false,
+        hide_volume: false,
+        hotlist: true,
+        interval: interval,
+        locale: "en",
+        save_image: true,
+        style: style,
+        symbol: symbol,
+        theme: theme === 'dark' ? 'dark' : 'light',
+        timezone: "Etc/UTC",
+        watchlist: [],
+        withdateranges: true,
+        studies: studies,
+        autosize: true,
+        enable_publishing: true,
+        show_popup_button: true,
+        popup_height: "650",
+        popup_width: "1000"
+      };
 
-    // Create widget container structure
-    const widgetContainer = document.createElement('div');
-    widgetContainer.className = 'tradingview-widget-container';
-    widgetContainer.style.height = '100%';
-    widgetContainer.style.width = '100%';
+      script.innerHTML = JSON.stringify(config);
 
-    const widgetDiv = document.createElement('div');
-    widgetDiv.className = 'tradingview-widget-container__widget';
-    widgetDiv.style.height = 'calc(100% - 32px)';
-    widgetDiv.style.width = '100%';
+      // Create widget container structure
+      const widgetContainer = document.createElement('div');
+      widgetContainer.className = 'tradingview-widget-container';
+      widgetContainer.style.height = '100%';
+      widgetContainer.style.width = '100%';
 
-    const copyrightDiv = document.createElement('div');
-    copyrightDiv.className = 'tradingview-widget-copyright';
-    copyrightDiv.innerHTML = `<a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Track all markets</span></a><span class="trademark"> on TradingView</span>`;
+      const widgetDiv = document.createElement('div');
+      widgetDiv.className = 'tradingview-widget-container__widget';
+      widgetDiv.style.height = 'calc(100% - 32px)';
+      widgetDiv.style.width = '100%';
 
-    // Add load event listener to hide loading
-    script.onload = () => {
-      setTimeout(() => setIsLoading(false), 1000); // Give widget time to render
-    };
-    
-    script.onerror = () => {
-      setIsLoading(false);
-      console.error('TradingView widget failed to load');
-    };
+      const copyrightDiv = document.createElement('div');
+      copyrightDiv.className = 'tradingview-widget-copyright';
+      copyrightDiv.innerHTML = `<a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Track all markets</span></a><span class="trademark"> on TradingView</span>`;
 
-    widgetContainer.appendChild(widgetDiv);
-    widgetContainer.appendChild(copyrightDiv);
-    widgetContainer.appendChild(script);
+      // Better loading state management
+      script.onload = () => {
+        // Wait for the widget to fully initialize
+        const checkWidget = setInterval(() => {
+          const iframe = widgetDiv.querySelector('iframe');
+          if (iframe && iframe.contentDocument) {
+            clearInterval(checkWidget);
+            setTimeout(() => setIsLoading(false), 500);
+          }
+        }, 100);
+        
+        // Fallback timeout
+        setTimeout(() => {
+          clearInterval(checkWidget);
+          setIsLoading(false);
+        }, 3000);
+      };
+      
+      script.onerror = () => {
+        setIsLoading(false);
+        console.error('TradingView widget failed to load');
+      };
 
-    containerRef.current.appendChild(widgetContainer);
+      widgetContainer.appendChild(widgetDiv);
+      widgetContainer.appendChild(copyrightDiv);
+      widgetContainer.appendChild(script);
+
+      containerRef.current.appendChild(widgetContainer);
+    }, 100);
 
     return () => {
+      clearTimeout(timer);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
