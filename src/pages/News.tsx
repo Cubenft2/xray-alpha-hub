@@ -3,6 +3,7 @@ import { XRHeader } from '@/components/XRHeader';
 import { XRTicker } from '@/components/XRTicker';
 import { XRFooter } from '@/components/XRFooter';
 import { NewsSection } from '@/components/NewsSection';
+import { LiveNewsStreams } from '@/components/LiveNewsStreams';
 
 export default function News() {
   return (
@@ -10,12 +11,13 @@ export default function News() {
       <XRHeader currentPage="news" />
       <XRTicker type="crypto" />
       
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-4 py-6 space-y-8">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold xr-gradient-text">📰 Financial News</h1>
-          <p className="text-muted-foreground">Latest cryptocurrency and market news</p>
+          <h1 className="text-3xl font-bold xr-gradient-text">📰 Financial News Hub</h1>
+          <p className="text-muted-foreground">Live streams and latest cryptocurrency & market news</p>
         </div>
         
+        <LiveNewsStreams />
         <NewsSection />
       </main>
       
