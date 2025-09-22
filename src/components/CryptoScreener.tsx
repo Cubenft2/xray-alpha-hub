@@ -20,18 +20,14 @@ export function CryptoScreener() {
       script.async = true;
 
       const config = {
-        width: '100%',
-        height: '600',
         defaultColumn: 'overview',
-        defaultScreen: 'general',
-        market: 'crypto',
-        showToolbar: true,
+        screener_type: 'crypto_mkt',
+        displayCurrency: 'USD',
         colorTheme: theme === 'dark' ? 'dark' : 'light',
-        locale: 'en',
         isTransparent: false,
-        largeChartUrl: '',
-        // Add unique container ID for crypto
-        container_id: 'crypto-screener-widget'
+        locale: 'en',
+        width: '100%',
+        height: 550
       };
 
       script.innerHTML = JSON.stringify(config);
