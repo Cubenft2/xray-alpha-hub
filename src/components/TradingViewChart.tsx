@@ -150,20 +150,10 @@ export function TradingViewChart({
 
   return (
     <div
-      className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''} ${className}`}
-      style={{ height: isFullscreen ? '100vh' : height, width: isFullscreen ? '100vw' : '100%' }}
+      className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-background p-2' : ''} ${className}`}
+      style={{ height: isFullscreen ? '100vh' : height, width: '100%' }}
     >
-      {isFullscreen && (
-        <style>
-          {`
-            body { overflow: hidden; }
-            @media (max-width: 768px) and (orientation: portrait) {
-              body { transform: rotate(90deg); transform-origin: center center; width: 100vh; height: 100vw; position: fixed; top: 0; left: 0; }
-            }
-          `}
-        </style>
-      )}
-      <div className={`absolute ${isFullscreen ? 'top-4 right-4' : 'top-2 right-2'} z-20 flex gap-2`}>
+      <div className="absolute top-2 right-2 z-20 flex gap-2">
         <Button
           size="sm"
           variant="secondary"
@@ -197,11 +187,7 @@ export function TradingViewChart({
       <div 
         ref={containerRef} 
         className="tradingview-chart-container"
-        style={{ 
-          height: isFullscreen ? '100vh' : height, 
-          width: isFullscreen ? '100vw' : '100%',
-          paddingTop: isFullscreen ? '60px' : '0'
-        }}
+        style={{ height: isFullscreen ? 'calc(100vh - 16px)' : height, width: '100%' }}
       />
     </div>
   );
