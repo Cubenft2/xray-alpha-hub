@@ -5,7 +5,16 @@
 /* XRayCrypto™ Design System - XRay Dog's Pixel Vision Dashboard */
 
 @layer base {
+  * {
+    font-feature-settings: "kern" 0;
+    text-rendering: optimizeSpeed;
+  }
+
   :root {
+    /* Pixel Fonts */
+    --font-pixel: 'Orbitron', 'Space Mono', monospace;
+    --font-mono: 'Space Mono', monospace;
+    
     /* Core Theme Colors - XRay Dog Palette */
     --background: 51 100% 98%; /* Light yellow tint */
     --foreground: 0 0% 5%; /* Deep black like dog's features */
@@ -135,12 +144,18 @@
     --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -4px hsl(0 0% 0% / 0.4);
     --shadow-pixel: 2px 2px 0px hsl(51 100% 50% / 0.3), 4px 4px 0px hsl(194 100% 50% / 0.2);
   }
+  
+  body {
+    font-family: var(--font-pixel);
+    font-feature-settings: "kern" 0;
+    text-rendering: optimizeSpeed;
+  }
 }
 
 @layer components {
   /* XRay Dog Component Styles */
   .xr-card {
-    @apply bg-card text-card-foreground border border-border rounded-lg shadow-sm;
+    @apply bg-card text-card-foreground border border-border rounded-lg shadow-sm font-pixel;
     background: var(--gradient-card);
     box-shadow: var(--shadow-card);
   }
@@ -151,7 +166,7 @@
   }
 
   .xr-card-pixel {
-    @apply xr-card;
+    @apply xr-card font-pixel;
     box-shadow: var(--shadow-pixel);
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
@@ -175,11 +190,27 @@
   }
 
   .xr-gradient-text {
-    @apply text-primary font-bold;
+    @apply text-primary font-black font-pixel;
+    text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.1);
+    letter-spacing: 0.05em;
   }
 
   .xr-pixel-text {
-    @apply text-foreground font-bold;
+    @apply text-foreground font-black font-pixel;
+    text-shadow: 1px 1px 0px rgba(0, 0, 0, 0.1);
+    letter-spacing: 0.05em;
+  }
+
+  .xr-pixel-title {
+    @apply font-black font-pixel text-primary;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .xr-nav-text {
+    @apply font-bold font-pixel;
+    letter-spacing: 0.05em;
   }
 
   /* XRay Dog Animations */

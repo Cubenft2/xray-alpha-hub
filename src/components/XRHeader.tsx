@@ -52,13 +52,13 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
               <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary rounded-full animate-pulse opacity-90"></div>
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-bold text-foreground hidden sm:block leading-tight">
+              <span className="text-xl xr-pixel-text hidden sm:block leading-tight">
                 XRayCrypto™
               </span>
-              <span className="text-xs text-muted-foreground hidden sm:block font-medium">
+              <span className="text-xs text-muted-foreground hidden sm:block font-mono">
                 Powered by XRay Dog 🐕
               </span>
-              <span className="text-lg font-bold text-foreground sm:hidden">
+              <span className="text-lg xr-pixel-text sm:hidden">
                 XR™
               </span>
             </div>
@@ -68,10 +68,10 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
           <nav className="hidden lg:flex items-center space-x-6">
             {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
-                <Button
-                  variant={location.pathname === item.href ? "default" : "ghost"}
-                  className={location.pathname === item.href ? "btn-hero" : ""}
-                >
+                  <Button
+                    variant={location.pathname === item.href ? "default" : "ghost"}
+                    className={`xr-nav-text ${location.pathname === item.href ? "btn-hero" : ""}`}
+                  >
                   <span className="mr-1">{item.icon}</span>
                   {item.name === 'Support' ? (
                     <Heart className="w-4 h-4 animate-wiggle" />
@@ -124,8 +124,8 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
                   style={{ imageRendering: 'pixelated' }}
                 />
                 <div>
-                  <span className="text-xl font-bold text-foreground">XRayCrypto™</span>
-                  <p className="text-xs text-muted-foreground">Powered by XRay Dog 🐕</p>
+                  <span className="text-xl xr-pixel-text">XRayCrypto™</span>
+                  <p className="text-xs text-muted-foreground font-mono">Powered by XRay Dog 🐕</p>
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={closeMobileMenu}>
@@ -138,7 +138,7 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
                 <Link key={item.name} to={item.href} onClick={closeMobileMenu}>
                   <Button
                     variant={location.pathname === item.href ? "default" : "ghost"}
-                    className={`w-full justify-start ${location.pathname === item.href ? "btn-hero" : ""}`}
+                    className={`w-full justify-start xr-nav-text ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
                     <span className="mr-2">{item.icon}</span>
                     {item.name}

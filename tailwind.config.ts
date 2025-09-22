@@ -13,6 +13,11 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        'pixel': ['Orbitron', 'Space Mono', 'monospace'],
+        'mono': ['Space Mono', 'monospace'],
+        'sans': ['Orbitron', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

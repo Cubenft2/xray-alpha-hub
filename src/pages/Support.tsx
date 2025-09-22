@@ -44,8 +44,8 @@ export default function Support() {
       
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold xr-gradient-text">❤️ Support XRayCrypto</h1>
-          <p className="text-muted-foreground">Help keep the lights on and the data flowing</p>
+          <h1 className="text-3xl xr-pixel-title">❤️ Support XRayCrypto</h1>
+          <p className="text-muted-foreground font-mono">Help keep the lights on and the data flowing</p>
         </div>
 
         <div className="max-w-2xl mx-auto">
@@ -58,7 +58,7 @@ export default function Support() {
                   className="w-full h-full object-cover"
                 />
               </div>
-              <CardTitle className="text-xl">Woof! Support the Pack</CardTitle>
+              <CardTitle className="text-xl xr-pixel-text">Woof! Support the Pack</CardTitle>
               <p className="text-muted-foreground">
                 Your donations help maintain servers, data feeds, and keep XRayCrypto free for everyone!
               </p>
@@ -66,7 +66,7 @@ export default function Support() {
             
             <CardContent className="space-y-6">
               <div className="space-y-4">
-                <h3 className="font-semibold flex items-center">
+                <h3 className="xr-nav-text flex items-center">
                   <Wallet className="w-4 h-4 mr-2" />
                   Tip Wallets
                 </h3>
@@ -76,7 +76,7 @@ export default function Support() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center space-x-2">
                         {wallet.icon}
-                        <span className="font-medium">{wallet.currency}</span>
+                        <span className="xr-nav-text">{wallet.currency}</span>
                         <Badge variant="outline">{wallet.symbol}</Badge>
                       </div>
                     </div>
