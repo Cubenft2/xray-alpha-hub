@@ -55,15 +55,6 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
             className={`flex items-center space-x-3 cursor-pointer group ${isLogoShaking ? 'xr-woof-shake' : ''}`}
             onClick={handleLogoClick}
           >
-            <div className="relative">
-              <img 
-                src="/xray-dog.png" 
-                alt="XRay Dog - The Pixel Crypto Mascot" 
-                className="w-9 h-9 rounded-md transition-transform duration-300 group-hover:scale-105"
-                style={{ imageRendering: 'pixelated' }}
-              />
-              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary rounded-full animate-pulse opacity-90"></div>
-            </div>
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <span className="text-xl xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
@@ -146,12 +137,6 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           <div className="mobile-nav p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
-                <img 
-                  src="/xray-dog.png" 
-                  alt="XRay Dog - The Pixel Crypto Mascot" 
-                  className="w-9 h-9 rounded-md"
-                  style={{ imageRendering: 'pixelated' }}
-                />
                 <div>
                   <span className="text-xl xr-pixel-text">XRayCrypto™</span>
                   <p className="text-xs text-muted-foreground font-mono">Powered by XRay Dog 🐕</p>
