@@ -163,46 +163,70 @@ export function TradingViewChart({
 
 
   const chart = (
-    <div
-      className={`relative ${isFullscreen ? 'fixed inset-0 z-[9999] bg-background' : ''} ${className}`}
-      style={{ height: isFullscreen ? '100vh' : height, width: isFullscreen ? '100vw' : '100%' }}
-    >
-      <div className={`absolute top-4 right-4 z-[10000] flex gap-2 ${isFullscreen ? 'fixed' : ''}`}>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => setIsFullscreen((f) => !f)}
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-        >
-          {isFullscreen ? '✕ Close' : '⛶ Expand'}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => setReloadToken((t) => t + 1)}
-          aria-label="Reload chart"
-        >
-          ↻ Reload
-        </Button>
-      </div>
-      {isLoading && (
-        <div className="absolute inset-0 z-10 bg-background/50 backdrop-blur-sm flex items-center justify-center">
-          <div className="space-y-4 w-full max-w-md px-4">
-            <Skeleton className="h-8 w-3/4 mx-auto" />
-            <Skeleton className="h-64 w-full" />
-            <div className="flex space-x-2">
-              <Skeleton className="h-10 w-20" />
-              <Skeleton className="h-10 w-20" />
-              <Skeleton className="h-10 w-20" />
-            </div>
-          </div>
+    <div className={`${isFullscreen ? 'fixed inset-0 z-[9999] bg-background' : ''} ${className}`}>
+      {!isFullscreen && (
+        <div className="flex justify-end gap-2 mb-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setIsFullscreen((f) => !f)}
+            aria-label="Enter fullscreen"
+          >
+            ⛶ Expand
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setReloadToken((t) => t + 1)}
+            aria-label="Reload chart"
+          >
+            ↻ Reload
+          </Button>
         </div>
       )}
-      <div 
-        ref={containerRef} 
-        className="tradingview-chart-container w-full h-full"
+      {isFullscreen && (
+        <div className="fixed top-4 right-4 z-[10000] flex gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setIsFullscreen((f) => !f)}
+            aria-label="Exit fullscreen"
+          >
+            ✕ Close
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setReloadToken((t) => t + 1)}
+            aria-label="Reload chart"
+          >
+            ↻ Reload
+          </Button>
+        </div>
+      )}
+      <div
+        className="relative"
         style={{ height: isFullscreen ? '100vh' : height, width: isFullscreen ? '100vw' : '100%' }}
-      />
+      >
+        {isLoading && (
+          <div className="absolute inset-0 z-10 bg-background/50 backdrop-blur-sm flex items-center justify-center">
+            <div className="space-y-4 w-full max-w-md px-4">
+              <Skeleton className="h-8 w-3/4 mx-auto" />
+              <Skeleton className="h-64 w-full" />
+              <div className="flex space-x-2">
+                <Skeleton className="h-10 w-20" />
+                <Skeleton className="h-10 w-20" />
+                <Skeleton className="h-10 w-20" />
+              </div>
+            </div>
+          </div>
+        )}
+        <div 
+          ref={containerRef} 
+          className="tradingview-chart-container w-full h-full"
+          style={{ height: isFullscreen ? '100vh' : height, width: isFullscreen ? '100vw' : '100%' }}
+        />
+      </div>
     </div>
   );
 
