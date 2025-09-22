@@ -28,13 +28,13 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   };
 
   const navigation = [
-    { name: 'MarketBrief', href: '/', icon: '📊' },
+    { name: 'Brief', href: '/', icon: '📊' },
     { name: 'Crypto', href: '/crypto', icon: '🚀' },
     { name: 'Markets', href: '/markets', icon: '📈' },
-    { name: 'Watchlist', href: '/watchlist', icon: '👀' },
+    { name: 'Watch', href: '/watchlist', icon: '👀' },
     { name: 'News', href: '/news', icon: '📰' },
     { name: 'Store', href: '/store', icon: '🛍️' },
-    { name: 'ChillZone', href: '/chill', icon: '🎵' },
+    { name: 'Chill', href: '/chill', icon: '🎵' },
     { name: 'Support', href: '/support', icon: '❤️' },
   ];
 
