@@ -43,7 +43,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   return (
     <>
       <header className="xr-header">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        <div className="container mx-auto flex h-16 items-center justify-between">
           {/* XRay Dog Logo & Brand */}
           <Link 
             to="/"

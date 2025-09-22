@@ -53,7 +53,7 @@ export default function MarketBrief() {
       <XRHeader currentPage="market-brief" />
       <XRTicker type="stocks" />
       
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto py-6 space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold xr-gradient-text">📊 Market Brief</h1>
           <p className="text-muted-foreground">Quick overview of today's market performance</p>

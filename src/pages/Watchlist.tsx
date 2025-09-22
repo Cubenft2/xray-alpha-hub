@@ -16,7 +16,7 @@ export default function Watchlist() {
       <XRHeader currentPage="watchlist" onSearch={handleSearch} />
       <XRTicker type="crypto" />
       
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto py-6">
         <WatchlistManager />
       </main>
       

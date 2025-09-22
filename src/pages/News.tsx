@@ -11,7 +11,7 @@ export default function News() {
       <XRHeader currentPage="news" />
       <XRTicker type="crypto" />
       
-      <main className="container mx-auto px-4 py-6 space-y-8">
+      <main className="container mx-auto py-6 space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold xr-gradient-text">📰 Financial News Hub</h1>
           <p className="text-muted-foreground">Live streams and latest cryptocurrency & market news</p>

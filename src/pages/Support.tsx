@@ -42,7 +42,7 @@ export default function Support() {
       <XRHeader currentPage="support" />
       <XRTicker type="crypto" />
       
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto py-6 space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-3xl xr-pixel-title">❤️ Support XRayCrypto</h1>
           <p className="text-muted-foreground font-mono">Help keep the lights on and the data flowing</p>

@@ -146,7 +146,7 @@ export default function MarketBriefHome() {
       <div className="min-h-screen bg-background">
         <XRHeader currentPage="market-brief" />
         <XRTicker type="stocks" />
-        <main className="container mx-auto px-4 py-6">
+        <main className="container mx-auto py-6">
           <div className="max-w-4xl mx-auto">
             <Card className="xr-card">
               <CardContent className="p-8 text-center">
@@ -170,7 +170,7 @@ export default function MarketBriefHome() {
       <div className="min-h-screen bg-background">
         <XRHeader currentPage="market-brief" />
         <XRTicker type="stocks" />
-        <main className="container mx-auto px-4 py-6">
+        <main className="container mx-auto py-6">
           <div className="max-w-4xl mx-auto">
             <Card className="xr-card">
               <CardContent className="p-8 text-center">
@@ -190,7 +190,7 @@ export default function MarketBriefHome() {
       <XRHeader currentPage="market-brief" />
       <XRTicker type="stocks" />
       
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto py-6">
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header Section */}
           <div className="flex items-center justify-between flex-wrap gap-4">

@@ -7,7 +7,7 @@ export default function ChillZone() {
   return (
     <div className="min-h-screen bg-background">
       <XRHeader currentPage="chill" />
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto py-8">
         <ChillZoneComponent />
       </main>
       <XRFooter />

@@ -12,7 +12,7 @@ export default function Store() {
       <XRHeader currentPage="store" />
       <XRTicker type="crypto" />
       
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto py-6 space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold xr-gradient-text">🛍️ XRay Store</h1>
           <p className="text-muted-foreground">Premium tools and NFTs coming soon</p>
