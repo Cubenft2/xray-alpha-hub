@@ -28,14 +28,14 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   };
 
   const navigation = [
-    { name: 'Home', href: '/', icon: '📊' },
-    { name: 'Crypto', href: '/crypto', icon: '🚀' },
-    { name: 'Stocks', href: '/markets', icon: '📈' },
-    { name: 'Watch', href: '/watchlist', icon: '👀' },
-    { name: 'News', href: '/news', icon: '📰' },
-    { name: 'Store', href: '/store', icon: '🛍️' },
-    { name: 'Chill', href: '/chill', icon: '🎵' },
-    { name: '❤️', href: '/support', icon: '❤️' },
+    { name: 'Home', href: '/' },
+    { name: 'Crypto', href: '/crypto' },
+    { name: 'Stocks', href: '/markets' },
+    { name: 'Watch', href: '/watchlist' },
+    { name: 'News', href: '/news' },
+    { name: 'Store', href: '/store' },
+    { name: 'Chill', href: '/chill' },
+    { name: 'Support', href: '/support' },
   ];
 
   const handleLogoClick = () => {
@@ -99,7 +99,6 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                     variant={location.pathname === item.href ? "default" : "ghost"}
                     className={`xr-nav-text ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
-                  <span className="mr-1">{item.icon}</span>
                   {item.href === '/support' ? (
                     <Heart className="w-4 h-4 animate-wiggle" />
                   ) : (
@@ -170,7 +169,6 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                     variant={location.pathname === item.href ? "default" : "ghost"}
                     className={`w-full justify-start xr-nav-text ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
-                    <span className="mr-2">{item.icon}</span>
                     {item.name}
                     {item.href === '/support' && <Heart className="ml-auto w-4 h-4 animate-wiggle" />}
                   </Button>
