@@ -147,6 +147,19 @@ export function TradingViewChart({
     };
   }, [symbol, theme, interval, style, hideTopToolbar, hideSideToolbar, allowSymbolChange, isFullscreen, reloadToken]);
 
+  // Lock body scroll when fullscreen to avoid background interaction
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    if (isFullscreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = prevOverflow || '';
+    }
+    return () => {
+      document.body.style.overflow = prevOverflow || '';
+    };
+  }, [isFullscreen]);
+
 
   return (
     <div
