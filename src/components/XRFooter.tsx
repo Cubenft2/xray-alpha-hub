@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Heart, ExternalLink } from 'lucide-react';
 
 export function XRFooter() {
   const currentYear = new Date().getFullYear();
+  const navigate = useNavigate();
 
   return (
     <footer className="border-t border-border bg-card/50 mt-8">
@@ -38,12 +40,10 @@ export function XRFooter() {
             variant="default"
             size="sm"
             className="animate-wiggle hover:animate-none"
-            onClick={() => {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onClick={() => navigate('/support')}
           >
             <Heart className="w-4 h-4 mr-2 text-red-500" />
-            Support XRay Dog
+            Buy Me a Treat 🦴
           </Button>
         </div>
 
