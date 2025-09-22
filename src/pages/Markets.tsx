@@ -77,20 +77,39 @@ export default function Markets() {
       <XRHeader currentPage="markets" onSearch={handleSearch} />
       <XRTicker type="stocks" />
       
-      <main className="container mx-auto py-6 space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold xr-gradient-text">📈 Stock Markets</h1>
-          <p className="text-muted-foreground">Real-time stock market data and analysis</p>
+      <main className="py-6 space-y-6">
+        <div className="w-full">
+          <div className="container mx-auto">
+            <div className="text-center space-y-2">
+              <h1 className="text-3xl font-bold xr-gradient-text">📈 Stock Markets</h1>
+              <p className="text-muted-foreground">Real-time stock market data and analysis</p>
+            </div>
+          </div>
         </div>
 
-        <TradingViewChart symbol={chartSymbol} height="700px" />
-        
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          <StocksScreener />
-          <StocksHeatmap />
+        {/* Chart with exact nav width */}
+        <div className="w-full">
+          <div className="container mx-auto">
+            <TradingViewChart symbol={chartSymbol} height="700px" />
+          </div>
         </div>
         
-        <NewsSection searchTerm={searchTerm} />
+        {/* Widgets with exact nav width */}
+        <div className="w-full">
+          <div className="container mx-auto">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <StocksScreener />
+              <StocksHeatmap />
+            </div>
+          </div>
+        </div>
+        
+        {/* News with exact nav width */}
+        <div className="w-full">
+          <div className="container mx-auto">
+            <NewsSection searchTerm={searchTerm} />
+          </div>
+        </div>
       </main>
       
       <XRFooter />

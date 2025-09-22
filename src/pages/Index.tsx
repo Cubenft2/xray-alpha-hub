@@ -91,39 +91,51 @@ const Index = () => {
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto py-6">
-        <div className="space-y-6">
-          {/* Hero Section */}
-          <div className="text-center py-8">
-            <h1 className="text-4xl sm:text-5xl font-bold xr-gradient-text mb-4">
-              Welcome to XRayCrypto™
-            </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Your ultimate crypto & stocks dashboard. Real-time charts, live news, 
-              and community support - all in one place! 🐕
-            </p>
+      <main className="py-6">
+        <div className="w-full">
+          <div className="container mx-auto">
+            <div className="space-y-6">
+              {/* Hero Section */}
+              <div className="text-center py-8">
+                <h1 className="text-4xl sm:text-5xl font-bold xr-gradient-text mb-4">
+                  Welcome to XRayCrypto™
+                </h1>
+                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                  Your ultimate crypto & stocks dashboard. Real-time charts, live news, 
+                  and community support - all in one place! 🐕
+                </p>
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* Main Chart - Full width and taller */}
-          <div className="w-full mb-6">
+        {/* Main Chart - Full nav width */}
+        <div className="w-full mb-6">
+          <div className="container mx-auto">
             <TradingViewChart symbol={chartSymbol} height="700px" />
           </div>
+        </div>
 
-          {/* News Section - Full width */}
-          <div className="w-full mb-6">
+        {/* News Section - Full nav width */}
+        <div className="w-full mb-6">
+          <div className="container mx-auto">
             <NewsSection searchTerm={searchTerm} />
           </div>
+        </div>
 
-          {/* Dashboard Grid */}
-          <div className="grid grid-cols-1 gap-6">
-            {/* Crypto Screener - Full width */}
-            <div>
-              <CryptoScreener />
-            </div>
+        {/* Dashboard Grid - Full nav width */}
+        <div className="w-full">
+          <div className="container mx-auto">
+            <div className="grid grid-cols-1 gap-6">
+              {/* Crypto Screener - Full width */}
+              <div>
+                <CryptoScreener />
+              </div>
 
-            {/* Crypto Heatmap - Full width */}
-            <div>
-              <CryptoHeatmap />
+              {/* Crypto Heatmap - Full width */}
+              <div>
+                <CryptoHeatmap />
+              </div>
             </div>
           </div>
         </div>
