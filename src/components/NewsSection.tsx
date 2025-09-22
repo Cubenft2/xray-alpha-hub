@@ -89,37 +89,36 @@ export function NewsSection() {
           const data = await response.json();
           console.log('🐕 XRay: Worker response:', data);
           
-          // Handle the worker response format (expecting { top: [...] } structure)
-          const newsItems = data.top || data || [];
-          
-          // Separate crypto and stocks news from worker response
-          const cryptoItems = newsItems.filter((item: any) => 
-            item.source?.toLowerCase().includes('crypto') ||
-            item.source?.toLowerCase().includes('coin') ||
-            item.title?.toLowerCase().includes('bitcoin') ||
-            item.title?.toLowerCase().includes('ethereum') ||
-            item.title?.toLowerCase().includes('crypto') ||
-            item.title?.toLowerCase().includes('btc') ||
-            item.title?.toLowerCase().includes('eth')
-          ).slice(0, 5);
-          
-          const stocksItems = newsItems.filter((item: any) => 
-            item.source?.toLowerCase().includes('bloomberg') ||
-            item.source?.toLowerCase().includes('reuters') ||
-            item.source?.toLowerCase().includes('marketwatch') ||
-            item.title?.toLowerCase().includes('stock') ||
-            item.title?.toLowerCase().includes('market') ||
-            item.title?.toLowerCase().includes('fed') ||
-            item.title?.toLowerCase().includes('nasdaq') ||
-            item.title?.toLowerCase().includes('s&p')
-          ).slice(0, 5);
-          
-          if (cryptoItems.length > 0 || stocksItems.length > 0) {
+          // Normalize to our NewsItem shape
+          const raw = Array.isArray(data.top) ? data.top : Array.isArray(data.latest) ? data.latest : [];
+          const normalized: NewsItem[] = raw.map((it: any) => {
+            const url = it.link || it.url || '';
+            let source = it.source || '';
+            if (!source && url) {
+              try { source = new URL(url).hostname.replace(/^www\./,''); } catch {}
+            }
+            return {
+              title: it.title || it.headline || 'Untitled',
+              description: it.description || '',
+              url,
+              publishedAt: it.date ? new Date(it.date).toISOString() : new Date().toISOString(),
+              source: source || 'news'
+            } as NewsItem;
+          });
+
+          // Categorize by source host
+          const isCryptoHost = (host: string) => /coindesk|cointelegraph|theblock|decrypt|messari|chain\.link|cryptoslate|bitcoinmagazine|blockworks|thedefiant|protos|ambcrypto|beincrypto|coingape|coinpedia|cryptopotato/i.test(host || '');
+          const isStocksHost = (host: string) => /reuters|cnbc|foxbusiness|apnews|finance\.yahoo|ft\.com|cnn|nytimes|marketwatch|moneycontrol|theguardian|bbc|bbci/i.test(host || '');
+
+          const cryptoItems = normalized.filter(n => isCryptoHost(n.source) || /bitcoin|ethereum|crypto|btc|eth|solana/i.test(n.title)).slice(0,5);
+          const stocksItems = normalized.filter(n => isStocksHost(n.source) || /stocks?|market|fed|nasdaq|s&p|dow/i.test(n.title)).slice(0,5);
+
+          if (normalized.length > 0) {
             console.log('🐕 XRay: Using live news data');
-            setCryptoNews(cryptoItems.length > 0 ? cryptoItems : mockCryptoNews);
-            setStocksNews(stocksItems.length > 0 ? stocksItems : mockStocksNews);
+            setCryptoNews(cryptoItems.length > 0 ? cryptoItems : normalized.slice(0,5));
+            setStocksNews(stocksItems.length > 0 ? stocksItems : normalized.slice(5,10));
           } else {
-            console.log('🐕 XRay: No relevant news found, using mock data');
+            console.log('🐕 XRay: No items from worker, using mock data');
             setCryptoNews(mockCryptoNews);
             setStocksNews(mockStocksNews);
           }
@@ -181,8 +180,7 @@ export function NewsSection() {
       </div>
       <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-primary">{item.source}</span>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => item.url && window.open(item.url, '_blank', 'noopener') }>
           Read More
         </Button>
       </div>
