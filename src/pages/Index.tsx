@@ -22,6 +22,60 @@ const Index = () => {
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
+    
+    // Convert search term to TradingView symbol format
+    if (term.length >= 2) {
+      const upperTerm = term.toUpperCase();
+      let newSymbol = '';
+      
+      // Map common crypto symbols to TradingView format
+      const cryptoMappings: { [key: string]: string } = {
+        'BTC': 'BINANCE:BTCUSDT',
+        'BITCOIN': 'BINANCE:BTCUSDT',
+        'ETH': 'BINANCE:ETHUSDT',
+        'ETHEREUM': 'BINANCE:ETHUSDT',
+        'SOL': 'BINANCE:SOLUSDT',
+        'SOLANA': 'BINANCE:SOLUSDT',
+        'ADA': 'BINANCE:ADAUSDT',
+        'CARDANO': 'BINANCE:ADAUSDT',
+        'DOT': 'BINANCE:DOTUSDT',
+        'POLKADOT': 'BINANCE:DOTUSDT',
+        'MATIC': 'BINANCE:MATICUSDT',
+        'POLYGON': 'BINANCE:MATICUSDT',
+        'AVAX': 'BINANCE:AVAXUSDT',
+        'AVALANCHE': 'BINANCE:AVAXUSDT',
+        'LINK': 'BINANCE:LINKUSDT',
+        'CHAINLINK': 'BINANCE:LINKUSDT',
+        'UNI': 'BINANCE:UNIUSDT',
+        'UNISWAP': 'BINANCE:UNIUSDT',
+        'LTC': 'BINANCE:LTCUSDT',
+        'LITECOIN': 'BINANCE:LTCUSDT',
+        'XRP': 'BINANCE:XRPUSDT',
+        'RIPPLE': 'BINANCE:XRPUSDT',
+        'DOGE': 'BINANCE:DOGEUSDT',
+        'DOGECOIN': 'BINANCE:DOGEUSDT',
+      };
+      
+      // Check for exact matches first
+      if (cryptoMappings[upperTerm]) {
+        newSymbol = cryptoMappings[upperTerm];
+      } else {
+        // Try to find partial matches
+        const matchedKey = Object.keys(cryptoMappings).find(key => 
+          key.startsWith(upperTerm) || key.includes(upperTerm)
+        );
+        if (matchedKey) {
+          newSymbol = cryptoMappings[matchedKey];
+        } else {
+          // Default format for unknown symbols
+          newSymbol = `BINANCE:${upperTerm}USDT`;
+        }
+      }
+      
+      if (newSymbol && newSymbol !== chartSymbol) {
+        setChartSymbol(newSymbol);
+      }
+    }
   };
   return (
     <div className="min-h-screen bg-background">

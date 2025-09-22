@@ -22,6 +22,55 @@ export default function Markets() {
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
+    
+    // Convert search term to TradingView symbol format for stocks
+    if (term.length >= 1) {
+      const upperTerm = term.toUpperCase();
+      let newSymbol = '';
+      
+      // Map common stock symbols to TradingView format
+      const stockMappings: { [key: string]: string } = {
+        'SPY': 'AMEX:SPY',
+        'QQQ': 'NASDAQ:QQQ',
+        'IWM': 'AMEX:IWM',
+        'AAPL': 'NASDAQ:AAPL',
+        'APPLE': 'NASDAQ:AAPL',
+        'MSFT': 'NASDAQ:MSFT',
+        'MICROSOFT': 'NASDAQ:MSFT',
+        'GOOGL': 'NASDAQ:GOOGL',
+        'GOOGLE': 'NASDAQ:GOOGL',
+        'AMZN': 'NASDAQ:AMZN',
+        'AMAZON': 'NASDAQ:AMZN',
+        'TSLA': 'NASDAQ:TSLA',
+        'TESLA': 'NASDAQ:TSLA',
+        'NVDA': 'NASDAQ:NVDA',
+        'NVIDIA': 'NASDAQ:NVDA',
+        'META': 'NASDAQ:META',
+        'FACEBOOK': 'NASDAQ:META',
+        'NFLX': 'NASDAQ:NFLX',
+        'NETFLIX': 'NASDAQ:NFLX',
+      };
+      
+      // Check for exact matches first
+      if (stockMappings[upperTerm]) {
+        newSymbol = stockMappings[upperTerm];
+      } else {
+        // Try to find partial matches
+        const matchedKey = Object.keys(stockMappings).find(key => 
+          key.startsWith(upperTerm) || key.includes(upperTerm)
+        );
+        if (matchedKey) {
+          newSymbol = stockMappings[matchedKey];
+        } else {
+          // Default format for unknown symbols - try NASDAQ first
+          newSymbol = `NASDAQ:${upperTerm}`;
+        }
+      }
+      
+      if (newSymbol && newSymbol !== chartSymbol) {
+        setChartSymbol(newSymbol);
+      }
+    }
   };
   return (
     <div className="min-h-screen bg-background">
