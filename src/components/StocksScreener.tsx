@@ -30,7 +30,9 @@ export function StocksScreener() {
         locale: "en",
         colorTheme: theme === 'dark' ? 'dark' : 'light',
         width: "100%",
-        height: 550
+        height: 550,
+        // Add unique container ID for stocks
+        container_id: 'stocks-screener-widget'
       };
 
       script.innerHTML = JSON.stringify(config);

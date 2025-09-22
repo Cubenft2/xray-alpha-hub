@@ -11,26 +11,34 @@ export function CryptoScreener() {
     // Clear any existing widget
     containerRef.current.innerHTML = '';
 
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-screener.js';
-    script.async = true;
+    // Add delay to ensure proper loading and avoid conflicts
+    const timer = setTimeout(() => {
+      if (!containerRef.current) return;
 
-    const config = {
-      width: '100%',
-      height: '500',
-      defaultColumn: 'overview',
-      defaultScreen: 'crypto_mkt_cap_large',
-      market: 'crypto',
-      showToolbar: true,
-      colorTheme: theme === 'dark' ? 'dark' : 'light',
-      locale: 'en',
-      isTransparent: false
-    };
+      const script = document.createElement('script');
+      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-screener.js';
+      script.async = true;
 
-    script.innerHTML = JSON.stringify(config);
-    containerRef.current.appendChild(script);
+      const config = {
+        width: '100%',
+        height: '500',
+        defaultColumn: 'overview',
+        defaultScreen: 'crypto_mkt_cap_large',
+        market: 'crypto',
+        showToolbar: true,
+        colorTheme: theme === 'dark' ? 'dark' : 'light',
+        locale: 'en',
+        isTransparent: false,
+        // Add unique container ID for crypto
+        container_id: 'crypto-screener-widget'
+      };
+
+      script.innerHTML = JSON.stringify(config);
+      containerRef.current.appendChild(script);
+    }, 200);
 
     return () => {
+      clearTimeout(timer);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
