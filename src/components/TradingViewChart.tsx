@@ -106,7 +106,7 @@ export function TradingViewChart({
         containerRef.current.innerHTML = '';
       }
     };
-  }, [symbol, theme, interval, style, hideTopToolbar, hideSideToolbar, allowSymbolChange, studies]);
+  }, [symbol, theme, interval, style, hideTopToolbar, hideSideToolbar, allowSymbolChange]);
 
   return (
     <div className={`relative ${className}`} style={{ height, width: '100%' }}>
