@@ -19,7 +19,12 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
-    onSearch?.(value);
+  };
+
+  const handleSearchSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      onSearch?.(searchTerm);
+    }
   };
 
   const navigation = [
@@ -113,8 +118,9 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 <Input
                   value={searchTerm}
                   onChange={handleSearchChange}
+                  onKeyDown={handleSearchSubmit}
                   placeholder={location.pathname === '/crypto' ? "Search crypto..." : "Search stocks..."}
-                  className="w-32 md:w-48"
+                  className="w-24 md:w-32"
                 />
               </div>
             )}
@@ -179,6 +185,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                   <Input
                     value={searchTerm}
                     onChange={handleSearchChange}
+                    onKeyDown={handleSearchSubmit}
                     placeholder={location.pathname === '/crypto' ? "Search crypto..." : "Search stocks..."}
                     className="flex-1"
                   />
