@@ -324,6 +324,25 @@
     75% { transform: scale(1.1) rotate(2deg); }
   }
 
+  @keyframes radioactive-glow {
+    0%, 100% { 
+      text-shadow: 0 0 5px hsl(var(--primary)), 0 0 10px hsl(var(--primary)), 0 0 15px hsl(var(--primary));
+      color: hsl(var(--primary));
+    }
+    25% { 
+      text-shadow: 0 0 8px hsl(var(--accent)), 0 0 16px hsl(var(--accent)), 0 0 24px hsl(var(--accent));
+      color: hsl(var(--accent));
+    }
+    50% { 
+      text-shadow: 0 0 10px hsl(var(--success)), 0 0 20px hsl(var(--success)), 0 0 30px hsl(var(--success));
+      color: hsl(var(--success));
+    }
+    75% { 
+      text-shadow: 0 0 8px hsl(var(--warning)), 0 0 16px hsl(var(--warning)), 0 0 24px hsl(var(--warning));
+      color: hsl(var(--warning));
+    }
+  }
+
   .animate-pixel-glow {
     animation: pixel-glow 2s ease-in-out infinite alternate;
   }
@@ -334,5 +353,11 @@
 
   .animate-bark {
     animation: bark 0.8s ease-in-out;
+  }
+
+  .animate-radioactive-glow {
+    animation: radioactive-glow 3s ease-in-out infinite;
+    font-weight: 900;
+    letter-spacing: 0.05em;
   }
 }

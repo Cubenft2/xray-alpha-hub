@@ -52,15 +52,29 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
               <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary rounded-full animate-pulse opacity-90"></div>
             </div>
             <div className="flex flex-col">
-              <span className="text-xl xr-pixel-text hidden sm:block leading-tight">
-                XRayCrypto™
-              </span>
+              <div className="flex items-center space-x-2">
+                <span className="text-xl xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
+                  XRayCrypto™
+                </span>
+                <img 
+                  src="/pfp.png" 
+                  alt="XRay Profile" 
+                  className="w-6 h-6 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110"
+                />
+              </div>
               <span className="text-xs text-muted-foreground hidden sm:block font-mono">
                 Powered by XRay Dog 🐕
               </span>
-              <span className="text-lg xr-pixel-text sm:hidden">
-                XR™
-              </span>
+              <div className="flex items-center space-x-1 sm:hidden">
+                <span className="text-lg xr-pixel-text animate-radioactive-glow">
+                  XR™
+                </span>
+                <img 
+                  src="/pfp.png" 
+                  alt="XRay Profile" 
+                  className="w-4 h-4 rounded-full"
+                />
+              </div>
             </div>
           </Link>
 
