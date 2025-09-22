@@ -3,6 +3,7 @@ import { useTheme } from 'next-themes';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 
 interface TradingViewChartProps {
   symbol?: string;
@@ -192,7 +193,7 @@ export function TradingViewChart({
             onClick={() => setIsFullscreen((f) => !f)}
             aria-label="Exit fullscreen"
           >
-            ✕ Close
+            <X size={16} />
           </Button>
           <Button
             size="sm"
