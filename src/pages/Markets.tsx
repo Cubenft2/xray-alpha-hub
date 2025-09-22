@@ -11,6 +11,7 @@ import { NewsSection } from '@/components/NewsSection';
 export default function Markets() {
   const [searchParams] = useSearchParams();
   const [chartSymbol, setChartSymbol] = useState<string>('AMEX:SPY');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const symbolFromUrl = searchParams.get('symbol');
@@ -18,9 +19,13 @@ export default function Markets() {
       setChartSymbol(symbolFromUrl);
     }
   }, [searchParams]);
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+  };
   return (
     <div className="min-h-screen bg-background">
-      <XRHeader currentPage="markets" />
+      <XRHeader currentPage="markets" onSearch={handleSearch} />
       <XRTicker type="stocks" />
       
       <main className="container mx-auto px-4 py-6 space-y-6">

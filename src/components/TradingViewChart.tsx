@@ -164,17 +164,17 @@ export function TradingViewChart({
 
   const chart = (
     <div
-      className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''} ${className}`}
+      className={`relative ${isFullscreen ? 'fixed inset-0 z-[9999] bg-background' : ''} ${className}`}
       style={{ height: isFullscreen ? '100vh' : height, width: isFullscreen ? '100vw' : '100%' }}
     >
-      <div className="absolute top-2 right-2 z-20 flex gap-2">
+      <div className={`absolute top-4 right-4 z-[10000] flex gap-2 ${isFullscreen ? 'fixed' : ''}`}>
         <Button
           size="sm"
           variant="secondary"
           onClick={() => setIsFullscreen((f) => !f)}
           aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
         >
-          {isFullscreen ? 'Close' : 'Expand'}
+          {isFullscreen ? '✕ Close' : '⛶ Expand'}
         </Button>
         <Button
           size="sm"
@@ -182,7 +182,7 @@ export function TradingViewChart({
           onClick={() => setReloadToken((t) => t + 1)}
           aria-label="Reload chart"
         >
-          Reload
+          ↻ Reload
         </Button>
       </div>
       {isLoading && (
@@ -200,7 +200,7 @@ export function TradingViewChart({
       )}
       <div 
         ref={containerRef} 
-        className="tradingview-chart-container"
+        className="tradingview-chart-container w-full h-full"
         style={{ height: isFullscreen ? '100vh' : height, width: isFullscreen ? '100vw' : '100%' }}
       />
     </div>

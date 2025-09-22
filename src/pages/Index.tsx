@@ -11,6 +11,7 @@ import { NewsSection } from '@/components/NewsSection';
 const Index = () => {
   const [searchParams] = useSearchParams();
   const [chartSymbol, setChartSymbol] = useState<string>('BINANCE:BTCUSDT');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const symbolFromUrl = searchParams.get('symbol');
@@ -18,10 +19,14 @@ const Index = () => {
       setChartSymbol(symbolFromUrl);
     }
   }, [searchParams]);
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <XRHeader />
+      <XRHeader onSearch={handleSearch} />
       
       {/* Ticker Tapes */}
       <div className="space-y-0">

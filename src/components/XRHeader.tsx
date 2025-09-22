@@ -7,12 +7,20 @@ import { Link, useLocation } from 'react-router-dom';
 
 interface XRHeaderProps {
   currentPage?: string;
+  onSearch?: (searchTerm: string) => void;
 }
 
-export function XRHeader({ currentPage }: XRHeaderProps) {
+export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoShaking, setIsLogoShaking] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const location = useLocation();
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    onSearch?.(value);
+  };
 
   const navigation = [
     { name: 'MarketBrief', href: '/', icon: '📊' },
@@ -103,6 +111,8 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
               <div className="hidden md:flex items-center space-x-2">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <Input
+                  value={searchTerm}
+                  onChange={handleSearchChange}
                   placeholder={location.pathname === '/crypto' ? "Search crypto..." : "Search stocks..."}
                   className="w-48"
                 />
@@ -167,6 +177,8 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
                 <div className="flex items-center space-x-2">
                   <Search className="w-4 h-4 text-muted-foreground" />
                   <Input
+                    value={searchTerm}
+                    onChange={handleSearchChange}
                     placeholder={location.pathname === '/crypto' ? "Search crypto..." : "Search stocks..."}
                     className="flex-1"
                   />
