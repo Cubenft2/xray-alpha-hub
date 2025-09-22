@@ -149,6 +149,17 @@
     font-family: var(--font-pixel);
     font-feature-settings: "kern" 0;
     text-rendering: optimizeSpeed;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
+  }
+  
+  html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
   }
 }
 
