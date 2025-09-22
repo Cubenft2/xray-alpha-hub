@@ -94,14 +94,14 @@ export function TradingViewChart({
         const start = Date.now();
         const checkWidget = setInterval(() => {
           const iframe = widgetDiv.querySelector('iframe');
-          if (iframe && iframe.contentDocument) {
+          if (iframe) {
             clearInterval(checkWidget);
-            setTimeout(() => setIsLoading(false), 200);
-          } else if (Date.now() - start > 5000) {
+            setTimeout(() => setIsLoading(false), 500);
+          } else if (Date.now() - start > 3000) {
             clearInterval(checkWidget);
             setIsLoading(false);
           }
-        }, 150);
+        }, 100);
       };
 
       script.onerror = () => {
