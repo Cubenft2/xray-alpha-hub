@@ -74,8 +74,8 @@ export function NewsSection() {
     console.log('🐕 XRay: Fetching news...');
     
     try {
-      // Update this URL to your actual Cloudflare Worker domain
-      const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/aggregate?sources=crypto,stocks&q=';
+      // Try the demo endpoint first to test if worker is working
+      const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/mix';
       
       try {
         console.log('🐕 XRay: Calling worker at:', workerUrl);
