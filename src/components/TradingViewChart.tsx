@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { createPortal } from 'react-dom';
 
 interface TradingViewChartProps {
   symbol?: string;
@@ -161,10 +162,10 @@ export function TradingViewChart({
   }, [isFullscreen]);
 
 
-  return (
+  const chart = (
     <div
-      className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-background p-2' : ''} ${className}`}
-      style={{ height: isFullscreen ? '100vh' : height, width: '100%' }}
+      className={`relative ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''} ${className}`}
+      style={{ height: isFullscreen ? '100vh' : height, width: isFullscreen ? '100vw' : '100%' }}
     >
       <div className="absolute top-2 right-2 z-20 flex gap-2">
         <Button
@@ -200,9 +201,12 @@ export function TradingViewChart({
       <div 
         ref={containerRef} 
         className="tradingview-chart-container"
-        style={{ height: isFullscreen ? 'calc(100vh - 16px)' : height, width: '100%' }}
+        style={{ height: isFullscreen ? '100vh' : height, width: isFullscreen ? '100vw' : '100%' }}
       />
     </div>
   );
+
+  return isFullscreen ? createPortal(chart, document.body) : chart;
+
 
 }
