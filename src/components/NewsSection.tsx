@@ -78,11 +78,11 @@ export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
     console.log('🐕 XRay: Fetching news...');
     
     try {
-      // Try the demo endpoint first to test if worker is working
-      const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/mix';
+      // Try the aggregate endpoint for real news data
+      const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/aggregate?sources=crypto,stocks';
       
       try {
-        console.log('🐕 XRay: Calling worker at:', workerUrl);
+        console.log('🐕 XRay: Calling real news API at:', workerUrl);
         const response = await fetch(workerUrl, {
           headers: {
             'Accept': 'application/json',
@@ -93,8 +93,8 @@ export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
           const data = await response.json();
           console.log('🐕 XRay: Worker response:', data);
           
-          // Normalize to our NewsItem shape
-          const raw = Array.isArray(data.top) ? data.top : Array.isArray(data.latest) ? data.latest : [];
+          // Handle real news data from aggregate endpoint
+          const raw = Array.isArray(data.latest) ? data.latest : Array.isArray(data.top) ? data.top : [];
           const normalized: NewsItem[] = raw.map((it: any) => {
             const url = it.link || it.url || '';
             let source = it.source || '';
@@ -103,7 +103,7 @@ export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
             }
             return {
               title: it.title || it.headline || 'Untitled',
-              description: it.description || '',
+              description: it.description || it.summary || '',
               url,
               publishedAt: it.date ? new Date(it.date).toISOString() : new Date().toISOString(),
               source: source || 'news'
