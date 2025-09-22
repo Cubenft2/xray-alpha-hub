@@ -15,7 +15,7 @@ export function XRFooter() {
               <img 
                 src="/xray-dog.png" 
                 alt="XRay Dog Mascot" 
-                className="w-6 h-6 xr-glow-pixel" 
+                className="w-5 h-5 opacity-80" 
                 style={{ imageRendering: 'pixelated' }}
               />
               <span className="text-sm text-muted-foreground font-medium">
@@ -33,16 +33,16 @@ export function XRFooter() {
             </a>
           </div>
 
-          {/* Pixel-styled Support CTA */}
+          {/* XRay Dog Support CTA */}
           <Button
-            variant="pixel"
+            variant="default"
             size="sm"
-            className="animate-pixel-bounce hover:animate-none xr-glow-accent"
+            className="animate-wiggle hover:animate-none"
             onClick={() => {
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           >
-            <Heart className="w-4 h-4 mr-2 text-red-500 animate-pulse" />
+            <Heart className="w-4 h-4 mr-2 text-red-500" />
             Support XRay Dog
           </Button>
         </div>

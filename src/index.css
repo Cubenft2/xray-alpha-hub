@@ -167,24 +167,19 @@
   }
 
   .xr-glow-pixel {
-    box-shadow: var(--glow-pixel);
-    animation: pixel-glow 2s ease-in-out infinite alternate;
+    transition: all 0.3s ease;
+  }
+
+  .xr-glow-pixel:hover {
+    box-shadow: var(--glow-primary);
   }
 
   .xr-gradient-text {
-    background: var(--gradient-hero);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    @apply text-primary font-bold;
   }
 
   .xr-pixel-text {
-    background: var(--gradient-pixel);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    font-weight: 800;
-    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+    @apply text-foreground font-bold;
   }
 
   /* XRay Dog Animations */

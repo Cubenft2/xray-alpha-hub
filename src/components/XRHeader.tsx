@@ -46,19 +46,19 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
               <img 
                 src="/xray-dog.png" 
                 alt="XRay Dog - The Pixel Crypto Mascot" 
-                className="w-10 h-10 xr-glow-pixel rounded-lg transition-transform duration-300 group-hover:scale-110"
+                className="w-9 h-9 rounded-md transition-transform duration-300 group-hover:scale-105"
                 style={{ imageRendering: 'pixelated' }}
               />
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse opacity-80"></div>
+              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-primary rounded-full animate-pulse opacity-90"></div>
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black xr-pixel-text hidden sm:block leading-tight">
+              <span className="text-xl font-bold text-foreground hidden sm:block leading-tight">
                 XRayCrypto™
               </span>
               <span className="text-xs text-muted-foreground hidden sm:block font-medium">
                 Powered by XRay Dog 🐕
               </span>
-              <span className="text-lg font-black xr-pixel-text sm:hidden">
+              <span className="text-lg font-bold text-foreground sm:hidden">
                 XR™
               </span>
             </div>
@@ -120,11 +120,11 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
                 <img 
                   src="/xray-dog.png" 
                   alt="XRay Dog - The Pixel Crypto Mascot" 
-                  className="w-10 h-10 xr-glow-pixel rounded-lg"
+                  className="w-9 h-9 rounded-md"
                   style={{ imageRendering: 'pixelated' }}
                 />
                 <div>
-                  <span className="text-xl font-black xr-pixel-text">XRayCrypto™</span>
+                  <span className="text-xl font-bold text-foreground">XRayCrypto™</span>
                   <p className="text-xs text-muted-foreground">Powered by XRay Dog 🐕</p>
                 </div>
               </div>
