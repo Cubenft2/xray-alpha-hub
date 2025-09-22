@@ -30,7 +30,11 @@ export function StocksScreener() {
         colorTheme: theme === 'dark' ? 'dark' : 'light',
         locale: "en",
         isTransparent: false,
-        toolbar_bg: theme === 'dark' ? '#1a1a1a' : '#ffffff'
+        market: "america",
+        showToolbar: true,
+        showSymbolLogo: true,
+        showFloatingTooltip: false,
+        width_and_height_by_user: false
       };
 
       script.innerHTML = JSON.stringify(config);
