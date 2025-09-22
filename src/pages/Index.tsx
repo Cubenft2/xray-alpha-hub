@@ -50,25 +50,25 @@ const Index = () => {
             </p>
           </div>
 
+          {/* Main Chart - Full width and taller */}
+          <div className="w-full mb-6">
+            <TradingViewChart symbol={chartSymbol} height="600px" />
+          </div>
+
+          {/* News Section - Full width */}
+          <div className="w-full mb-6">
+            <NewsSection />
+          </div>
+
           {/* Dashboard Grid */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            {/* Main Chart - Full width on mobile, 2 cols on desktop */}
-            <div className="xl:col-span-2">
-              <TradingViewChart symbol={chartSymbol} height="500px" />
-            </div>
-
-            {/* News Section */}
-            <div className="xl:col-span-1">
-              <NewsSection />
-            </div>
-
+          <div className="grid grid-cols-1 gap-6">
             {/* Crypto Screener - Full width */}
-            <div className="xl:col-span-3">
+            <div>
               <CryptoScreener />
             </div>
 
             {/* Crypto Heatmap - Full width */}
-            <div className="xl:col-span-3">
+            <div>
               <CryptoHeatmap />
             </div>
           </div>
