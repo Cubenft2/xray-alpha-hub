@@ -12,7 +12,11 @@ interface NewsItem {
   source: string;
 }
 
-export function NewsSection() {
+interface NewsSectionProps {
+  searchTerm?: string;
+}
+
+export function NewsSection({ searchTerm = '' }: NewsSectionProps) {
   const [cryptoNews, setCryptoNews] = useState<NewsItem[]>([]);
   const [stocksNews, setStocksNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -187,6 +191,20 @@ export function NewsSection() {
     </div>
   );
 
+  // Filter news based on search term
+  const filterNews = (news: NewsItem[]) => {
+    if (!searchTerm.trim()) return news;
+    const term = searchTerm.toLowerCase();
+    return news.filter(item => 
+      item.title.toLowerCase().includes(term) ||
+      item.description.toLowerCase().includes(term) ||
+      item.source.toLowerCase().includes(term)
+    );
+  };
+
+  const filteredCryptoNews = filterNews(cryptoNews);
+  const filteredStocksNews = filterNews(stocksNews);
+
   return (
     <div className="xr-card p-4">
       <div className="flex items-center justify-between mb-4">
@@ -213,23 +231,35 @@ export function NewsSection() {
       <Tabs defaultValue="crypto" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="crypto" className="text-xs">
-            🚀 Crypto ({cryptoNews.length})
+            🚀 Crypto ({filteredCryptoNews.length})
           </TabsTrigger>
           <TabsTrigger value="stocks" className="text-xs">
-            📈 Markets ({stocksNews.length})
+            📈 Markets ({filteredStocksNews.length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="crypto" className="space-y-3 mt-4">
-          {cryptoNews.map((item, index) => (
-            <NewsCard key={index} item={item} />
-          ))}
+          {filteredCryptoNews.length > 0 ? (
+            filteredCryptoNews.map((item, index) => (
+              <NewsCard key={index} item={item} />
+            ))
+          ) : (
+            <div className="text-center text-muted-foreground py-4">
+              {searchTerm ? `No crypto news found for "${searchTerm}"` : 'No crypto news available'}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="stocks" className="space-y-3 mt-4">
-          {stocksNews.map((item, index) => (
-            <NewsCard key={index} item={item} />
-          ))}
+          {filteredStocksNews.length > 0 ? (
+            filteredStocksNews.map((item, index) => (
+              <NewsCard key={index} item={item} />
+            ))
+          ) : (
+            <div className="text-center text-muted-foreground py-4">
+              {searchTerm ? `No market news found for "${searchTerm}"` : 'No market news available'}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

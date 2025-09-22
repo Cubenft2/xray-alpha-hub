@@ -41,7 +41,7 @@ export default function Markets() {
           <StocksHeatmap />
         </div>
         
-        <NewsSection />
+        <NewsSection searchTerm={searchTerm} />
       </main>
       
       <XRFooter />

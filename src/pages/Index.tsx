@@ -57,7 +57,7 @@ const Index = () => {
 
           {/* News Section - Full width */}
           <div className="w-full mb-6">
-            <NewsSection />
+            <NewsSection searchTerm={searchTerm} />
           </div>
 
           {/* Dashboard Grid */}
