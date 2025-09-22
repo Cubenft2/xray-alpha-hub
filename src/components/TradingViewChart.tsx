@@ -3,7 +3,7 @@ import { useTheme } from 'next-themes';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, RotateCcw, Maximize } from 'lucide-react';
 
 interface TradingViewChartProps {
   symbol?: string;
@@ -173,7 +173,7 @@ export function TradingViewChart({
             onClick={() => setIsFullscreen((f) => !f)}
             aria-label="Enter fullscreen"
           >
-            ⛶ Expand
+            <Maximize size={16} />
           </Button>
           <Button
             size="sm"
@@ -181,7 +181,7 @@ export function TradingViewChart({
             onClick={() => setReloadToken((t) => t + 1)}
             aria-label="Reload chart"
           >
-            ↻ Reload
+            <RotateCcw size={16} />
           </Button>
         </div>
       )}
@@ -201,7 +201,7 @@ export function TradingViewChart({
             onClick={() => setReloadToken((t) => t + 1)}
             aria-label="Reload chart"
           >
-            ↻ Reload
+            <RotateCcw size={16} />
           </Button>
         </div>
       )}
