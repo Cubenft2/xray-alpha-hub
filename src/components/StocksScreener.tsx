@@ -22,19 +22,15 @@ export function StocksScreener() {
       script.type = 'text/javascript';
       
       const config = {
-        width: "100%",
-        height: "100%",
-        defaultColumn: "overview",
-        screener_type: "stock_market",
-        displayCurrency: "USD",
-        colorTheme: theme === 'dark' ? 'dark' : 'light',
-        locale: "en",
-        isTransparent: false,
         market: "america",
         showToolbar: true,
-        showSymbolLogo: true,
-        showFloatingTooltip: false,
-        width_and_height_by_user: false
+        defaultColumn: "overview",
+        defaultScreen: "most_capitalized",
+        isTransparent: false,
+        locale: "en",
+        colorTheme: theme === 'dark' ? 'dark' : 'light',
+        width: "100%",
+        height: 550
       };
 
       script.innerHTML = JSON.stringify(config);
