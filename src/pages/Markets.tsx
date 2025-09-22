@@ -3,14 +3,14 @@ import { useSearchParams } from 'react-router-dom';
 import { XRHeader } from '@/components/XRHeader';
 import { XRTicker } from '@/components/XRTicker';
 import { XRFooter } from '@/components/XRFooter';
-import { CryptoChart } from '@/components/CryptoChart';
+import { TradingViewChart } from '@/components/TradingViewChart';
 import { StocksScreener } from '@/components/StocksScreener';
 import { StocksHeatmap } from '@/components/StocksHeatmap';
 import { NewsSection } from '@/components/NewsSection';
 
 export default function Markets() {
   const [searchParams] = useSearchParams();
-  const [chartSymbol, setChartSymbol] = useState<string>('NASDAQ:SPY');
+  const [chartSymbol, setChartSymbol] = useState<string>('AMEX:SPY');
 
   useEffect(() => {
     const symbolFromUrl = searchParams.get('symbol');
@@ -29,7 +29,7 @@ export default function Markets() {
           <p className="text-muted-foreground">Real-time stock market data and analysis</p>
         </div>
 
-        <CryptoChart symbol={chartSymbol} height={500} />
+        <TradingViewChart symbol={chartSymbol} height="500px" />
         
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <StocksScreener />

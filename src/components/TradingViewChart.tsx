@@ -37,18 +37,18 @@ export function TradingViewChart({
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
     script.async = true;
     
-    const config = {
+  const config = {
       allow_symbol_change: allowSymbolChange,
       calendar: false,
       details: true,
-      hide_side_toolbar: hideSideToolbar,
-      hide_top_toolbar: hideTopToolbar,
+      hide_side_toolbar: false, // Show bottom toolbar
+      hide_top_toolbar: false, // Show top toolbar
       hide_legend: false,
-      hide_volume: false,
-      hotlist: true,
+      hide_volume: false, // Show volume
+      hotlist: true, // Show hotlist
       interval: interval,
       locale: "en",
-      save_image: true,
+      save_image: true, // Get image button
       style: style,
       symbol: symbol,
       theme: theme === 'dark' ? 'dark' : 'light',
@@ -58,11 +58,13 @@ export function TradingViewChart({
       watchlist: [],
       withdateranges: true,
       compareSymbols: [],
-      show_popup_button: true,
+      show_popup_button: true, // Launch in popup button
       popup_height: "650",
       popup_width: "1000",
       studies: studies,
-      autosize: true
+      autosize: true,
+      enable_publishing: true, // Show drawing toolbar
+      toolbar_bg: theme === 'dark' ? 'hsl(var(--background))' : '#ffffff'
     };
 
     script.innerHTML = JSON.stringify(config);

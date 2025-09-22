@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { XRHeader } from '@/components/XRHeader';
 import { XRTicker } from '@/components/XRTicker';
 import { XRFooter } from '@/components/XRFooter';
-import { CryptoChart } from '@/components/CryptoChart';
+import { TradingViewChart } from '@/components/TradingViewChart';
 import { CryptoScreener } from '@/components/CryptoScreener';
 import { CryptoHeatmap } from '@/components/CryptoHeatmap';
 import { NewsSection } from '@/components/NewsSection';
@@ -49,7 +49,7 @@ const Index = () => {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Main Chart - Full width on mobile, 2 cols on desktop */}
             <div className="xl:col-span-2">
-              <CryptoChart symbol={chartSymbol} />
+              <TradingViewChart symbol={chartSymbol} height="500px" />
             </div>
 
             {/* News Section */}
