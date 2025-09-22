@@ -71,15 +71,23 @@ export function NewsSection() {
   // Enhanced news fetching to work with Cloudflare Worker
   const fetchNews = async () => {
     setIsLoading(true);
+    console.log('🐕 XRay: Fetching news...');
     
     try {
       // Update this URL to your actual Cloudflare Worker domain
       const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/aggregate?sources=crypto,stocks&q=';
       
       try {
-        const response = await fetch(workerUrl);
+        console.log('🐕 XRay: Calling worker at:', workerUrl);
+        const response = await fetch(workerUrl, {
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('🐕 XRay: Worker response:', data);
           
           // Handle the worker response format (expecting { top: [...] } structure)
           const newsItems = data.top || data || [];
@@ -106,13 +114,20 @@ export function NewsSection() {
             item.title?.toLowerCase().includes('s&p')
           ).slice(0, 5);
           
-          setCryptoNews(cryptoItems.length > 0 ? cryptoItems : mockCryptoNews);
-          setStocksNews(stocksItems.length > 0 ? stocksItems : mockStocksNews);
+          if (cryptoItems.length > 0 || stocksItems.length > 0) {
+            console.log('🐕 XRay: Using live news data');
+            setCryptoNews(cryptoItems.length > 0 ? cryptoItems : mockCryptoNews);
+            setStocksNews(stocksItems.length > 0 ? stocksItems : mockStocksNews);
+          } else {
+            console.log('🐕 XRay: No relevant news found, using mock data');
+            setCryptoNews(mockCryptoNews);
+            setStocksNews(mockStocksNews);
+          }
         } else {
-          throw new Error('Worker unavailable');
+          throw new Error(`Worker returned ${response.status}`);
         }
       } catch (workerError) {
-        console.log('Using mock data as fallback:', workerError);
+        console.log('🐕 XRay: Worker error, using mock data:', workerError);
         // Fallback to mock data
         setCryptoNews(mockCryptoNews);
         setStocksNews(mockStocksNews);

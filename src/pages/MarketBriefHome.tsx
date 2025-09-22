@@ -34,8 +34,30 @@ export default function MarketBriefHome() {
     const fetchBrief = async () => {
       try {
         setLoading(true);
+        console.log('🐕 XRay: Fetching market brief...');
         
-        // Fetch the feed index to get the latest brief slug
+        // Try the simpler direct endpoint first
+        const directRes = await fetch(`${workerBase}marketbrief/latest.json`, { 
+          cache: 'no-store',
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
+        if (directRes.ok) {
+          const briefData = await directRes.json();
+          console.log('🐕 XRay: Brief loaded successfully!', briefData);
+          setBrief(briefData);
+          
+          if (briefData.title) {
+            document.title = briefData.title + ' — XRayCrypto News';
+          }
+          return;
+        }
+        
+        console.log('🐕 XRay: Direct endpoint failed, trying feed method...');
+        
+        // Fallback to the original method
         const feedRes = await fetch(`${workerBase}marketbrief/feed/index.json`, { 
           cache: 'no-store' 
         });
@@ -61,10 +83,10 @@ export default function MarketBriefHome() {
         }
         
       } catch (error) {
-        console.warn('Brief load failed:', error);
+        console.error('🐕 XRay: Brief load failed:', error);
         toast({
-          title: "Failed to load brief",
-          description: "Please try again shortly.",
+          title: "Connection Issue",  
+          description: `Can't reach XRay servers: ${error}`,
           variant: "destructive"
         });
       } finally {
