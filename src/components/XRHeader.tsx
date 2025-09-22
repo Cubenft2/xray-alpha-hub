@@ -79,7 +79,7 @@ export function XRHeader({ currentPage }: XRHeaderProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6">
+          <nav className="hidden lg:flex items-center space-x-6 ml-8">
             {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
                   <Button
