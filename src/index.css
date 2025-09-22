@@ -2,38 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-/* XRayCrypto™ Design System - Crypto dashboard with dog-themed branding */
+/* XRayCrypto™ Design System - XRay Dog's Pixel Vision Dashboard */
 
 @layer base {
   :root {
-    /* Core Theme Colors */
-    --background: 0 0% 100%;
-    --foreground: 220 13% 18%;
+    /* Core Theme Colors - XRay Dog Palette */
+    --background: 51 100% 98%; /* Light yellow tint */
+    --foreground: 0 0% 5%; /* Deep black like dog's features */
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 13% 18%;
+    --card: 51 100% 99%;
+    --card-foreground: 0 0% 5%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 13% 18%;
+    --popover: 51 100% 99%;
+    --popover-foreground: 0 0% 5%;
 
-    /* XRayCrypto Brand Colors */
-    --primary: 194 100% 50%; /* Cyan #00CFFF */
-    --primary-foreground: 0 0% 100%;
+    /* XRay Dog Brand Colors */
+    --primary: 194 100% 50%; /* Cyan goggles #00CFFF */
+    --primary-foreground: 0 0% 5%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 220 13% 18%;
+    --secondary: 51 100% 95%; /* Soft yellow */
+    --secondary-foreground: 0 0% 5%;
 
-    --muted: 220 13% 96%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 51 50% 92%; /* Muted yellow */
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 51 100% 50%; /* Pixel Yellow #FFD700 */
-    --accent-foreground: 220 13% 18%;
+    --accent: 51 100% 50%; /* Bright pixel yellow #FFD700 */
+    --accent-foreground: 0 0% 5%;
+
+    /* XRay Dog Feature Colors */
+    --pixel-orange: 25 100% 65%; /* Dog snout/nose color */
+    --pixel-orange-foreground: 0 0% 5%;
+    
+    --pixel-teal: 180 100% 35%; /* Deeper teal for accents */
+    --pixel-teal-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    --border: 51 30% 85%; /* Yellow-tinted borders */
+    --input: 51 30% 90%;
     --ring: 194 100% 50%;
 
     --success: 142 76% 36%;
@@ -42,18 +49,21 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 98%;
 
-    /* Gradients & Effects */
+    /* XRay Dog Gradients & Effects */
     --gradient-primary: linear-gradient(135deg, hsl(194 100% 50%), hsl(194 100% 60%));
     --gradient-accent: linear-gradient(135deg, hsl(51 100% 50%), hsl(51 100% 60%));
     --gradient-hero: linear-gradient(135deg, hsl(194 100% 50%) 0%, hsl(51 100% 50%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(220 13% 98%) 100%);
+    --gradient-pixel: linear-gradient(45deg, hsl(51 100% 50%) 0%, hsl(25 100% 65%) 50%, hsl(194 100% 50%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(51 100% 99%) 0%, hsl(51 50% 96%) 100%);
     
-    --glow-primary: 0 0 20px hsl(194 100% 50% / 0.3);
-    --glow-accent: 0 0 20px hsl(51 100% 50% / 0.3);
-    --shadow-card: 0 4px 6px -1px hsl(220 13% 18% / 0.1), 0 2px 4px -2px hsl(220 13% 18% / 0.1);
-    --shadow-elevated: 0 10px 15px -3px hsl(220 13% 18% / 0.1), 0 4px 6px -4px hsl(220 13% 18% / 0.1);
+    --glow-primary: 0 0 20px hsl(194 100% 50% / 0.4);
+    --glow-accent: 0 0 20px hsl(51 100% 50% / 0.4);
+    --glow-pixel: 0 0 30px hsl(51 100% 50% / 0.6), 0 0 60px hsl(194 100% 50% / 0.3);
+    --shadow-card: 0 4px 6px -1px hsl(51 100% 30% / 0.15), 0 2px 4px -2px hsl(51 100% 30% / 0.1);
+    --shadow-elevated: 0 10px 15px -3px hsl(51 100% 30% / 0.2), 0 4px 6px -4px hsl(51 100% 30% / 0.15);
+    --shadow-pixel: 2px 2px 0px hsl(0 0% 0% / 0.3), 4px 4px 0px hsl(0 0% 0% / 0.15);
 
-    --radius: 0.75rem;
+    --radius: 0.5rem; /* Slightly sharper for pixel aesthetic */
 
     --sidebar-background: 0 0% 98%;
 
@@ -73,51 +83,62 @@
   }
 
   .dark {
-    /* Dark Theme Colors */
-    --background: 222 47% 4%;
-    --foreground: 210 40% 98%;
+    /* XRay Dog Dark Mode - Retro Night Vision */
+    --background: 0 0% 8%; /* Deep dark for contrast */
+    --foreground: 51 100% 90%; /* Bright yellow text */
 
-    --card: 222 47% 6%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 10%;
+    --card-foreground: 51 100% 90%;
 
-    --popover: 222 47% 6%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 51 100% 90%;
 
-    /* XRayCrypto Brand Colors - Dark Mode */
-    --primary: 194 100% 50%; /* Keep cyan bright */
-    --primary-foreground: 222 47% 4%;
+    /* XRay Dog Dark Colors */
+    --primary: 194 100% 55%; /* Brighter cyan in dark mode */
+    --primary-foreground: 0 0% 8%;
 
-    --secondary: 222 47% 10%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 51 100% 90%;
 
-    --muted: 222 47% 8%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 51 50% 70%;
 
-    --accent: 51 100% 50%; /* Keep yellow bright */
-    --accent-foreground: 222 47% 4%;
+    --accent: 51 100% 60%; /* Bright yellow glow */
+    --accent-foreground: 0 0% 8%;
 
-    --destructive: 0 84% 60%;
+    /* XRay Dog Dark Feature Colors */
+    --pixel-orange: 25 100% 70%;
+    --pixel-orange-foreground: 0 0% 8%;
+    
+    --pixel-teal: 180 100% 40%;
+    --pixel-teal-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 222 47% 12%;
-    --input: 222 47% 12%;
-    --ring: 194 100% 50%;
+    --border: 0 0% 20%;
+    --input: 0 0% 15%;
+    --ring: 194 100% 55%;
 
-    --success: 142 76% 36%;
+    --success: 142 76% 40%;
     --success-foreground: 0 0% 98%;
 
-    --warning: 38 92% 50%;
+    --warning: 38 92% 55%;
     --warning-foreground: 0 0% 98%;
 
-    /* Dark Theme Gradients & Effects */
-    --gradient-card: linear-gradient(145deg, hsl(222 47% 6%) 0%, hsl(222 47% 8%) 100%);
-    --shadow-card: 0 4px 6px -1px hsl(222 47% 2% / 0.3), 0 2px 4px -2px hsl(222 47% 2% / 0.2);
-    --shadow-elevated: 0 10px 15px -3px hsl(222 47% 2% / 0.4), 0 4px 6px -4px hsl(222 47% 2% / 0.3);
+    /* XRay Dog Dark Gradients & Effects */
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 10%) 0%, hsl(0 0% 12%) 100%);
+    --glow-primary: 0 0 25px hsl(194 100% 55% / 0.5);
+    --glow-accent: 0 0 25px hsl(51 100% 60% / 0.5);
+    --glow-pixel: 0 0 35px hsl(51 100% 60% / 0.7), 0 0 70px hsl(194 100% 55% / 0.4);
+    --shadow-card: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
+    --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -4px hsl(0 0% 0% / 0.4);
+    --shadow-pixel: 2px 2px 0px hsl(51 100% 50% / 0.3), 4px 4px 0px hsl(194 100% 50% / 0.2);
   }
 }
 
 @layer components {
-  /* XRayCrypto Component Styles */
+  /* XRay Dog Component Styles */
   .xr-card {
     @apply bg-card text-card-foreground border border-border rounded-lg shadow-sm;
     background: var(--gradient-card);
@@ -129,12 +150,25 @@
     box-shadow: var(--shadow-elevated);
   }
 
+  .xr-card-pixel {
+    @apply xr-card;
+    box-shadow: var(--shadow-pixel);
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+  }
+
   .xr-glow-primary {
     box-shadow: var(--glow-primary);
   }
 
   .xr-glow-accent {
     box-shadow: var(--glow-accent);
+  }
+
+  .xr-glow-pixel {
+    box-shadow: var(--glow-pixel);
+    animation: pixel-glow 2s ease-in-out infinite alternate;
   }
 
   .xr-gradient-text {
@@ -144,13 +178,30 @@
     background-clip: text;
   }
 
-  /* Animations */
+  .xr-pixel-text {
+    background: var(--gradient-pixel);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
+    text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+  }
+
+  /* XRay Dog Animations */
   .xr-woof-shake {
     animation: woof-shake 0.6s ease-in-out;
   }
 
   .xr-wiggle {
     animation: wiggle 2s ease-in-out infinite;
+  }
+
+  .xr-pixel-bounce {
+    animation: pixel-bounce 1.5s ease-in-out infinite;
+  }
+
+  .xr-bark {
+    animation: bark 0.8s ease-in-out;
   }
 
   .xr-ticker {
@@ -222,5 +273,40 @@
 
   .animate-glow-pulse {
     animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  /* XRay Dog Pixel Animations */
+  @keyframes pixel-glow {
+    0% { 
+      box-shadow: var(--glow-pixel);
+      filter: brightness(1);
+    }
+    100% { 
+      box-shadow: var(--glow-pixel), var(--glow-primary);
+      filter: brightness(1.1);
+    }
+  }
+
+  @keyframes pixel-bounce {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  @keyframes bark {
+    0%, 100% { transform: scale(1) rotate(0deg); }
+    25% { transform: scale(1.1) rotate(-2deg); }
+    75% { transform: scale(1.1) rotate(2deg); }
+  }
+
+  .animate-pixel-glow {
+    animation: pixel-glow 2s ease-in-out infinite alternate;
+  }
+
+  .animate-pixel-bounce {
+    animation: pixel-bounce 1.5s ease-in-out infinite;
+  }
+
+  .animate-bark {
+    animation: bark 0.8s ease-in-out;
   }
 }
