@@ -19,7 +19,7 @@ interface MarketBrief {
   canonical: string;
 }
 
-export default function MarketBriefHome() {
+function MarketBriefHome() {
   const [brief, setBrief] = useState<MarketBrief | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -206,114 +206,112 @@ export default function MarketBriefHome() {
               <Copy className="w-4 h-4 mr-2" />
               {copiedToClipboard ? 'Copied!' : 'Copy Link'}
             </Button>
-              <Button variant="outline" size="sm" onClick={handleNativeShare}>
-                <Share className="w-4 h-4 mr-2" />
-                Share
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={handleNativeShare}>
+              <Share className="w-4 h-4 mr-2" />
+              Share
+            </Button>
           </div>
+        </div>
 
-          {/* Main Brief Card */}
-          <Card className="xr-card overflow-hidden">
-            {/* Cover Image */}
-            {brief.og_image && (
-              <div 
-                className={`relative aspect-video w-full bg-gradient-to-br from-primary/10 to-background overflow-hidden ${
-                  imageLoaded ? 'block' : 'hidden'
-                }`}
-              >
-                <img 
-                  src={brief.og_image}
-                  alt={brief.title}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  onLoad={() => setImageLoaded(true)}
-                  onError={() => setImageLoaded(false)}
-                />
+        {/* Main Brief Card */}
+        <Card className="xr-card overflow-hidden">
+          {/* Cover Image */}
+          {brief.og_image && (
+            <div 
+              className={`relative aspect-video w-full bg-gradient-to-br from-primary/10 to-background overflow-hidden ${
+                imageLoaded ? 'block' : 'hidden'
+              }`}
+            >
+              <img 
+                src={brief.og_image}
+                alt={brief.title}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageLoaded(false)}
+              />
+            </div>
+          )}
+
+          <CardContent className="p-6 lg:p-8">
+            {/* Title and Summary */}
+            <div className="space-y-4 mb-6">
+              <h2 className="text-2xl lg:text-3xl font-bold leading-tight xr-gradient-text">
+                {brief.title}
+              </h2>
+              {brief.summary && (
+                <p className="text-muted-foreground text-lg leading-relaxed">
+                  {brief.summary}
+                </p>
+              )}
+            </div>
+
+            {/* Article Content */}
+            <div className="prose prose-invert max-w-none mb-6">
+              {!brief.article_html?.toLowerCase().includes("let's talk about something") && (
+                <p className="italic text-muted-foreground mb-2">Let's talk about something.</p>
+              )}
+              <div dangerouslySetInnerHTML={{ __html: brief.article_html }} />
+            </div>
+
+            {/* Last Word */}
+            {brief.last_word && (
+              <div className="border-l-4 border-primary pl-4 mb-6">
+                <p className="italic text-muted-foreground">
+                  {brief.last_word}
+                </p>
               </div>
             )}
 
-            <CardContent className="p-6 lg:p-8">
-              {/* Title and Summary */}
-              <div className="space-y-4 mb-6">
-                <h2 className="text-2xl lg:text-3xl font-bold leading-tight xr-gradient-text">
-                  {brief.title}
-                </h2>
-                {brief.summary && (
-                  <p className="text-muted-foreground text-lg leading-relaxed">
-                    {brief.summary}
-                  </p>
-                )}
-              </div>
+            {/* Sources */}
+            {brief.sources && brief.sources.length > 0 && (
+              <details className="mb-6 border-t border-border pt-4">
+                <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                  Sources
+                </summary>
+                <ul className="mt-3 space-y-1 pl-4">
+                  {brief.sources.map((source, index) => (
+                    <li key={index}>
+                      <a 
+                        href={source.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {source.label || source.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
 
-              {/* Article Content */}
-              <div className="prose prose-invert max-w-none mb-6">
-                {!brief.article_html?.toLowerCase().includes("let’s talk about something") &&
-                  !brief.article_html?.toLowerCase().includes("let's talk about something") && (
-                  <p className="italic text-muted-foreground mb-2">Let's talk about something.</p>
-                )}
-                <div dangerouslySetInnerHTML={{ __html: brief.article_html }} />
-              </div>
-
-              {/* Last Word */}
-              {brief.last_word && (
-                <div className="border-l-4 border-primary pl-4 mb-6">
-                  <p className="italic text-muted-foreground">
-                    {brief.last_word}
-                  </p>
-                </div>
-              )}
-
-              {/* Sources */}
-              {brief.sources && brief.sources.length > 0 && (
-                <details className="mb-6 border-t border-border pt-4">
-                  <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                    Sources
-                  </summary>
-                  <ul className="mt-3 space-y-1 pl-4">
-                    {brief.sources.map((source, index) => (
-                      <li key={index}>
-                        <a 
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-primary hover:underline"
-                        >
-                          {source.label || source.url}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-
-              {/* Inline Share Buttons */}
-              <div className="flex items-center gap-3 pt-4 border-t border-border">
-                <Button onClick={handleShareX} size="sm">
-                  Share on X
-                </Button>
-                <Button variant="outline" onClick={handleCopyLink} size="sm">
-                  Copy Link
-                </Button>
-              </div>
-            </CardContent>
-
-            {/* Watermark Footer */}
-            <div className="px-6 lg:px-8 pb-6">
-              <div className="flex items-center justify-between text-sm text-muted-foreground bg-accent/20 rounded-lg p-3">
-                <div className="flex items-center gap-3">
-                  <img 
-                    src="/pfp.png" 
-                    alt="XRayCrypto" 
-                    className="w-5 h-5 rounded"
-                  />
-                  <span>© XRayCrypto News</span>
-                </div>
-                <span>{brief.date}</span>
-              </div>
+            {/* Inline Share Buttons */}
+            <div className="flex items-center gap-3 pt-4 border-t border-border">
+              <Button onClick={handleShareX} size="sm">
+                Share on X
+              </Button>
+              <Button variant="outline" onClick={handleCopyLink} size="sm">
+                Copy Link
+              </Button>
             </div>
-          </Card>
-        </div>
+          </CardContent>
+
+          {/* Watermark Footer */}
+          <div className="px-6 lg:px-8 pb-6">
+            <div className="flex items-center justify-between text-sm text-muted-foreground bg-accent/20 rounded-lg p-3">
+              <div className="flex items-center gap-3">
+                <img 
+                  src="/pfp.png" 
+                  alt="XRayCrypto" 
+                  className="w-5 h-5 rounded"
+                />
+                <span>© XRayCrypto News</span>
+              </div>
+              <span>{brief.date}</span>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );
