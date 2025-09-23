@@ -19,7 +19,7 @@ interface MarketBrief {
   canonical: string;
 }
 
-function MarketBriefHome() {
+export default function MarketBriefHome() {
   const [brief, setBrief] = useState<MarketBrief | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -316,5 +316,3 @@ function MarketBriefHome() {
     </div>
   );
 }
-
-export default MarketBriefHome;
