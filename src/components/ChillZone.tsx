@@ -98,7 +98,7 @@ const chillChannels: ChillChannel[] = [
     id: '11',
     name: 'Reggae Vibes',
     description: 'Smooth reggae beats for relaxation',
-    youtubeId: 'i5d-r6RbNNk',
+    youtubeId: 'ieP0nAecdmA',
     category: 'Reggae',
     live: true
   },
