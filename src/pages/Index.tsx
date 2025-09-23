@@ -107,13 +107,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* News Section - Full nav width */}
-      <div className="w-full mb-6">
-        <div className="container mx-auto">
-          <NewsSection searchTerm={searchTerm} defaultTab="crypto" />
-        </div>
-      </div>
-
       {/* Dashboard Grid - Full nav width */}
       <div className="w-full">
         <div className="container mx-auto">
@@ -128,6 +121,13 @@ const Index = () => {
               <CryptoHeatmap />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* News Section - Full nav width */}
+      <div className="w-full">
+        <div className="container mx-auto">
+          <NewsSection searchTerm={searchTerm} defaultTab="crypto" />
         </div>
       </div>
     </div>
