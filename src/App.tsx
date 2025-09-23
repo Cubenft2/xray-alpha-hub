@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import PageTransition from "./components/PageTransition";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
 import MarketBrief from "./pages/MarketBrief";
@@ -29,19 +30,21 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<MarketBriefHome />} />
-            <Route path="/crypto" element={<Index />} />
-            <Route path="/markets" element={<Markets />} />
-            <Route path="/market-brief" element={<MarketBrief />} />
-            <Route path="/watchlist" element={<Watchlist />} />
-            <Route path="/news" element={<News />} />
-            <Route path="/store" element={<Store />} />
-            <Route path="/support" element={<Support />} />
-            <Route path="/chill" element={<ChillZone />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <PageTransition>
+            <Routes>
+              <Route path="/" element={<MarketBriefHome />} />
+              <Route path="/crypto" element={<Index />} />
+              <Route path="/markets" element={<Markets />} />
+              <Route path="/market-brief" element={<MarketBrief />} />
+              <Route path="/watchlist" element={<Watchlist />} />
+              <Route path="/news" element={<News />} />
+              <Route path="/store" element={<Store />} />
+              <Route path="/support" element={<Support />} />
+              <Route path="/chill" element={<ChillZone />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </PageTransition>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
