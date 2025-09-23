@@ -83,15 +83,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6 ml-8 relative">
-            {/* Running dog animation in nav area */}
-            <div className="xr-running-dog">
-              <img 
-                src="/pfp.png" 
-                alt="XRay Dog" 
-                className="w-8 h-8 rounded-full opacity-60"
-              />
-            </div>
+          <nav className="hidden lg:flex items-center space-x-6 ml-8">
             {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
                   <Button

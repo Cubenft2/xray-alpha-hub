@@ -402,14 +402,45 @@
     pointer-events: none;
   }
 
-  /* Running Dog Animation */
+  /* Running Dog Animation - Drop and Bounce */
   .xr-running-dog {
     position: absolute;
-    bottom: -50px;
-    left: -100px;
-    animation: dog-run 25s linear infinite;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: dog-drop-bounce 8s ease-in-out infinite;
     pointer-events: none;
-    z-index: 1;
+    z-index: 0;
+  }
+
+  @keyframes dog-drop-bounce {
+    0% {
+      transform: translateX(-50%) translateY(-60px);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.6;
+    }
+    25% {
+      transform: translateX(-50%) translateY(100px);
+    }
+    35% {
+      transform: translateX(-50%) translateY(60px);
+    }
+    45% {
+      transform: translateX(-50%) translateY(80px);
+    }
+    55% {
+      transform: translateX(-50%) translateY(70px);
+    }
+    75% {
+      transform: translateX(-50%) translateY(70px);
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateX(-50%) translateY(-60px);
+      opacity: 0;
+    }
   }
 
   @keyframes xray-pulse {
