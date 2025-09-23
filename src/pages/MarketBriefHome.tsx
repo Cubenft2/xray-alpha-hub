@@ -1,7 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { XRHeader } from '@/components/XRHeader';
-import { XRTicker } from '@/components/XRTicker';
-import { XRFooter } from '@/components/XRFooter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Share, Copy, ExternalLink } from 'lucide-react';
@@ -26,6 +23,7 @@ export default function MarketBriefHome() {
   const [brief, setBrief] = useState<MarketBrief | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const { toast } = useToast();
 
   const workerBase = 'https://xraycrypto-news.xrprat.workers.dev/';
@@ -114,6 +112,8 @@ export default function MarketBriefHome() {
     
     try {
       await navigator.clipboard.writeText(brief.canonical);
+      setCopiedToClipboard(true);
+      setTimeout(() => setCopiedToClipboard(false), 2000);
       toast({
         title: "Link copied!",
         description: "Brief link copied to clipboard.",
@@ -159,97 +159,53 @@ export default function MarketBriefHome() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <XRHeader currentPage="market-brief" />
-        {/* Desktop and Medium: Both tickers */}
-        <div className="hidden sm:block">
-          <XRTicker type="crypto" />
+      <div className="container mx-auto py-6">
+        <div className="max-w-4xl mx-auto">
+          <Card className="xr-card">
+            <CardContent className="p-8 text-center">
+              <div className="animate-pulse">
+                <div className="h-8 bg-muted rounded mb-4"></div>
+                <div className="h-4 bg-muted rounded mb-2"></div>
+                <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
+              </div>
+              <p className="text-muted-foreground mt-4">Loading latest market brief...</p>
+            </CardContent>
+          </Card>
         </div>
-        <div className="hidden sm:block">
-          <XRTicker type="stocks" />
-        </div>
-        {/* Small screens: Only crypto ticker */}
-        <div className="block sm:hidden">
-          <XRTicker type="crypto" />
-        </div>
-        <main className="container mx-auto py-6">
-          <div className="max-w-4xl mx-auto">
-            <Card className="xr-card">
-              <CardContent className="p-8 text-center">
-                <div className="animate-pulse">
-                  <div className="h-8 bg-muted rounded mb-4"></div>
-                  <div className="h-4 bg-muted rounded mb-2"></div>
-                  <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
-                </div>
-                <p className="text-muted-foreground mt-4">Loading latest market brief...</p>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-        <XRFooter />
       </div>
     );
   }
 
   if (!brief) {
     return (
-      <div className="min-h-screen bg-background">
-        <XRHeader currentPage="market-brief" />
-        {/* Desktop and Medium: Both tickers */}
-        <div className="hidden sm:block">
-          <XRTicker type="crypto" />
+      <div className="container mx-auto py-6">
+        <div className="max-w-4xl mx-auto">
+          <Card className="xr-card">
+            <CardContent className="p-8 text-center">
+              <h2 className="text-xl font-semibold mb-4">Brief Unavailable</h2>
+              <p className="text-muted-foreground">Couldn't load the market brief. Please try again shortly.</p>
+            </CardContent>
+          </Card>
         </div>
-        <div className="hidden sm:block">
-          <XRTicker type="stocks" />
-        </div>
-        {/* Small screens: Only crypto ticker */}
-        <div className="block sm:hidden">
-          <XRTicker type="crypto" />
-        </div>
-        <main className="container mx-auto py-6">
-          <div className="max-w-4xl mx-auto">
-            <Card className="xr-card">
-              <CardContent className="p-8 text-center">
-                <h2 className="text-xl font-semibold mb-4">Brief Unavailable</h2>
-                <p className="text-muted-foreground">Couldn't load the market brief. Please try again shortly.</p>
-              </CardContent>
-            </Card>
-          </div>
-        </main>
-        <XRFooter />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <XRHeader currentPage="market-brief" />
-      {/* Desktop and Medium: Both tickers */}
-      <div className="hidden sm:block">
-        <XRTicker type="crypto" />
-      </div>
-      <div className="hidden sm:block">
-        <XRTicker type="stocks" />
-      </div>
-      {/* Small screens: Only crypto ticker */}
-      <div className="block sm:hidden">
-        <XRTicker type="crypto" />
-      </div>
-      
-      <main className="container mx-auto py-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Header Section */}
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleShareX}>
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Share on X
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleCopyLink}>
-                <Copy className="w-4 h-4 mr-2" />
-                Copy Link
-              </Button>
+    <div className="container mx-auto py-6">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header Section */}
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleShareX}>
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Share on X
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleCopyLink}>
+              <Copy className="w-4 h-4 mr-2" />
+              {copiedToClipboard ? 'Copied!' : 'Copy Link'}
+            </Button>
               <Button variant="outline" size="sm" onClick={handleNativeShare}>
                 <Share className="w-4 h-4 mr-2" />
                 Share
@@ -358,9 +314,9 @@ export default function MarketBriefHome() {
             </div>
           </Card>
         </div>
-      </main>
-      
-      <XRFooter />
+      </div>
     </div>
   );
 }
+
+export default MarketBriefHome;
