@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { XRHeader } from '@/components/XRHeader';
-import { XRTicker } from '@/components/XRTicker';
-import { XRFooter } from '@/components/XRFooter';
+import { useLayoutSearch } from '@/components/Layout';
 import { TradingViewChart } from '@/components/TradingViewChart';
 import { StocksScreener } from '@/components/StocksScreener';
 import { StocksHeatmap } from '@/components/StocksHeatmap';
@@ -12,13 +10,7 @@ export default function Markets() {
   const [searchParams] = useSearchParams();
   const [chartSymbol, setChartSymbol] = useState<string>('AMEX:SPY');
   const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    const symbolFromUrl = searchParams.get('symbol');
-    if (symbolFromUrl) {
-      setChartSymbol(symbolFromUrl);
-    }
-  }, [searchParams]);
+  const { setSearchHandler } = useLayoutSearch();
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
@@ -72,57 +64,52 @@ export default function Markets() {
       }
     }
   };
-  return (
-    <div className="min-h-screen bg-background">
-      <XRHeader currentPage="markets" onSearch={handleSearch} />
-      {/* Desktop and Medium: Both tickers */}
-      <div className="hidden sm:block">
-        <XRTicker type="crypto" />
-      </div>
-      <div className="hidden sm:block">
-        <XRTicker type="stocks" />
-      </div>
-      {/* Small screens: Only stocks ticker */}
-      <div className="block sm:hidden">
-        <XRTicker type="stocks" />
-      </div>
-      
-      <main className="py-6 space-y-6">
-        <div className="w-full">
-          <div className="container mx-auto">
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold xr-gradient-text">📈 Stock Markets</h1>
-              <p className="text-muted-foreground">Real-time stock market data and analysis</p>
-            </div>
-          </div>
-        </div>
 
-        {/* Chart with exact nav width */}
-        <div className="w-full">
-          <div className="container mx-auto">
-            <TradingViewChart symbol={chartSymbol} height="700px" />
+  useEffect(() => {
+    const symbolFromUrl = searchParams.get('symbol');
+    if (symbolFromUrl) {
+      setChartSymbol(symbolFromUrl);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    // Register search handler with layout
+    setSearchHandler(handleSearch);
+  }, [setSearchHandler, handleSearch]);
+  return (
+    <div className="py-6 space-y-6">
+      <div className="w-full">
+        <div className="container mx-auto">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold xr-gradient-text">📈 Stock Markets</h1>
+            <p className="text-muted-foreground">Real-time stock market data and analysis</p>
           </div>
         </div>
-        
-        {/* Widgets with exact nav width */}
-        <div className="w-full">
-          <div className="container mx-auto">
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <StocksScreener />
-              <StocksHeatmap />
-            </div>
-          </div>
+      </div>
+
+      {/* Chart with exact nav width */}
+      <div className="w-full">
+        <div className="container mx-auto">
+          <TradingViewChart symbol={chartSymbol} height="700px" />
         </div>
-        
-        {/* News with exact nav width */}
-        <div className="w-full">
-          <div className="container mx-auto">
-            <NewsSection searchTerm={searchTerm} defaultTab="stocks" />
-          </div>
-        </div>
-      </main>
+      </div>
       
-      <XRFooter />
+      {/* Widgets with exact nav width */}
+      <div className="w-full">
+        <div className="container mx-auto">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <StocksScreener />
+            <StocksHeatmap />
+          </div>
+        </div>
+      </div>
+      
+      {/* News with exact nav width */}
+      <div className="w-full">
+        <div className="container mx-auto">
+          <NewsSection searchTerm={searchTerm} defaultTab="stocks" />
+        </div>
+      </div>
     </div>
   );
 }

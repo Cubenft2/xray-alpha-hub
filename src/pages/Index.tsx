@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { XRHeader } from '@/components/XRHeader';
-import { XRTicker } from '@/components/XRTicker';
-import { XRFooter } from '@/components/XRFooter';
+import { useLayoutSearch } from '@/components/Layout';
 import { TradingViewChart } from '@/components/TradingViewChart';
 import { CryptoScreener } from '@/components/CryptoScreener';
 import { CryptoHeatmap } from '@/components/CryptoHeatmap';
@@ -12,13 +10,7 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const [chartSymbol, setChartSymbol] = useState<string>('BINANCE:BTCUSDT');
   const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    const symbolFromUrl = searchParams.get('symbol');
-    if (symbolFromUrl) {
-      setChartSymbol(symbolFromUrl);
-    }
-  }, [searchParams]);
+  const { setSearchHandler } = useLayoutSearch();
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
@@ -77,79 +69,67 @@ const Index = () => {
       }
     }
   };
+
+  useEffect(() => {
+    const symbolFromUrl = searchParams.get('symbol');
+    if (symbolFromUrl) {
+      setChartSymbol(symbolFromUrl);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    // Register search handler with layout
+    setSearchHandler(handleSearch);
+  }, [setSearchHandler, handleSearch]);
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <XRHeader onSearch={handleSearch} />
-      
-      {/* Ticker Tapes */}
-      <div className="space-y-0">
-        {/* Desktop and Medium: Both tickers */}
-        <div className="hidden sm:block">
-          <XRTicker type="crypto" />
-        </div>
-        <div className="hidden sm:block">
-          <XRTicker type="stocks" />
-        </div>
-        {/* Small screens: Only crypto ticker */}
-        <div className="block sm:hidden">
-          <XRTicker type="crypto" />
+    <div className="py-6">
+      <div className="w-full">
+        <div className="container mx-auto">
+          <div className="space-y-6">
+            {/* Hero Section */}
+            <div className="text-center py-8">
+              <h1 className="text-4xl sm:text-5xl font-bold xr-gradient-text mb-4">
+                Welcome to XRayCrypto™
+              </h1>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                Your ultimate crypto & stocks dashboard. Real-time charts, live news, 
+                and community support - all in one place! 🐕
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <main className="py-6">
-        <div className="w-full">
-          <div className="container mx-auto">
-            <div className="space-y-6">
-              {/* Hero Section */}
-              <div className="text-center py-8">
-                <h1 className="text-4xl sm:text-5xl font-bold xr-gradient-text mb-4">
-                  Welcome to XRayCrypto™
-                </h1>
-                <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                  Your ultimate crypto & stocks dashboard. Real-time charts, live news, 
-                  and community support - all in one place! 🐕
-                </p>
-              </div>
+      {/* Main Chart - Full nav width */}
+      <div className="w-full mb-6">
+        <div className="container mx-auto">
+          <TradingViewChart symbol={chartSymbol} height="700px" />
+        </div>
+      </div>
+
+      {/* News Section - Full nav width */}
+      <div className="w-full mb-6">
+        <div className="container mx-auto">
+          <NewsSection searchTerm={searchTerm} defaultTab="crypto" />
+        </div>
+      </div>
+
+      {/* Dashboard Grid - Full nav width */}
+      <div className="w-full">
+        <div className="container mx-auto">
+          <div className="grid grid-cols-1 gap-6">
+            {/* Crypto Screener - Full width */}
+            <div>
+              <CryptoScreener />
+            </div>
+
+            {/* Crypto Heatmap - Full width */}
+            <div>
+              <CryptoHeatmap />
             </div>
           </div>
         </div>
-
-        {/* Main Chart - Full nav width */}
-        <div className="w-full mb-6">
-          <div className="container mx-auto">
-            <TradingViewChart symbol={chartSymbol} height="700px" />
-          </div>
-        </div>
-
-        {/* News Section - Full nav width */}
-        <div className="w-full mb-6">
-          <div className="container mx-auto">
-            <NewsSection searchTerm={searchTerm} defaultTab="crypto" />
-          </div>
-        </div>
-
-        {/* Dashboard Grid - Full nav width */}
-        <div className="w-full">
-          <div className="container mx-auto">
-            <div className="grid grid-cols-1 gap-6">
-              {/* Crypto Screener - Full width */}
-              <div>
-                <CryptoScreener />
-              </div>
-
-              {/* Crypto Heatmap - Full width */}
-              <div>
-                <CryptoHeatmap />
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <XRFooter />
+      </div>
     </div>
   );
 };
