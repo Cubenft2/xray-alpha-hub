@@ -83,7 +83,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6 ml-4 relative overflow-hidden">
+          <nav className="hidden lg:flex items-center space-x-6 ml-1 relative overflow-hidden">
             {/* Pet Parade - One animation every 10 minutes */}
             
             {/* Cat runs alone - starts immediately */}
