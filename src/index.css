@@ -291,6 +291,17 @@
   .hover-glow-tab[data-state="active"]:hover {
     box-shadow: 0 0 20px hsl(var(--accent) / 0.5), 0 0 30px hsl(var(--accent) / 0.3);
   }
+
+  /* News Card Hover Glow Effect */
+  .hover-glow-news {
+    transition: all 0.3s ease;
+  }
+
+  .hover-glow-news:hover {
+    box-shadow: 0 0 12px hsl(var(--primary) / 0.3), 0 0 20px hsl(var(--primary) / 0.15);
+    border-color: hsl(var(--primary) / 0.5);
+    transform: translateY(-1px);
+  }
 }
 
 @layer utilities {
