@@ -135,9 +135,25 @@ export default function MarketBriefHome() {
         });
       } catch (error) {
         console.error('Native share failed:', error);
+        // Fallback to copying link when native share fails
+        try {
+          await navigator.clipboard.writeText(brief.canonical);
+          toast({
+            title: "Link copied!",
+            description: "Share unavailable, but link copied to clipboard.",
+          });
+        } catch (clipboardError) {
+          console.error('Clipboard fallback failed:', clipboardError);
+          toast({
+            title: "Share failed",
+            description: "Please copy the URL manually from your browser.",
+            variant: "destructive"
+          });
+        }
       }
     } else {
-      handleShareX();
+      // Fallback to copying link when native share is not supported
+      handleCopyLink();
     }
   };
 
