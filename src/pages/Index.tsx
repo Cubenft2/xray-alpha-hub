@@ -46,6 +46,8 @@ const Index = () => {
         'RIPPLE': 'BINANCE:XRPUSDT',
         'DOGE': 'BINANCE:DOGEUSDT',
         'DOGECOIN': 'BINANCE:DOGEUSDT',
+        'FLR': 'BITSTAMP:FLRUSD',
+        'FLARE': 'BITSTAMP:FLRUSD',
       };
       
       // Check for exact matches first
