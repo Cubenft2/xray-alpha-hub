@@ -408,7 +408,7 @@
     top: 50%;
     left: -50px;
     transform: translateY(-50%);
-    animation: pet-parade 45s ease-in-out infinite;
+    animation: pet-parade 60s ease-in-out infinite;
     pointer-events: none;
     z-index: 5;
     opacity: 0;
@@ -419,7 +419,7 @@
     top: 50%;
     left: -120px;
     transform: translateY(-50%);
-    animation: pet-chase 45s ease-in-out infinite;
+    animation: pet-chase 60s ease-in-out infinite;
     pointer-events: none;
     z-index: 3;
     opacity: 0;
@@ -430,7 +430,7 @@
     top: 30%;
     left: -140px;
     transform: translateY(-50%);
-    animation: pet-sound-follow 45s ease-in-out infinite;
+    animation: pet-sound-follow 60s ease-in-out infinite;
     pointer-events: none;
     z-index: 2;
     opacity: 0;
@@ -442,35 +442,35 @@
       transform: translateY(-50%);
       opacity: 0;
     }
-    2% {
+    1% {
       opacity: 1;
     }
-    5% {
+    8% {
       left: 120px;
       transform: translateY(-70px);
     }
-    8% {
+    12% {
       left: 200px;
       transform: translateY(-50%);
     }
-    11% {
+    16% {
       left: 300px;
       transform: translateY(-70px);
     }
-    14% {
+    20% {
       left: 400px;
       transform: translateY(-50%);
     }
-    17% {
+    24% {
       left: 500px;
       transform: translateY(-70px);
     }
-    20% {
+    28% {
       left: 700px;
       transform: translateY(-50%);
       opacity: 1;
     }
-    22% {
+    30% {
       opacity: 0;
     }
     100% {
@@ -486,35 +486,35 @@
       transform: translateY(-50%) scaleX(1);
       opacity: 0;
     }
-    3% {
+    2% {
       opacity: 1;
     }
-    6% {
+    10% {
       left: -80px;
       transform: translateY(-50%) scaleX(1);
     }
-    9% {
+    14% {
       left: 40px;
       transform: translateY(-50%) scaleX(1);
     }
-    12% {
+    18% {
       left: 140px;
       transform: translateY(-50%) scaleX(1);
     }
-    15% {
+    22% {
       left: 240px;
       transform: translateY(-50%) scaleX(1);
     }
-    18% {
+    26% {
       left: 340px;
       transform: translateY(-50%) scaleX(1);
     }
-    21% {
+    30% {
       left: 600px;
       transform: translateY(-50%) scaleX(1);
       opacity: 1;
     }
-    23% {
+    32% {
       opacity: 0;
     }
     100% {
@@ -529,35 +529,35 @@
       left: -140px;
       opacity: 0;
     }
-    4% {
+    3% {
       left: -100px;
       opacity: 1;
     }
-    7% {
+    12% {
       left: 20px;
       opacity: 1;
     }
-    10% {
+    16% {
       left: 120px;
       opacity: 1;
     }
-    13% {
+    20% {
       left: 220px;
       opacity: 1;
     }
-    16% {
+    24% {
       left: 320px;
       opacity: 1;
     }
-    19% {
+    28% {
       left: 420px;
       opacity: 1;
     }
-    22% {
+    31% {
       left: 580px;
       opacity: 1;
     }
-    24% {
+    33% {
       opacity: 0;
     }
     100% {
