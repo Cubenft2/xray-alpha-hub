@@ -417,7 +417,7 @@
   .xr-chasing-dog {
     position: absolute;
     top: 50%;
-    left: -60px;
+    left: -100px;
     transform: translateY(-50%);
     animation: dog-chase 12s ease-in-out infinite;
     pointer-events: none;
@@ -428,7 +428,7 @@
   .xr-woof-text {
     position: absolute;
     top: 30%;
-    left: -80px;
+    left: -120px;
     transform: translateY(-50%);
     animation: woof-follow 12s ease-in-out infinite;
     pointer-events: none;
@@ -441,74 +441,74 @@
       left: -20px;
       transform: translateY(-50%);
     }
-    10% {
-      left: 70px;
+    8% {
+      left: 100px;
       transform: translateY(-70px);
     }
-    20% {
-      left: 140px;
+    16% {
+      left: 180px;
       transform: translateY(-50%);
     }
-    30% {
-      left: 210px;
+    24% {
+      left: 260px;
       transform: translateY(-70px);
+    }
+    32% {
+      left: 340px;
+      transform: translateY(-50%);
     }
     40% {
-      left: 280px;
-      transform: translateY(-50%);
-    }
-    50% {
-      left: 350px;
+      left: 420px;
       transform: translateY(-70px);
     }
-    60% {
-      left: 420px;
+    48% {
+      left: 500px;
       transform: translateY(-50%);
     }
-    70% {
-      left: 490px;
+    56% {
+      left: 580px;
       transform: translateY(-50%);
     }
     100% {
-      left: 620px;
+      left: 700px;
       transform: translateY(-50%);
     }
   }
 
   @keyframes dog-chase {
     0% {
-      left: -60px;
-      transform: translateY(-50%) scaleX(1);
-    }
-    5% {
-      left: 10px;
+      left: -100px;
       transform: translateY(-50%) scaleX(1);
     }
     15% {
-      left: 80px;
+      left: -60px;
       transform: translateY(-50%) scaleX(1);
     }
     25% {
-      left: 150px;
+      left: 20px;
       transform: translateY(-50%) scaleX(1);
     }
     35% {
-      left: 220px;
+      left: 100px;
       transform: translateY(-50%) scaleX(1);
     }
     45% {
-      left: 290px;
+      left: 180px;
       transform: translateY(-50%) scaleX(1);
     }
     55% {
-      left: 360px;
+      left: 260px;
       transform: translateY(-50%) scaleX(1);
     }
     65% {
-      left: 430px;
+      left: 340px;
       transform: translateY(-50%) scaleX(1);
     }
     75% {
+      left: 420px;
+      transform: translateY(-50%) scaleX(1);
+    }
+    85% {
       left: 500px;
       transform: translateY(-50%) scaleX(1);
     }
@@ -520,38 +520,38 @@
 
   @keyframes woof-follow {
     0% {
-      left: -80px;
+      left: -120px;
       opacity: 0;
     }
-    10% {
-      left: -10px;
-      opacity: 1;
-    }
     20% {
-      left: 60px;
+      left: -80px;
       opacity: 1;
     }
     30% {
-      left: 130px;
+      left: 0px;
       opacity: 1;
     }
     40% {
-      left: 200px;
+      left: 80px;
       opacity: 1;
     }
     50% {
-      left: 270px;
+      left: 160px;
       opacity: 1;
     }
     60% {
-      left: 340px;
+      left: 240px;
       opacity: 1;
     }
     70% {
-      left: 410px;
+      left: 320px;
       opacity: 1;
     }
     80% {
+      left: 400px;
+      opacity: 1;
+    }
+    90% {
       left: 480px;
       opacity: 1;
     }
