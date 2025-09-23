@@ -51,7 +51,17 @@ export default function MarketBrief() {
   return (
     <div className="min-h-screen bg-background">
       <XRHeader currentPage="market-brief" />
-      <XRTicker type="stocks" />
+      {/* Desktop and Medium: Both tickers */}
+      <div className="hidden sm:block">
+        <XRTicker type="crypto" />
+      </div>
+      <div className="hidden sm:block">
+        <XRTicker type="stocks" />
+      </div>
+      {/* Small screens: Only stocks ticker */}
+      <div className="block sm:hidden">
+        <XRTicker type="stocks" />
+      </div>
       
       <main className="container mx-auto py-6 space-y-6">
         <div className="text-center space-y-2">

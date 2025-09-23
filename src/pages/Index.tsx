@@ -84,8 +84,15 @@ const Index = () => {
       
       {/* Ticker Tapes */}
       <div className="space-y-0">
-        <XRTicker type="crypto" />
+        {/* Desktop and Medium: Both tickers */}
         <div className="hidden sm:block">
+          <XRTicker type="crypto" />
+        </div>
+        <div className="hidden sm:block">
+          <XRTicker type="stocks" />
+        </div>
+        {/* Small screens: Only stocks ticker */}
+        <div className="block sm:hidden">
           <XRTicker type="stocks" />
         </div>
       </div>

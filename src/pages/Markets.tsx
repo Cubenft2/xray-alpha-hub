@@ -75,7 +75,17 @@ export default function Markets() {
   return (
     <div className="min-h-screen bg-background">
       <XRHeader currentPage="markets" onSearch={handleSearch} />
-      <XRTicker type="stocks" />
+      {/* Desktop and Medium: Both tickers */}
+      <div className="hidden sm:block">
+        <XRTicker type="crypto" />
+      </div>
+      <div className="hidden sm:block">
+        <XRTicker type="stocks" />
+      </div>
+      {/* Small screens: Only stocks ticker */}
+      <div className="block sm:hidden">
+        <XRTicker type="stocks" />
+      </div>
       
       <main className="py-6 space-y-6">
         <div className="w-full">
