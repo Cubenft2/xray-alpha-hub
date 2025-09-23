@@ -16,9 +16,9 @@ export default function News() {
       <div className="hidden sm:block">
         <XRTicker type="stocks" />
       </div>
-      {/* Small screens: Only stocks ticker */}
+      {/* Small screens: Only crypto ticker */}
       <div className="block sm:hidden">
-        <XRTicker type="stocks" />
+        <XRTicker type="crypto" />
       </div>
       
       <main className="container mx-auto py-6 space-y-8">
