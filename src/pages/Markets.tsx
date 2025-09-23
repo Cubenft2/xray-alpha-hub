@@ -75,7 +75,7 @@ export default function Markets() {
   useEffect(() => {
     // Register search handler with layout
     setSearchHandler(handleSearch);
-  }, [setSearchHandler, handleSearch]);
+  }, [setSearchHandler]);
   return (
     <div className="py-6 space-y-6">
       <div className="w-full">
