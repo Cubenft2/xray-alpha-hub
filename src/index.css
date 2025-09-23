@@ -312,14 +312,15 @@
     border: 1px solid hsl(var(--primary) / 0.7);
   }
 
-  /* News Card Hover Glow Effect */
+  /* News Card Hover Glow Effect - Consistent yellow glow */
   .hover-glow-news {
     transition: all 0.3s ease;
   }
 
   .hover-glow-news:hover {
-    box-shadow: 0 0 12px hsl(var(--primary) / 0.3), 0 0 20px hsl(var(--primary) / 0.15);
-    border-color: hsl(var(--primary) / 0.5);
+    background-color: hsl(var(--accent) / 0.15);
+    box-shadow: 0 0 12px hsl(var(--accent) / 0.3), 0 0 20px hsl(var(--accent) / 0.15);
+    border-color: hsl(var(--accent) / 0.5);
     transform: translateY(-1px);
   }
 }
