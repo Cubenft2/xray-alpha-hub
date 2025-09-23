@@ -84,40 +84,45 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6 ml-8 relative overflow-hidden">
-            {/* Pet Parade - 20 minute cycle with specific timing */}
+            {/* Pet Parade - Every 10 minutes */}
             
-            {/* Dog (ARF) chasing Cat - starts immediately */}
+            {/* Cat runs alone - starts immediately */}
             <div className="xr-pet-item" style={{ animationDelay: '0s' }}>
               <div className="text-lg">🐱</div>
             </div>
-            <div className="xr-pet-chaser" style={{ animationDelay: '0s' }}>
+            <div className="xr-pet-sound" style={{ animationDelay: '0s' }}>
+              <span className="text-xs font-bold text-accent animate-pulse">MEW!</span>
+            </div>
+
+            {/* Dog runs alone - starts at 120s */}
+            <div className="xr-pet-item" style={{ animationDelay: '120s' }}>
               <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
             </div>
-            <div className="xr-pet-sound" style={{ animationDelay: '0s' }}>
+            <div className="xr-pet-sound" style={{ animationDelay: '120s' }}>
               <span className="text-xs font-bold text-primary animate-pulse">ARF!</span>
             </div>
 
-            {/* Just Bone - starts at 120s */}
-            <div className="xr-pet-item" style={{ animationDelay: '120s' }}>
+            {/* Just Bone - starts at 240s */}
+            <div className="xr-pet-item" style={{ animationDelay: '240s' }}>
               <div className="text-lg">🦴</div>
             </div>
 
-            {/* Dog chasing Ball - starts at 300s (120+180) */}
-            <div className="xr-pet-item" style={{ animationDelay: '300s' }}>
+            {/* Dog chasing Ball - starts at 360s */}
+            <div className="xr-pet-item" style={{ animationDelay: '360s' }}>
               <div className="w-3 h-3 bg-green-400 rounded-full border border-green-600 shadow-sm"></div>
             </div>
-            <div className="xr-pet-chaser" style={{ animationDelay: '300s' }}>
+            <div className="xr-pet-chaser" style={{ animationDelay: '360s' }}>
               <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
             </div>
 
-            {/* Dog (YUM) chasing Treat - starts at 600s (120+180+300) */}
-            <div className="xr-pet-item" style={{ animationDelay: '600s' }}>
+            {/* Dog chasing Treat - starts at 480s */}
+            <div className="xr-pet-item" style={{ animationDelay: '480s' }}>
               <div className="text-lg">🍖</div>
             </div>
-            <div className="xr-pet-chaser" style={{ animationDelay: '600s' }}>
+            <div className="xr-pet-chaser" style={{ animationDelay: '480s' }}>
               <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
             </div>
-            <div className="xr-pet-sound" style={{ animationDelay: '600s' }}>
+            <div className="xr-pet-sound" style={{ animationDelay: '480s' }}>
               <span className="text-xs font-bold text-primary animate-pulse">YUM!</span>
             </div>
             {navigation.map((item) => (
