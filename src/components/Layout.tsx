@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { XRHeader } from './XRHeader';
 import { XRTicker } from './XRTicker';
 import { XRFooter } from './XRFooter';
@@ -22,16 +22,18 @@ interface LayoutProps {
 export const Layout = ({ children }: LayoutProps) => {
   const [searchHandler, setSearchHandler] = useState<(term: string) => void>(() => () => {});
 
-  const handleSearch = (term: string) => {
+  const handleSearch = useCallback((term: string) => {
     searchHandler(term);
-  };
+  }, [searchHandler]);
 
-  const contextValue = {
+  const setSearchHandlerStable = useCallback((handler: (term: string) => void) => {
+    setSearchHandler(() => handler);
+  }, []);
+
+  const contextValue = useMemo(() => ({
     onSearch: handleSearch,
-    setSearchHandler: (handler: (term: string) => void) => {
-      setSearchHandler(() => handler);
-    },
-  };
+    setSearchHandler: setSearchHandlerStable,
+  }), [handleSearch, setSearchHandlerStable]);
 
   return (
     <LayoutContext.Provider value={contextValue}>
