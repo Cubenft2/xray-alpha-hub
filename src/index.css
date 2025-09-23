@@ -407,7 +407,7 @@
     position: absolute;
     bottom: -50px;
     left: -100px;
-    animation: dog-run 15s linear infinite;
+    animation: dog-run 25s linear infinite;
     pointer-events: none;
     z-index: 1;
   }
