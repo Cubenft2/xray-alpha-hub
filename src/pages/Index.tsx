@@ -80,7 +80,7 @@ const Index = () => {
   useEffect(() => {
     // Register search handler with layout
     setSearchHandler(handleSearch);
-  }, [setSearchHandler, handleSearch]);
+  }, [setSearchHandler]);
   return (
     <div className="py-6">
       <div className="w-full">
