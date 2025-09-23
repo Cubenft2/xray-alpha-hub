@@ -428,7 +428,7 @@
     top: 30%;
     left: -90px;
     transform: translateY(-50%);
-    animation: xr-pet-parade 3000s infinite;
+    animation: xr-pet-sound-once 3000s infinite;
     opacity: 0;
     z-index: 12;
   }
@@ -452,6 +452,13 @@
       left: calc(100% + 50px);
       opacity: 0;
     }
+  }
+
+  @keyframes xr-pet-sound-once {
+    0% { opacity: 0; }
+    0.2% { opacity: 1; }
+    0.25% { opacity: 0; }
+    100% { opacity: 0; }
   }
 
   @keyframes xray-pulse {

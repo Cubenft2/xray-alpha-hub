@@ -91,7 +91,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               <div className="text-lg">🐱</div>
             </div>
             <div className="xr-pet-sound" style={{ animationDelay: '0s' }}>
-              <span className="text-xs font-bold text-accent animate-pulse">MEW!</span>
+              <span className="text-xs font-bold text-accent">MEW!</span>
             </div>
 
             {/* Dog runs alone - starts at 10 min (600s) */}
@@ -99,7 +99,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
             </div>
             <div className="xr-pet-sound" style={{ animationDelay: '600s' }}>
-              <span className="text-xs font-bold text-primary animate-pulse">ARF!</span>
+              <span className="text-xs font-bold text-primary">ARF!</span>
             </div>
 
             {/* Just Bone - starts at 20 min (1200s) */}
@@ -123,7 +123,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
             </div>
             <div className="xr-pet-sound" style={{ animationDelay: '2400s' }}>
-              <span className="text-xs font-bold text-primary animate-pulse">YUM!</span>
+              <span className="text-xs font-bold text-primary">YUM!</span>
             </div>
             {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
