@@ -402,166 +402,54 @@
     pointer-events: none;
   }
 
-  /* Pet Parade - Occasional fun animations */
+  /* Pet Parade Animation - 20 minute cycle */
   .xr-pet-item {
     position: absolute;
     top: 50%;
     left: -50px;
     transform: translateY(-50%);
-    animation: pet-parade 60s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 5;
+    animation: xr-pet-parade 1200s infinite;
     opacity: 0;
+    z-index: 10;
   }
 
   .xr-pet-chaser {
     position: absolute;
     top: 50%;
-    left: -120px;
+    left: -80px;
     transform: translateY(-50%);
-    animation: pet-chase 60s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 3;
+    animation: xr-pet-parade 1200s infinite;
     opacity: 0;
+    z-index: 11;
   }
 
   .xr-pet-sound {
     position: absolute;
     top: 30%;
-    left: -140px;
+    left: -90px;
     transform: translateY(-50%);
-    animation: pet-sound-follow 60s ease-in-out infinite;
-    pointer-events: none;
-    z-index: 2;
+    animation: xr-pet-parade 1200s infinite;
     opacity: 0;
+    z-index: 12;
   }
 
-  @keyframes pet-parade {
+  @keyframes xr-pet-parade {
     0% {
       left: -50px;
-      transform: translateY(-50%);
       opacity: 0;
     }
-    1% {
+    0.5% {
       opacity: 1;
-    }
-    8% {
-      left: 120px;
-      transform: translateY(-70px);
-    }
-    12% {
-      left: 200px;
-      transform: translateY(-50%);
-    }
-    16% {
-      left: 300px;
-      transform: translateY(-70px);
-    }
-    20% {
-      left: 400px;
-      transform: translateY(-50%);
-    }
-    24% {
-      left: 500px;
-      transform: translateY(-70px);
-    }
-    28% {
-      left: 700px;
-      transform: translateY(-50%);
-      opacity: 1;
-    }
-    30% {
-      opacity: 0;
-    }
-    100% {
-      left: 700px;
-      transform: translateY(-50%);
-      opacity: 0;
-    }
-  }
-
-  @keyframes pet-chase {
-    0% {
-      left: -120px;
-      transform: translateY(-50%) scaleX(1);
-      opacity: 0;
-    }
-    2% {
-      opacity: 1;
-    }
-    10% {
-      left: -80px;
-      transform: translateY(-50%) scaleX(1);
-    }
-    14% {
-      left: 40px;
-      transform: translateY(-50%) scaleX(1);
-    }
-    18% {
-      left: 140px;
-      transform: translateY(-50%) scaleX(1);
-    }
-    22% {
-      left: 240px;
-      transform: translateY(-50%) scaleX(1);
-    }
-    26% {
-      left: 340px;
-      transform: translateY(-50%) scaleX(1);
-    }
-    30% {
-      left: 600px;
-      transform: translateY(-50%) scaleX(1);
-      opacity: 1;
-    }
-    32% {
-      opacity: 0;
-    }
-    100% {
-      left: 600px;
-      transform: translateY(-50%) scaleX(1);
-      opacity: 0;
-    }
-  }
-
-  @keyframes pet-sound-follow {
-    0% {
-      left: -140px;
-      opacity: 0;
     }
     3% {
-      left: -100px;
+      left: calc(100% + 50px);
       opacity: 1;
     }
-    12% {
-      left: 20px;
-      opacity: 1;
-    }
-    16% {
-      left: 120px;
-      opacity: 1;
-    }
-    20% {
-      left: 220px;
-      opacity: 1;
-    }
-    24% {
-      left: 320px;
-      opacity: 1;
-    }
-    28% {
-      left: 420px;
-      opacity: 1;
-    }
-    31% {
-      left: 580px;
-      opacity: 1;
-    }
-    33% {
+    4% {
       opacity: 0;
     }
     100% {
-      left: 580px;
+      left: calc(100% + 50px);
       opacity: 0;
     }
   }
