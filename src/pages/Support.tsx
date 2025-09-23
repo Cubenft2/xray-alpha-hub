@@ -112,27 +112,39 @@ export default function Support() {
                 <p className="text-sm text-muted-foreground mb-4">
                   Alternative: Send to our Unstoppable Domain
                 </p>
-                <div className="flex items-center justify-center space-x-2">
-                  <code className="bg-muted px-3 py-2 rounded font-mono">
-                    xraycrypto.x
-                  </code>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard('xraycrypto.x', 'UD')}
-                  >
-                    {copiedAddress === 'UD' ? (
-                      <>
-                        <Check className="w-4 h-4 mr-1" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4 mr-1" />
-                        Copy
-                      </>
-                    )}
-                  </Button>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-center space-x-2">
+                    <code className="bg-muted px-3 py-2 rounded font-mono">
+                      xraycrypto.x
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard('xraycrypto.x', 'UD')}
+                    >
+                      {copiedAddress === 'UD' ? (
+                        <>
+                          <Check className="w-4 h-4 mr-1" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4 mr-1" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div>
+                    <a 
+                      href="https://ud.me/xraycrypto.x" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 font-mono text-sm underline"
+                    >
+                      https://ud.me/xraycrypto.x
+                    </a>
+                  </div>
                 </div>
               </div>
 
