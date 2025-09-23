@@ -40,15 +40,7 @@ export const Layout = ({ children }: LayoutProps) => {
         <XRHeader onSearch={handleSearch} />
         
         {/* Persistent Tickers - never unmount */}
-        <div className="space-y-0 relative">
-          {/* Running dog animation behind tickers */}
-          <div className="xr-running-dog">
-            <img 
-              src="/pfp.png" 
-              alt="XRay Dog" 
-              className="w-8 h-8 rounded-full opacity-60"
-            />
-          </div>
+        <div className="space-y-0">
           {/* Desktop and Medium: Both tickers */}
           <div className="hidden sm:block">
             <XRTicker type="crypto" />

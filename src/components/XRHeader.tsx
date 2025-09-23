@@ -83,7 +83,25 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6 ml-8">
+          <nav className="hidden lg:flex items-center space-x-6 ml-8 relative overflow-hidden">
+            {/* Tennis ball bouncing animation */}
+            <div className="xr-tennis-ball">
+              <div className="w-3 h-3 bg-yellow-400 rounded-full border border-white"></div>
+            </div>
+            
+            {/* Dog chasing animation */}
+            <div className="xr-chasing-dog">
+              <img 
+                src="/pfp.png" 
+                alt="XRay Dog" 
+                className="w-6 h-6 rounded-full"
+              />
+            </div>
+            
+            {/* Woof woof text */}
+            <div className="xr-woof-text">
+              <span className="text-xs font-bold text-primary animate-pulse">WOOF WOOF!</span>
+            </div>
             {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
                   <Button
