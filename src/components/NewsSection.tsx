@@ -232,10 +232,10 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
 
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="crypto" className="text-xs">
+          <TabsTrigger value="crypto" className="text-xs hover-glow-tab transition-all duration-300">
             🚀 Crypto ({filteredCryptoNews.length})
           </TabsTrigger>
-          <TabsTrigger value="stocks" className="text-xs">
+          <TabsTrigger value="stocks" className="text-xs hover-glow-tab transition-all duration-300">
             📈 Markets ({filteredStocksNews.length})
           </TabsTrigger>
         </TabsList>
