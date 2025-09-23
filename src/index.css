@@ -292,14 +292,24 @@
     box-shadow: 0 0 12px hsl(var(--primary) / 0.25), 0 0 20px hsl(var(--primary) / 0.15);
   }
 
-  /* Active Tab Styling - Subtle "ON" state */
+  /* Active Tab Styling - Consistent for both crypto and stocks tabs */
   .hover-glow-tab[data-state="active"] {
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.8), hsl(var(--primary) / 0.6));
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.85), hsl(var(--primary) / 0.7));
     color: hsl(var(--primary-foreground));
     font-weight: 600;
-    box-shadow: 0 0 6px hsl(var(--primary) / 0.2), 0 0 12px hsl(var(--primary) / 0.1);
-    border: 1px solid hsl(var(--primary) / 0.6);
+    box-shadow: 0 0 8px hsl(var(--primary) / 0.25), 0 0 15px hsl(var(--primary) / 0.15);
+    border: 1px solid hsl(var(--primary) / 0.7);
     transform: translateY(-0.5px);
+  }
+
+  /* Ensure both crypto and stocks tabs look identical when active */
+  .hover-glow-tab[data-state="active"][value="crypto"],
+  .hover-glow-tab[data-state="active"][value="stocks"] {
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.85), hsl(var(--primary) / 0.7));
+    color: hsl(var(--primary-foreground));
+    font-weight: 600;
+    box-shadow: 0 0 8px hsl(var(--primary) / 0.25), 0 0 15px hsl(var(--primary) / 0.15);
+    border: 1px solid hsl(var(--primary) / 0.7);
   }
 
   /* News Card Hover Glow Effect */
