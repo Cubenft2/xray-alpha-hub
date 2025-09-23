@@ -177,7 +177,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   };
 
   const NewsCard = ({ item }: { item: NewsItem }) => (
-    <div className="border border-border rounded-lg p-4 hover:bg-accent/50 hover-glow-news transition-colors cursor-pointer">
+    <div className="border border-border rounded-lg p-4 hover-glow-news transition-all cursor-pointer">
       <div className="flex items-start justify-between mb-2">
         <h3 className="font-medium text-sm line-clamp-2 flex-1">{item.title}</h3>
         <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
