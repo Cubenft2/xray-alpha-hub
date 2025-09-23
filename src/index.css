@@ -318,9 +318,9 @@
   }
 
   .hover-glow-news:hover {
-    background-color: hsl(var(--accent) / 0.15);
-    box-shadow: 0 0 12px hsl(var(--accent) / 0.3), 0 0 20px hsl(var(--accent) / 0.15);
-    border-color: hsl(var(--accent) / 0.5);
+    background-color: hsl(var(--accent) / 0.22);
+    box-shadow: 0 0 18px hsl(var(--accent) / 0.4), 0 0 30px hsl(var(--accent) / 0.2);
+    border-color: hsl(var(--accent) / 0.6);
     transform: translateY(-1px);
   }
 }
