@@ -118,18 +118,18 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           const cryptoItems = normalized.filter(n => 
             isCryptoHost(n.source) || 
             /bitcoin|ethereum|crypto|btc|eth|solana|sol|defi|nft|web3|blockchain|dogecoin|cardano|polkadot/i.test(n.title)
-          ).slice(0, 8);
+          ).slice(0, 20);
           
           const stocksItems = normalized.filter(n => 
             (isStocksHost(n.source) || /stocks?|market|fed|nasdaq|s&p|dow|sp500|trading|earnings|dividend|wall street/i.test(n.title)) &&
             !isCryptoHost(n.source) &&
             !/bitcoin|ethereum|crypto|btc|eth|solana|defi/i.test(n.title)
-          ).slice(0, 8);
+          ).slice(0, 20);
 
           if (normalized.length > 0) {
             console.log('🐕 XRay: Using live news data');
-            setCryptoNews(cryptoItems.length > 0 ? cryptoItems : normalized.slice(0, 6));
-            setStocksNews(stocksItems.length > 0 ? stocksItems : normalized.slice(6, 12));
+            setCryptoNews(cryptoItems.length > 0 ? cryptoItems : normalized.slice(0, 15));
+            setStocksNews(stocksItems.length > 0 ? stocksItems : normalized.slice(15, 30));
           } else {
             console.log('🐕 XRay: No items from worker, using mock data');
             setCryptoNews(mockCryptoNews);
@@ -249,7 +249,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         </TabsList>
 
         <TabsContent value="crypto" className="mt-4">
-          <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2">
+          <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
             {isLoading ? (
               <div className="text-center text-muted-foreground py-8">
                 <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
@@ -268,7 +268,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         </TabsContent>
 
         <TabsContent value="stocks" className="mt-4">
-          <div className="max-h-[400px] overflow-y-auto space-y-3 pr-2">
+          <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
             {isLoading ? (
               <div className="text-center text-muted-foreground py-8">
                 <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
