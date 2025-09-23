@@ -235,10 +235,18 @@ export default function MarketBriefHome() {
 
           <CardContent className="p-6 lg:p-8">
             {/* Title and Summary */}
-            <div className="space-y-4 mb-6">
-              <h2 className="text-2xl lg:text-3xl font-bold leading-tight xr-gradient-text">
+            <div className="space-y-4 mb-6 relative">
+              <h2 className="text-2xl lg:text-3xl font-bold leading-tight xr-gradient-text xr-xray-glow animate-pulse">
                 {brief.title}
               </h2>
+              {/* Occasional running dog animation */}
+              <div className="xr-running-dog">
+                <img 
+                  src="/pfp.png" 
+                  alt="XRay Dog" 
+                  className="w-8 h-8 rounded-full opacity-60"
+                />
+              </div>
               {brief.summary && (
                 <p className="text-muted-foreground text-lg leading-relaxed">
                   {brief.summary}
