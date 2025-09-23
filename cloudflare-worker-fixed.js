@@ -102,12 +102,49 @@ export default {
           "https://www.coindesk.com/arc/outboundfeeds/rss/",
           "https://cointelegraph.com/rss",
           "https://www.theblock.co/rss.xml",
-          "https://decrypt.co/feed"
+          "https://decrypt.co/feed",
+          "https://messari.io/rss",
+          "https://blog.chain.link/feed/",
+          "https://cryptoslate.com/feed/",
+          "https://bitcoinmagazine.com/feed",
+          "https://blockworks.co/feeds/rss",
+          "https://thedefiant.io/feed",
+          "https://protos.com/feed/",
+          "https://ambcrypto.com/feed/",
+          "https://beincrypto.com/feed/",
+          "https://coingape.com/feed/",
+          "https://coinpedia.org/feed/",
+          "https://cryptopotato.com/feed/"
         ],
         stocks: [
           "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
           "https://www.reuters.com/markets/us/rss",
-          "https://www.cnbc.com/id/100003114/device/rss/rss.html"
+          "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+          "https://feeds.foxbusiness.com/foxbusiness/latest",
+          "https://apnews.com/hub/apf-business?output=rss",
+          "https://finance.yahoo.com/news/rssindex",
+          "https://www.ft.com/markets/rss",
+          "https://rss.cnn.com/rss/money_latest.rss",
+          "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+          "https://www.marketwatch.com/feeds/topstories",
+          "https://www.marketwatch.com/feeds/marketpulse",
+          "https://www.moneycontrol.com/rss/business.xml",
+          "https://www.moneycontrol.com/rss/marketreports.xml",
+          "https://www.moneycontrol.com/rss/economy.xml",
+          "https://www.theguardian.com/uk/business/rss",
+          "http://feeds.bbci.co.uk/news/business/rss.xml"
+        ],
+        macro: [
+          "https://www.reuters.com/world/rss",
+          "https://apnews.com/hub/apf-topnews?output=rss",
+          "https://news.google.com/rss/search?q=market%20volatility%20OR%20stocks%20selloff%20OR%20crypto%20crash&hl=en-US&gl=US&ceid=US:en",
+          "https://www.federalreserve.gov/feeds/press_all.xml",
+          "https://www.bls.gov/feed/news_release.rss",
+          "https://www.bea.gov/rss.xml",
+          "https://home.treasury.gov/rss/press.xml",
+          "https://www.ecb.europa.eu/press/rss/press.xml",
+          "https://www.bankofengland.co.uk/boeapps/rss/feeds.aspx?feed=News",
+          "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&output=atom"
         ]
       };
 
@@ -142,6 +179,7 @@ export default {
       const toFetch = [];
       if (sources.has("crypto")) toFetch.push(...FEEDS.crypto);
       if (sources.has("stocks")) toFetch.push(...FEEDS.stocks);
+      if (sources.has("macro")) toFetch.push(...FEEDS.macro);
 
       console.log(`Fetching ${toFetch.length} feeds...`);
 

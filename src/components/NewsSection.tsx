@@ -79,8 +79,8 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     console.log('🐕 XRay: Fetching news...');
     
     try {
-      // Try the aggregate endpoint for real news data
-      const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/aggregate?sources=crypto,stocks';
+      // Try the aggregate endpoint with all sources
+      const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/aggregate?sources=crypto,stocks,macro';
       
       try {
         console.log('🐕 XRay: Calling real news API at:', workerUrl);
@@ -104,24 +104,32 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
             }
             return {
               title: it.title || it.headline || 'Untitled',
-              description: it.description || it.summary || '',
+              description: it.description || it.summary || 'No description available.',
               url,
               publishedAt: it.date ? new Date(it.date).toISOString() : new Date().toISOString(),
               source: source || 'news'
             } as NewsItem;
           });
 
-          // Categorize by source host
+          // Enhanced categorization by source host and content
           const isCryptoHost = (host: string) => /coindesk|cointelegraph|theblock|decrypt|messari|chain\.link|cryptoslate|bitcoinmagazine|blockworks|thedefiant|protos|ambcrypto|beincrypto|coingape|coinpedia|cryptopotato/i.test(host || '');
-          const isStocksHost = (host: string) => /reuters|cnbc|foxbusiness|apnews|finance\.yahoo|ft\.com|cnn|nytimes|marketwatch|moneycontrol|theguardian|bbc|bbci/i.test(host || '');
-
-          const cryptoItems = normalized.filter(n => isCryptoHost(n.source) || /bitcoin|ethereum|crypto|btc|eth|solana/i.test(n.title)).slice(0,5);
-          const stocksItems = normalized.filter(n => isStocksHost(n.source) || /stocks?|market|fed|nasdaq|s&p|dow/i.test(n.title)).slice(0,5);
+          const isStocksHost = (host: string) => /reuters|cnbc|foxbusiness|apnews|finance\.yahoo|ft\.com|cnn|nytimes|marketwatch|moneycontrol|theguardian|bbc|bbci|wsj/i.test(host || '');
+          
+          const cryptoItems = normalized.filter(n => 
+            isCryptoHost(n.source) || 
+            /bitcoin|ethereum|crypto|btc|eth|solana|sol|defi|nft|web3|blockchain|dogecoin|cardano|polkadot/i.test(n.title)
+          ).slice(0, 8);
+          
+          const stocksItems = normalized.filter(n => 
+            (isStocksHost(n.source) || /stocks?|market|fed|nasdaq|s&p|dow|sp500|trading|earnings|dividend|wall street/i.test(n.title)) &&
+            !isCryptoHost(n.source) &&
+            !/bitcoin|ethereum|crypto|btc|eth|solana|defi/i.test(n.title)
+          ).slice(0, 8);
 
           if (normalized.length > 0) {
             console.log('🐕 XRay: Using live news data');
-            setCryptoNews(cryptoItems.length > 0 ? cryptoItems : normalized.slice(0,5));
-            setStocksNews(stocksItems.length > 0 ? stocksItems : normalized.slice(5,10));
+            setCryptoNews(cryptoItems.length > 0 ? cryptoItems : normalized.slice(0, 6));
+            setStocksNews(stocksItems.length > 0 ? stocksItems : normalized.slice(6, 12));
           } else {
             console.log('🐕 XRay: No items from worker, using mock data');
             setCryptoNews(mockCryptoNews);
