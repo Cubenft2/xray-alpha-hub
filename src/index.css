@@ -314,15 +314,19 @@
     border: 1px solid hsl(var(--accent) / 0.8);
   }
 
-  /* News Card Hover Glow Effect - Consistent yellow glow */
+  /* News Card Hover Glow Effect - Subtle light blue fluorescent */
   .hover-glow-news {
-    transition: all 0.3s ease;
+    transition: all 0.3s ease-in-out;
+    position: relative;
   }
 
   .hover-glow-news:hover {
-    background-color: hsl(var(--accent) / 0.22);
-    box-shadow: 0 0 18px hsl(var(--accent) / 0.4), 0 0 30px hsl(var(--accent) / 0.2);
-    border-color: hsl(var(--accent) / 0.6);
+    background-color: hsl(194 100% 95% / 0.08);
+    box-shadow: 
+      0 0 15px hsl(194 100% 70% / 0.15),
+      0 0 25px hsl(194 100% 60% / 0.08),
+      inset 0 0 10px hsl(194 100% 80% / 0.05);
+    border-color: hsl(194 100% 70% / 0.3);
     transform: translateY(-1px);
   }
 }
