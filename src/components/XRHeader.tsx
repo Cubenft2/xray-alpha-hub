@@ -47,7 +47,15 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
 
   return (
     <>
-      <header className="xr-header">
+      <header className="xr-header relative">
+        {/* Running dog animation in header */}
+        <div className="xr-running-dog">
+          <img 
+            src="/pfp.png" 
+            alt="XRay Dog" 
+            className="w-8 h-8 rounded-full opacity-60"
+          />
+        </div>
         <div className="container mx-auto flex h-16 items-center justify-between">
           {/* XRay Dog Logo & Brand */}
           <Link 
