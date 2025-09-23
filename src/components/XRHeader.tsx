@@ -84,9 +84,9 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6 ml-8 relative overflow-hidden">
-            {/* Tennis ball bouncing animation */}
+            {/* Tennis ball bouncing animation - AHEAD of dog */}
             <div className="xr-tennis-ball">
-              <div className="w-3 h-3 bg-yellow-400 rounded-full border border-white"></div>
+              <div className="w-3 h-3 bg-green-400 rounded-full border border-green-600 shadow-sm"></div>
             </div>
             
             {/* Dog chasing animation */}
