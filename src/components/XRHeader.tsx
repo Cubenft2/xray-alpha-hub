@@ -84,13 +84,13 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6 ml-8 relative overflow-hidden">
-            {/* Tennis ball bouncing animation - AHEAD of dog */}
-            <div className="xr-tennis-ball">
+            {/* Occasional Pet Parade - Much less frequent, fun animations */}
+            <div className="xr-pet-item">
               <div className="w-3 h-3 bg-green-400 rounded-full border border-green-600 shadow-sm"></div>
             </div>
             
-            {/* Dog chasing animation */}
-            <div className="xr-chasing-dog">
+            {/* Pet chasing animation */}
+            <div className="xr-pet-chaser">
               <img 
                 src="/pfp.png" 
                 alt="XRay Dog" 
@@ -98,9 +98,9 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               />
             </div>
             
-            {/* Woof woof text */}
-            <div className="xr-woof-text">
-              <span className="text-xs font-bold text-primary animate-pulse">WOOF WOOF!</span>
+            {/* Pet sound text */}
+            <div className="xr-pet-sound">
+              <span className="text-xs font-bold text-primary animate-pulse">WOOF!</span>
             </div>
             {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
