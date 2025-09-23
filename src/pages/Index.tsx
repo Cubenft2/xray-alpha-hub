@@ -93,7 +93,7 @@ const Index = () => {
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                 Your ultimate crypto & stocks dashboard. Real-time charts, live news, 
-                and community support - all in one place! 🐕
+                and community support - all in one place! ☢️
               </p>
             </div>
           </div>
