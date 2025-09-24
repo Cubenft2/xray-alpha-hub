@@ -110,11 +110,21 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
             if (!source && url) {
               try { source = new URL(url).hostname.replace(/^www\./,''); } catch {}
             }
+            
+            // Parse timestamp correctly - API returns Unix timestamp in milliseconds
+            let publishedAt = new Date().toISOString(); // fallback
+            if (it.date) {
+              const timestamp = typeof it.date === 'number' ? it.date : parseInt(it.date, 10);
+              if (!isNaN(timestamp)) {
+                publishedAt = new Date(timestamp).toISOString();
+              }
+            }
+            
             return {
               title: it.title || it.headline || 'Untitled',
               description: it.description || it.summary || 'No description available.',
               url,
-              publishedAt: it.date ? new Date(it.date).toISOString() : new Date().toISOString(),
+              publishedAt,
               source: source || 'news'
             } as NewsItem;
           });
