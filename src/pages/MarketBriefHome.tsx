@@ -98,8 +98,7 @@ export default function MarketBriefHome() {
   const handleShareX = () => {
     if (!brief) return;
     
-    const shareText = brief.social_text?.trim() || 
-      `Let's talk about something.\n${brief.title} — ${brief.date}`;
+    const shareText = `Let's talk about something.\n\n${brief.title} — ${brief.date}`;
     
     const url = new URL('https://twitter.com/intent/tweet');
     url.searchParams.set('text', shareText);
@@ -130,7 +129,7 @@ export default function MarketBriefHome() {
       try {
         await navigator.share({
           title: brief.title,
-          text: brief.social_text || brief.summary,
+          text: `Let's talk about something.\n\n${brief.summary || brief.title}`,
           url: brief.canonical
         });
       } catch (error) {
