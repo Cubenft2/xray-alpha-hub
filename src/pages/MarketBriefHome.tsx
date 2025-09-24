@@ -123,19 +123,27 @@ export default function MarketBriefHome() {
   const handleShareX = () => {
     if (!brief) return;
     
+    // Use the current domain instead of the canonical URL from the API
+    const currentDomain = window.location.origin;
+    const correctUrl = `${currentDomain}/marketbrief/${brief.slug || brief.date}`;
+    
     const shareText = `Let's talk about something.\n\n${brief.title} — ${brief.date}`;
     
     const url = new URL('https://twitter.com/intent/tweet');
     url.searchParams.set('text', shareText);
-    url.searchParams.set('url', brief.canonical);
+    url.searchParams.set('url', correctUrl);
     window.open(url.toString(), '_blank', 'noopener');
   };
 
   const handleCopyLink = async () => {
     if (!brief) return;
     
+    // Use the current domain instead of the canonical URL from the API
+    const currentDomain = window.location.origin;
+    const correctUrl = `${currentDomain}/marketbrief/${brief.slug || brief.date}`;
+    
     try {
-      await navigator.clipboard.writeText(brief.canonical);
+      await navigator.clipboard.writeText(correctUrl);
       setCopiedToClipboard(true);
       setTimeout(() => setCopiedToClipboard(false), 2000);
       toast({
@@ -150,18 +158,22 @@ export default function MarketBriefHome() {
   const handleNativeShare = async () => {
     if (!brief) return;
     
+    // Use the current domain instead of the canonical URL from the API
+    const currentDomain = window.location.origin;
+    const correctUrl = `${currentDomain}/marketbrief/${brief.slug || brief.date}`;
+    
     if (navigator.share) {
       try {
         await navigator.share({
           title: brief.title,
           text: `Let's talk about something.\n\n${brief.summary || brief.title}`,
-          url: brief.canonical
+          url: correctUrl
         });
       } catch (error) {
         console.error('Native share failed:', error);
         // When native share fails, copy link instead
         try {
-          await navigator.clipboard.writeText(brief.canonical);
+          await navigator.clipboard.writeText(correctUrl);
           toast({
             title: "Link copied!",
             description: "Share unavailable, but link copied to clipboard.",
