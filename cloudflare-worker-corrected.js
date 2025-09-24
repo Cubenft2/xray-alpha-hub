@@ -17,7 +17,7 @@ const ALLOW = [
   // Crypto
   "coindesk.com","cointelegraph.com","theblock.co","decrypt.co","messari.io","cryptoslate.com",
   "bitcoinmagazine.com","blockworks.co","thedefiant.io","protos.com","ambcrypto.com",
-  "beincrypto.com","coingape.com","chain.link","coinpedia.org","cryptopotato.com",
+  "beincrypto.com","coingape.com","chain.link","coinpedia.org","cryptopotato.com","newsbtc.com",
 
   // Markets / Business
   "reuters.com","cnbc.com","foxbusiness.com","apnews.com","wsj.com","feeds.a.dj.com",
@@ -41,7 +41,7 @@ const FEEDS = {
     "https://decrypt.co/feed","https://messari.io/rss","https://blog.chain.link/feed/","https://cryptoslate.com/feed/",
     "https://bitcoinmagazine.com/feed","https://blockworks.co/feeds/rss","https://thedefiant.io/feed",
     "https://protos.com/feed/","https://ambcrypto.com/feed/","https://beincrypto.com/feed/","https://coingape.com/feed/",
-    "https://coinpedia.org/feed/","https://cryptopotato.com/feed/",
+    "https://coinpedia.org/feed/","https://cryptopotato.com/feed/","https://www.newsbtc.com/feed/",
   ],
   stocks: [
     "https://feeds.a.dj.com/rss/RSSMarketsMain.xml","https://www.reuters.com/markets/us/rss",

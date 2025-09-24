@@ -112,7 +112,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           });
 
           // Enhanced categorization by source host and content
-          const isCryptoHost = (host: string) => /coindesk|cointelegraph|theblock|decrypt|messari|chain\.link|cryptoslate|bitcoinmagazine|blockworks|thedefiant|protos|ambcrypto|beincrypto|coingape|coinpedia|cryptopotato/i.test(host || '');
+          const isCryptoHost = (host: string) => /coindesk|cointelegraph|theblock|decrypt|messari|chain\.link|cryptoslate|bitcoinmagazine|blockworks|thedefiant|protos|ambcrypto|beincrypto|coingape|coinpedia|cryptopotato|newsbtc/i.test(host || '');
           const isStocksHost = (host: string) => /reuters|cnbc|foxbusiness|apnews|finance\.yahoo|ft\.com|cnn|nytimes|marketwatch|moneycontrol|theguardian|bbc|bbci|wsj/i.test(host || '');
           
           const cryptoItems = normalized.filter(n => 
