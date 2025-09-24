@@ -38,6 +38,7 @@ const App = () => (
                 <Route path="/crypto" element={<Index />} />
                 <Route path="/markets" element={<Markets />} />
                 <Route path="/market-brief" element={<MarketBrief />} />
+                <Route path="/marketbrief/:date" element={<MarketBriefHome />} />
                 <Route path="/watchlist" element={<Watchlist />} />
                 <Route path="/news" element={<News />} />
                 <Route path="/store" element={<Store />} />

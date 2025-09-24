@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Share, Copy, ExternalLink } from 'lucide-react';
@@ -20,6 +21,7 @@ interface MarketBrief {
 }
 
 export default function MarketBriefHome() {
+  const { date } = useParams();
   const [brief, setBrief] = useState<MarketBrief | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -32,9 +34,32 @@ export default function MarketBriefHome() {
     const fetchBrief = async () => {
       try {
         setLoading(true);
-        console.log('🐕 XRay: Fetching market brief...');
+        console.log('🐕 XRay: Fetching market brief...', date ? `for date: ${date}` : 'latest');
         
-        // Try the simpler direct endpoint first
+        // If we have a date parameter, fetch that specific brief
+        if (date) {
+          const dateRes = await fetch(`${workerBase}marketbrief/${date}.json`, { 
+            cache: 'no-store',
+            headers: {
+              'Accept': 'application/json',
+            }
+          });
+          
+          if (dateRes.ok) {
+            const briefData = await dateRes.json();
+            console.log('🐕 XRay: Date-specific brief loaded!', briefData);
+            setBrief(briefData);
+            
+            if (briefData.title) {
+              document.title = briefData.title + ' — XRayCrypto News';
+            }
+            return;
+          } else {
+            throw new Error(`Brief for ${date} not found`);
+          }
+        }
+        
+        // Otherwise fetch the latest brief
         const directRes = await fetch(`${workerBase}marketbrief/latest.json`, { 
           cache: 'no-store',
           headers: {
@@ -93,7 +118,7 @@ export default function MarketBriefHome() {
     };
 
     fetchBrief();
-  }, [toast, workerBase]);
+  }, [toast, workerBase, date]);
 
   const handleShareX = () => {
     if (!brief) return;
