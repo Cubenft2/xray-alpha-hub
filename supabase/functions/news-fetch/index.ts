@@ -102,12 +102,22 @@ serve(async (req) => {
     "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "https://cointelegraph.com/rss",
     "https://decrypt.co/feed",
+    "https://cryptonews.com/news/feed/",
+    "https://www.theblockcrypto.com/rss.xml",
+    "https://bitcoinmagazine.com/feed",
+    "https://cryptopotato.com/feed/",
+    "https://cryptoslate.com/feed/",
   ];
 
   const stockFeeds = [
     "https://feeds.reuters.com/reuters/businessNews",
     "https://www.cnbc.com/id/100003114/device/rss/rss.html",
     "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+    "https://feeds.bloomberg.com/markets/news.rss",
+    "https://feeds.finance.yahoo.com/rss/2.0/headline",
+    "https://www.ft.com/rss/home/us",
+    "https://feeds.feedburner.com/zerohedge/feed",
+    "https://www.investing.com/rss/news.rss",
   ];
 
   const trumpFeeds = [
@@ -115,6 +125,8 @@ serve(async (req) => {
     "https://feeds.feedburner.com/breitbart",
     "https://www.foxnews.com/politics.xml",
     "https://feeds.feedburner.com/dailywire/news",
+    "https://feeds.newsmax.com/newsmax/us",
+    "https://www.oann.com/feed/",
   ];
 
   const [cryptoTexts, stockTexts, trumpTexts] = await Promise.all([
