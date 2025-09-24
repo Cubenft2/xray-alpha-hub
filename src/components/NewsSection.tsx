@@ -22,6 +22,8 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const [stocksNews, setStocksNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [newItemsCount, setNewItemsCount] = useState({ crypto: 0, stocks: 0 });
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
   const { toast } = useToast();
 
   // Mock news data for demonstration
@@ -73,22 +75,28 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     }
   ];
 
-  // Enhanced news fetching to work with Cloudflare Worker
+  // Enhanced news fetching with live updates
   const fetchNews = async () => {
     setIsLoading(true);
     console.log('🐕 XRay: Fetching news...');
     
     try {
       // Try the aggregate endpoint with all sources
-      const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/aggregate?sources=crypto,stocks,macro';
+      const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/aggregate?sources=crypto,stocks';
       
       try {
         console.log('🐕 XRay: Calling real news API at:', workerUrl);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        
         const response = await fetch(workerUrl, {
           headers: {
             'Accept': 'application/json',
-          }
+          },
+          signal: controller.signal
         });
+        
+        clearTimeout(timeout);
         
         if (response.ok) {
           const data = await response.json();
@@ -128,38 +136,77 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
 
           if (normalized.length > 0) {
             console.log('🐕 XRay: Using live news data');
-            setCryptoNews(cryptoItems.length > 0 ? cryptoItems : normalized.slice(0, 15));
-            setStocksNews(stocksItems.length > 0 ? stocksItems : normalized.slice(15, 30));
+            
+            if (isFirstLoad) {
+              // First load - set all items
+              setCryptoNews(cryptoItems.length > 0 ? cryptoItems : normalized.slice(0, 15));
+              setStocksNews(stocksItems.length > 0 ? stocksItems : normalized.slice(15, 30));
+              setIsFirstLoad(false);
+            } else {
+              // Live update - add only new items
+              setCryptoNews(prevCrypto => {
+                const newItems = cryptoItems.filter(newItem => 
+                  !prevCrypto.some(existing => existing.title === newItem.title || existing.url === newItem.url)
+                );
+                setNewItemsCount(prev => ({ ...prev, crypto: newItems.length }));
+                return [...newItems, ...prevCrypto].slice(0, 30); // Limit to 30 items
+              });
+              
+              setStocksNews(prevStocks => {
+                const newItems = stocksItems.filter(newItem => 
+                  !prevStocks.some(existing => existing.title === newItem.title || existing.url === newItem.url)
+                );
+                setNewItemsCount(prev => ({ ...prev, stocks: newItems.length }));
+                return [...newItems, ...prevStocks].slice(0, 30); // Limit to 30 items
+              });
+            }
           } else {
             console.log('🐕 XRay: No items from worker, using mock data');
-            setCryptoNews(mockCryptoNews);
-            setStocksNews(mockStocksNews);
+            if (isFirstLoad) {
+              setCryptoNews(mockCryptoNews);
+              setStocksNews(mockStocksNews);
+              setIsFirstLoad(false);
+            }
           }
         } else {
           throw new Error(`Worker returned ${response.status}`);
         }
       } catch (workerError) {
         console.log('🐕 XRay: Worker error, using mock data:', workerError);
-        // Fallback to mock data
-        setCryptoNews(mockCryptoNews);
-        setStocksNews(mockStocksNews);
+        if (isFirstLoad) {
+          setCryptoNews(mockCryptoNews);
+          setStocksNews(mockStocksNews);
+          setIsFirstLoad(false);
+        }
       }
       
       setLastUpdated(new Date());
       
     } catch (error) {
       console.error('Error fetching news:', error);
-      // Use mock data as ultimate fallback
-      setCryptoNews(mockCryptoNews);
-      setStocksNews(mockStocksNews);
+      if (isFirstLoad) {
+        setCryptoNews(mockCryptoNews);
+        setStocksNews(mockStocksNews);
+        setIsFirstLoad(false);
+      }
       setLastUpdated(new Date());
     } finally {
       setIsLoading(false);
       
-      toast({
-        title: "News Updated",
-        description: "Latest financial news has been loaded.",
-      });
+      if (!isFirstLoad) {
+        const totalNew = newItemsCount.crypto + newItemsCount.stocks;
+        if (totalNew > 0) {
+          toast({
+            title: `${totalNew} New Articles`,
+            description: "Fresh news items have been added.",
+          });
+        }
+        
+        // Reset counter after a delay
+        setTimeout(() => {
+          setNewItemsCount({ crypto: 0, stocks: 0 });
+        }, 3000);
+      }
     }
   };
 
@@ -184,9 +231,16 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     return `${Math.floor(hours / 24)}d ago`;
   };
 
-  const NewsCard = ({ item }: { item: NewsItem }) => (
-    <div className="border border-border rounded-lg p-4 hover-glow-news cursor-pointer">
+  const NewsCard = ({ item, isNew = false }: { item: NewsItem; isNew?: boolean }) => (
+    <div className={`border border-border rounded-lg p-4 hover-glow-news cursor-pointer transition-all duration-500 ${
+      isNew ? 'animate-slide-in-top bg-primary/5 border-primary/30' : ''
+    }`}>
       <div className="flex items-start justify-between mb-2">
+        {isNew && (
+          <div className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-primary text-primary-foreground mr-2">
+            NEW
+          </div>
+        )}
         <h3 className="font-medium text-sm line-clamp-2 flex-1">{item.title}</h3>
         <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
           {formatTime(item.publishedAt)}
@@ -257,7 +311,11 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
               </div>
             ) : filteredCryptoNews.length > 0 ? (
               filteredCryptoNews.map((item, index) => (
-                <NewsCard key={index} item={item} />
+                <NewsCard 
+                  key={`${item.url || item.title}-${index}`} 
+                  item={item} 
+                  isNew={index < newItemsCount.crypto}
+                />
               ))
             ) : (
               <div className="text-center text-muted-foreground py-4">
@@ -276,7 +334,11 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
               </div>
             ) : filteredStocksNews.length > 0 ? (
               filteredStocksNews.map((item, index) => (
-                <NewsCard key={index} item={item} />
+                <NewsCard 
+                  key={`${item.url || item.title}-${index}`} 
+                  item={item} 
+                  isNew={index < newItemsCount.stocks}
+                />
               ))
             ) : (
               <div className="text-center text-muted-foreground py-4">
