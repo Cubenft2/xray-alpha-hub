@@ -35,15 +35,20 @@ export default function MarketBriefHome() {
       try {
         setLoading(true);
         console.log('🐕 XRay: Fetching market brief...', date ? `for date: ${date}` : 'latest');
+        console.log('🐕 XRay: Current URL pathname:', window.location.pathname);
+        console.log('🐕 XRay: Date parameter from useParams:', date);
         
         // If we have a date parameter, fetch that specific brief
         if (date) {
+          console.log('🐕 XRay: Fetching specific date:', date);
           const dateRes = await fetch(`${workerBase}marketbrief/${date}.json`, { 
             cache: 'no-store',
             headers: {
               'Accept': 'application/json',
             }
           });
+          
+          console.log('🐕 XRay: Date-specific request status:', dateRes.status);
           
           if (dateRes.ok) {
             const briefData = await dateRes.json();
@@ -55,10 +60,12 @@ export default function MarketBriefHome() {
             }
             return;
           } else {
+            console.error('🐕 XRay: Date-specific request failed:', dateRes.status, dateRes.statusText);
             throw new Error(`Brief for ${date} not found`);
           }
         }
         
+        console.log('🐕 XRay: No date parameter, fetching latest');
         // Otherwise fetch the latest brief
         const directRes = await fetch(`${workerBase}marketbrief/latest.json`, { 
           cache: 'no-store',
