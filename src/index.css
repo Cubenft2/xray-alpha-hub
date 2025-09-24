@@ -586,4 +586,8 @@
       opacity: 1;
     }
   }
+
+  .animate-slide-in-top {
+    animation: slide-in-top 0.35s ease-out both;
+  }
 }

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NewsItem {
   title: string;
@@ -26,273 +27,77 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const { toast } = useToast();
 
-  // Mock news data with real external links
-  const mockCryptoNews: NewsItem[] = [
-    {
-      title: "Bitcoin Reaches New Monthly High",
-      description: "Bitcoin continues its upward momentum as institutional adoption increases...",
-      url: "https://www.coindesk.com/markets/2024/12/bitcoin-monthly-high/",
-      publishedAt: new Date().toISOString(),
-      source: "CoinDesk"
-    },
-    {
-      title: "Ethereum 2.0 Staking Rewards Surge",
-      description: "ETH stakers see increased rewards as network activity reaches all-time highs...",
-      url: "https://cointelegraph.com/news/ethereum-staking-rewards-surge",
-      publishedAt: new Date(Date.now() - 3600000).toISOString(),
-      source: "CoinTelegraph"
-    },
-    {
-      title: "Solana Ecosystem Sees Massive Growth",
-      description: "SOL-based projects continue to attract developers and users...",
-      url: "https://decrypt.co/resources/what-is-solana-sol-guide",
-      publishedAt: new Date(Date.now() - 7200000).toISOString(),
-      source: "Decrypt"
-    }
-  ];
-
-  const mockStocksNews: NewsItem[] = [
-    {
-      title: "Tech Stocks Rally on AI Optimism",
-      description: "Major technology companies see gains as AI adoption accelerates across industries...",
-      url: "https://www.reuters.com/technology/tech-stocks-rally-ai-optimism-2024/",
-      publishedAt: new Date().toISOString(),
-      source: "Reuters"
-    },
-    {
-      title: "Federal Reserve Maintains Interest Rates",
-      description: "The Fed holds rates steady as inflation shows signs of cooling...",
-      url: "https://www.bloomberg.com/news/articles/federal-reserve-interest-rates",
-      publishedAt: new Date(Date.now() - 1800000).toISOString(),
-      source: "Bloomberg"
-    },
-    {
-      title: "EV Sector Sees Mixed Performance",
-      description: "Electric vehicle manufacturers report varying quarterly results...",
-      url: "https://www.marketwatch.com/story/ev-sector-mixed-performance",
-      publishedAt: new Date(Date.now() - 5400000).toISOString(),
-      source: "MarketWatch"
-    }
-  ];
-
   // Enhanced news fetching with live updates
   const fetchNews = async () => {
     setIsLoading(true);
-    console.log('🐕 XRay: Fetching news...');
-    
-    try {
-      // Alternative news API endpoints that work better with CORS
-      const newsApiUrl = 'https://newsapi.org/v2/everything?q=bitcoin OR ethereum OR cryptocurrency&language=en&sortBy=publishedAt&pageSize=20&apiKey=demo';
-      const alphaVantageUrl = 'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&topics=technology,finance&apikey=demo';
-      
-      const fetchPromises = [];
-      
-      // Try multiple backup endpoints with shorter timeouts
-      const endpoints = [
-        'https://api.coindesk.com/v1/news/articles.json',
-        'https://min-api.cryptocompare.com/data/v2/news/?lang=EN&categories=BTC,ETH',
-        'https://feeds.finance.yahoo.com/rss/2.0/headline?s=BTC-USD,ETH-USD&region=US&lang=en-US'
-      ];
-      
-      for (const endpoint of endpoints) {
-        fetchPromises.push(
-          fetch(endpoint, {
-            headers: { 'Accept': 'application/json' },
-            signal: AbortSignal.timeout(5000)
-          }).then(res => res.json()).catch(() => null)
-        );
-      }
-      
-      const results = await Promise.all(fetchPromises);
-      let allNewsItems: NewsItem[] = [];
-      
-      // Process any successful responses
-      for (const data of results) {
-        if (data?.articles) {
-          // NewsAPI format
-          const items: NewsItem[] = data.articles.map((item: any) => ({
-            title: item.title || 'Untitled',
-            description: item.description || 'No description available.',
-            url: item.url || '',
-            publishedAt: item.publishedAt || new Date().toISOString(),
-            source: item.source?.name || 'News'
-          }));
-          allNewsItems.push(...items);
-        } else if (data?.Data) {
-          // CryptoCompare format
-          const items: NewsItem[] = data.Data.map((item: any) => ({
-            title: item.title || 'Untitled',
-            description: item.body || 'No description available.',
-            url: item.url || '',
-            publishedAt: new Date(item.published_on * 1000).toISOString(),
-            source: item.source_info?.name || 'CryptoCompare'
-          }));
-          allNewsItems.push(...items);
-        }
-      }
-      
-      // If no live data, create some realistic mock data with current timestamps
-      if (allNewsItems.length === 0) {
-        console.log('🐕 XRay: APIs unavailable, generating fresh mock data');
-        const currentTime = new Date();
-        
-        const freshCryptoNews: NewsItem[] = [
-          {
-            title: `Bitcoin Trading at $${(Math.random() * 10000 + 60000).toFixed(0)} as Market Shows Strength`,
-            description: "Bitcoin continues its volatile trading pattern with strong institutional interest driving momentum...",
-            url: "https://www.coindesk.com/markets/bitcoin-market-strength/",
-            publishedAt: currentTime.toISOString(),
-            source: "Market Watch"
-          },
-          {
-            title: "Ethereum Layer 2 Solutions See Record Activity",
-            description: "L2 networks process record transaction volumes as fees remain competitive...",
-            url: "https://cointelegraph.com/news/ethereum-layer-2-record-activity",
-            publishedAt: new Date(currentTime.getTime() - 1800000).toISOString(),
-            source: "DeFi Pulse"
-          },
-          {
-            title: "Major Exchange Announces New Security Features",
-            description: "Enhanced multi-signature custody and insurance coverage now available...",
-            url: "https://www.theblock.co/post/exchange-security-features",
-            publishedAt: new Date(currentTime.getTime() - 3600000).toISOString(),
-            source: "Crypto News"
-          }
-        ];
-        
-        const freshStocksNews: NewsItem[] = [
-          {
-            title: "Tech Sector Leads Market Rally Amid AI Optimism",
-            description: "Technology stocks surge as artificial intelligence adoption accelerates across industries...",
-            url: "https://www.reuters.com/technology/tech-rally-ai-optimism/",
-            publishedAt: currentTime.toISOString(),
-            source: "Financial Times"
-          },
-          {
-            title: "Fed Officials Signal Measured Approach to Rate Policy",
-            description: "Central bank maintains cautious stance on interest rate adjustments as inflation moderates...",
-            url: "https://www.bloomberg.com/news/articles/fed-rate-policy-approach",
-            publishedAt: new Date(currentTime.getTime() - 2700000).toISOString(),
-            source: "Reuters"
-          },
-          {
-            title: "Energy Sector Shows Mixed Performance",
-            description: "Oil prices fluctuate as renewable energy investments continue to grow...",
-            url: "https://www.marketwatch.com/story/energy-sector-mixed-performance",
-            publishedAt: new Date(currentTime.getTime() - 5400000).toISOString(),
-            source: "Bloomberg"
-          }
-        ];
-        
-        // Use fresh mock data instead of old static data
-        allNewsItems = [...freshCryptoNews, ...freshStocksNews];
-      }
-      
-      if (allNewsItems.length > 0) {
-        console.log('🐕 XRay: Processing', allNewsItems.length, 'news items');
-        
-        // Enhanced categorization
-        const isCryptoHost = (host: string) => /coindesk|cointelegraph|theblock|decrypt|messari|chain\.link|cryptoslate|bitcoinmagazine|blockworks|thedefiant|protos|ambcrypto|beincrypto|coingape|coinpedia|cryptopotato|newsbtc|cryptopanic|cryptocompare/i.test(host || '');
-        const isStocksHost = (host: string) => /reuters|cnbc|foxbusiness|apnews|finance\.yahoo|ft\.com|cnn|nytimes|marketwatch|moneycontrol|theguardian|bbc|wsj|bloomberg|financial/i.test(host || '');
-        
-        const cryptoItems = allNewsItems.filter(n => 
-          isCryptoHost(n.source) || 
-          /bitcoin|ethereum|crypto|btc|eth|solana|sol|defi|nft|web3|blockchain|dogecoin|cardano|polkadot/i.test(n.title + n.description)
-        ).slice(0, 50);
-        
-        const stocksItems = allNewsItems.filter(n => 
-          (isStocksHost(n.source) || /stocks?|market|fed|nasdaq|s&p|dow|sp500|trading|earnings|dividend|wall street|tech sector|energy/i.test(n.title + n.description)) &&
-          !isCryptoHost(n.source) &&
-          !/bitcoin|ethereum|crypto|btc|eth|solana|defi/i.test(n.title + n.description)
-        ).slice(0, 50);
+    console.log('🐕 XRay: Fetching news via edge function...');
 
-        if (isFirstLoad) {
-          // First load - set all items
-          setCryptoNews(cryptoItems.length > 0 ? cryptoItems : allNewsItems.slice(0, 25));
-          setStocksNews(stocksItems.length > 0 ? stocksItems : allNewsItems.slice(25, 50));
-          setIsFirstLoad(false);
-        } else {
-          // Live update - only add genuinely new items to top
-          setCryptoNews(prevCrypto => {
-            if (prevCrypto.length === 0) return cryptoItems;
-            
-            const newItems = cryptoItems.filter(newItem => 
-              !prevCrypto.some(existing => 
-                existing.title === newItem.title || 
-                (existing.url && newItem.url && existing.url === newItem.url)
-              )
-            );
-            
-            if (newItems.length > 0) {
-              setNewItemsCount(prev => ({ ...prev, crypto: newItems.length }));
-              return [...newItems, ...prevCrypto].slice(0, 50);
-            }
-            return prevCrypto;
-          });
-          
-          setStocksNews(prevStocks => {
-            if (prevStocks.length === 0) return stocksItems;
-            
-            const newItems = stocksItems.filter(newItem => 
-              !prevStocks.some(existing => 
-                existing.title === newItem.title || 
-                (existing.url && newItem.url && existing.url === newItem.url)
-              )
-            );
-            
-            if (newItems.length > 0) {
-              setNewItemsCount(prev => ({ ...prev, stocks: newItems.length }));
-              return [...newItems, ...prevStocks].slice(0, 50);
-            }
-            return prevStocks;
-          });
-        }
-        
-        setLastUpdated(new Date());
-        
-        // Show success message only if we got real data
-        if (!isFirstLoad && allNewsItems.some(item => !item.url.startsWith('#'))) {
-          toast({
-            title: "News Updated",
-            description: "Latest articles have been fetched.",
-          });
-        }
-      }
-      
-    } catch (error) {
-      console.error('🐕 XRay: Error fetching news:', error);
-      
-      // Only use fallback on first load or if no existing data
-      if (isFirstLoad && cryptoNews.length === 0) {
-        setCryptoNews(mockCryptoNews);
-        setStocksNews(mockStocksNews);
+    try {
+      const { data, error } = await supabase.functions.invoke('news-fetch', {
+        body: { limit: 100 }
+      });
+
+      if (error) throw error;
+      if (!data) throw new Error('No data from edge function');
+
+      const cryptoItems: NewsItem[] = Array.isArray(data.crypto) ? data.crypto : [];
+      const stocksItems: NewsItem[] = Array.isArray(data.stocks) ? data.stocks : [];
+
+      // Sort by publishedAt desc to ensure newest first
+      cryptoItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+      stocksItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+
+      if (isFirstLoad) {
+        setCryptoNews(cryptoItems.slice(0, 50));
+        setStocksNews(stocksItems.slice(0, 50));
         setIsFirstLoad(false);
-      } else if (!isFirstLoad) {
+      } else {
+        // Merge by URL or title, prepend new, keep max 50
+        setCryptoNews((prev) => {
+          const prevKeys = new Set(prev.map((i) => i.url || i.title));
+          const incoming = cryptoItems.filter((i) => i.url || i.title);
+          const newOnes = incoming.filter((i) => !prevKeys.has(i.url || i.title));
+          if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, crypto: newOnes.length }));
+          return [...newOnes, ...prev].slice(0, 50);
+        });
+
+        setStocksNews((prev) => {
+          const prevKeys = new Set(prev.map((i) => i.url || i.title));
+          const incoming = stocksItems.filter((i) => i.url || i.title);
+          const newOnes = incoming.filter((i) => !prevKeys.has(i.url || i.title));
+          if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, stocks: newOnes.length }));
+          return [...newOnes, ...prev].slice(0, 50);
+        });
+      }
+
+      setLastUpdated(new Date());
+
+      if (!isFirstLoad) {
+        toast({ title: 'News Updated', description: 'Latest articles added to the top.' });
+      }
+    } catch (error) {
+      console.error('🐕 XRay: Edge function fetch failed:', error);
+      if (!isFirstLoad) {
         toast({
-          title: "Update Failed", 
-          description: "Could not fetch latest news. Showing cached articles.",
-          variant: "destructive"
+          title: 'Update Failed',
+          description: 'Could not fetch latest news. Showing cached articles.',
+          variant: 'destructive',
         });
       }
     } finally {
       setIsLoading(false);
-      
-      // Handle new items counter and notification
+
       if (!isFirstLoad) {
         setTimeout(() => {
           const totalNew = newItemsCount.crypto + newItemsCount.stocks;
           if (totalNew > 0) {
-            toast({
-              title: `${totalNew} New Articles Added`,
-              description: "Check the top of each news section.",
-            });
+            toast({ title: `${totalNew} New Articles Added`, description: 'Check the top of each news section.' });
           }
-        }, 500);
-        
-        // Reset counter after showing
+        }, 300);
+
         setTimeout(() => {
           setNewItemsCount({ crypto: 0, stocks: 0 });
-        }, 4000);
+        }, 3000);
       }
     }
   };
@@ -400,7 +205,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
             ) : filteredCryptoNews.length > 0 ? (
               filteredCryptoNews.map((item, index) => (
                 <NewsCard 
-                  key={`${item.url || item.title}-${index}`} 
+                  key={item.url || item.title} 
                   item={item} 
                   isNew={index < newItemsCount.crypto}
                 />
@@ -423,7 +228,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
             ) : filteredStocksNews.length > 0 ? (
               filteredStocksNews.map((item, index) => (
                 <NewsCard 
-                  key={`${item.url || item.title}-${index}`} 
+                  key={item.url || item.title} 
                   item={item} 
                   isNew={index < newItemsCount.stocks}
                 />
