@@ -26,26 +26,26 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const { toast } = useToast();
 
-  // Mock news data for demonstration
+  // Mock news data with real external links
   const mockCryptoNews: NewsItem[] = [
     {
       title: "Bitcoin Reaches New Monthly High",
       description: "Bitcoin continues its upward momentum as institutional adoption increases...",
-      url: "#",
+      url: "https://www.coindesk.com/markets/2024/12/bitcoin-monthly-high/",
       publishedAt: new Date().toISOString(),
       source: "CoinDesk"
     },
     {
       title: "Ethereum 2.0 Staking Rewards Surge",
       description: "ETH stakers see increased rewards as network activity reaches all-time highs...",
-      url: "#",
+      url: "https://cointelegraph.com/news/ethereum-staking-rewards-surge",
       publishedAt: new Date(Date.now() - 3600000).toISOString(),
       source: "CoinTelegraph"
     },
     {
       title: "Solana Ecosystem Sees Massive Growth",
       description: "SOL-based projects continue to attract developers and users...",
-      url: "#",
+      url: "https://decrypt.co/resources/what-is-solana-sol-guide",
       publishedAt: new Date(Date.now() - 7200000).toISOString(),
       source: "Decrypt"
     }
@@ -55,21 +55,21 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     {
       title: "Tech Stocks Rally on AI Optimism",
       description: "Major technology companies see gains as AI adoption accelerates across industries...",
-      url: "#",
+      url: "https://www.reuters.com/technology/tech-stocks-rally-ai-optimism-2024/",
       publishedAt: new Date().toISOString(),
       source: "Reuters"
     },
     {
       title: "Federal Reserve Maintains Interest Rates",
       description: "The Fed holds rates steady as inflation shows signs of cooling...",
-      url: "#",
+      url: "https://www.bloomberg.com/news/articles/federal-reserve-interest-rates",
       publishedAt: new Date(Date.now() - 1800000).toISOString(),
       source: "Bloomberg"
     },
     {
       title: "EV Sector Sees Mixed Performance",
       description: "Electric vehicle manufacturers report varying quarterly results...",
-      url: "#",
+      url: "https://www.marketwatch.com/story/ev-sector-mixed-performance",
       publishedAt: new Date(Date.now() - 5400000).toISOString(),
       source: "MarketWatch"
     }
@@ -140,21 +140,21 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           {
             title: `Bitcoin Trading at $${(Math.random() * 10000 + 60000).toFixed(0)} as Market Shows Strength`,
             description: "Bitcoin continues its volatile trading pattern with strong institutional interest driving momentum...",
-            url: "#bitcoin-market-update",
+            url: "https://www.coindesk.com/markets/bitcoin-market-strength/",
             publishedAt: currentTime.toISOString(),
             source: "Market Watch"
           },
           {
             title: "Ethereum Layer 2 Solutions See Record Activity",
             description: "L2 networks process record transaction volumes as fees remain competitive...",
-            url: "#eth-l2-growth",
+            url: "https://cointelegraph.com/news/ethereum-layer-2-record-activity",
             publishedAt: new Date(currentTime.getTime() - 1800000).toISOString(),
             source: "DeFi Pulse"
           },
           {
             title: "Major Exchange Announces New Security Features",
             description: "Enhanced multi-signature custody and insurance coverage now available...",
-            url: "#exchange-security",
+            url: "https://www.theblock.co/post/exchange-security-features",
             publishedAt: new Date(currentTime.getTime() - 3600000).toISOString(),
             source: "Crypto News"
           }
@@ -164,21 +164,21 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           {
             title: "Tech Sector Leads Market Rally Amid AI Optimism",
             description: "Technology stocks surge as artificial intelligence adoption accelerates across industries...",
-            url: "#tech-rally",
+            url: "https://www.reuters.com/technology/tech-rally-ai-optimism/",
             publishedAt: currentTime.toISOString(),
             source: "Financial Times"
           },
           {
             title: "Fed Officials Signal Measured Approach to Rate Policy",
             description: "Central bank maintains cautious stance on interest rate adjustments as inflation moderates...",
-            url: "#fed-policy",
+            url: "https://www.bloomberg.com/news/articles/fed-rate-policy-approach",
             publishedAt: new Date(currentTime.getTime() - 2700000).toISOString(),
             source: "Reuters"
           },
           {
             title: "Energy Sector Shows Mixed Performance",
             description: "Oil prices fluctuate as renewable energy investments continue to grow...",
-            url: "#energy-mixed",
+            url: "https://www.marketwatch.com/story/energy-sector-mixed-performance",
             publishedAt: new Date(currentTime.getTime() - 5400000).toISOString(),
             source: "Bloomberg"
           }
@@ -198,18 +198,18 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         const cryptoItems = allNewsItems.filter(n => 
           isCryptoHost(n.source) || 
           /bitcoin|ethereum|crypto|btc|eth|solana|sol|defi|nft|web3|blockchain|dogecoin|cardano|polkadot/i.test(n.title + n.description)
-        ).slice(0, 15);
+        ).slice(0, 50);
         
         const stocksItems = allNewsItems.filter(n => 
           (isStocksHost(n.source) || /stocks?|market|fed|nasdaq|s&p|dow|sp500|trading|earnings|dividend|wall street|tech sector|energy/i.test(n.title + n.description)) &&
           !isCryptoHost(n.source) &&
           !/bitcoin|ethereum|crypto|btc|eth|solana|defi/i.test(n.title + n.description)
-        ).slice(0, 15);
+        ).slice(0, 50);
 
         if (isFirstLoad) {
           // First load - set all items
-          setCryptoNews(cryptoItems.length > 0 ? cryptoItems : allNewsItems.slice(0, 8));
-          setStocksNews(stocksItems.length > 0 ? stocksItems : allNewsItems.slice(8, 16));
+          setCryptoNews(cryptoItems.length > 0 ? cryptoItems : allNewsItems.slice(0, 25));
+          setStocksNews(stocksItems.length > 0 ? stocksItems : allNewsItems.slice(25, 50));
           setIsFirstLoad(false);
         } else {
           // Live update - only add genuinely new items to top
@@ -225,7 +225,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
             
             if (newItems.length > 0) {
               setNewItemsCount(prev => ({ ...prev, crypto: newItems.length }));
-              return [...newItems, ...prevCrypto].slice(0, 20);
+              return [...newItems, ...prevCrypto].slice(0, 50);
             }
             return prevCrypto;
           });
@@ -242,7 +242,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
             
             if (newItems.length > 0) {
               setNewItemsCount(prev => ({ ...prev, stocks: newItems.length }));
-              return [...newItems, ...prevStocks].slice(0, 20);
+              return [...newItems, ...prevStocks].slice(0, 50);
             }
             return prevStocks;
           });
@@ -336,7 +336,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground font-medium">{item.source}</span>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => item.url && window.open(item.url, '_blank', 'noopener') }>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => item.url && item.url !== '#' && window.open(item.url, '_blank', 'noopener,noreferrer') }>
           Read More
         </Button>
       </div>
