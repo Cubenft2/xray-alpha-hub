@@ -16,16 +16,37 @@ export type Database = {
     Tables: {
       market_briefs: {
         Row: {
+          article_html: string | null
+          author: string | null
+          canonical: string | null
           created_at: string
+          date: string | null
           id: number
+          slug: string | null
+          summary: string | null
+          title: string | null
         }
         Insert: {
+          article_html?: string | null
+          author?: string | null
+          canonical?: string | null
           created_at?: string
+          date?: string | null
           id?: number
+          slug?: string | null
+          summary?: string | null
+          title?: string | null
         }
         Update: {
+          article_html?: string | null
+          author?: string | null
+          canonical?: string | null
           created_at?: string
+          date?: string | null
           id?: number
+          slug?: string | null
+          summary?: string | null
+          title?: string | null
         }
         Relationships: []
       }
