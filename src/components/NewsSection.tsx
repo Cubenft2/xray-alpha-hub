@@ -258,6 +258,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       </div>
       <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
       <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground font-medium">{item.source}</span>
         <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => item.url && window.open(item.url, '_blank', 'noopener') }>
           Read More
         </Button>
