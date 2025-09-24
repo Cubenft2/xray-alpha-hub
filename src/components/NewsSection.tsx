@@ -15,15 +15,16 @@ interface NewsItem {
 
 interface NewsSectionProps {
   searchTerm?: string;
-  defaultTab?: 'crypto' | 'stocks';
+  defaultTab?: 'crypto' | 'stocks' | 'trump';
 }
 
 export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSectionProps) {
   const [cryptoNews, setCryptoNews] = useState<NewsItem[]>([]);
   const [stocksNews, setStocksNews] = useState<NewsItem[]>([]);
+  const [trumpNews, setTrumpNews] = useState<NewsItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [newItemsCount, setNewItemsCount] = useState({ crypto: 0, stocks: 0 });
+  const [newItemsCount, setNewItemsCount] = useState({ crypto: 0, stocks: 0, trump: 0 });
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const { toast } = useToast();
 
@@ -42,14 +43,17 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
 
       const cryptoItems: NewsItem[] = Array.isArray(data.crypto) ? data.crypto : [];
       const stocksItems: NewsItem[] = Array.isArray(data.stocks) ? data.stocks : [];
+      const trumpItems: NewsItem[] = Array.isArray(data.trump) ? data.trump : [];
 
       // Sort by publishedAt desc to ensure newest first
       cryptoItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
       stocksItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+      trumpItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
       if (isFirstLoad) {
         setCryptoNews(cryptoItems.slice(0, 50));
         setStocksNews(stocksItems.slice(0, 50));
+        setTrumpNews(trumpItems.slice(0, 50));
         setIsFirstLoad(false);
       } else {
         // Merge by URL or title, prepend new, keep max 50
@@ -66,6 +70,14 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           const incoming = stocksItems.filter((i) => i.url || i.title);
           const newOnes = incoming.filter((i) => !prevKeys.has(i.url || i.title));
           if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, stocks: newOnes.length }));
+          return [...newOnes, ...prev].slice(0, 50);
+        });
+
+        setTrumpNews((prev) => {
+          const prevKeys = new Set(prev.map((i) => i.url || i.title));
+          const incoming = trumpItems.filter((i) => i.url || i.title);
+          const newOnes = incoming.filter((i) => !prevKeys.has(i.url || i.title));
+          if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, trump: newOnes.length }));
           return [...newOnes, ...prev].slice(0, 50);
         });
       }
@@ -89,14 +101,14 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
 
       if (!isFirstLoad) {
         setTimeout(() => {
-          const totalNew = newItemsCount.crypto + newItemsCount.stocks;
+          const totalNew = newItemsCount.crypto + newItemsCount.stocks + newItemsCount.trump;
           if (totalNew > 0) {
             toast({ title: `${totalNew} New Articles Added`, description: 'Check the top of each news section.' });
           }
         }, 300);
 
         setTimeout(() => {
-          setNewItemsCount({ crypto: 0, stocks: 0 });
+          setNewItemsCount({ crypto: 0, stocks: 0, trump: 0 });
         }, 3000);
       }
     }
@@ -161,6 +173,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
 
   const filteredCryptoNews = filterNews(cryptoNews);
   const filteredStocksNews = filterNews(stocksNews);
+  const filteredTrumpNews = filterNews(trumpNews);
 
   return (
     <div className="xr-card p-4">
@@ -186,12 +199,15 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       </div>
 
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="crypto" className="text-xs hover-glow-tab transition-all duration-300">
             🚀 Crypto ({filteredCryptoNews.length})
           </TabsTrigger>
           <TabsTrigger value="stocks" className="text-xs hover-glow-tab transition-all duration-300">
             📈 Markets ({filteredStocksNews.length})
+          </TabsTrigger>
+          <TabsTrigger value="trump" className="text-xs hover-glow-tab transition-all duration-300">
+            🇺🇸 Trump ({filteredTrumpNews.length})
           </TabsTrigger>
         </TabsList>
 
@@ -236,6 +252,29 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
             ) : (
               <div className="text-center text-muted-foreground py-4">
                 {searchTerm ? `No market news found for "${searchTerm}"` : 'No market news available'}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="trump" className="mt-4">
+          <div className="max-h-[600px] overflow-y-auto space-y-3 pr-2">
+            {isLoading ? (
+              <div className="text-center text-muted-foreground py-8">
+                <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+                Loading Trump news...
+              </div>
+            ) : filteredTrumpNews.length > 0 ? (
+              filteredTrumpNews.map((item, index) => (
+                <NewsCard 
+                  key={item.url || item.title} 
+                  item={item} 
+                  isNew={index < newItemsCount.trump}
+                />
+              ))
+            ) : (
+              <div className="text-center text-muted-foreground py-4">
+                {searchTerm ? `No Trump news found for "${searchTerm}"` : 'No Trump news available'}
               </div>
             )}
           </div>

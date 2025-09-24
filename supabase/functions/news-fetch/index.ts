@@ -110,9 +110,17 @@ serve(async (req) => {
     "https://feeds.content.dowjones.io/public/rss/mw_topstories",
   ];
 
-  const [cryptoTexts, stockTexts] = await Promise.all([
+  const trumpFeeds = [
+    "https://truthsocial.com/users/realDonaldTrump/statuses.rss",
+    "https://feeds.feedburner.com/breitbart",
+    "https://www.foxnews.com/politics.xml",
+    "https://feeds.feedburner.com/dailywire/news",
+  ];
+
+  const [cryptoTexts, stockTexts, trumpTexts] = await Promise.all([
     Promise.all(cryptoFeeds.map((u) => fetchText(u))),
     Promise.all(stockFeeds.map((u) => fetchText(u))),
+    Promise.all(trumpFeeds.map((u) => fetchText(u))),
   ]);
 
   let cryptoItems: NewsItem[] = [];
@@ -127,14 +135,22 @@ serve(async (req) => {
     if (xml) stockItems.push(...parseRss(xml, hostnameFromUrl(stockFeeds[i])));
   }
 
+  let trumpItems: NewsItem[] = [];
+  for (let i = 0; i < trumpFeeds.length; i++) {
+    const xml = trumpTexts[i];
+    if (xml) trumpItems.push(...parseRss(xml, hostnameFromUrl(trumpFeeds[i])));
+  }
+
   // Sort newest first and limit
   cryptoItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
   stockItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  trumpItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
   cryptoItems = cryptoItems.slice(0, Math.min(50, max));
   stockItems = stockItems.slice(0, Math.min(50, max));
+  trumpItems = trumpItems.slice(0, Math.min(50, max));
 
-  return new Response(JSON.stringify({ crypto: cryptoItems, stocks: stockItems }), {
+  return new Response(JSON.stringify({ crypto: cryptoItems, stocks: stockItems, trump: trumpItems }), {
     headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS },
   });
 });
