@@ -297,18 +297,33 @@ export default function MarketBriefHome() {
             </div>
           </CardContent>
 
-          {/* Watermark Footer */}
-          <div className="px-6 lg:px-8 pb-6">
-            <div className="flex items-center justify-between text-sm text-muted-foreground bg-accent/20 rounded-lg p-3">
+          {/* Watermark Footer with Prominent Stamp */}
+          <div className="px-6 lg:px-8 pb-6 relative">
+            {/* Prominent watermark stamp for sharing */}
+            <div className="absolute top-4 right-4 opacity-10 pointer-events-none">
+              <img 
+                src="/xray-dog.png" 
+                alt="XRayCrypto Watermark" 
+                className="w-24 h-24 lg:w-32 lg:h-32"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between text-sm text-muted-foreground bg-accent/20 rounded-lg p-4 relative z-10">
               <div className="flex items-center gap-3">
                 <img 
                   src="/pfp.png" 
                   alt="XRayCrypto" 
-                  className="w-5 h-5 rounded"
+                  className="w-8 h-8 rounded-md border border-primary/20"
                 />
-                <span>© XRayCrypto News</span>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-foreground">© XRayCrypto News</span>
+                  <span className="text-xs opacity-80">xraycrypto.com</span>
+                </div>
               </div>
-              <span>{brief.date}</span>
+              <div className="text-right">
+                <div className="font-medium text-foreground">{brief.date}</div>
+                <div className="text-xs opacity-80">Market Brief</div>
+              </div>
             </div>
           </div>
         </Card>
