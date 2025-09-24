@@ -81,108 +81,119 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     console.log('🐕 XRay: Fetching news...');
     
     try {
-      // Try the aggregate endpoint with all sources
+      // Fetch from multiple sources in parallel
       const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev/aggregate?sources=crypto,stocks';
+      const cryptoPanicUrl = 'https://cryptopanic.com/api/v1/posts/?auth_token=free&public=true&kind=news&currencies=BTC,ETH,SOL&filter=hot';
       
-      try {
-        console.log('🐕 XRay: Calling real news API at:', workerUrl);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-        
-        const response = await fetch(workerUrl, {
-          headers: {
-            'Accept': 'application/json',
-          },
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeout);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('🐕 XRay: Worker response:', data);
+      const fetchPromises = [];
+      
+      // Fetch from worker
+      fetchPromises.push(
+        fetch(workerUrl, {
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(15000)
+        }).then(res => res.json()).catch(() => null)
+      );
+      
+      // Fetch from CryptoPanic
+      fetchPromises.push(
+        fetch(cryptoPanicUrl, {
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(10000)
+        }).then(res => res.json()).catch(() => null)
+      );
+      
+      const [workerData, cryptoPanicData] = await Promise.all(fetchPromises);
+      
+      let allNewsItems: NewsItem[] = [];
+      
+      // Process worker data
+      if (workerData?.latest) {
+        console.log('🐕 XRay: Worker response:', workerData);
+        const raw = Array.isArray(workerData.latest) ? workerData.latest : [];
+        const normalized: NewsItem[] = raw.map((it: any) => {
+          const url = it.link || it.url || '';
+          let source = it.source || '';
+          if (!source && url) {
+            try { source = new URL(url).hostname.replace(/^www\./,''); } catch {}
+          }
           
-          // Handle real news data from aggregate endpoint
-          const raw = Array.isArray(data.latest) ? data.latest : Array.isArray(data.top) ? data.top : [];
-          const normalized: NewsItem[] = raw.map((it: any) => {
-            const url = it.link || it.url || '';
-            let source = it.source || '';
-            if (!source && url) {
-              try { source = new URL(url).hostname.replace(/^www\./,''); } catch {}
-            }
-            
-            // Parse timestamp correctly - API returns Unix timestamp in milliseconds
-            let publishedAt = new Date().toISOString(); // fallback
-            if (it.date) {
-              const timestamp = typeof it.date === 'number' ? it.date : parseInt(it.date, 10);
-              if (!isNaN(timestamp)) {
-                publishedAt = new Date(timestamp).toISOString();
-              }
-            }
-            
-            return {
-              title: it.title || it.headline || 'Untitled',
-              description: it.description || it.summary || 'No description available.',
-              url,
-              publishedAt,
-              source: source || 'news'
-            } as NewsItem;
-          });
-
-          // Enhanced categorization by source host and content
-          const isCryptoHost = (host: string) => /coindesk|cointelegraph|theblock|decrypt|messari|chain\.link|cryptoslate|bitcoinmagazine|blockworks|thedefiant|protos|ambcrypto|beincrypto|coingape|coinpedia|cryptopotato|newsbtc/i.test(host || '');
-          const isStocksHost = (host: string) => /reuters|cnbc|foxbusiness|apnews|finance\.yahoo|ft\.com|cnn|nytimes|marketwatch|moneycontrol|theguardian|bbc|bbci|wsj/i.test(host || '');
-          
-          const cryptoItems = normalized.filter(n => 
-            isCryptoHost(n.source) || 
-            /bitcoin|ethereum|crypto|btc|eth|solana|sol|defi|nft|web3|blockchain|dogecoin|cardano|polkadot/i.test(n.title)
-          ).slice(0, 20);
-          
-          const stocksItems = normalized.filter(n => 
-            (isStocksHost(n.source) || /stocks?|market|fed|nasdaq|s&p|dow|sp500|trading|earnings|dividend|wall street/i.test(n.title)) &&
-            !isCryptoHost(n.source) &&
-            !/bitcoin|ethereum|crypto|btc|eth|solana|defi/i.test(n.title)
-          ).slice(0, 20);
-
-          if (normalized.length > 0) {
-            console.log('🐕 XRay: Using live news data');
-            
-            if (isFirstLoad) {
-              // First load - set all items
-              setCryptoNews(cryptoItems.length > 0 ? cryptoItems : normalized.slice(0, 15));
-              setStocksNews(stocksItems.length > 0 ? stocksItems : normalized.slice(15, 30));
-              setIsFirstLoad(false);
-            } else {
-              // Live update - add only new items
-              setCryptoNews(prevCrypto => {
-                const newItems = cryptoItems.filter(newItem => 
-                  !prevCrypto.some(existing => existing.title === newItem.title || existing.url === newItem.url)
-                );
-                setNewItemsCount(prev => ({ ...prev, crypto: newItems.length }));
-                return [...newItems, ...prevCrypto].slice(0, 30); // Limit to 30 items
-              });
-              
-              setStocksNews(prevStocks => {
-                const newItems = stocksItems.filter(newItem => 
-                  !prevStocks.some(existing => existing.title === newItem.title || existing.url === newItem.url)
-                );
-                setNewItemsCount(prev => ({ ...prev, stocks: newItems.length }));
-                return [...newItems, ...prevStocks].slice(0, 30); // Limit to 30 items
-              });
-            }
-          } else {
-            console.log('🐕 XRay: No items from worker, using mock data');
-            if (isFirstLoad) {
-              setCryptoNews(mockCryptoNews);
-              setStocksNews(mockStocksNews);
-              setIsFirstLoad(false);
+          // Parse timestamp correctly - API returns Unix timestamp in milliseconds
+          let publishedAt = new Date().toISOString(); // fallback
+          if (it.date) {
+            const timestamp = typeof it.date === 'number' ? it.date : parseInt(it.date, 10);
+            if (!isNaN(timestamp)) {
+              publishedAt = new Date(timestamp).toISOString();
             }
           }
+          
+          return {
+            title: it.title || it.headline || 'Untitled',
+            description: it.description || it.summary || 'No description available.',
+            url,
+            publishedAt,
+            source: source || 'news'
+          } as NewsItem;
+        });
+        allNewsItems.push(...normalized);
+      }
+      
+      // Process CryptoPanic data
+      if (cryptoPanicData?.results) {
+        console.log('🐕 XRay: CryptoPanic response:', cryptoPanicData.results.length, 'items');
+        const cryptoPanicItems: NewsItem[] = cryptoPanicData.results.map((item: any) => ({
+          title: item.title || 'Untitled',
+          description: item.title || 'No description available.',
+          url: item.url || '',
+          publishedAt: item.published_at || new Date().toISOString(),
+          source: item.domain || 'cryptopanic.com'
+        }));
+        allNewsItems.push(...cryptoPanicItems);
+      }
+      
+      if (allNewsItems.length > 0) {
+        console.log('🐕 XRay: Using combined news data from', allNewsItems.length, 'sources');
+        
+        // Enhanced categorization by source host and content
+        const isCryptoHost = (host: string) => /coindesk|cointelegraph|theblock|decrypt|messari|chain\.link|cryptoslate|bitcoinmagazine|blockworks|thedefiant|protos|ambcrypto|beincrypto|coingape|coinpedia|cryptopotato|newsbtc|cryptopanic/i.test(host || '');
+        const isStocksHost = (host: string) => /reuters|cnbc|foxbusiness|apnews|finance\.yahoo|ft\.com|cnn|nytimes|marketwatch|moneycontrol|theguardian|bbc|bbci|wsj/i.test(host || '');
+        
+        const cryptoItems = allNewsItems.filter(n => 
+          isCryptoHost(n.source) || 
+          /bitcoin|ethereum|crypto|btc|eth|solana|sol|defi|nft|web3|blockchain|dogecoin|cardano|polkadot/i.test(n.title)
+        ).slice(0, 30);
+        
+        const stocksItems = allNewsItems.filter(n => 
+          (isStocksHost(n.source) || /stocks?|market|fed|nasdaq|s&p|dow|sp500|trading|earnings|dividend|wall street/i.test(n.title)) &&
+          !isCryptoHost(n.source) &&
+          !/bitcoin|ethereum|crypto|btc|eth|solana|defi/i.test(n.title)
+        ).slice(0, 30);
+
+        if (isFirstLoad) {
+          // First load - set all items
+          setCryptoNews(cryptoItems.length > 0 ? cryptoItems : allNewsItems.slice(0, 15));
+          setStocksNews(stocksItems.length > 0 ? stocksItems : allNewsItems.slice(15, 30));
+          setIsFirstLoad(false);
         } else {
-          throw new Error(`Worker returned ${response.status}`);
+          // Live update - add only new items
+          setCryptoNews(prevCrypto => {
+            const newItems = cryptoItems.filter(newItem => 
+              !prevCrypto.some(existing => existing.title === newItem.title || existing.url === newItem.url)
+            );
+            setNewItemsCount(prev => ({ ...prev, crypto: newItems.length }));
+            return [...newItems, ...prevCrypto].slice(0, 30); // Limit to 30 items
+          });
+          
+          setStocksNews(prevStocks => {
+            const newItems = stocksItems.filter(newItem => 
+              !prevStocks.some(existing => existing.title === newItem.title || existing.url === newItem.url)
+            );
+            setNewItemsCount(prev => ({ ...prev, stocks: newItems.length }));
+            return [...newItems, ...prevStocks].slice(0, 30); // Limit to 30 items
+          });
         }
-      } catch (workerError) {
-        console.log('🐕 XRay: Worker error, using mock data:', workerError);
+      } else {
+        console.log('🐕 XRay: No items from sources, using mock data');
         if (isFirstLoad) {
           setCryptoNews(mockCryptoNews);
           setStocksNews(mockStocksNews);
