@@ -113,48 +113,48 @@ const chillChannels: ChillChannel[] = [
   {
     id: '13',
     name: 'Hip Hop 24/7',
-    description: 'Latest hip hop beats & bangers - Bossman Dlow style',
-    youtubeId: '36YnV9STBqc',
+    description: 'Latest hip hop beats & bangers - non-stop rap vibes',
+    youtubeId: 'Yul7DarvL4E',
     category: 'Hip Hop',
     live: true
   },
   {
     id: '14',
-    name: 'Trap Nation Radio',
-    description: 'Best trap & hip hop music 24/7',
-    youtubeId: 'BeOSu5aZKRs',
+    name: 'Bass Boosted Rap',
+    description: 'Underground rap & gangsta beats - bass boosted',
+    youtubeId: 'NxbmrtpbLV0',
     category: 'Hip Hop',
     live: true
   },
   {
     id: '15',
-    name: 'Latest Hip Hop Hits',
-    description: 'New school hip hop & rap music',
-    youtubeId: 'jfKfPfyJRdk',
+    name: 'Gangsta Rap Radio',
+    description: 'Underground rap & hip hop live stream',
+    youtubeId: '0MOkLkTP-Jk',
     category: 'Hip Hop',
     live: true
   },
   {
     id: '16',
-    name: 'Underground Hip Hop',
-    description: 'Fresh underground rap & hip hop beats',
-    youtubeId: '5yx6BWlEVcY',
+    name: 'Lofi Hip Hop Radio',
+    description: 'Chill hip hop beats for study & relax',
+    youtubeId: 'TPJGebcgpes',
     category: 'Hip Hop',
     live: true
   },
   {
     id: '17',
-    name: 'Drill Music 24/7',
-    description: 'UK & US drill music live stream',
-    youtubeId: 'lTRiuFIWV54',
+    name: 'Trap Music 24/7',
+    description: 'Hardest trap beats and bangers',
+    youtubeId: 'r58l2M7a7Ys',
     category: 'Hip Hop',
     live: true
   },
   {
     id: '18',
-    name: 'Rap God Radio',
-    description: 'Best rap music from all eras',
-    youtubeId: 'Dx5qFachd3A',
+    name: 'Hip Hop LoFi Gym',
+    description: 'Hip hop lofi beats for workout & focus',
+    youtubeId: 'FVkzsoRO7OQ',
     category: 'Hip Hop',
     live: true
   }
