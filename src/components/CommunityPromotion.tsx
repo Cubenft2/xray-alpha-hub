@@ -141,7 +141,7 @@ export const CommunityPromotion: React.FC = () => {
             <Sparkles className="h-6 w-6 text-accent animate-pulse" />
           </div>
           
-          <DialogTitle className="text-xl font-bold xr-gradient-text leading-tight">
+          <DialogTitle className="text-xl font-bold xr-gradient-text leading-tight text-center">
             {CURRENT_PROMOTION.title}
           </DialogTitle>
           
