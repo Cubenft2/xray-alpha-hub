@@ -86,7 +86,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           <nav className="hidden lg:flex items-center space-x-6 relative overflow-hidden">
             {/* Pet Animations - Only Two */}
             
-            {/* Dog chasing bouncing Ball - 0 min (shows first!) */}
+            {/* Dog chasing bouncing Ball - 0s (shows first!) */}
             <div className="xr-ball-ahead" style={{ animationDelay: '0s' }}>
               <div className="w-3 h-3 bg-green-400 rounded-full border border-green-600 shadow-sm animate-bounce"></div>
             </div>
@@ -94,17 +94,17 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
             </div>
 
-            {/* Dog chasing scared Cat - 15 min (900s) */}
-            <div className="xr-pet-item" style={{ animationDelay: '900s' }}>
+            {/* Dog chasing scared Cat - 15s later */}
+            <div className="xr-pet-item" style={{ animationDelay: '15s' }}>
               <div className="text-lg animate-pulse">😿</div>
             </div>
-            <div className="xr-pet-chaser" style={{ animationDelay: '900s' }}>
+            <div className="xr-pet-chaser" style={{ animationDelay: '15s' }}>
               <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
             </div>
-            <div className="xr-pet-sound" style={{ animationDelay: '900s' }}>
+            <div className="xr-pet-sound" style={{ animationDelay: '15s' }}>
               <span className="text-xs font-bold text-primary">ARF!</span>
             </div>
-            <div className="xr-pet-sound" style={{ animationDelay: '900s', animationDuration: '6s' }}>
+            <div className="xr-pet-sound" style={{ animationDelay: '15s', animationDuration: '10s' }}>
               <span className="text-xs font-bold text-accent">MEOW!</span>
             </div>
             {navigation.map((item) => (
