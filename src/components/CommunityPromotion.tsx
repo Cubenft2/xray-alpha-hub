@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, X, TrendingUp, Users, Sparkles, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import gugoMascot from "@/assets/gugo-mascot.jpg";
 
 interface PromotionData {
   id: string;
@@ -162,6 +163,17 @@ export const CommunityPromotion: React.FC = () => {
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
+          {/* GUGO Mascot Image */}
+          <div className="flex justify-center">
+            <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary/20 shadow-lg">
+              <img 
+                src={gugoMascot} 
+                alt="GUGO Token Mascot" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+
           {/* Token Info */}
           <div className="text-center p-4 bg-muted/50 rounded-lg border border-border">
             <div className="text-2xl font-bold text-primary mb-1">
