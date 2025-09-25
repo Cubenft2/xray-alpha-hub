@@ -19,6 +19,7 @@ interface PromotionData {
   links: {
     buy?: string;
     chart?: string;
+    chartAlt?: string;
     website?: string;
     twitter?: string;
   };
@@ -38,7 +39,8 @@ const CURRENT_PROMOTION: PromotionData = {
     chainColor: 'hsl(280 100% 70%)'
   },
   links: {
-    chart: 'https://coinmarketcap.com/currencies/gugo/',
+    chart: 'https://dexscreener.com/abstract/gugo',
+    chartAlt: 'https://www.coingecko.com/en/coins/gugo',
     website: 'https://abstract.xyz',
     twitter: 'https://twitter.com/AbstractChain'
   },
@@ -86,12 +88,50 @@ export const CommunityPromotion: React.FC = () => {
     }
   };
 
-  const handleLinkClick = (url: string, type: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
-    toast({
-      title: "Opening external link",
-      description: `Redirecting to ${type}...`,
-    });
+  const handleLinkClick = (url: string, type: string, fallbackUrl?: string) => {
+    try {
+      // Create a temporary link element for better compatibility
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Opening chart",
+        description: `Redirecting to ${type}...`,
+      });
+    } catch (error) {
+      console.error('Failed to open link:', error);
+      
+      if (fallbackUrl) {
+        // Try fallback URL
+        const fallbackLink = document.createElement('a');
+        fallbackLink.href = fallbackUrl;
+        fallbackLink.target = '_blank';
+        fallbackLink.rel = 'noopener noreferrer';
+        fallbackLink.style.display = 'none';
+        
+        document.body.appendChild(fallbackLink);
+        fallbackLink.click();
+        document.body.removeChild(fallbackLink);
+        
+        toast({
+          title: "Using alternative chart",
+          description: "Opened alternative chart source",
+        });
+      } else {
+        toast({
+          title: "Link failed to open",
+          description: "Please try copying the URL manually",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   if (!CURRENT_PROMOTION.isActive || dismissed) return null;
@@ -170,7 +210,11 @@ export const CommunityPromotion: React.FC = () => {
           <div className="grid grid-cols-2 gap-3 pt-2">
             {CURRENT_PROMOTION.links.chart && (
               <Button
-                onClick={() => handleLinkClick(CURRENT_PROMOTION.links.chart!, 'price chart')}
+                onClick={() => handleLinkClick(
+                  CURRENT_PROMOTION.links.chart!, 
+                  'DexScreener chart', 
+                  CURRENT_PROMOTION.links.chartAlt
+                )}
                 className="btn-hero text-sm h-9"
               >
                 <ExternalLink className="h-3 w-3 mr-1" />
