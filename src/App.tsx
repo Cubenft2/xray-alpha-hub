@@ -6,6 +6,7 @@ import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import PageTransition from "./components/PageTransition";
 import { Layout } from "./components/Layout";
+import { CommunityPromotion } from "./components/CommunityPromotion";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
 import MarketBrief from "./pages/MarketBrief";
@@ -30,6 +31,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <CommunityPromotion />
         <BrowserRouter>
           <Layout>
             <PageTransition>
