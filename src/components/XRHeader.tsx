@@ -60,7 +60,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 <img 
                   src="/pfp.png" 
                   alt="XRay Profile" 
-                  className="w-6 h-6 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110"
+                  className="w-8 h-8 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110"
                 />
                 <span className="text-xl xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
                   XRayCrypto™
@@ -73,7 +73,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 <img 
                   src="/pfp.png" 
                   alt="XRay Profile" 
-                  className="w-4 h-4 rounded-full"
+                  className="w-6 h-6 rounded-full"
                 />
                 <span className="text-lg xr-pixel-text animate-radioactive-glow">
                   XR™
