@@ -21,32 +21,66 @@ export default function MarketBrief() {
     { name: 'Cardano', symbol: 'ADA', value: '$1.23', change: '+5.6%', positive: true },
   ];
 
-  const newsItems = [
-    {
-      title: 'Fed Holds Interest Rates Steady',
-      time: '2 hours ago',
-      source: 'Reuters',
-      type: 'Market News'
-    },
-    {
-      title: 'Tech Stocks Rally on AI Optimism',
-      time: '4 hours ago',
-      source: 'Bloomberg',
-      type: 'Technology'
-    },
-    {
-      title: 'Bitcoin Breaks Above $67K Resistance',
-      time: '6 hours ago',
-      source: 'CoinDesk',
-      type: 'Crypto'
-    },
-    {
-      title: 'Energy Sector Leads Market Gains',
-      time: '1 day ago',
-      source: 'MarketWatch',
-      type: 'Sectors'
-    }
-  ];
+  // Generate dynamic news based on current date to avoid repetitive content
+  const generateDynamicNews = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const newsRotation = [
+      // Monday
+      [
+        { title: 'Markets Open Higher on Economic Data', time: '2 hours ago', source: 'Reuters', type: 'Market News' },
+        { title: 'AI Stocks Continue Growth Momentum', time: '4 hours ago', source: 'Bloomberg', type: 'Technology' },
+        { title: 'Crypto Market Shows Strong Recovery', time: '6 hours ago', source: 'CoinDesk', type: 'Crypto' },
+        { title: 'Banking Sector Outperforms Expectations', time: '1 day ago', source: 'MarketWatch', type: 'Sectors' }
+      ],
+      // Tuesday
+      [
+        { title: 'Inflation Data Impacts Market Sentiment', time: '2 hours ago', source: 'Bloomberg', type: 'Market News' },
+        { title: 'Tech Giants Report Strong Earnings', time: '4 hours ago', source: 'CNBC', type: 'Technology' },
+        { title: 'Ethereum Network Sees Increased Activity', time: '6 hours ago', source: 'CoinDesk', type: 'Crypto' },
+        { title: 'Healthcare Stocks Rally on Drug Approvals', time: '1 day ago', source: 'Reuters', type: 'Sectors' }
+      ],
+      // Wednesday  
+      [
+        { title: 'Global Markets Mixed Amid Trade Concerns', time: '2 hours ago', source: 'MarketWatch', type: 'Market News' },
+        { title: 'Semiconductor Stocks Lead Tech Surge', time: '4 hours ago', source: 'Bloomberg', type: 'Technology' },
+        { title: 'DeFi Protocols Show Innovation Growth', time: '6 hours ago', source: 'CoinDesk', type: 'Crypto' },
+        { title: 'Renewable Energy Sector Gains Momentum', time: '1 day ago', source: 'Reuters', type: 'Sectors' }
+      ],
+      // Thursday
+      [
+        { title: 'Jobless Claims Data Supports Market Rally', time: '2 hours ago', source: 'Reuters', type: 'Market News' },
+        { title: 'Cloud Computing Stocks Hit New Highs', time: '4 hours ago', source: 'CNBC', type: 'Technology' },
+        { title: 'Altcoin Season Shows Strong Momentum', time: '6 hours ago', source: 'CoinDesk', type: 'Crypto' },
+        { title: 'Consumer Goods Sector Shows Resilience', time: '1 day ago', source: 'Bloomberg', type: 'Sectors' }
+      ],
+      // Friday
+      [
+        { title: 'Weekly Market Summary Shows Positive Trends', time: '2 hours ago', source: 'MarketWatch', type: 'Market News' },
+        { title: 'Fintech Innovation Drives Sector Growth', time: '4 hours ago', source: 'Bloomberg', type: 'Technology' },
+        { title: 'Bitcoin Mining Efficiency Improvements', time: '6 hours ago', source: 'CoinDesk', type: 'Crypto' },
+        { title: 'Industrial Sector Benefits from Infrastructure', time: '1 day ago', source: 'Reuters', type: 'Sectors' }
+      ],
+      // Saturday
+      [
+        { title: 'Weekend Trading Shows Continued Interest', time: '2 hours ago', source: 'Bloomberg', type: 'Market News' },
+        { title: 'Tech Startups Secure Record Funding', time: '4 hours ago', source: 'TechCrunch', type: 'Technology' },
+        { title: 'Crypto Adoption Reaches New Milestones', time: '6 hours ago', source: 'CoinDesk', type: 'Crypto' },
+        { title: 'Retail Sector Adapts to Digital Trends', time: '1 day ago', source: 'MarketWatch', type: 'Sectors' }
+      ],
+      // Sunday  
+      [
+        { title: 'Week Ahead: Key Economic Indicators', time: '2 hours ago', source: 'Reuters', type: 'Market News' },
+        { title: 'Social Media Platforms Drive Tech Growth', time: '4 hours ago', source: 'Bloomberg', type: 'Technology' },
+        { title: 'NFT Market Shows Creative Innovation', time: '6 hours ago', source: 'CoinDesk', type: 'Crypto' },
+        { title: 'Transportation Sector Embraces EVs', time: '1 day ago', source: 'CNBC', type: 'Sectors' }
+      ]
+    ];
+    
+    return newsRotation[dayOfWeek];
+  };
+
+  const newsItems = generateDynamicNews();
 
   return (
     <div className="min-h-screen bg-background">

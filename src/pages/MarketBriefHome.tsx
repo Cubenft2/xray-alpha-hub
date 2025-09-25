@@ -370,8 +370,8 @@ export default function MarketBriefHome() {
                     </CardContent>
                   </Card>
                 )}
-                {/* Always show key Fed-related charts when discussing Fed policy */}
-                {brief.article_html?.toLowerCase().includes('fed') && (
+                {/* Always show key Fed-related charts when discussing Fed policy, but limit to avoid repetition */}
+                {brief.article_html?.toLowerCase().includes('fed') && !brief.article_html?.toLowerCase().includes('federal reserve meeting') && (
                   <>
                     <Card className="h-48">
                       <CardContent className="p-3">
@@ -386,6 +386,27 @@ export default function MarketBriefHome() {
                         <div className="text-sm font-medium mb-2 text-center">10-Year Treasury</div>
                         <div className="h-36">
                           <MiniChart symbol="TNX" theme={theme} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+                {/* Show key market indicators for variety */}
+                {!brief.article_html?.toLowerCase().includes('fed') && (
+                  <>
+                    <Card className="h-48">
+                      <CardContent className="p-3">
+                        <div className="text-sm font-medium mb-2 text-center">VIX (Market Fear)</div>
+                        <div className="h-36">
+                          <MiniChart symbol="VIX" theme={theme} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="h-48">
+                      <CardContent className="p-3">
+                        <div className="text-sm font-medium mb-2 text-center">Oil Prices</div>
+                        <div className="h-36">
+                          <MiniChart symbol="USOIL" theme={theme} />
                         </div>
                       </CardContent>
                     </Card>
