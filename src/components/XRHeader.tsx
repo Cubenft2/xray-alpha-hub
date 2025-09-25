@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Menu, X, Search, Heart } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
-import { XRayDog } from './XRayDog';
 import { Link, useLocation } from 'react-router-dom';
 
 interface XRHeaderProps {
@@ -49,7 +48,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   return (
     <>
       <header className="xr-header relative overflow-visible">
-        <div className="container mx-auto flex h-16 items-center justify-between relative">
+        <div className="container mx-auto flex h-16 items-center justify-between">
           {/* XRay Dog Logo & Brand */}
           <Link 
             to="/"
@@ -82,11 +81,6 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               </div>
             </div>
           </Link>
-
-          {/* XRay Dog Between Logo and Navigation */}
-          <div className="hidden lg:flex items-center justify-center flex-1 relative">
-            <XRayDog size="md" animated={true} />
-          </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6">
