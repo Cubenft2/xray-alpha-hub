@@ -66,7 +66,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                   XRayCrypto™
                 </span>
               </div>
-              <span className="text-xs text-muted-foreground hidden sm:block font-mono ml-8">
+              <span className="text-xs text-muted-foreground hidden sm:block font-mono ml-10">
                 Powered by XRay Dog
               </span>
               <div className="flex items-center space-x-1 sm:hidden">
