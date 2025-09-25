@@ -216,7 +216,7 @@ export const CommunityPromotion: React.FC = () => {
                 onClick={() => handleLinkClick(CURRENT_PROMOTION.links.buy!, 'Buy GUGO')}
                 className="w-full text-sm h-11 font-semibold bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 border-0 shadow-lg shadow-yellow-500/30"
               >
-                <img src={gugoDuckIcon} alt="GUGO Duck" className="h-5 w-5 mr-2 flex-shrink-0" />
+                <img src={gugoDuckIcon} alt="GUGO Duck" className="h-6 w-6 mr-2 flex-shrink-0" />
                 Run With GUGO - Buy Now
               </Button>
             )}
