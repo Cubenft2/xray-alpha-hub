@@ -133,16 +133,8 @@ export const CommunityPromotion: React.FC = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
-      <DialogContent className="max-w-md mx-auto bg-card border border-primary/20 shadow-xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
-        <DialogHeader className="text-center space-y-3 relative">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => handleDismiss(false)}
-            className="absolute right-0 top-0 h-6 w-6 p-0 rounded-full hover:bg-muted"
-          >
-            <X className="h-4 w-4" />
-          </Button>
+      <DialogContent className="max-w-sm mx-auto bg-card border border-primary/20 shadow-xl max-h-[80vh] overflow-y-auto w-[90vw] sm:w-full sm:max-w-md">
+        <DialogHeader className="text-center space-y-3">
           <div className="flex items-center justify-center">
             <Sparkles className="h-6 w-6 text-accent animate-pulse" />
           </div>
