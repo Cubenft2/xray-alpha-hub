@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { XRHeader } from './XRHeader';
 import { XRTicker } from './XRTicker';
 import { XRFooter } from './XRFooter';
@@ -21,6 +22,7 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps) => {
   const [searchHandler, setSearchHandler] = useState<(term: string) => void>(() => () => {});
+  const location = useLocation();
 
   const handleSearch = useCallback((term: string) => {
     searchHandler(term);
@@ -50,9 +52,13 @@ export const Layout = ({ children }: LayoutProps) => {
           <div className="hidden sm:block">
             <XRTicker type="stocks" />
           </div>
-          {/* Small screens: Only crypto ticker */}
+          {/* Small screens: Context-aware ticker */}
           <div className="block sm:hidden">
-            <XRTicker type="crypto" />
+            {location.pathname === '/markets' ? (
+              <XRTicker type="stocks" />
+            ) : (
+              <XRTicker type="crypto" />
+            )}
           </div>
         </div>
 
