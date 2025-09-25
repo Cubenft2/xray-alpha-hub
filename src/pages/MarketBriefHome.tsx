@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Share, Copy, ExternalLink } from 'lucide-react';
+import { Share, Copy, ExternalLink, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { MiniChart } from '@/components/MiniChart';
+import { useTheme } from 'next-themes';
 
 interface MarketBrief {
   slug: string;
@@ -27,6 +29,7 @@ export default function MarketBriefHome() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const { toast } = useToast();
+  const { theme } = useTheme();
 
   const workerBase = 'https://xraycrypto-news.xrprat.workers.dev/';
 
@@ -328,6 +331,64 @@ export default function MarketBriefHome() {
                 </ul>
               </details>
             )}
+
+            {/* Market Charts Section */}
+            <div className="border-t border-border pt-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Live Market Data</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">S&P 500</div>
+                    <div className="h-36">
+                      <MiniChart symbol="SPX" theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Bitcoin</div>
+                    <div className="h-36">
+                      <MiniChart symbol="BTCUSD" theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Ethereum</div>
+                    <div className="h-36">
+                      <MiniChart symbol="ETHUSD" theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Gold</div>
+                    <div className="h-36">
+                      <MiniChart symbol="XAUUSD" theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">US Dollar Index</div>
+                    <div className="h-36">
+                      <MiniChart symbol="DXY" theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Crude Oil</div>
+                    <div className="h-36">
+                      <MiniChart symbol="USOIL" theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
 
             {/* Inline Share Buttons */}
             <div className="flex items-center gap-3 pt-4 border-t border-border">
