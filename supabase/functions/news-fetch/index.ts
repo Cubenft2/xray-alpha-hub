@@ -103,7 +103,6 @@ serve(async (req) => {
     "https://cointelegraph.com/rss",
     "https://decrypt.co/feed",
     "https://cryptonews.com/news/feed/",
-    "https://www.theblockcrypto.com/rss.xml",
     "https://bitcoinmagazine.com/feed",
     "https://cryptopotato.com/feed/",
     "https://cryptoslate.com/feed/",
