@@ -73,12 +73,12 @@ export const CommunityPromotion: React.FC = () => {
       return;
     }
 
-    // Show popup after 3 seconds if not dismissed
+    // Show popup after 10 seconds if not dismissed
     const timer = setTimeout(() => {
       if (!dismissed) {
         setIsOpen(true);
       }
-    }, 3000);
+    }, 10000);
 
     return () => clearTimeout(timer);
   }, [dismissed]);
@@ -135,7 +135,7 @@ export const CommunityPromotion: React.FC = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
-      <DialogContent className="max-w-sm mx-auto bg-card border border-primary/20 shadow-xl max-h-[80vh] overflow-y-auto w-[90vw] sm:w-full sm:max-w-md">
+      <DialogContent className="max-w-sm mx-auto bg-card border border-primary/20 shadow-xl max-h-[80vh] overflow-y-auto w-[90vw] sm:w-full sm:max-w-md fixed right-4 top-1/2 -translate-y-1/2 data-[state=open]:animate-slide-in-right data-[state=closed]:animate-slide-out-right">
         <DialogHeader className="text-center space-y-3">
           <div className="flex items-center justify-center">
             <Sparkles className="h-6 w-6 text-accent animate-pulse" />
