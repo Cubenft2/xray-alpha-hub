@@ -6,6 +6,7 @@ import { ExternalLink, X, TrendingUp, Users, Sparkles, Copy } from "lucide-react
 import { toast } from "@/hooks/use-toast";
 import gugoMascot from "@/assets/gugo-mascot.jpg";
 import gugoDuckIcon from "@/assets/gugo-duck-icon.png";
+import typeMediaLogo from "@/assets/type-media-logo.png";
 
 interface PromotionData {
   id: string;
@@ -261,11 +262,11 @@ export const CommunityPromotion: React.FC = () => {
               {CURRENT_PROMOTION.links.community && (
                 <Button
                   variant="outline"
-                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.community!, 'Type Media Community')}
+                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.community!, 'Type Media')}
                   className="text-xs h-10 px-2 border-accent/30 hover:bg-accent/10 whitespace-nowrap text-center flex items-center justify-center"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span className="truncate">Community</span>
+                  <img src={typeMediaLogo} alt="Type Media" className="h-4 w-4 mr-1 flex-shrink-0" />
+                  <span className="truncate">Type Media</span>
                 </Button>
               )}
             </div>
