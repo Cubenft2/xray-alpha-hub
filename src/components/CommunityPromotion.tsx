@@ -136,7 +136,7 @@ export const CommunityPromotion: React.FC = () => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
       <div className="fixed inset-0 pointer-events-none">
-        <DialogContent className="max-w-md bg-card border-l border-primary/20 shadow-2xl w-full sm:w-96 fixed right-0 top-0 h-full pointer-events-auto data-[state=open]:animate-slide-in-right data-[state=closed]:animate-slide-out-right overflow-y-auto">
+        <DialogContent className="max-w-md bg-card border border-primary/20 shadow-2xl w-full sm:w-96 fixed right-4 top-1/2 -translate-y-1/2 pointer-events-auto data-[state=open]:animate-slide-in-right data-[state=closed]:animate-slide-out-right max-h-[80vh] overflow-y-auto">
         <DialogHeader className="text-center space-y-3">
           <div className="flex items-center justify-center">
             <Sparkles className="h-6 w-6 text-accent animate-pulse" />
