@@ -87,7 +87,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
             {/* Pet Animations - Only Two */}
             
             {/* Dog chasing bouncing Ball - 0 min (shows first!) */}
-            <div className="xr-pet-item" style={{ animationDelay: '0s' }}>
+            <div className="xr-ball-ahead" style={{ animationDelay: '0s' }}>
               <div className="w-3 h-3 bg-green-400 rounded-full border border-green-600 shadow-sm animate-bounce"></div>
             </div>
             <div className="xr-pet-chaser" style={{ animationDelay: '0s' }}>
