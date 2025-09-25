@@ -109,6 +109,54 @@ const chillChannels: ChillChannel[] = [
     youtubeId: 'e76DpWphneg',
     category: 'Reggae',
     live: true
+  },
+  {
+    id: '13',
+    name: 'Hip Hop 24/7',
+    description: 'Latest hip hop beats & bangers - Bossman Dlow style',
+    youtubeId: '36YnV9STBqc',
+    category: 'Hip Hop',
+    live: true
+  },
+  {
+    id: '14',
+    name: 'Trap Nation Radio',
+    description: 'Best trap & hip hop music 24/7',
+    youtubeId: 'BeOSu5aZKRs',
+    category: 'Hip Hop',
+    live: true
+  },
+  {
+    id: '15',
+    name: 'Latest Hip Hop Hits',
+    description: 'New school hip hop & rap music',
+    youtubeId: 'jfKfPfyJRdk',
+    category: 'Hip Hop',
+    live: true
+  },
+  {
+    id: '16',
+    name: 'Underground Hip Hop',
+    description: 'Fresh underground rap & hip hop beats',
+    youtubeId: '5yx6BWlEVcY',
+    category: 'Hip Hop',
+    live: true
+  },
+  {
+    id: '17',
+    name: 'Drill Music 24/7',
+    description: 'UK & US drill music live stream',
+    youtubeId: 'lTRiuFIWV54',
+    category: 'Hip Hop',
+    live: true
+  },
+  {
+    id: '18',
+    name: 'Rap God Radio',
+    description: 'Best rap music from all eras',
+    youtubeId: 'Dx5qFachd3A',
+    category: 'Hip Hop',
+    live: true
   }
 ];
 
@@ -134,6 +182,7 @@ export function ChillZone() {
         case 'synthwave': return 'destructive';
         case 'ambient': return 'outline';
         case 'reggae': return 'secondary';
+        case 'hip hop': return 'destructive';
         default: return 'default';
       }
     };
