@@ -19,6 +19,8 @@ interface NewsSectionProps {
 }
 
 export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSectionProps) {
+  console.log('🐕 XRay: NewsSection component rendering...', { searchTerm, defaultTab });
+  
   const [cryptoNews, setCryptoNews] = useState<NewsItem[]>([]);
   const [stocksNews, setStocksNews] = useState<NewsItem[]>([]);
   const [trumpNews, setTrumpNews] = useState<NewsItem[]>([]);
@@ -30,20 +32,36 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
 
   // Enhanced news fetching with live updates
   const fetchNews = async () => {
+    console.log('🐕 XRay: Starting fetchNews function...');
     setIsLoading(true);
     console.log('🐕 XRay: Fetching news via edge function...');
 
     try {
+      console.log('🐕 XRay: About to invoke supabase function...');
       const { data, error } = await supabase.functions.invoke('news-fetch', {
         body: { limit: 100 }
       });
 
-      if (error) throw error;
-      if (!data) throw new Error('No data from edge function');
+      console.log('🐕 XRay: Supabase function response:', { data, error });
+
+      if (error) {
+        console.error('🐕 XRay: Supabase function error:', error);
+        throw error;
+      }
+      if (!data) {
+        console.error('🐕 XRay: No data from edge function');
+        throw new Error('No data from edge function');
+      }
 
       const cryptoItems: NewsItem[] = Array.isArray(data.crypto) ? data.crypto : [];
       const stocksItems: NewsItem[] = Array.isArray(data.stocks) ? data.stocks : [];
       const trumpItems: NewsItem[] = Array.isArray(data.trump) ? data.trump : [];
+
+      console.log('🐕 XRay: Parsed news items:', {
+        cryptoCount: cryptoItems.length,
+        stocksCount: stocksItems.length,
+        trumpCount: trumpItems.length
+      });
 
       // Sort by publishedAt desc to ensure newest first
       cryptoItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
