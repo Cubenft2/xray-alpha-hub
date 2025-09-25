@@ -86,33 +86,33 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           <nav className="hidden lg:flex items-center space-x-6 relative overflow-hidden">
             {/* Pet Parade - Every 15 minutes starting on the hour */}
             
-            {/* Cat runs alone - 0 min (top of hour) */}
+            {/* Dog chasing Ball - 0 min (shows first!) */}
             <div className="xr-pet-item" style={{ animationDelay: '0s' }}>
+              <div className="w-3 h-3 bg-green-400 rounded-full border border-green-600 shadow-sm"></div>
+            </div>
+            <div className="xr-pet-chaser" style={{ animationDelay: '0s' }}>
+              <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
+            </div>
+
+            {/* Cat runs alone - 15 min (900s) */}
+            <div className="xr-pet-item" style={{ animationDelay: '900s' }}>
               <div className="text-lg">🐱</div>
             </div>
-            <div className="xr-pet-sound" style={{ animationDelay: '0s' }}>
+            <div className="xr-pet-sound" style={{ animationDelay: '900s' }}>
               <span className="text-xs font-bold text-accent">MEW!</span>
             </div>
 
-            {/* Dog runs alone - 15 min (900s) */}
-            <div className="xr-pet-item" style={{ animationDelay: '900s' }}>
+            {/* Dog runs alone - 30 min (1800s) */}
+            <div className="xr-pet-item" style={{ animationDelay: '1800s' }}>
               <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
             </div>
-            <div className="xr-pet-sound" style={{ animationDelay: '900s' }}>
+            <div className="xr-pet-sound" style={{ animationDelay: '1800s' }}>
               <span className="text-xs font-bold text-primary">ARF!</span>
             </div>
 
-            {/* Just Bone - 30 min (1800s) */}
-            <div className="xr-pet-item" style={{ animationDelay: '1800s' }}>
-              <div className="text-lg">🦴</div>
-            </div>
-
-            {/* Dog chasing Ball - 45 min (2700s) */}
+            {/* Just Bone - 45 min (2700s) */}
             <div className="xr-pet-item" style={{ animationDelay: '2700s' }}>
-              <div className="w-3 h-3 bg-green-400 rounded-full border border-green-600 shadow-sm"></div>
-            </div>
-            <div className="xr-pet-chaser" style={{ animationDelay: '2700s' }}>
-              <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
+              <div className="text-lg">🦴</div>
             </div>
 
             {/* Dog chasing Treat - 60 min/0 min next hour (3600s) */}
