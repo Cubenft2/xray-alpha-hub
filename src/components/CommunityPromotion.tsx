@@ -42,7 +42,7 @@ const CURRENT_PROMOTION: PromotionData = {
   },
   links: {
     chart: 'https://www.defined.fi/abs/0xe59a3d6f77e6d0c5daf1da740ab65adc3b674012?quoteToken=token1&cache=faf95',
-    website: 'https://www.abs.xyz/',
+    website: 'https://linktr.ee/runwithgugo?utm_source=linktree_profile_share&ltsid=2f8e530e-f1d5-4feb-8338-1d81465bcdbd',
     twitter: 'https://x.com/runwithgugo',
     community: 'https://x.com/TypeMediaX'
   },
