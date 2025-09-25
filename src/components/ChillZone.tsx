@@ -109,54 +109,6 @@ const chillChannels: ChillChannel[] = [
     youtubeId: 'e76DpWphneg',
     category: 'Reggae',
     live: true
-  },
-  {
-    id: '13',
-    name: 'Hip Hop 24/7',
-    description: 'Latest hip hop beats & bangers - non-stop rap vibes',
-    youtubeId: 'Yul7DarvL4E',
-    category: 'Hip Hop',
-    live: true
-  },
-  {
-    id: '14',
-    name: 'Bass Boosted Rap',
-    description: 'Underground rap & gangsta beats - bass boosted',
-    youtubeId: 'NxbmrtpbLV0',
-    category: 'Hip Hop',
-    live: true
-  },
-  {
-    id: '15',
-    name: 'Gangsta Rap Radio',
-    description: 'Underground rap & hip hop live stream',
-    youtubeId: '0MOkLkTP-Jk',
-    category: 'Hip Hop',
-    live: true
-  },
-  {
-    id: '16',
-    name: 'Lofi Hip Hop Radio',
-    description: 'Chill hip hop beats for study & relax',
-    youtubeId: 'TPJGebcgpes',
-    category: 'Hip Hop',
-    live: true
-  },
-  {
-    id: '17',
-    name: 'Trap Music 24/7',
-    description: 'Hardest trap beats and bangers',
-    youtubeId: 'r58l2M7a7Ys',
-    category: 'Hip Hop',
-    live: true
-  },
-  {
-    id: '18',
-    name: 'Hip Hop LoFi Gym',
-    description: 'Hip hop lofi beats for workout & focus',
-    youtubeId: 'FVkzsoRO7OQ',
-    category: 'Hip Hop',
-    live: true
   }
 ];
 
@@ -182,7 +134,6 @@ export function ChillZone() {
         case 'synthwave': return 'destructive';
         case 'ambient': return 'outline';
         case 'reggae': return 'secondary';
-        case 'hip hop': return 'destructive';
         default: return 'default';
       }
     };
