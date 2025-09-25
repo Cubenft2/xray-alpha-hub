@@ -93,6 +93,9 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
             <div className="xr-pet-chaser" style={{ animationDelay: '0s' }}>
               <img src="/pfp.png" alt="XRay Dog" className="w-6 h-6 rounded-full" />
             </div>
+            <div className="xr-pet-sound" style={{ animationDelay: '0s' }}>
+              <span className="text-xs font-bold text-primary">WOOF!</span>
+            </div>
 
             {/* Dog chasing scared Cat - 15s later */}
             <div className="xr-pet-item" style={{ animationDelay: '15s' }}>
