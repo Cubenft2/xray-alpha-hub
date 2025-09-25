@@ -91,7 +91,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                     className={`xr-nav-text ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
                   {item.href === '/support' ? (
-                    <Heart className="w-4 h-4 animate-wiggle" />
+                    <Heart className="w-4 h-4 text-red-500 animate-pulse" />
                   ) : (
                     item.name
                   )}
@@ -155,7 +155,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                     className={`w-full justify-start xr-nav-text ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
                     {item.name}
-                    {item.href === '/support' && <Heart className="ml-auto w-4 h-4 animate-wiggle" />}
+                    {item.href === '/support' && <Heart className="ml-auto w-4 h-4 text-red-500 animate-pulse" />}
                   </Button>
                 </Link>
               ))}
