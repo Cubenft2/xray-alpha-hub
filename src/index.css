@@ -513,21 +513,21 @@
 
   @keyframes xr-pet-parade {
     0% {
-      left: -50px;
+      left: -80px;
       opacity: 0;
     }
-    0.2% {
+    0.1% {
+      opacity: 1;
+    }
+    1.2% {
+      left: calc(100% + 20px);
       opacity: 1;
     }
     1.5% {
-      left: calc(100% + 50px);
-      opacity: 1;
-    }
-    2% {
       opacity: 0;
     }
     100% {
-      left: calc(100% + 50px);
+      left: calc(100% + 20px);
       opacity: 0;
     }
   }
