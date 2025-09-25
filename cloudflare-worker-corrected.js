@@ -271,13 +271,15 @@ STRUCTURE (Required JSON output):
 }
 
 CONTENT RULES:
+- **ONLY USE THE PROVIDED NEWS DATA** - Never make up stories, prices, or events
 - Don't dance around bad news - just say it straight
 - If retail is getting screwed, say they're getting screwed
 - Use analogies that actually make sense to regular people
 - Include at least one primary source (Fed, SEC, etc.) and one secondary (Reuters/FT/WSJ/CNBC/CoinDesk)
 - HTML should use simple tags: <p>, <strong>, <em>, <ul>, <li>
 - Each section should be 2-3 paragraphs max
-- Real talk over corporate fluff - always`);
+- Real talk over corporate fluff - always
+- **STICK TO FACTS** - Only comment on what actually happened in the provided headlines`);
 
   const userPrompt = `Date: ${slug}
 Focus assets (guidance, not strict): ${focus.join(", ")}
@@ -287,7 +289,9 @@ ${JSON.stringify(items, null, 2)}
 
 ${opts.notes ? `Additional context: ${opts.notes}` : ""}
 
-Generate a comprehensive market brief covering the most significant developments. Ensure proper JSON formatting.`;
+**CRITICAL: Only use the real news headlines provided above. Do not invent stories, prices, or events. Base your analysis ONLY on the actual news data listed.**
+
+Generate a comprehensive market brief covering the most significant developments from the provided headlines. Ensure proper JSON formatting.`;
 
   try {
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
