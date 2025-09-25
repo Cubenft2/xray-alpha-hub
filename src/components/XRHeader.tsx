@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Menu, X, Search, Heart } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
+import { XRayDog } from './XRayDog';
 import { Link, useLocation } from 'react-router-dom';
 
 interface XRHeaderProps {
@@ -83,7 +84,12 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6">
+          <nav className="hidden lg:flex items-center space-x-6 relative">
+            {/* Signature XRay Dog Animation */}
+            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 z-20">
+              <XRayDog size="md" animated={true} />
+            </div>
+            
             {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
                   <Button
