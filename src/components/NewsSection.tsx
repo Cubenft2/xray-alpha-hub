@@ -153,7 +153,17 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
       <div className="flex items-center justify-between">
         <span className="text-xs text-muted-foreground font-medium">{item.source}</span>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => item.url && item.url !== '#' && window.open(item.url, '_blank', 'noopener,noreferrer') }>
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => {
+          if (item.url && item.url !== '#') {
+            try {
+              window.open(item.url, '_blank', 'noopener,noreferrer');
+            } catch (error) {
+              console.error('Failed to open news link:', error, 'URL:', item.url);
+              // Fallback: try to navigate directly
+              window.location.href = item.url;
+            }
+          }
+        }}>
           Read More
         </Button>
       </div>
