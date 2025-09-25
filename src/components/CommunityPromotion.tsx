@@ -44,7 +44,7 @@ const CURRENT_PROMOTION: PromotionData = {
     chartAlt: 'https://coinpaprika.com/coin/gugo-gugo/',
     chartAlt2: 'https://livecoinwatch.com/price/GUGO-GUGO',
     website: 'https://abstract.xyz',
-    twitter: 'https://twitter.com/AbstractChain'
+    twitter: 'https://x.com/runwithgugo'
   },
   features: [
     'Built on Abstract Chain (Ethereum L2)',
