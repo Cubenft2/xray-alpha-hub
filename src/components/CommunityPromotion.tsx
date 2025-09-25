@@ -41,7 +41,6 @@ const CURRENT_PROMOTION: PromotionData = {
   },
   links: {
     chart: 'https://www.defined.fi/abs/0xe59a3d6f77e6d0c5daf1da740ab65adc3b674012?quoteToken=token1&cache=faf95',
-    chartAlt: 'https://livecoinwatch.com/price/GUGO-GUGO',
     website: 'https://www.abs.xyz/',
     twitter: 'https://x.com/runwithgugo'
   },
@@ -207,8 +206,7 @@ export const CommunityPromotion: React.FC = () => {
                 <Button
                   onClick={() => handleLinkClick(
                     CURRENT_PROMOTION.links.chart!, 
-                    'Defined.fi chart', 
-                    CURRENT_PROMOTION.links.chartAlt
+                    'Defined.fi Chart'
                   )}
                   className="btn-hero text-sm h-9"
                 >
@@ -228,30 +226,19 @@ export const CommunityPromotion: React.FC = () => {
               )}
             </div>
             
-            {/* Manual Copy Options */}
-              <div className="text-xs text-muted-foreground text-center">
-                <p className="mb-2">Links not opening? Copy manually:</p>
-                <div className="flex gap-2 justify-center">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyToClipboard(CURRENT_PROMOTION.links.chart!, 'Chart URL')}
-                    className="h-7 px-2 text-xs"
-                  >
-                    <Copy className="h-3 w-3 mr-1" />
-                    Chart
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyToClipboard(CURRENT_PROMOTION.links.chartAlt!, 'LiveCoinWatch URL')}
-                    className="h-7 px-2 text-xs"
-                  >
-                    <Copy className="h-3 w-3 mr-1" />
-                    Alt Chart
-                  </Button>
-                </div>
-              </div>
+            {/* Manual Copy Option */}
+            <div className="text-xs text-muted-foreground text-center">
+              <p className="mb-2">Link not opening? Copy manually:</p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => copyToClipboard(CURRENT_PROMOTION.links.chart!, 'Chart URL')}
+                className="h-7 px-2 text-xs"
+              >
+                <Copy className="h-3 w-3 mr-1" />
+                Copy Chart Link
+              </Button>
+            </div>
           </div>
 
           {/* Disclaimer */}
