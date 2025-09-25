@@ -106,14 +106,13 @@ export const CommunityPromotion: React.FC = () => {
   };
 
   const handleLinkClick = (url: string, type: string, fallbackUrl?: string, fallbackUrl2?: string) => {
-    // First, copy the URL to clipboard as backup
+    // Copy URL to clipboard as backup
     copyToClipboard(url, type);
     
     try {
-      // Use location.href instead of window.open for better compatibility
-      const newWindow = window.open('', '_blank', 'noopener,noreferrer');
+      // Open URL directly in new tab
+      const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
       if (newWindow) {
-        newWindow.location.href = url;
         toast({
           title: "Opening chart",
           description: `Redirecting to ${type}...`,
