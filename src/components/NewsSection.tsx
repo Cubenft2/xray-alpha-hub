@@ -201,13 +201,16 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="crypto" className="text-xs hover-glow-tab transition-all duration-300">
-            🚀 Crypto ({filteredCryptoNews.length})
+            <span className="hidden sm:inline">🚀 Crypto ({filteredCryptoNews.length})</span>
+            <span className="sm:hidden">🚀 Crypto</span>
           </TabsTrigger>
           <TabsTrigger value="stocks" className="text-xs hover-glow-tab transition-all duration-300">
-            📈 Markets ({filteredStocksNews.length})
+            <span className="hidden sm:inline">📈 Markets ({filteredStocksNews.length})</span>
+            <span className="sm:hidden">📈 Stock</span>
           </TabsTrigger>
           <TabsTrigger value="trump" className="text-xs hover-glow-tab transition-all duration-300">
-            🇺🇸 Trump ({filteredTrumpNews.length})
+            <span className="hidden sm:inline">🇺🇸 Trump ({filteredTrumpNews.length})</span>
+            <span className="sm:hidden">🇺🇸 Trump</span>
           </TabsTrigger>
         </TabsList>
 
