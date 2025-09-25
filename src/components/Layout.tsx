@@ -45,9 +45,21 @@ export const Layout = ({ children }: LayoutProps) => {
         
         {/* Persistent Tickers - never unmount */}
         <div className="space-y-0">
-          {/* All screen sizes: Both tickers */}
-          <XRTicker type="crypto" />
-          <XRTicker type="stocks" />
+          {/* Desktop and Medium: Both tickers */}
+          <div className="hidden sm:block">
+            <XRTicker type="crypto" />
+          </div>
+          <div className="hidden sm:block">
+            <XRTicker type="stocks" />
+          </div>
+          {/* Small screens: Context-aware ticker */}
+          <div className="block sm:hidden">
+            {location.pathname === '/markets' ? (
+              <XRTicker type="stocks" />
+            ) : (
+              <XRTicker type="crypto" />
+            )}
+          </div>
         </div>
 
         {/* Page Content */}
