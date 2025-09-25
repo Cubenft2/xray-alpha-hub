@@ -42,6 +42,7 @@ const CURRENT_PROMOTION: PromotionData = {
     chainColor: 'hsl(280 100% 70%)'
   },
   links: {
+    buy: 'https://runwithgugo.com/buy-gugo',
     chart: 'https://www.defined.fi/abs/0xe59a3d6f77e6d0c5daf1da740ab65adc3b674012?quoteToken=token1&cache=faf95',
     website: 'https://runwithgugo.com/',
     twitter: 'https://x.com/runwithgugo',
@@ -207,6 +208,17 @@ export const CommunityPromotion: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="space-y-3 pt-2">
+            {/* Primary Buy Button */}
+            {CURRENT_PROMOTION.links.buy && (
+              <Button
+                onClick={() => handleLinkClick(CURRENT_PROMOTION.links.buy!, 'Buy GUGO')}
+                className="btn-hero w-full text-sm h-11 font-semibold"
+              >
+                <ExternalLink className="h-4 w-4 mr-2 flex-shrink-0" />
+                🦆 Run With GUGO - Buy Now
+              </Button>
+            )}
+            
             <div className="grid grid-cols-2 gap-2">
               {CURRENT_PROMOTION.links.chart && (
                 <Button
@@ -223,11 +235,11 @@ export const CommunityPromotion: React.FC = () => {
               {CURRENT_PROMOTION.links.website && (
                 <Button
                   variant="outline"
-                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.website!, 'Abstract website')}
+                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.website!, 'GUGO Website')}
                   className="text-xs h-10 px-2 border-primary/30 hover:bg-primary/10 whitespace-nowrap text-center flex items-center justify-center"
                 >
                   <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span className="truncate">Learn More</span>
+                  <span className="truncate">Website</span>
                 </Button>
               )}
             </div>
@@ -262,11 +274,11 @@ export const CommunityPromotion: React.FC = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => copyToClipboard(CURRENT_PROMOTION.links.chart!, 'Chart URL')}
+                onClick={() => copyToClipboard(CURRENT_PROMOTION.links.buy!, 'Buy GUGO URL')}
                 className="h-7 px-2 text-xs"
               >
                 <Copy className="h-3 w-3 mr-1" />
-                Copy Chart Link
+                Copy Buy Link
               </Button>
             </div>
           </div>
