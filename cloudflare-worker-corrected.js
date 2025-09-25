@@ -270,6 +270,13 @@ STRUCTURE (Required JSON output):
   "focus_assets": ["BTC", "ETH", "SPX"]
 }
 
+**ANALYSIS PRIORITY:**
+- **IDENTIFY THE MAIN EVENT** - What's the biggest story that actually matters?
+- **Focus on market-moving news** - Fed decisions, major hacks, regulatory changes, institutional moves
+- **Ignore fluff** - Skip minor price movements or repetitive headlines
+- **Connect the dots** - How do the top 3-4 stories relate to each other?
+- **Market impact focus** - What will actually affect trading tomorrow?
+
 CONTENT RULES:
 - **ONLY USE THE PROVIDED NEWS DATA** - Never make up stories, prices, or events
 - Don't dance around bad news - just say it straight
@@ -283,6 +290,8 @@ CONTENT RULES:
 
   const userPrompt = `Date: ${slug}
 Focus assets (guidance, not strict): ${focus.join(", ")}
+
+**PRIORITY: Analyze the headlines below and identify the 1-2 MAIN EVENTS that will actually impact crypto/markets. Focus your brief on these major developments, not minor news.**
 
 Top Headlines (ranked by relevance and recency):
 ${JSON.stringify(items, null, 2)}
