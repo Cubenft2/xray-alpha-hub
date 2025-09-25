@@ -135,40 +135,86 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     return `${Math.floor(hours / 24)}d ago`;
   };
 
-  const NewsCard = ({ item, isNew = false }: { item: NewsItem; isNew?: boolean }) => (
-    <div className={`border border-border rounded-lg p-4 hover-glow-news cursor-pointer transition-all duration-500 ${
-      isNew ? 'animate-slide-in-top bg-primary/5 border-primary/30' : ''
-    }`}>
-      <div className="flex items-start justify-between mb-2">
-        {isNew && (
-          <div className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-primary text-primary-foreground mr-2">
-            NEW
+  const NewsCard = ({ item, isNew = false }: { item: NewsItem; isNew?: boolean }) => {
+    const isBlockedSite = item.source.includes('cryptonews.com') || item.url.includes('cryptonews.com');
+    
+    return (
+      <div className={`border border-border rounded-lg p-4 hover-glow-news cursor-pointer transition-all duration-500 ${
+        isNew ? 'animate-slide-in-top bg-primary/5 border-primary/30' : ''
+      }`}>
+        <div className="flex items-start justify-between mb-2">
+          {isNew && (
+            <div className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-primary text-primary-foreground mr-2">
+              NEW
+            </div>
+          )}
+          <h3 className="font-medium text-sm line-clamp-2 flex-1">{item.title}</h3>
+          <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
+            {formatTime(item.publishedAt)}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-medium">{item.source}</span>
+            {isBlockedSite && (
+              <span className="inline-flex items-center px-1 py-0.5 rounded text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+                🔒 Copy Link
+              </span>
+            )}
           </div>
-        )}
-        <h3 className="font-medium text-sm line-clamp-2 flex-1">{item.title}</h3>
-        <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
-          {formatTime(item.publishedAt)}
-        </span>
-      </div>
-      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground font-medium">{item.source}</span>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => {
+        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={(e) => {
           if (item.url && item.url !== '#') {
-            try {
-              window.open(item.url, '_blank', 'noopener,noreferrer');
-            } catch (error) {
-              console.error('Failed to open news link:', error, 'URL:', item.url);
-              // Fallback: try to navigate directly
-              window.location.href = item.url;
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Special handling for blocked sites like cryptonews.com
+            if (item.source.includes('cryptonews.com') || item.url.includes('cryptonews.com')) {
+              // Copy URL to clipboard and show toast
+              navigator.clipboard.writeText(item.url).then(() => {
+                toast({
+                  title: "Link Copied",
+                  description: "CryptoNews.com blocks direct access. URL copied to clipboard - paste in new tab.",
+                  duration: 4000
+                });
+              }).catch(() => {
+                // Fallback: show the URL in an alert
+                alert(`CryptoNews.com blocks direct access. Copy this URL manually:\n\n${item.url}`);
+              });
+            } else {
+              // Normal handling for other sites
+              try {
+                const newWindow = window.open(item.url, '_blank', 'noopener,noreferrer');
+                if (!newWindow) {
+                  // Popup blocked - copy to clipboard instead
+                  navigator.clipboard.writeText(item.url).then(() => {
+                    toast({
+                      title: "Popup Blocked",
+                      description: "Link copied to clipboard - paste in new tab.",
+                      duration: 3000
+                    });
+                  });
+                }
+              } catch (error) {
+                console.error('Failed to open news link:', error, 'URL:', item.url);
+                // Final fallback: copy to clipboard
+                navigator.clipboard.writeText(item.url).then(() => {
+                  toast({
+                    title: "Link Issue",
+                    description: "URL copied to clipboard - paste in new tab.",
+                    duration: 3000
+                  });
+                });
+              }
             }
           }
         }}>
           Read More
         </Button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // Filter news based on search term
   const filterNews = (news: NewsItem[]) => {
