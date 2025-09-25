@@ -114,7 +114,9 @@ export default {
           "https://beincrypto.com/feed/",
           "https://coingape.com/feed/",
           "https://coinpedia.org/feed/",
-          "https://cryptopotato.com/feed/"
+          "https://cryptopotato.com/feed/",
+          "https://www.investing.com/rss/news_25.rss",
+          "https://www.investing.com/rss/news_1.rss"
         ],
         stocks: [
           "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
@@ -132,7 +134,10 @@ export default {
           "https://www.moneycontrol.com/rss/marketreports.xml",
           "https://www.moneycontrol.com/rss/economy.xml",
           "https://www.theguardian.com/uk/business/rss",
-          "http://feeds.bbci.co.uk/news/business/rss.xml"
+          "http://feeds.bbci.co.uk/news/business/rss.xml",
+          "https://www.investing.com/rss/news_14.rss",
+          "https://www.investing.com/rss/news_95.rss",
+          "https://www.investing.com/rss/news_301.rss"
         ],
         macro: [
           "https://www.reuters.com/world/rss",
