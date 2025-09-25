@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ExternalLink, X, TrendingUp, Users, Sparkles, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import gugoMascot from "@/assets/gugo-mascot.jpg";
+import gugoDuckIcon from "@/assets/gugo-duck-icon.png";
 
 interface PromotionData {
   id: string;
@@ -215,8 +216,8 @@ export const CommunityPromotion: React.FC = () => {
                 onClick={() => handleLinkClick(CURRENT_PROMOTION.links.buy!, 'Buy GUGO')}
                 className="w-full text-sm h-11 font-semibold bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 border-0 shadow-lg shadow-yellow-500/30"
               >
-                <ExternalLink className="h-4 w-4 mr-2 flex-shrink-0" />
-                🦆 Run With GUGO - Buy Now
+                <img src={gugoDuckIcon} alt="GUGO Duck" className="h-5 w-5 mr-2 flex-shrink-0" />
+                Run With GUGO - Buy Now
               </Button>
             )}
             
