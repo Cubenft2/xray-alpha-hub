@@ -32,26 +32,26 @@ interface PromotionData {
 
 const CURRENT_PROMOTION: PromotionData = {
   id: 'gugo_abstract_2025',
-  title: '🚀 Community Spotlight: $GUGO',
-  subtitle: 'Early Access to Abstract Chain Gem',
-  description: 'Join our community in supporting $GUGO, an exciting new memecoin on the innovative Abstract Chain - Ethereum L2 by Pudgy Penguins team.',
+  title: '🦆 Run With $GUGO',
+  subtitle: 'The Ultimate Meme Coin Movement',
+  description: 'Born in a pool. Forged by loss. Sustained by motion. He runs. Join the $GUGO movement - a community that never stops running.',
   token: {
     symbol: 'GUGO',
-    name: 'GUGO Token',
+    name: 'Run With GUGO',
     chain: 'Abstract Chain',
     chainColor: 'hsl(280 100% 70%)'
   },
   links: {
     chart: 'https://www.defined.fi/abs/0xe59a3d6f77e6d0c5daf1da740ab65adc3b674012?quoteToken=token1&cache=faf95',
-    website: 'https://linktr.ee/runwithgugo?utm_source=linktree_profile_share&ltsid=2f8e530e-f1d5-4feb-8338-1d81465bcdbd',
+    website: 'https://runwithgugo.com/',
     twitter: 'https://x.com/runwithgugo',
     community: 'https://x.com/TypeMediaX'
   },
   features: [
-    'Built on Abstract Chain (Ethereum L2)',
-    'Backed by Pudgy Penguins ecosystem',
-    'Early stage opportunity',
-    'Community-driven project'
+    'Community movement with shared purpose',
+    'Meme sharing platform for runners',
+    'Decentralized governance & collective action',
+    '5,000+ holders and growing'
   ],
   isActive: true
 };
