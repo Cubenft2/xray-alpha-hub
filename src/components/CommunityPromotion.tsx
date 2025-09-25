@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ExternalLink, X, TrendingUp, Users, Sparkles } from "lucide-react";
+import { ExternalLink, X, TrendingUp, Users, Sparkles, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface PromotionData {
@@ -20,6 +20,7 @@ interface PromotionData {
     buy?: string;
     chart?: string;
     chartAlt?: string;
+    chartAlt2?: string;
     website?: string;
     twitter?: string;
   };
@@ -39,8 +40,9 @@ const CURRENT_PROMOTION: PromotionData = {
     chainColor: 'hsl(280 100% 70%)'
   },
   links: {
-    chart: 'https://dexscreener.com/abstract/gugo',
-    chartAlt: 'https://www.coingecko.com/en/coins/gugo',
+    chart: 'https://www.tradingview.com/symbols/GUGO/',
+    chartAlt: 'https://coinpaprika.com/coin/gugo-gugo/',
+    chartAlt2: 'https://livecoinwatch.com/price/GUGO-GUGO',
     website: 'https://abstract.xyz',
     twitter: 'https://twitter.com/AbstractChain'
   },
@@ -88,49 +90,43 @@ export const CommunityPromotion: React.FC = () => {
     }
   };
 
-  const handleLinkClick = (url: string, type: string, fallbackUrl?: string) => {
-    try {
-      // Create a temporary link element for better compatibility
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.style.display = 'none';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text).then(() => {
       toast({
-        title: "Opening chart",
-        description: `Redirecting to ${type}...`,
+        title: "Copied!",
+        description: `${label} copied to clipboard`,
       });
-    } catch (error) {
-      console.error('Failed to open link:', error);
-      
-      if (fallbackUrl) {
-        // Try fallback URL
-        const fallbackLink = document.createElement('a');
-        fallbackLink.href = fallbackUrl;
-        fallbackLink.target = '_blank';
-        fallbackLink.rel = 'noopener noreferrer';
-        fallbackLink.style.display = 'none';
-        
-        document.body.appendChild(fallbackLink);
-        fallbackLink.click();
-        document.body.removeChild(fallbackLink);
-        
+    }).catch(() => {
+      toast({
+        title: "Copy failed",
+        description: "Please copy the URL manually",
+        variant: "destructive"
+      });
+    });
+  };
+
+  const handleLinkClick = (url: string, type: string, fallbackUrl?: string, fallbackUrl2?: string) => {
+    // First, copy the URL to clipboard as backup
+    copyToClipboard(url, type);
+    
+    try {
+      // Use location.href instead of window.open for better compatibility
+      const newWindow = window.open('', '_blank', 'noopener,noreferrer');
+      if (newWindow) {
+        newWindow.location.href = url;
         toast({
-          title: "Using alternative chart",
-          description: "Opened alternative chart source",
+          title: "Opening chart",
+          description: `Redirecting to ${type}...`,
         });
       } else {
-        toast({
-          title: "Link failed to open",
-          description: "Please try copying the URL manually",
-          variant: "destructive"
-        });
+        throw new Error('Popup blocked');
       }
+    } catch (error) {
+      console.error('Failed to open link:', error);
+      toast({
+        title: "Link copied instead",
+        description: `URL copied to clipboard - paste in new tab`,
+      });
     }
   };
 
@@ -207,30 +203,58 @@ export const CommunityPromotion: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {CURRENT_PROMOTION.links.chart && (
-              <Button
-                onClick={() => handleLinkClick(
-                  CURRENT_PROMOTION.links.chart!, 
-                  'DexScreener chart', 
-                  CURRENT_PROMOTION.links.chartAlt
-                )}
-                className="btn-hero text-sm h-9"
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                View Chart
-              </Button>
-            )}
-            {CURRENT_PROMOTION.links.website && (
-              <Button
-                variant="outline"
-                onClick={() => handleLinkClick(CURRENT_PROMOTION.links.website!, 'website')}
-                className="text-sm h-9 border-primary/30 hover:bg-primary/10"
-              >
-                <ExternalLink className="h-3 w-3 mr-1" />
-                Learn More
-              </Button>
-            )}
+          <div className="space-y-3 pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              {CURRENT_PROMOTION.links.chart && (
+                <Button
+                  onClick={() => handleLinkClick(
+                    CURRENT_PROMOTION.links.chart!, 
+                    'TradingView chart', 
+                    CURRENT_PROMOTION.links.chartAlt,
+                    CURRENT_PROMOTION.links.chartAlt2
+                  )}
+                  className="btn-hero text-sm h-9"
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  View Chart
+                </Button>
+              )}
+              {CURRENT_PROMOTION.links.website && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.website!, 'Abstract website')}
+                  className="text-sm h-9 border-primary/30 hover:bg-primary/10"
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Learn More
+                </Button>
+              )}
+            </div>
+            
+            {/* Manual Copy Options */}
+            <div className="text-xs text-muted-foreground text-center">
+              <p className="mb-2">Links not opening? Copy manually:</p>
+              <div className="flex gap-2 justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(CURRENT_PROMOTION.links.chart!, 'Chart URL')}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  Chart
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(CURRENT_PROMOTION.links.chartAlt!, 'Alt Chart URL')}
+                  className="h-7 px-2 text-xs"
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  Alt Chart
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Disclaimer */}
