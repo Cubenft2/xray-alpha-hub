@@ -51,8 +51,8 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
       <header className="xr-header relative overflow-visible">
         <div className="container mx-auto flex h-16 items-center justify-between relative">
           {/* Signature XRay Dog - Also add it here for better visibility */}
-          <div className="absolute -top-12 left-1/4 z-50 pointer-events-none lg:block hidden">
-            <XRayDog size="lg" animated={true} />
+          <div className="absolute -top-6 left-1/4 z-50 pointer-events-none lg:block hidden">
+            <XRayDog size="md" animated={true} />
           </div>
 
           {/* XRay Dog Logo & Brand */}
@@ -91,8 +91,8 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6 relative overflow-visible">
             {/* Signature XRay Dog Animation - Make it more visible */}
-            <div className="absolute -top-16 left-0 z-50 pointer-events-none">
-              <XRayDog size="lg" animated={true} />
+            <div className="absolute -top-8 left-0 z-50 pointer-events-none">
+              <XRayDog size="md" animated={true} />
             </div>
             
             {navigation.map((item) => (
