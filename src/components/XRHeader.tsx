@@ -57,27 +57,27 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           >
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
-                <span className="text-xl xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
-                  XRayCrypto™
-                </span>
                 <img 
                   src="/pfp.png" 
                   alt="XRay Profile" 
                   className="w-6 h-6 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110"
                 />
+                <span className="text-xl xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
+                  XRayCrypto™
+                </span>
               </div>
               <span className="text-xs text-muted-foreground hidden sm:block font-mono">
                 Powered by XRay Dog
               </span>
               <div className="flex items-center space-x-1 sm:hidden">
-                <span className="text-lg xr-pixel-text animate-radioactive-glow">
-                  XR™
-                </span>
                 <img 
                   src="/pfp.png" 
                   alt="XRay Profile" 
                   className="w-4 h-4 rounded-full"
                 />
+                <span className="text-lg xr-pixel-text animate-radioactive-glow">
+                  XR™
+                </span>
               </div>
             </div>
           </Link>
