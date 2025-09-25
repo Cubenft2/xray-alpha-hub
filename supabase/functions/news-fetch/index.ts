@@ -102,6 +102,7 @@ serve(async (req) => {
     "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "https://cointelegraph.com/rss",
     "https://decrypt.co/feed",
+    "https://cryptonews.com/news/feed/",
     "https://bitcoinmagazine.com/feed",
     "https://cryptopotato.com/feed/",
     "https://cryptoslate.com/feed/",
