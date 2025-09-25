@@ -470,13 +470,13 @@
     pointer-events: none;
   }
 
-  /* Pet Parade Animation - 30 min cycle (1800s) */
+  /* Pet Parade Animation - 30 second cycle */
   .xr-pet-item {
     position: absolute;
     top: 50%;
     left: -50px;
     transform: translateY(-50%);
-    animation: xr-pet-parade 1800s infinite;
+    animation: xr-pet-parade 30s infinite;
     opacity: 0;
     z-index: 10;
   }
@@ -486,7 +486,7 @@
     top: 50%;
     left: -80px;
     transform: translateY(-50%);
-    animation: dog-run 1800s infinite;
+    animation: dog-run 30s infinite;
     opacity: 0;
     z-index: 11;
   }
@@ -496,7 +496,7 @@
     top: 50%;
     left: -50px;
     transform: translateY(-50%);
-    animation: xr-ball-fast 1800s infinite;
+    animation: xr-ball-fast 30s infinite;
     opacity: 0;
     z-index: 10;
   }
@@ -506,20 +506,20 @@
     top: 30%;
     left: -90px;
     transform: translateY(-50%);
-    animation: xr-pet-sound-once 1800s infinite;
+    animation: xr-pet-sound-once 30s infinite;
     opacity: 0;
     z-index: 12;
   }
 
   @keyframes xr-pet-sound-once {
     0% { opacity: 0; }
-    0.1% { opacity: 1; }
-    12% { opacity: 1; }
-    13% { opacity: 0; }
+    2% { opacity: 1; }
+    15% { opacity: 1; }
+    16% { opacity: 0; }
     50% { opacity: 0; }
-    50.1% { opacity: 1; }
-    55% { opacity: 1; }
-    55.5% { opacity: 0; }
+    52% { opacity: 1; }
+    67% { opacity: 1; }
+    68% { opacity: 0; }
     100% { opacity: 0; }
   }
 
@@ -550,26 +550,26 @@
       opacity: 0;
       transform: translateY(-50%);
     }
-    0.1% {
+    1% {
       opacity: 1;
       transform: translateY(-50%);
     }
-    2% {
+    3% {
       left: 20%;
       opacity: 1;
       transform: translateY(-120px);
     }
-    4% {
+    5% {
       left: 40%;
       opacity: 1;
       transform: translateY(-50%);
     }
-    6% {
+    7% {
       left: 60%;
       opacity: 1;
       transform: translateY(-80px);
     }
-    8% {
+    9% {
       left: 80%;
       opacity: 1;
       transform: translateY(-50%);
@@ -633,28 +633,28 @@
       left: -80px;
       opacity: 0;
     }
-    1% {
-      opacity: 1;
-    }
-    12% {
-      left: calc(100% + 20px);
+    2% {
       opacity: 1;
     }
     13% {
+      left: calc(100% + 20px);
+      opacity: 1;
+    }
+    15% {
       opacity: 0;
     }
     50% {
       left: -80px;
       opacity: 0;
     }
-    50.1% {
+    52% {
       opacity: 1;
     }
-    55% {
+    65% {
       left: calc(100% + 20px);
       opacity: 1;
     }
-    55.5% {
+    67% {
       opacity: 0;
     }
     100% {
