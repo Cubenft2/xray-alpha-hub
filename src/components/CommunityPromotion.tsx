@@ -136,20 +136,20 @@ export const CommunityPromotion: React.FC = () => {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
       <div className="fixed inset-0 pointer-events-none">
-        <DialogContent className="max-w-md bg-card border border-primary/20 shadow-2xl w-full sm:w-96 fixed right-4 top-1/2 -translate-y-1/2 pointer-events-auto data-[state=open]:animate-slide-in-right data-[state=closed]:animate-slide-out-right max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-md bg-gradient-to-br from-card to-purple-950/20 border-2 border-purple-400/30 shadow-2xl shadow-purple-500/20 w-full sm:w-96 fixed right-4 top-1/2 -translate-y-1/2 pointer-events-auto data-[state=open]:animate-slide-in-right data-[state=closed]:animate-slide-out-right max-h-[80vh] overflow-y-auto backdrop-blur-sm">
         <DialogHeader className="text-center space-y-3">
           <div className="flex items-center justify-center">
-            <Sparkles className="h-6 w-6 text-accent animate-pulse" />
+            <Sparkles className="h-6 w-6 text-purple-400 animate-pulse" />
           </div>
           
-          <DialogTitle className="text-xl font-bold xr-gradient-text leading-tight text-center">
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-400 to-violet-300 bg-clip-text text-transparent leading-tight text-center">
             {CURRENT_PROMOTION.title}
           </DialogTitle>
           
           <div className="flex items-center justify-center gap-2">
             <Badge 
               variant="secondary" 
-              className="bg-accent/60 text-accent-foreground border-accent/80 xr-glow-accent animate-glow-pulse font-bold"
+              className="bg-purple-500/20 text-purple-300 border-purple-400/50 shadow-lg shadow-purple-500/20 animate-glow-pulse font-bold"
             >
               <Users className="h-3 w-3 mr-1" />
               Community Pick
@@ -167,7 +167,7 @@ export const CommunityPromotion: React.FC = () => {
         <div className="space-y-4 mt-4">
           {/* GUGO Mascot Image */}
           <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary/20 shadow-lg">
+            <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-purple-400/40 shadow-lg shadow-purple-500/30">
               <img 
                 src={gugoMascot} 
                 alt="GUGO Token Mascot" 
@@ -177,11 +177,11 @@ export const CommunityPromotion: React.FC = () => {
           </div>
 
           {/* Token Info */}
-          <div className="text-center p-4 bg-muted/50 rounded-lg border border-border">
-            <div className="text-2xl font-bold text-primary mb-1">
+          <div className="text-center p-4 bg-gradient-to-r from-purple-950/30 to-violet-950/20 rounded-lg border border-purple-400/30">
+            <div className="text-2xl font-bold bg-gradient-to-r from-purple-300 to-violet-400 bg-clip-text text-transparent mb-1">
               ${CURRENT_PROMOTION.token.symbol}
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-purple-200/80">
               {CURRENT_PROMOTION.token.name}
             </div>
           </div>
@@ -213,7 +213,7 @@ export const CommunityPromotion: React.FC = () => {
             {CURRENT_PROMOTION.links.buy && (
               <Button
                 onClick={() => handleLinkClick(CURRENT_PROMOTION.links.buy!, 'Buy GUGO')}
-                className="btn-hero w-full text-sm h-11 font-semibold"
+                className="w-full text-sm h-11 font-semibold bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-700 hover:to-violet-700 border-0 shadow-lg shadow-purple-500/30"
               >
                 <ExternalLink className="h-4 w-4 mr-2 flex-shrink-0" />
                 🦆 Run With GUGO - Buy Now
