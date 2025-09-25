@@ -155,7 +155,7 @@ export const CommunityPromotion: React.FC = () => {
           <div className="flex items-center justify-center gap-2">
             <Badge 
               variant="secondary" 
-              className="bg-accent/20 text-accent-foreground border-accent/30"
+              className="bg-accent/20 text-accent-foreground border-accent/30 xr-glow-accent animate-glow-pulse"
             >
               <Users className="h-3 w-3 mr-1" />
               Community Pick
@@ -163,6 +163,7 @@ export const CommunityPromotion: React.FC = () => {
             <Badge 
               variant="outline"
               style={{ borderColor: CURRENT_PROMOTION.token.chainColor, color: CURRENT_PROMOTION.token.chainColor }}
+              className="xr-xray-glow animate-glow-pulse"
             >
               {CURRENT_PROMOTION.token.chain}
             </Badge>
