@@ -133,8 +133,16 @@ export const CommunityPromotion: React.FC = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
-      <DialogContent className="max-w-md mx-auto bg-card border border-primary/20 shadow-xl">
-        <DialogHeader className="text-center space-y-3">
+      <DialogContent className="max-w-md mx-auto bg-card border border-primary/20 shadow-xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
+        <DialogHeader className="text-center space-y-3 relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDismiss(false)}
+            className="absolute right-0 top-0 h-6 w-6 p-0 rounded-full hover:bg-muted"
+          >
+            <X className="h-4 w-4" />
+          </Button>
           <div className="flex items-center justify-center">
             <Sparkles className="h-6 w-6 text-accent animate-pulse" />
           </div>
@@ -266,12 +274,12 @@ export const CommunityPromotion: React.FC = () => {
           </div>
 
           {/* Dismiss Options */}
-          <div className="flex justify-between items-center pt-2 border-t border-border">
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-0 pt-2 border-t border-border">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => handleDismiss(true)}
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="text-xs text-muted-foreground hover:text-foreground w-full sm:w-auto"
             >
               Don't show again
             </Button>
@@ -279,7 +287,7 @@ export const CommunityPromotion: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={() => handleDismiss(false)}
-              className="text-xs"
+              className="text-xs w-full sm:w-auto"
             >
               Maybe later
             </Button>
