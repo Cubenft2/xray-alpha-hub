@@ -50,11 +50,6 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
     <>
       <header className="xr-header relative overflow-visible">
         <div className="container mx-auto flex h-16 items-center justify-between relative">
-          {/* Signature XRay Dog - Also add it here for better visibility */}
-          <div className="absolute -top-6 left-1/4 z-50 pointer-events-none lg:block hidden">
-            <XRayDog size="md" animated={true} />
-          </div>
-
           {/* XRay Dog Logo & Brand */}
           <Link 
             to="/"
@@ -88,13 +83,13 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
             </div>
           </Link>
 
+          {/* XRay Dog Between Logo and Navigation */}
+          <div className="hidden lg:flex items-center justify-center flex-1 relative">
+            <XRayDog size="md" animated={true} />
+          </div>
+
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6 relative overflow-visible">
-            {/* Signature XRay Dog Animation - Make it more visible */}
-            <div className="absolute -top-8 left-0 z-50 pointer-events-none">
-              <XRayDog size="md" animated={true} />
-            </div>
-            
+          <nav className="hidden lg:flex items-center space-x-6">
             {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
                   <Button
