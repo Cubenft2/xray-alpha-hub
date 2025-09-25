@@ -23,6 +23,7 @@ interface PromotionData {
     chartAlt2?: string;
     website?: string;
     twitter?: string;
+    community?: string;
   };
   features: string[];
   isActive: boolean;
@@ -42,7 +43,8 @@ const CURRENT_PROMOTION: PromotionData = {
   links: {
     chart: 'https://www.defined.fi/abs/0xe59a3d6f77e6d0c5daf1da740ab65adc3b674012?quoteToken=token1&cache=faf95',
     website: 'https://www.abs.xyz/',
-    twitter: 'https://x.com/runwithgugo'
+    twitter: 'https://x.com/runwithgugo',
+    community: 'https://x.com/TypeMediaX'
   },
   features: [
     'Built on Abstract Chain (Ethereum L2)',
@@ -222,6 +224,30 @@ export const CommunityPromotion: React.FC = () => {
                 >
                   <ExternalLink className="h-3 w-3 mr-1" />
                   Learn More
+                </Button>
+              )}
+            </div>
+            
+            {/* Social Links */}
+            <div className="grid grid-cols-2 gap-3">
+              {CURRENT_PROMOTION.links.twitter && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.twitter!, 'GUGO Twitter')}
+                  className="text-sm h-9 border-accent/30 hover:bg-accent/10"
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  $GUGO Twitter
+                </Button>
+              )}
+              {CURRENT_PROMOTION.links.community && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.community!, 'Type Media Community')}
+                  className="text-sm h-9 border-accent/30 hover:bg-accent/10"
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Our Community
                 </Button>
               )}
             </div>
