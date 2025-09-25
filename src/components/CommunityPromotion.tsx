@@ -195,51 +195,51 @@ export const CommunityPromotion: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="space-y-3 pt-2">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {CURRENT_PROMOTION.links.chart && (
                 <Button
                   onClick={() => handleLinkClick(
                     CURRENT_PROMOTION.links.chart!, 
                     'Defined.fi Chart'
                   )}
-                  className="btn-hero text-sm h-9"
+                  className="btn-hero text-xs h-10 px-2 whitespace-nowrap text-center flex items-center justify-center"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  View Chart
+                  <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">Chart</span>
                 </Button>
               )}
               {CURRENT_PROMOTION.links.website && (
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.website!, 'Abstract website')}
-                  className="text-sm h-9 border-primary/30 hover:bg-primary/10"
+                  className="text-xs h-10 px-2 border-primary/30 hover:bg-primary/10 whitespace-nowrap text-center flex items-center justify-center"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Learn More
+                  <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">Learn More</span>
                 </Button>
               )}
             </div>
             
             {/* Social Links */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {CURRENT_PROMOTION.links.twitter && (
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.twitter!, 'GUGO Twitter')}
-                  className="text-sm h-9 border-accent/30 hover:bg-accent/10"
+                  className="text-xs h-10 px-2 border-accent/30 hover:bg-accent/10 whitespace-nowrap text-center flex items-center justify-center"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  $GUGO Twitter
+                  <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">Twitter</span>
                 </Button>
               )}
               {CURRENT_PROMOTION.links.community && (
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.community!, 'Type Media Community')}
-                  className="text-sm h-9 border-accent/30 hover:bg-accent/10"
+                  className="text-xs h-10 px-2 border-accent/30 hover:bg-accent/10 whitespace-nowrap text-center flex items-center justify-center"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Our Community
+                  <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">Community</span>
                 </Button>
               )}
             </div>
