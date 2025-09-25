@@ -53,6 +53,15 @@ const FEEDS = {
     "https://www.moneycontrol.com/rss/marketreports.xml","https://www.moneycontrol.com/rss/economy.xml",
     "https://www.theguardian.com/uk/business/rss","http://feeds.bbci.co.uk/news/business/rss.xml",
   ],
+  ipo: [
+    "https://www.reuters.com/markets/companies/rss",
+    "https://www.cnbc.com/id/10000108/device/rss/rss.html",
+    "https://feeds.a.dj.com/rss/RSSWorldNews.xml",
+    "https://www.marketwatch.com/feeds/ipowatch",
+    "https://finance.yahoo.com/news/rssindex",
+    "https://www.ft.com/companies/rss",
+    "https://news.google.com/rss/search?q=IPO%20OR%20%22going%20public%22%20OR%20%22public%20offering%22%20crypto%20OR%20blockchain&hl=en-US&gl=US&ceid=US:en",
+  ],
   macro: [
     "https://www.reuters.com/world/rss","https://apnews.com/hub/apf-topnews?output=rss",
     "https://news.google.com/rss/search?q=market%20volatility%20OR%20stocks%20selloff%20OR%20crypto%20crash&hl=en-US&gl=US&ceid=US:en",
@@ -143,12 +152,13 @@ async function fetchFeed(u) {
 }
 
 async function computeAggregate(sourcesParam, q) {
-  const sources = new Set((sourcesParam || "crypto,stocks,macro,social").toLowerCase().split(",").map(s => s.trim()).filter(Boolean));
+  const sources = new Set((sourcesParam || "crypto,stocks,macro,social,ipo").toLowerCase().split(",").map(s => s.trim()).filter(Boolean));
   const toFetch = [];
   if (sources.has("crypto")) toFetch.push(...FEEDS.crypto);
   if (sources.has("stocks")) toFetch.push(...FEEDS.stocks);
   if (sources.has("macro"))  toFetch.push(...FEEDS.macro);
   if (sources.has("social")) toFetch.push(...FEEDS.social);
+  if (sources.has("ipo"))    toFetch.push(...FEEDS.ipo);
 
   const MAX = 6, chunks = [];
   for (let i = 0; i < toFetch.length; i += MAX) chunks.push(toFetch.slice(i, i + MAX));
@@ -236,8 +246,8 @@ async function generateAndStoreBrief(env, opts = {}) {
     ? opts.symbols.map(s => s.toUpperCase())
     : (env.FOCUS_ASSETS || "BTC,ETH,SOL,SPX,US10Y,OIL,DXY,EURUSD").split(",").map(s=>s.trim().toUpperCase());
 
-  // Aggregate (now includes social)
-  const agg = await computeAggregate("crypto,stocks,macro,social", "");
+  // Aggregate (now includes social and IPO)
+  const agg = await computeAggregate("crypto,stocks,macro,social,ipo", "");
   const items = (agg.top || []).slice(0, 15).map(it => ({
     title: it.title, 
     url: it.link, 
@@ -272,7 +282,9 @@ STRUCTURE (Required JSON output):
 
 **ANALYSIS PRIORITY:**
 - **IDENTIFY THE MAIN EVENT** - What's the biggest story that actually matters?
-- **Focus on market-moving news** - Fed decisions, major hacks, regulatory changes, institutional moves
+- **Focus on market-moving news** - Fed decisions, major hacks, regulatory changes, institutional moves, IPOs
+- **IPO & Public Offering Analysis** - Cover crypto companies going public, ETF launches, major funding rounds
+- **FOMO Score Assessment** - Analyze social sentiment, trading volume spikes, Fear & Greed indicators
 - **Ignore fluff** - Skip minor price movements or repetitive headlines
 - **Connect the dots** - How do the top 3-4 stories relate to each other?
 - **Market impact focus** - What will actually affect trading tomorrow?
@@ -281,6 +293,8 @@ CONTENT RULES:
 - **ONLY USE THE PROVIDED NEWS DATA** - Never make up stories, prices, or events
 - Don't dance around bad news - just say it straight
 - If retail is getting screwed, say they're getting screwed
+- **IPO & Crypto Company Analysis** - When covering IPOs, explain what it means for the crypto space
+- **FOMO Score Insights** - If you see multiple headlines about the same coin/topic, call out the hype level
 - Use analogies that actually make sense to regular people
 - Include at least one primary source (Fed, SEC, etc.) and one secondary (Reuters/FT/WSJ/CNBC/CoinDesk)
 - HTML should use simple tags: <p>, <strong>, <em>, <ul>, <li>
@@ -292,6 +306,13 @@ CONTENT RULES:
 Focus assets (guidance, not strict): ${focus.join(", ")}
 
 **PRIORITY: Analyze the headlines below and identify the 1-2 MAIN EVENTS that will actually impact crypto/markets. Focus your brief on these major developments, not minor news.**
+
+**IPO & FOMO ANALYSIS: Pay special attention to:**
+- Crypto companies going public (IPOs, direct listings)
+- New ETF launches or approvals
+- When multiple sources cover the same story = potential FOMO moment
+- Social sentiment spikes (multiple Reddit/social mentions of same coin)
+- Trading volume or interest surges indicated by news clustering
 
 Top Headlines (ranked by relevance and recency):
 ${JSON.stringify(items, null, 2)}
