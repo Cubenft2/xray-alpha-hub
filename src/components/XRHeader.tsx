@@ -60,20 +60,20 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 <img 
                   src="/pfp.png" 
                   alt="XRay Profile" 
-                  className="w-8 h-8 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110"
+                  className="w-10 h-10 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110"
                 />
                 <span className="text-xl xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
                   XRayCrypto™
                 </span>
               </div>
-              <span className="text-xs text-muted-foreground hidden sm:block font-mono ml-10">
+              <span className="text-xs text-muted-foreground hidden sm:block font-mono ml-12">
                 Powered by XRay Dog
               </span>
               <div className="flex items-center space-x-1 sm:hidden">
                 <img 
                   src="/pfp.png" 
                   alt="XRay Profile" 
-                  className="w-6 h-6 rounded-full"
+                  className="w-8 h-8 rounded-full"
                 />
                 <span className="text-lg xr-pixel-text animate-radioactive-glow">
                   XR™
