@@ -5,6 +5,7 @@ import { TradingViewChart } from '@/components/TradingViewChart';
 import { StocksScreener } from '@/components/StocksScreener';
 import { StocksHeatmap } from '@/components/StocksHeatmap';
 import { NewsSection } from '@/components/NewsSection';
+import { FinancialDisclaimer } from '@/components/FinancialDisclaimer';
 
 export default function Markets() {
   const [searchParams] = useSearchParams();
@@ -83,6 +84,9 @@ export default function Markets() {
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold xr-gradient-text">📈 Stock Markets</h1>
             <p className="text-muted-foreground">Real-time stock market data and analysis</p>
+          </div>
+          <div className="mt-6">
+            <FinancialDisclaimer />
           </div>
         </div>
       </div>

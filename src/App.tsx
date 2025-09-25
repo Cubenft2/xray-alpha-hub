@@ -16,6 +16,9 @@ import News from "./pages/News";
 import Store from "./pages/Store";
 import Support from "./pages/Support";
 import ChillZone from "./pages/ChillZone";
+import About from "./pages/About";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +49,9 @@ const App = () => (
                 <Route path="/store" element={<Store />} />
                 <Route path="/support" element={<Support />} />
                 <Route path="/chill" element={<ChillZone />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

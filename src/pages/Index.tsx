@@ -5,6 +5,7 @@ import { TradingViewChart } from '@/components/TradingViewChart';
 import { CryptoScreener } from '@/components/CryptoScreener';
 import { CryptoHeatmap } from '@/components/CryptoHeatmap';
 import { NewsSection } from '@/components/NewsSection';
+import { FinancialDisclaimer } from '@/components/FinancialDisclaimer';
 
 const Index = () => {
   const [searchParams] = useSearchParams();
@@ -85,6 +86,8 @@ const Index = () => {
   }, [setSearchHandler]);
   return (
     <div className="py-6">
+      <FinancialDisclaimer />
+      
       <div className="w-full">
         <div className="container mx-auto">
           <div className="space-y-6">

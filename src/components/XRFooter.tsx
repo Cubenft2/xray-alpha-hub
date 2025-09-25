@@ -49,7 +49,7 @@ export function XRFooter() {
 
         {/* XRay Dog Footer Message */}
         <div className="mt-4 pt-4 border-t border-border/50">
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground mb-3">
             <span className="flex items-center">
               Built with 💖 by the XRay Dog Pack 
               <img 
@@ -63,6 +63,28 @@ export function XRFooter() {
             <span>Real-time data by TradingView</span>
             <span>•</span>
             <span className="font-bold text-accent">🐕 Pixel Power • Crypto Vision • Woof!</span>
+          </div>
+          
+          {/* Legal Links */}
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
+            <a href="/about" className="text-muted-foreground hover:text-primary transition-colors">
+              About Us
+            </a>
+            <span className="text-muted-foreground/50">•</span>
+            <a href="/terms" className="text-muted-foreground hover:text-primary transition-colors">
+              Terms of Service
+            </a>
+            <span className="text-muted-foreground/50">•</span>
+            <a href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
+              Privacy Policy
+            </a>
+          </div>
+          
+          {/* Disclaimer */}
+          <div className="mt-2 text-center">
+            <p className="text-xs text-muted-foreground/80">
+              ⚠️ Not financial advice • Educational content only • DYOR before investing
+            </p>
           </div>
         </div>
       </div>
