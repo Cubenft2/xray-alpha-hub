@@ -360,7 +360,7 @@ export default function MarketBriefHome() {
                 />
                 <div className="flex flex-col">
                   <span className="font-semibold text-foreground">© XRayCrypto News</span>
-                  <span className="text-xs opacity-80">xraycrypto.com</span>
+                  <span className="text-xs opacity-80">xraycrypto.io</span>
                 </div>
               </div>
               <div className="text-right">
