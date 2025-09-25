@@ -43,7 +43,7 @@ const CURRENT_PROMOTION: PromotionData = {
     chart: 'https://www.defined.fi/abs/0xe59a3d6f77e6d0c5daf1da740ab65adc3b674012?quoteToken=token1&cache=faf95',
     chartAlt: 'https://coinpaprika.com/coin/gugo-gugo/',
     chartAlt2: 'https://livecoinwatch.com/price/GUGO-GUGO',
-    website: 'https://abstract.xyz',
+    website: 'https://www.abs.xyz/',
     twitter: 'https://x.com/runwithgugo'
   },
   features: [
