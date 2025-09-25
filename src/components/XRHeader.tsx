@@ -60,7 +60,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 <img 
                   src="/pfp.png" 
                   alt="XRay Profile" 
-                  className="w-10 h-10 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110"
+                  className="w-10 h-10 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-1"
                 />
                 <span className="text-xl xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
                   XRayCrypto™
