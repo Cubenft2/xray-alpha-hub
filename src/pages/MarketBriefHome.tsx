@@ -336,57 +336,72 @@ export default function MarketBriefHome() {
             <div className="border-t border-border pt-6 mb-6">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Live Market Data</h3>
+                <h3 className="text-lg font-semibold">Market Focus - Assets Mentioned in Brief</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Card className="h-48">
-                  <CardContent className="p-3">
-                    <div className="text-sm font-medium mb-2 text-center">S&P 500</div>
-                    <div className="h-36">
-                      <MiniChart symbol="SPX" theme={theme} />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="h-48">
-                  <CardContent className="p-3">
-                    <div className="text-sm font-medium mb-2 text-center">Bitcoin</div>
-                    <div className="h-36">
-                      <MiniChart symbol="BTCUSD" theme={theme} />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="h-48">
-                  <CardContent className="p-3">
-                    <div className="text-sm font-medium mb-2 text-center">Ethereum</div>
-                    <div className="h-36">
-                      <MiniChart symbol="ETHUSD" theme={theme} />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="h-48">
-                  <CardContent className="p-3">
-                    <div className="text-sm font-medium mb-2 text-center">Gold</div>
-                    <div className="h-36">
-                      <MiniChart symbol="XAUUSD" theme={theme} />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="h-48">
-                  <CardContent className="p-3">
-                    <div className="text-sm font-medium mb-2 text-center">US Dollar Index</div>
-                    <div className="h-36">
-                      <MiniChart symbol="DXY" theme={theme} />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="h-48">
-                  <CardContent className="p-3">
-                    <div className="text-sm font-medium mb-2 text-center">Crude Oil</div>
-                    <div className="h-36">
-                      <MiniChart symbol="USOIL" theme={theme} />
-                    </div>
-                  </CardContent>
-                </Card>
+                {/* Dynamic charts based on brief focus_assets */}
+                {brief.focus_assets?.includes('SPX') && (
+                  <Card className="h-48">
+                    <CardContent className="p-3">
+                      <div className="text-sm font-medium mb-2 text-center">S&P 500</div>
+                      <div className="h-36">
+                        <MiniChart symbol="SPX" theme={theme} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {brief.focus_assets?.includes('BTC') && (
+                  <Card className="h-48">
+                    <CardContent className="p-3">
+                      <div className="text-sm font-medium mb-2 text-center">Bitcoin</div>
+                      <div className="h-36">
+                        <MiniChart symbol="BTCUSD" theme={theme} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {brief.focus_assets?.includes('ETH') && (
+                  <Card className="h-48">
+                    <CardContent className="p-3">
+                      <div className="text-sm font-medium mb-2 text-center">Ethereum</div>
+                      <div className="h-36">
+                        <MiniChart symbol="ETHUSD" theme={theme} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {/* Always show key Fed-related charts when discussing Fed policy */}
+                {brief.article_html?.toLowerCase().includes('fed') && (
+                  <>
+                    <Card className="h-48">
+                      <CardContent className="p-3">
+                        <div className="text-sm font-medium mb-2 text-center">US Dollar Index</div>
+                        <div className="h-36">
+                          <MiniChart symbol="DXY" theme={theme} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="h-48">
+                      <CardContent className="p-3">
+                        <div className="text-sm font-medium mb-2 text-center">10-Year Treasury</div>
+                        <div className="h-36">
+                          <MiniChart symbol="TNX" theme={theme} />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+                {/* Show Gold when discussing inflation or uncertainty */}
+                {(brief.article_html?.toLowerCase().includes('inflation') || brief.article_html?.toLowerCase().includes('uncertainty')) && (
+                  <Card className="h-48">
+                    <CardContent className="p-3">
+                      <div className="text-sm font-medium mb-2 text-center">Gold</div>
+                      <div className="h-36">
+                        <MiniChart symbol="XAUUSD" theme={theme} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
 
