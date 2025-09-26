@@ -238,12 +238,12 @@ export function MarketBriefTest() {
               </Button>
               
               <Button 
-                onClick={generateNewBrief}
-                disabled={loading}
-                variant="secondary"
+                disabled={true}
+                variant="outline"
+                className="opacity-50 cursor-not-allowed"
               >
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-                Generate New Brief
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Generate New Brief (Missing Endpoint)
               </Button>
               
               <Button 

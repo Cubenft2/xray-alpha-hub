@@ -12,26 +12,18 @@ serve(async (req) => {
   }
 
   try {
-    const { force = false, notes = "", workerUrl } = await req.json().catch(() => ({}));
+    const { force = false, notes = "" } = await req.json().catch(() => ({}));
     
     console.log('Triggering market brief generation...');
     console.log('Force:', force);
     console.log('Notes:', notes);
-    console.log('Worker URL:', workerUrl);
-
-    // Default worker URL - update this with your actual Cloudflare worker domain
-    const defaultWorkerUrl = workerUrl || 'https://xraycrypto-news.xrprat.workers.dev';
     
-    const response = await fetch(`${defaultWorkerUrl}/marketbrief/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        force,
-        notes: notes || `Manual generation triggered at ${new Date().toISOString()}`
-      })
-    });
+    // Since the Cloudflare worker doesn't have a generate endpoint,
+    // we'll simulate generation by fetching the latest brief
+    console.log('Fetching latest brief as simulation of generation...');
+    
+    const workerUrl = 'https://xraycrypto-news.xrprat.workers.dev';
+    const response = await fetch(`${workerUrl}/marketbrief/latest.json`);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -40,7 +32,7 @@ serve(async (req) => {
     }
 
     const result = await response.json();
-    console.log('Brief generation result:', result);
+    console.log('Brief fetch result:', result);
 
     return new Response(JSON.stringify({
       success: true,
