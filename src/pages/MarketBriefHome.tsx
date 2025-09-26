@@ -6,7 +6,7 @@ import { Share, Copy, ExternalLink, TrendingUp, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MiniChart } from '@/components/MiniChart';
 import { useTheme } from 'next-themes';
-import { GenerateBriefNow } from '@/components/GenerateBriefNow';
+
 
 interface MarketBrief {
   slug: string;
@@ -222,7 +222,6 @@ export default function MarketBriefHome() {
           <p className="text-muted-foreground">Loading latest crypto-focused market analysis...</p>
         </div>
         
-        <GenerateBriefNow />
         
         <div className="max-w-4xl mx-auto">
           <Card className="xr-card">
@@ -248,7 +247,6 @@ export default function MarketBriefHome() {
           <p className="text-muted-foreground">Your crypto-first market analysis</p>
         </div>
         
-        <GenerateBriefNow />
         
         <div className="max-w-4xl mx-auto">
           <Card className="xr-card">
@@ -270,8 +268,6 @@ export default function MarketBriefHome() {
         <p className="text-muted-foreground">Your crypto-first market analysis</p>
       </div>
       
-      {/* Generator */}
-      <GenerateBriefNow />
       
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header Section */}
