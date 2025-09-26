@@ -1,1 +1,7 @@
 project_id = "odncvfiuzliyohxrsigc"
+
+[functions.news-fetch]
+verify_jwt = false
+
+[functions.trigger-market-brief]
+verify_jwt = false

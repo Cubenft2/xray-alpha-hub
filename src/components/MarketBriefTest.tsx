@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, RefreshCw, TrendingUp } from 'lucide-react';
+import { Loader2, RefreshCw, TrendingUp, Zap } from 'lucide-react';
 import { MiniChart } from './MiniChart';
 import { useTheme } from 'next-themes';
+import { triggerMarketBrief } from '@/utils/marketBriefTrigger';
 
 export function MarketBriefTest() {
   const [loading, setLoading] = useState(false);
@@ -147,6 +148,47 @@ export function MarketBriefTest() {
     }
   };
 
+  // Trigger market brief via Supabase edge function
+  const triggerBriefViaSupabase = async () => {
+    console.log('🐕 XRay: Triggering market brief via Supabase edge function...');
+    setLoading(true);
+    
+    try {
+      const result = await triggerMarketBrief({
+        force: true,
+        notes: 'Manual generation via Supabase edge function',
+        // Add your Cloudflare worker URL here if you have one
+        // workerUrl: 'https://your-worker-domain.workers.dev'
+      });
+
+      console.log('🐕 XRay: Supabase trigger result:', result);
+
+      if (result.success) {
+        toast({
+          title: 'Brief Generation Triggered',
+          description: result.message || 'Market brief generation started successfully',
+        });
+        
+        // Optionally set brief data if returned
+        if (result.result?.slug) {
+          console.log('🐕 XRay: Generated brief slug:', result.result.slug);
+        }
+      } else {
+        throw new Error(result.error || 'Failed to trigger brief generation');
+      }
+
+    } catch (error) {
+      console.error('🐕 XRay: Supabase trigger error:', error);
+      toast({
+        title: 'Trigger Error',
+        description: error instanceof Error ? error.message : 'Failed to trigger market brief',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Extract focus assets from brief content for charts
   const getFocusAssets = () => {
     if (!briefData?.article_html) return [];
@@ -202,6 +244,16 @@ export function MarketBriefTest() {
               >
                 {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                 Generate New Brief
+              </Button>
+              
+              <Button 
+                onClick={triggerBriefViaSupabase}
+                disabled={loading}
+                variant="default"
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+                Trigger via Supabase
               </Button>
             </div>
             
