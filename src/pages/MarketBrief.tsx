@@ -5,6 +5,7 @@ import { XRFooter } from '@/components/XRFooter';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, DollarSign, BarChart3 } from 'lucide-react';
+import { MarketBriefTest } from '@/components/MarketBriefTest';
 
 export default function MarketBrief() {
   const marketData = [
@@ -102,6 +103,9 @@ export default function MarketBrief() {
           <h1 className="text-3xl font-bold xr-gradient-text">📊 Market Brief</h1>
           <p className="text-muted-foreground">Quick overview of today's market performance</p>
         </div>
+
+        {/* Market Brief Testing Dashboard */}
+        <MarketBriefTest />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Stock Indices */}
