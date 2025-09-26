@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Share, Copy, ExternalLink, TrendingUp } from 'lucide-react';
+import { Share, Copy, ExternalLink, TrendingUp, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MiniChart } from '@/components/MiniChart';
 import { useTheme } from 'next-themes';
@@ -33,87 +33,87 @@ export default function MarketBriefHome() {
 
   const workerBase = 'https://xraycrypto-news.xrprat.workers.dev/';
 
-  useEffect(() => {
-    const fetchBrief = async () => {
-      try {
-        setLoading(true);
-        console.log('🐕 XRay: Fetching market brief...', date ? `for date: ${date}` : 'latest');
-        console.log('🐕 XRay: Current URL pathname:', window.location.pathname);
-        console.log('🐕 XRay: Date parameter from useParams:', date);
-        
-        // If we have a date parameter, fetch that specific brief
-        if (date) {
-          console.log('🐕 XRay: Fetching specific date:', date);
-          const dateRes = await fetch(`${workerBase}marketbrief/${date}.json`, { 
-            cache: 'no-store',
-            headers: {
-              'Accept': 'application/json',
-            }
-          });
-          
-          console.log('🐕 XRay: Date-specific request status:', dateRes.status);
-          
-          if (dateRes.ok) {
-            const briefData = await dateRes.json();
-            console.log('🐕 XRay: Date-specific brief loaded!', briefData);
-            setBrief(briefData);
-            
-            if (briefData.title) {
-              document.title = briefData.title + ' — XRayCrypto News';
-            }
-            return;
-          } else {
-            console.error('🐕 XRay: Date-specific request failed:', dateRes.status, dateRes.statusText);
-            throw new Error(`Brief for ${date} not found`);
-          }
-        }
-        
-        console.log('🐕 XRay: No date parameter, fetching latest');
-        // Otherwise fetch the latest brief
-        const directRes = await fetch(`${workerBase}marketbrief/latest.json`, { 
+  const fetchBrief = async (bustCache = false) => {
+    try {
+      setLoading(true);
+      const cacheParam = bustCache ? `?t=${Date.now()}` : '';
+      console.log('🐕 XRay: Fetching market brief...', date ? `for date: ${date}` : 'latest', bustCache ? '(cache busted)' : '');
+      console.log('🐕 XRay: Current URL pathname:', window.location.pathname);
+      console.log('🐕 XRay: Date parameter from useParams:', date);
+      
+      // If we have a date parameter, fetch that specific brief
+      if (date) {
+        console.log('🐕 XRay: Fetching specific date:', date);
+        const dateRes = await fetch(`${workerBase}marketbrief/${date}.json${cacheParam}`, { 
           cache: 'no-store',
           headers: {
             'Accept': 'application/json',
           }
         });
         
-        if (directRes.ok) {
-          const briefData = await directRes.json();
-          console.log('🐕 XRay: Brief loaded successfully!', briefData);
+        console.log('🐕 XRay: Date-specific request status:', dateRes.status);
+        
+        if (dateRes.ok) {
+          const briefData = await dateRes.json();
+          console.log('🐕 XRay: Date-specific brief loaded!', briefData);
           setBrief(briefData);
           
           if (briefData.title) {
             document.title = briefData.title + ' — XRayCrypto News';
           }
           return;
+        } else {
+          console.error('🐕 XRay: Date-specific request failed:', dateRes.status, dateRes.statusText);
+          throw new Error(`Brief for ${date} not found`);
         }
-        
-        console.log('🐕 XRay: Direct endpoint failed, trying feed method...');
-        
-        // Fallback to the original method
-        const feedRes = await fetch(`${workerBase}marketbrief/feed/index.json`, { 
-          cache: 'no-store' 
-        });
-        
-        if (!feedRes.ok) throw new Error('Feed fetch failed');
-        
-        const feed = await feedRes.json();
-        if (!feed?.latest) throw new Error('No latest brief available');
-
-        // Fetch the actual brief content
-        const briefRes = await fetch(`${workerBase}marketbrief/briefs/${feed.latest}.json`, {
-          cache: 'no-store'
-        });
-        
-        if (!briefRes.ok) throw new Error('Brief fetch failed');
-        
-        const briefData = await briefRes.json();
+      }
+      
+      console.log('🐕 XRay: No date parameter, fetching latest');
+      // Otherwise fetch the latest brief with cache busting
+      const directRes = await fetch(`${workerBase}marketbrief/latest.json${cacheParam}`, { 
+        cache: 'no-store',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
+      if (directRes.ok) {
+        const briefData = await directRes.json();
+        console.log('🐕 XRay: Brief loaded successfully!', briefData);
         setBrief(briefData);
         
-        // Update document title and meta
         if (briefData.title) {
           document.title = briefData.title + ' — XRayCrypto News';
         }
+        return;
+      }
+      
+      console.log('🐕 XRay: Direct endpoint failed, trying feed method...');
+      
+      // Fallback to the original method
+      const feedRes = await fetch(`${workerBase}marketbrief/feed/index.json${cacheParam}`, { 
+        cache: 'no-store' 
+      });
+      
+      if (!feedRes.ok) throw new Error('Feed fetch failed');
+      
+      const feed = await feedRes.json();
+      if (!feed?.latest) throw new Error('No latest brief available');
+
+      // Fetch the actual brief content
+      const briefRes = await fetch(`${workerBase}marketbrief/briefs/${feed.latest}.json${cacheParam}`, {
+        cache: 'no-store'
+      });
+      
+      if (!briefRes.ok) throw new Error('Brief fetch failed');
+      
+      const briefData = await briefRes.json();
+      setBrief(briefData);
+      
+      // Update document title and meta
+      if (briefData.title) {
+        document.title = briefData.title + ' — XRayCrypto News';
+      }
         
       } catch (error) {
         console.error('🐕 XRay: Brief load failed:', error);
@@ -127,8 +127,18 @@ export default function MarketBriefHome() {
       }
     };
 
+  useEffect(() => {
     fetchBrief();
   }, [toast, workerBase, date]);
+
+  // Add refresh function for cache busting
+  const handleRefresh = () => {
+    toast({
+      title: "Refreshing Brief",
+      description: "Getting latest market data...",
+    });
+    fetchBrief(true);
+  };
 
   const handleShareX = () => {
     if (!brief) return;
@@ -244,6 +254,10 @@ export default function MarketBriefHome() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
             <Button variant="outline" size="sm" onClick={handleShareX}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Share on X
