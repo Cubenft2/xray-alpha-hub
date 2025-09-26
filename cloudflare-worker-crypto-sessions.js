@@ -155,6 +155,14 @@ async function generateAndStoreBrief(env, session = null) {
       "https://coinpedia.org/feed/",
       "https://cryptopotato.com/feed/"
     ],
+    // IPO & Corporate Finance feeds for crypto companies
+    ipo: [
+      "https://www.reuters.com/business/finance/rss/",
+      "https://www.cnbc.com/id/10000664/device/rss/rss.html", // IPO channel
+      "https://www.marketwatch.com/investing/stocks/ipo/rss",
+      "https://news.google.com/rss/search?q=IPO%20OR%20going%20public%20OR%20public%20offering%20crypto%20OR%20blockchain",
+      "https://www.ft.com/companies?format=rss"
+    ],
     // Only include traditional finance sources that regularly cover crypto
     markets: [
       "https://www.reuters.com/markets/us/rss",
@@ -174,7 +182,7 @@ async function generateAndStoreBrief(env, session = null) {
     "coindesk.com", "cointelegraph.com", "theblock.co", "decrypt.co", "messari.io", "chain.link", "cryptoslate.com",
     "bitcoinmagazine.com", "blockworks.co", "thedefiant.io", "protos.com", "ambcrypto.com", "beincrypto.com", 
     "coingape.com", "coinpedia.org", "cryptopotato.com", "reuters.com", "cnbc.com", "foxbusiness.com", 
-    "finance.yahoo.com", "federalreserve.gov", "bls.gov", "sec.gov"
+    "finance.yahoo.com", "federalreserve.gov", "bls.gov", "sec.gov", "marketwatch.com", "ft.com", "news.google.com"
   ];
 
   const isAllowedHost = (h) => ALLOW.some((dom) => h === dom || h.endsWith("." + dom));
@@ -223,6 +231,7 @@ async function generateAndStoreBrief(env, session = null) {
   const toFetch = [
     ...FEEDS.crypto, 
     ...FEEDS.crypto, // Double crypto content
+    ...FEEDS.ipo,    // IPO and corporate news
     ...FEEDS.markets, 
     ...FEEDS.macro
   ];
@@ -302,6 +311,8 @@ Channel this energy:
 - DeFi innovations, meme coin chaos, regulatory drama
 - On-chain data, whale moves, Twitter sentiment
 - Traditional markets only when they're actually moving crypto
+- IPO & Corporate Analysis: Crypto companies going public, ETF launches, institutional moves
+- FOMO Score Analysis: When multiple sources cover same story = potential FOMO moment
 
 📊 SESSION FOCUS:
 - PREMARKET: "While you were sleeping, crypto did this insane thing..."
@@ -319,6 +330,12 @@ End with a "Last Word" that sticks - something Oliver would tweet and Rogan woul
 Return JSON with: title, summary, article_html, last_word, focus_assets`;
   
   const userPrompt = `${sessionContext}
+
+ANALYZE THE MAIN EVENTS: 
+- Identify the 1-2 MAIN EVENTS that will actually impact crypto/markets
+- Look for FOMO indicators: multiple headlines about same coin/topic
+- Pay special attention to crypto companies going public, ETF launches, institutional moves
+- Focus on market-moving news, not fluff
 
 Fresh headlines from crypto and relevant market sources (prioritized for crypto content):
 
