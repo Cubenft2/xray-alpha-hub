@@ -6,6 +6,7 @@ import { Share, Copy, ExternalLink, TrendingUp, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MiniChart } from '@/components/MiniChart';
 import { useTheme } from 'next-themes';
+import { GenerateBriefNow } from '@/components/GenerateBriefNow';
 
 interface MarketBrief {
   slug: string;
@@ -215,7 +216,14 @@ export default function MarketBriefHome() {
 
   if (loading) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold xr-gradient-text">🚀 XRay Market Brief</h1>
+          <p className="text-muted-foreground">Loading latest crypto-focused market analysis...</p>
+        </div>
+        
+        <GenerateBriefNow />
+        
         <div className="max-w-4xl mx-auto">
           <Card className="xr-card">
             <CardContent className="p-8 text-center">
@@ -234,12 +242,19 @@ export default function MarketBriefHome() {
 
   if (!brief) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold xr-gradient-text">🚀 XRay Market Brief</h1>
+          <p className="text-muted-foreground">Your crypto-first market analysis</p>
+        </div>
+        
+        <GenerateBriefNow />
+        
         <div className="max-w-4xl mx-auto">
           <Card className="xr-card">
             <CardContent className="p-8 text-center">
               <h2 className="text-xl font-semibold mb-4">Brief Unavailable</h2>
-              <p className="text-muted-foreground">Couldn't load the market brief. Please try again shortly.</p>
+              <p className="text-muted-foreground">Couldn't load the market brief. Use the generator above to create a fresh one!</p>
             </CardContent>
           </Card>
         </div>
@@ -248,7 +263,16 @@ export default function MarketBriefHome() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h1 className="text-3xl font-bold xr-gradient-text">🚀 XRay Market Brief</h1>
+        <p className="text-muted-foreground">Your crypto-first market analysis</p>
+      </div>
+      
+      {/* Generator */}
+      <GenerateBriefNow />
+      
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header Section */}
         <div className="flex items-center justify-between flex-wrap gap-4">
