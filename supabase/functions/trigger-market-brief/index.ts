@@ -20,7 +20,7 @@ serve(async (req) => {
     console.log('Worker URL:', workerUrl);
 
     // Default worker URL - update this with your actual Cloudflare worker domain
-    const defaultWorkerUrl = workerUrl || 'https://your-worker-domain.workers.dev';
+    const defaultWorkerUrl = workerUrl || 'https://xraycrypto-news.xrprat.workers.dev';
     
     const response = await fetch(`${defaultWorkerUrl}/marketbrief/generate`, {
       method: 'POST',
