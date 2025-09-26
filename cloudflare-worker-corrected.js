@@ -5,7 +5,7 @@ const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET,POST,OPTIONS",
   "access-control-allow-headers": "Content-Type,User-Agent,Authorization",
-  "cache-control": "no-cache",
+  "cache-control": "no-store, max-age=0, must-revalidate",
 };
 const ok = (obj, status = 200, headers = {}) =>
   new Response(JSON.stringify(obj, null, 2), { status, headers: { "content-type": "application/json; charset=utf-8", ...CORS, ...headers } });

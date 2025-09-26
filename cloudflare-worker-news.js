@@ -21,7 +21,7 @@ var worker_default = {
       headers: {
         "access-control-allow-origin": "*",
         "access-control-allow-methods": "GET,POST,OPTIONS",
-        "cache-control": "no-cache",
+        "cache-control": "no-store, max-age=0, must-revalidate",
         ...init.headers || {}
       }
     }), "withCORS");
