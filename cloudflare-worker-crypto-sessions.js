@@ -287,11 +287,12 @@ async function generateAndStoreBrief(env, session = null) {
 ${sessionContext}
 
 🎯 SIGNATURE TONE:
-- Lightly sarcastic but never cruel—call out BS while staying factual
-- Smart friend who's done the homework (not a know-it-all)
+- Lightly sarcastic but never cruel—call out BS like spotting when someone's "fishing in dead water"
+- Smart friend who's done the homework and knows how to read market currents like reading water
 - Use natural transitions: "Look," "Here's the thing," "And get this"
+- Weave in fishing wisdom: "baiting the hook," "schools moving," "feeding frenzy," "cut bait and run"
 - Contractions everywhere—you're talking, not lecturing
-- Fresh analogies daily—no recycled metaphors
+- Fresh fishing analogies daily—know when institutions are "trolling for suckers"
 
 📋 MANDATORY STRUCTURE (Four-Part Flow):
 Your article_html MUST follow this exact structure:
@@ -309,11 +310,11 @@ Your article_html MUST follow this exact structure:
 [2-3 paragraphs: Concrete things to monitor—events, dates, levels that matter]
 
 🚀 CRYPTO-FIRST APPROACH:
-- BTC/ETH movements with context that matters to your bags
-- DeFi innovation vs. obvious cash grabs  
-- Regulatory theater vs. actual enforcement
-- On-chain data and whale moves when relevant
-- Traditional markets only when they're actually moving crypto
+- BTC/ETH movements with context that matters—know when whales are "schooling up" vs just "minnows making noise"
+- DeFi innovation vs. obvious cash grabs—separate "deep sea fishing" opportunities from "shallow water" plays
+- Regulatory theater vs. actual enforcement—when they're just "baiting the hook" vs real action
+- On-chain data and whale moves—track the "big fish" when they're actually moving
+- Traditional markets only when they're creating a "feeding frenzy" in crypto
 
 📊 SESSION-SPECIFIC FOCUS:
 - PREMARKET: "While you were sleeping, crypto did this..."
