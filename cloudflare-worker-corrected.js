@@ -37,11 +37,39 @@ const isAllowed = (h) => ALLOW.some((dom) => h === dom || h.endsWith("." + dom))
 
 const FEEDS = {
   crypto: [
+    // Tier 1 Crypto News
     "https://www.coindesk.com/arc/outboundfeeds/rss/","https://cointelegraph.com/rss","https://www.theblock.co/rss.xml",
-    "https://decrypt.co/feed","https://messari.io/rss","https://blog.chain.link/feed/","https://cryptoslate.com/feed/",
+    "https://decrypt.co/feed","https://messari.io/rss","https://cryptoslate.com/feed/",
     "https://bitcoinmagazine.com/feed","https://blockworks.co/feeds/rss","https://thedefiant.io/feed",
-    "https://protos.com/feed/","https://ambcrypto.com/feed/","https://beincrypto.com/feed/","https://coingape.com/feed/",
-    "https://coinpedia.org/feed/","https://cryptopotato.com/feed/","https://www.newsbtc.com/feed/",
+    
+    // DeFi & Protocol News
+    "https://blog.chain.link/feed/","https://protos.com/feed/","https://ambcrypto.com/feed/",
+    "https://beincrypto.com/feed/","https://coingape.com/feed/","https://coinpedia.org/feed/",
+    "https://cryptopotato.com/feed/","https://www.newsbtc.com/feed/",
+    
+    // On-chain & Analytics
+    "https://blog.chainalysis.com/feed/","https://dune.com/blog/rss.xml",
+  ],
+  
+  // Expanded social feeds for sentiment analysis
+  social: [
+    // Reddit crypto communities
+    "https://www.reddit.com/r/CryptoCurrency/.rss", "https://www.reddit.com/r/CryptoMarkets/.rss",
+    "https://www.reddit.com/r/Bitcoin/.rss", "https://www.reddit.com/r/Ethereum/.rss",
+    "https://www.reddit.com/r/Solana/.rss", "https://www.reddit.com/r/ethfinance/.rss",
+    "https://www.reddit.com/r/defi/.rss", "https://www.reddit.com/r/altcoin/.rss",
+    
+    // Sentiment & FOMO tracking
+    "https://news.google.com/rss/search?q=crypto%20fomo%20OR%20altseason%20OR%20memecoin%20OR%20airdrop&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=bitcoin%20dominance%20OR%20btc%20liquidations%20OR%20funding%20rates&hl=en-US&gl=US&ceid=US:en",
+    "https://news.google.com/rss/search?q=%22whale%20alert%22%20OR%20%22large%20transaction%22%20crypto&hl=en-US&gl=US&ceid=US:en",
+  ],
+  
+  // ETF and institutional flows
+  etf: [
+    "https://news.google.com/rss/search?q=bitcoin%20etf%20OR%20ethereum%20etf%20OR%20crypto%20etf&hl=en-US&gl=US&ceid=US:en",
+    "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&output=atom",
+    "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
   ],
   stocks: [
     "https://feeds.a.dj.com/rss/RSSMarketsMain.xml","https://www.reuters.com/markets/us/rss",
@@ -152,13 +180,14 @@ async function fetchFeed(u) {
 }
 
 async function computeAggregate(sourcesParam, q) {
-  const sources = new Set((sourcesParam || "crypto,stocks,macro,social,ipo").toLowerCase().split(",").map(s => s.trim()).filter(Boolean));
+  const sources = new Set((sourcesParam || "crypto,stocks,macro,social,ipo,etf").toLowerCase().split(",").map(s => s.trim()).filter(Boolean));
   const toFetch = [];
   if (sources.has("crypto")) toFetch.push(...FEEDS.crypto);
   if (sources.has("stocks")) toFetch.push(...FEEDS.stocks);
   if (sources.has("macro"))  toFetch.push(...FEEDS.macro);
   if (sources.has("social")) toFetch.push(...FEEDS.social);
   if (sources.has("ipo"))    toFetch.push(...FEEDS.ipo);
+  if (sources.has("etf"))    toFetch.push(...FEEDS.etf);
 
   const MAX = 6, chunks = [];
   for (let i = 0; i < toFetch.length; i += MAX) chunks.push(toFetch.slice(i, i + MAX));
@@ -246,84 +275,135 @@ async function generateAndStoreBrief(env, opts = {}) {
     ? opts.symbols.map(s => s.toUpperCase())
     : (env.FOCUS_ASSETS || "BTC,ETH,SOL,SPX,US10Y,OIL,DXY,EURUSD").split(",").map(s=>s.trim().toUpperCase());
 
-  // Aggregate (now includes social and IPO)
-  const agg = await computeAggregate("crypto,stocks,macro,social,ipo", "");
-  const items = (agg.top || []).slice(0, 15).map(it => ({
+  // Comprehensive crypto-first aggregation (now includes ETF feeds)
+  const agg = await computeAggregate("crypto,social,etf,stocks,macro", "");
+  const items = (agg.top || []).slice(0, 20).map(it => ({
     title: it.title, 
     url: it.link, 
     source: it.source, 
     published_at: new Date(it.date).toISOString(),
-    description: it.description || ""
+    description: it.description || "",
+    relevance_score: it.score || 1 // For ranking crypto vs traditional market news
   }));
 
-  // Refined John Oliver-style prompt with fishing metaphors and structured four-part flow
-  const systemPrompt = (env.MB_STYLE || `You are a sharp, witty market analyst writing for XRayCrypto News. Think John Oliver explaining markets at the bar—armed with receipts and fishing stories.
+  // Session-based timing for twice-daily generation
+  const hour = today.getUTCHours();
+  const session = hour < 14 ? 'premarket' : 'postmarket'; // 2PM UTC = 10AM EST for premarket cutoff
+  const briefSlug = `${slug}-${session}`;
 
-🎯 SIGNATURE TONE:
-- Lightly sarcastic but never mean-spirited—like explaining why someone's "fishing in shallow water"
-- Smart friend who's done their homework and knows how to read the market like reading water
-- Call out obvious BS but stay factual—know when institutions are "trolling for suckers" 
-- Use "Look," "Here's the thing," "And get this" as natural transitions
-- Weave in fishing metaphors naturally: "baiting the hook," "schools of fish," "feeding frenzy," "cut bait and run"
-- No corporate fluff—if someone took the bait "hook, line and sinker," just say it
-- Contractions everywhere (don't, it's, they're)—you're talking, not writing a thesis
+  // Comprehensive crypto-first market brief system prompt
+  const systemPrompt = (env.MB_STYLE || `You are the voice behind XRayCrypto's twice-daily Market Brief—part seasoned fisherman who knows these waters, part global trader who's seen every current, with the conversational honesty of Joe Rogan and the sharp wit of John Oliver. You're writing the dockside report for crypto markets that professionals respect and newcomers can follow.
 
-📋 MANDATORY STRUCTURE (Four-Part Flow):
+🌊 YOUR SIGNATURE VOICE:
+OPENER: Every brief begins with "Let's talk about something."
+- Fisherman's honesty mixed with global perspective: "I've cast lines in these waters before..."
+- Joe Rogan conversational: "Dude, have you seen what's happening with..." mixed with "Look, here's the thing..."
+- John Oliver wit: Cutting through BS with humor but never mean-spirited
+- Use contractions everywhere—you're talking to a friend at the dock
+- Weave fishing metaphors naturally: "schools moving," "bait and switch," "deep water vs shallow," "feeding frenzy"
+- Call out when institutions are "trolling for suckers" or retail got caught "hook, line and sinker"
+- Global traveler insights: "In my time trading Asian markets..." or "European sessions taught me..."
+
+📋 MANDATORY FIVE-SECTION STRUCTURE:
 Your article_html MUST follow this exact structure:
 
+<div class="market-brief-opener">
+<p><strong>Let's talk about something.</strong> [Your hook for today's tide]</p>
+</div>
+
 <h2>What Happened</h2>
-[2-3 paragraphs: The main event(s) that actually matter, stripped of hype]
+[2-3 paragraphs: The main events that actually moved markets, crypto-first focus]
 
 <h2>Why It Matters</h2>
-[2-3 paragraphs: Real-world implications, not speculation—why should anyone care?]
+[2-3 paragraphs: Real implications for crypto holders, traders, and the broader ecosystem]
 
 <h2>Market Reaction</h2>
-[2-3 paragraphs: How markets actually responded, what the data shows]
+[2-3 paragraphs: Price action, volume, liquidations, on-chain flows—what the data actually shows]
 
 <h2>What to Watch Next</h2>
-[2-3 paragraphs: Concrete things to monitor, not vague predictions]
+[2-3 paragraphs: Specific levels, events, dates to monitor—concrete, not vague predictions]
 
-🎯 CONTENT RULES:
-- **ONLY USE PROVIDED NEWS** - Never invent prices, events, or data
-- Fresh fishing analogies—"dead water" vs "feeding frenzy," "caught a big one" vs "threw back the small fry"
-- Primary sources (Fed, SEC, company statements) + quality reporting (Reuters, WSJ, CoinDesk)
-- If retail's getting played, say they're "trolling for suckers" or got caught "hook, line and sinker"
-- If there's genuine innovation, celebrate it—"deep sea fishing" for real opportunities vs "shallow water" plays
-- Neutral but never bland—know when "the fish aren't biting" vs when there's a "school moving"
-- If there's genuine innovation, celebrate it without the hype
-- Neutral but never bland—have a perspective backed by facts
+<h2>Last Word</h2>
+[1 paragraph: Your personal take tied to today's tide—witty, human, never repeated]
+
+🎣 ROTATING MINI-SECTIONS (Choose 1 per brief to keep fresh):
+- **Chart of the Tide**: Spotlight one key chart/indicator
+- **Whale Watch**: Major wallet movements or institutional flows  
+- **Word on the Docks**: Social sentiment or community buzz
+- **Deep Water**: Emerging protocol or tech development
+- **Shallow End**: Memecoin madness or retail FOMO
+
+🎯 CRYPTO-FIRST CONTENT RULES:
+- **PRIMARY FOCUS**: Bitcoin, Ethereum, major altcoins, DeFi, NFTs, on-chain metrics
+- **SECONDARY**: Traditional markets ONLY when they directly impact crypto
+- **DATA REQUIREMENTS**: Every stat needs primary + secondary source, timestamped
+- **SOCIAL SENTIMENT**: Monitor Reddit, Twitter, Discord for FOMO/fear signals
+- **ON-CHAIN FOCUS**: Whale movements, exchange flows, staking yields, gas fees
+- **ETF COVERAGE**: Bitcoin/Ethereum ETF flows and headlines
+- **REGULATION**: Only when it directly hits crypto markets
+- **NEVER INVENT**: Only use provided news and data
+
+🌊 SESSION-SPECIFIC CONTEXT:
+${session === 'premarket' ? 
+`PREMARKET BRIEF (Pre-US Market Open):
+- Focus on overnight Asian/European crypto action
+- Set the stage for US trading day
+- European regulatory news, Asian whale movements
+- "The tide's turning as American markets wake up..."` :
+`POSTMARKET BRIEF (Post-US Market Close):
+- Wrap up the full trading day's crypto action  
+- How traditional market moves affected crypto
+- After-hours developments and Asian setup
+- "As the sun sets on this trading day..."`}
 
 🚀 JSON OUTPUT:
 {
-  "title": "Market Brief — [Date] — [Key Theme]",
-  "summary": "One honest sentence that cuts through the noise",
-  "article_html": "[Four-section structure above]",
-  "last_word": "One memorable thought that sticks—your signature sign-off",
-  "social_text": "Twitter-ready with relevant hashtags",
-  "sources": [{"url": "source_url", "label": "Source Name"}],
-  "focus_assets": ["BTC", "ETH", "SPX"]
+  "title": "Crypto Market Brief — ${session === 'premarket' ? 'Pre-Market' : 'Post-Market'} — [Date] — [Key Theme]",
+  "summary": "One honest sentence about what moved crypto today",
+  "article_html": "[Five-section structure with opener above]",
+  "last_word": "Your signature sign-off tied to today's tide—never repeated",
+  "wisdom_passage": "A quote or reflection that leaves readers with something deeper to carry",
+  "social_text": "Twitter-ready with #crypto #bitcoin hashtags",
+  "sources": [{"url": "source_url", "label": "Source Name", "type": "primary|secondary"}],
+  "focus_assets": ["BTC", "ETH", "SOL"],
+  "mini_section": "Chart of the Tide|Whale Watch|Word on the Docks|Deep Water|Shallow End",
+  "sentiment_score": "bullish|bearish|neutral",
+  "session": "${session}"
 }`)
 
   const userPrompt = `Date: ${slug}
-Focus assets (guidance, not strict): ${focus.join(", ")}
+Session: ${session.toUpperCase()} (${session === 'premarket' ? 'Pre-US Market Open' : 'Post-US Market Close'})
+Focus assets (guidance): ${focus.join(", ")}
 
-**PRIORITY: Analyze the headlines below and identify the 1-2 MAIN EVENTS that will actually impact crypto/markets. Focus your brief on these major developments, not minor news.**
+**CRYPTO-FIRST PRIORITY: Identify the 1-2 MAIN CRYPTO EVENTS that moved or will move markets today. Traditional markets only matter if they directly impact crypto.**
 
-**IPO & FOMO ANALYSIS: Pay special attention to:**
-- Crypto companies going public (IPOs, direct listings)
-- New ETF launches or approvals
-- When multiple sources cover the same story = potential FOMO moment
-- Social sentiment spikes (multiple Reddit/social mentions of same coin)
-- Trading volume or interest surges indicated by news clustering
+**COMPREHENSIVE ANALYSIS FOCUS:**
+- Bitcoin & Ethereum price action, ETF flows, institutional moves
+- Major altcoin movements, protocol updates, DeFi yields
+- On-chain metrics: Whale movements, exchange flows, gas fees, staking
+- Social sentiment spikes and FOMO indicators from multiple sources
+- Regulatory developments affecting crypto directly
+- Hacks, exploits, or security incidents
+- New listings, airdrops, or token launches creating buzz
 
-Top Headlines (ranked by relevance and recency):
+**SESSION-SPECIFIC CONTEXT:**
+${session === 'premarket' ? 
+`PREMARKET: Focus on overnight Asian/European crypto developments, set stage for US day` :
+`POSTMARKET: Wrap up full day's crypto action, how traditional markets affected crypto`}
+
+**REMEMBER:** 
+- Start with "Let's talk about something."
+- Use one rotating mini-section (Chart of the Tide, Whale Watch, Word on the Docks, Deep Water, or Shallow End)
+- Include Wisdom Passage after Last Word
+- Back every stat with sources
+- Mix fishing metaphors with Joe Rogan conversational style and John Oliver wit
+
+Top Headlines (crypto-prioritized, ranked by market impact):
 ${JSON.stringify(items, null, 2)}
 
 ${opts.notes ? `Additional context: ${opts.notes}` : ""}
 
-**CRITICAL: Only use the real news headlines provided above. Do not invent stories, prices, or events. Base your analysis ONLY on the actual news data listed.**
-
-Generate a comprehensive market brief covering the most significant developments from the provided headlines. Ensure proper JSON formatting.`;
+**CRITICAL: Generate a comprehensive twice-daily crypto market brief using ONLY the real news provided. Include all required sections and the signature opener. Ensure proper JSON formatting.**`;
 
   try {
     const aiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -360,23 +440,27 @@ Generate a comprehensive market brief covering the most significant developments
     }
 
     const brief = {
-      slug,
+      slug: briefSlug,
       date: slug,
-      title: content.title || `Market Brief — ${slug}`,
-      summary: content.summary || "Market analysis for " + slug,
-      article_html: content.article_html || "<p>No content generated.</p>",
-      last_word: content.last_word || "",
-      social_text: content.social_text || `Market Brief for ${slug} - Key developments in crypto and traditional markets.`,
+      session: session,
+      title: content.title || `Crypto Market Brief — ${session === 'premarket' ? 'Pre-Market' : 'Post-Market'} — ${slug}`,
+      summary: content.summary || `${session === 'premarket' ? 'Pre-market' : 'Post-market'} crypto analysis for ${slug}`,
+      article_html: content.article_html || "<div class=\"market-brief-opener\"><p><strong>Let's talk about something.</strong> No content generated.</p></div>",
+      last_word: content.last_word || "The tide will turn tomorrow—it always does.",
+      wisdom_passage: content.wisdom_passage || "\"The market is a voting machine in the short run, but a weighing machine in the long run.\" — Benjamin Graham",
+      social_text: content.social_text || `${session === 'premarket' ? 'Pre-market' : 'Post-market'} crypto brief for ${slug} #crypto #bitcoin #ethereum`,
       sources: Array.isArray(content.sources) ? content.sources : [],
       focus_assets: Array.isArray(content.focus_assets) ? content.focus_assets : focus,
-      og_image: `https://xraycrypto.io/marketbrief/charts/${slug}/og_cover.png`,
+      mini_section: content.mini_section || "Chart of the Tide",
+      sentiment_score: content.sentiment_score || "neutral",
+      og_image: `https://xraycrypto.io/marketbrief/charts/${briefSlug}/og_cover.png`,
       author: "XRayCrypto News",
-      canonical: `https://xraycrypto.io/marketbrief/${slug}`,
+      canonical: `https://xraycrypto.io/marketbrief/${briefSlug}`,
       generated_at: new Date().toISOString()
     };
 
-    // Store brief
-    await env.MARKET_KV.put(`brief:${slug}`, JSON.stringify(brief), { 
+    // Store brief with session-specific key
+    await env.MARKET_KV.put(`brief:${briefSlug}`, JSON.stringify(brief), { 
       expirationTtl: 60 * 60 * 24 * 90 // 90 days
     });
 
@@ -390,17 +474,19 @@ Generate a comprehensive market brief covering the most significant developments
     }
     
     const newItems = [
-      { slug, title: brief.title, date: brief.date, canonical: brief.canonical }, 
+      { slug: briefSlug, title: brief.title, date: brief.date, session: brief.session, canonical: brief.canonical }, 
       ...(feed.items || [])
-    ].slice(0, 50);
+    ].slice(0, 100); // Keep more history for twice-daily briefs
     
     await env.MARKET_KV.put(feedKey, JSON.stringify({ 
-      latest: slug, 
+      latest: briefSlug, 
+      latest_premarket: session === 'premarket' ? briefSlug : feed.latest_premarket,
+      latest_postmarket: session === 'postmarket' ? briefSlug : feed.latest_postmarket,
       items: newItems,
       updated_at: new Date().toISOString()
     }));
 
-    return { slug, regenerated: true };
+    return { slug: briefSlug, regenerated: true, session };
   } catch (openaiError) {
     // console.log("OpenAI generation error:", openaiError);
     throw new Error(`Brief generation failed: ${openaiError.message}`);
@@ -582,11 +668,35 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
-    // Daily brief generation at 9 AM UTC
-    ctx.waitUntil(
-      generateAndStoreBrief(env, { force: false })
-        .then(result => console.log("Scheduled brief generated:", result.slug))
-        .catch(error => console.log("Scheduled generation failed:", error))
-    );
+    // Twice-daily crypto market brief generation
+    // Premarket: 8 AM UTC (4 AM EST) - before US markets open
+    // Postmarket: 9 PM UTC (5 PM EST) - after US markets close
+    const now = new Date();
+    const hour = now.getUTCHours();
+    
+    // Determine which session to generate based on time
+    let shouldGenerate = false;
+    let sessionNotes = "";
+    
+    if (hour === 8) {
+      // Premarket brief at 8 AM UTC
+      shouldGenerate = true;
+      sessionNotes = "Premarket crypto brief focusing on overnight Asian/European developments";
+    } else if (hour === 21) {
+      // Postmarket brief at 9 PM UTC  
+      shouldGenerate = true;
+      sessionNotes = "Postmarket crypto brief wrapping up the full US trading day";
+    }
+    
+    if (shouldGenerate) {
+      ctx.waitUntil(
+        generateAndStoreBrief(env, { 
+          force: false,
+          notes: sessionNotes
+        })
+          .then(result => console.log(`Scheduled ${result.session} brief generated:`, result.slug))
+          .catch(error => console.log("Scheduled generation failed:", error))
+      );
+    }
   }
 };

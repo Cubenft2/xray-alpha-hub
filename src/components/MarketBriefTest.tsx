@@ -272,12 +272,25 @@ export function MarketBriefTest() {
                 <div>
                   <h3 className="text-lg font-bold mb-2">{briefData.title}</h3>
                   <div className="text-sm text-muted-foreground mb-4">
-                    {briefData.date} • Session: {briefData.session} • Slug: {briefData.slug}
+                    {briefData.date} • Session: <span className="font-medium">{briefData.session?.toUpperCase()}</span> • Slug: {briefData.slug}
+                    {briefData.sentiment_score && (
+                      <span className="ml-2">• Sentiment: <span className={`font-medium ${
+                        briefData.sentiment_score === 'bullish' ? 'text-green-600' : 
+                        briefData.sentiment_score === 'bearish' ? 'text-red-600' : 'text-yellow-600'
+                      }`}>{briefData.sentiment_score}</span></span>
+                    )}
                   </div>
                   {briefData.summary && (
                     <div className="p-4 bg-muted rounded-lg mb-4">
                       <h4 className="font-semibold mb-2">Summary:</h4>
                       <p className="text-sm">{briefData.summary}</p>
+                    </div>
+                  )}
+                  
+                  {briefData.mini_section && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg mb-4">
+                      <h4 className="font-semibold mb-1 text-blue-800 dark:text-blue-200">🎣 Mini Section:</h4>
+                      <p className="text-sm text-blue-700 dark:text-blue-300">{briefData.mini_section}</p>
                     </div>
                   )}
                 </div>
