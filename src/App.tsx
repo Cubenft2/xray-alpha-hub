@@ -9,7 +9,7 @@ import { Layout } from "./components/Layout";
 import { CommunityPromotion } from "./components/CommunityPromotion";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
-import MarketBrief from "./pages/MarketBrief";
+
 import MarketBriefHome from "./pages/MarketBriefHome";
 import Watchlist from "./pages/Watchlist";
 import News from "./pages/News";
@@ -42,7 +42,7 @@ const App = () => (
                 <Route path="/" element={<MarketBriefHome />} />
                 <Route path="/crypto" element={<Index />} />
                 <Route path="/markets" element={<Markets />} />
-                <Route path="/market-brief" element={<MarketBrief />} />
+                
                 <Route path="/marketbrief/:date" element={<MarketBriefHome />} />
                 <Route path="/watchlist" element={<Watchlist />} />
                 <Route path="/news" element={<News />} />

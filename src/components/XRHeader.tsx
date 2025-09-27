@@ -31,7 +31,6 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
     { name: 'Home', href: '/' },
     { name: 'Crypto', href: '/crypto' },
     { name: 'Stocks', href: '/markets' },
-    { name: 'Market Brief', href: '/market-brief' },
     { name: 'Watch', href: '/watchlist' },
     { name: 'News', href: '/news' },
     { name: 'Store', href: '/store' },
