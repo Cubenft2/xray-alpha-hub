@@ -505,6 +505,20 @@ export default {
       }});
     }
 
+    if (url.pathname === "/health" || url.pathname === "/marketbrief/health") {
+      return new Response(JSON.stringify({
+        ok: true, service: "xraycrypto-news", time: new Date().toISOString()
+      }, null, 2), {
+        status: 200,
+        headers: {
+          "content-type": "application/json; charset=utf-8",
+          "access-control-allow-origin": "*",
+          "access-control-allow-methods": "GET,POST,OPTIONS",
+          "cache-control": "no-store, max-age=0, must-revalidate"
+        }
+      });
+    }
+
     const withCORS = (body, init = {}) => new Response(body, {
       ...init,
       headers: {
