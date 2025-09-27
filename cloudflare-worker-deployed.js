@@ -119,7 +119,7 @@ async function fetchFeed(u) {
       });
     } catch (_) {}
 
-    // Fallback regex for quirky feeds
+    // Fallback regex
     if (!items.length && /<item[\s>]/i.test(text)) {
       const rx = /<item[\s\S]*?<title[^>]*>([\s\S]*?)<\/title>[\s\S]*?<link[^>]*>([\s\S]*?)<\/link>[\s\S]*?(?:<pubDate[^>]*>([\s\S]*?)<\/pubDate>|<updated[^>]*>([\s\S]*?)<\/updated>)?/gi;
       let m;
@@ -475,8 +475,8 @@ Rules:
     sentiment_score: content.sentiment_score || "neutral",
     author: "XRayCrypto News",
     price_snapshot: prices,
-    og_image: `https://news.xraycrypto.io/marketbrief/charts/${dateSlug}/og_cover_${session}.png`,
-    canonical: `https://news.xraycrypto.io/marketbrief/${briefSlug}`,
+    og_image: `https://markets.xraycrypto.io/marketbrief/charts/${dateSlug}/og_cover_${session}.png`,
+    canonical: `https://markets.xraycrypto.io/marketbrief/${briefSlug}`,
     generated_at: new Date().toISOString(),
     sources: items.slice(0, 15).map(i => ({ label: i.source || "source", url: i.url, type: "primary" }))
   };
@@ -495,6 +495,7 @@ Rules:
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: {
         "access-control-allow-origin": "*",
@@ -503,6 +504,7 @@ export default {
         "access-control-max-age": "86400"
       }});
     }
+
     const withCORS = (body, init = {}) => new Response(body, {
       ...init,
       headers: {
