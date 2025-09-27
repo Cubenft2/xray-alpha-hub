@@ -9,8 +9,6 @@ import { Layout } from "./components/Layout";
 import { CommunityPromotion } from "./components/CommunityPromotion";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
-
-import MarketBriefHome from "./pages/MarketBriefHome";
 import Watchlist from "./pages/Watchlist";
 import News from "./pages/News";
 import Store from "./pages/Store";
@@ -39,11 +37,9 @@ const App = () => (
           <Layout>
             <PageTransition>
               <Routes>
-                <Route path="/" element={<MarketBriefHome />} />
+                <Route path="/" element={<Index />} />
                 <Route path="/crypto" element={<Index />} />
                 <Route path="/markets" element={<Markets />} />
-                
-                <Route path="/marketbrief/:date" element={<MarketBriefHome />} />
                 <Route path="/watchlist" element={<Watchlist />} />
                 <Route path="/news" element={<News />} />
                 <Route path="/store" element={<Store />} />
