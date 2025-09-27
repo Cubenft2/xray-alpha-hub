@@ -1,28 +1,49 @@
 name = "xraycrypto-news"
-main = "cloudflare-worker-news.js"
+main = "cloudflare-worker-corrected.js"
+account_id = "3beb86ebb037f29ad4389a8aa47898e0"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# 🔒 Scope Worker ONLY to /marketbrief/* on markets.xraycrypto.io
+routes = [
+  { pattern = "markets.xraycrypto.io/marketbrief/*", zone_id = "431ec0e3d05286b27e268181bffe8d41" }
+]
+
 [vars]
-# Add any public environment variables here
+APP_NAME = "XRayCrypto News"
+BRAND = "XRayCrypto"
+AUDIENCE_LEVEL = "balanced"   # balanced | casual | pro
+QUOTE_SOURCE   = "kv_daily"   # we store the day's Stoic quote in KV (optional admin)
+PRICE_PROVIDER = "binance"    # CoinGecko fills gaps if key present
 
 [[kv_namespaces]]
 binding = "MARKET_KV"
 id = "2f25cb6f358842028bceb61cb55c9f3d"
 preview_id = "2f25cb6f358842028bceb61cb55c9f3d"
 
-# Cron trigger for generating market briefs twice daily
 [triggers]
-crons = ["0 12 * * *", "0 21 * * *"]
+# Pre-market: 12:00 UTC (08:00 ET)
+# Post-market: 20:15 UTC (04:15 ET)
+crons = ["0 12 * * *", "15 20 * * *"]
 
-# Environment variables for secrets (set via wrangler secret put)
-# OPENAI_API_KEY - Your OpenAI API key (set via: wrangler secret put OPENAI_API_KEY)
-
-[build]
-command = ""
+# Secrets to add via CLI (values are NOT in this file):
+# wrangler secret put OPENAI_API_KEY
+# wrangler secret put COINGECKO_API_KEY
+# (optional admin) wrangler secret put ADMIN_KEY
+# (optional)       wrangler secret put OPENAI_MODEL   # e.g., gpt-5.1-mini
 
 [env.production]
 name = "xraycrypto-news"
+routes = [
+  { pattern = "markets.xraycrypto.io/marketbrief/*", zone_id = "431ec0e3d05286b27e268181bffe8d41" }
+]
 
 [env.staging]
 name = "xraycrypto-news-staging"
+# If you add a staging subdomain later (proxied DNS), uncomment:
+# routes = [
+#   { pattern = "staging-markets.xraycrypto.io/marketbrief/*", zone_id = "431ec0e3d05286b27e268181bffe8d41" }
+# ]
+
+[build]
+command = ""
