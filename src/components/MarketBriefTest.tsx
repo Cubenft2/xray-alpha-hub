@@ -62,7 +62,7 @@ export function MarketBriefTest() {
     
     try {
       // Try to get the latest market brief
-      const workerBase = 'https://xraycrypto-news.xrprat.workers.dev/';
+      const workerBase = 'https://markets.xraycrypto.io/';
       const cacheParam = `?cb=${Date.now()}`;
       
       const response = await fetch(`${workerBase}marketbrief/latest.json${cacheParam}`, {
@@ -104,7 +104,7 @@ export function MarketBriefTest() {
     setLoading(true);
     
     try {
-      const workerBase = 'https://xraycrypto-news.xrprat.workers.dev/';
+      const workerBase = 'https://markets.xraycrypto.io/';
       
       const response = await fetch(`${workerBase}marketbrief/generate`, {
         method: 'POST',

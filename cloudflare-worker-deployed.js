@@ -514,10 +514,13 @@ export default {
     });
     const json = (obj, status = 200) => withCORS(JSON.stringify(obj, null, 2), { status, headers: { "content-type": "application/json; charset=utf-8" } });
 
-    if (url.pathname === "/health") return json({ ok: true, service: "xraycrypto-news", time: new Date().toISOString() });
+    // ✅ Health endpoint under /marketbrief/*
+    if (url.pathname === "/marketbrief/health") {
+      return json({ ok: true, service: "xraycrypto-news", time: new Date().toISOString() });
+    }
 
-    // Admin: set the day's Stoic quote
-    if (url.pathname === "/admin/set-quote" && request.method === "POST") {
+    // ✅ Admin: set the day's Stoic quote under /marketbrief/*
+    if (url.pathname === "/marketbrief/admin/set-quote" && request.method === "POST") {
       if (request.headers.get("x-admin-key") !== env.ADMIN_KEY) return txt("forbidden", 403);
       const body = await request.json().catch(()=> ({}));
       if (!body.date || !body.text) return txt("missing date/text", 400);
@@ -525,8 +528,8 @@ export default {
       return ok({ ok: true });
     }
 
-    // Admin: register/override an asset mapping
-    if (url.pathname === "/admin/set-assetmap" && request.method === "POST") {
+    // ✅ Admin: register/override an asset mapping under /marketbrief/*
+    if (url.pathname === "/marketbrief/admin/set-assetmap" && request.method === "POST") {
       if (request.headers.get("x-admin-key") !== env.ADMIN_KEY) return txt("forbidden", 403);
       const body = await request.json().catch(()=> ({}));
       const asset = (body.asset || "").toUpperCase();
@@ -536,7 +539,8 @@ export default {
       return ok({ ok: true, saved: { asset, ...rec } });
     }
 
-    if (url.pathname.endsWith("/aggregate")) {
+    // ✅ Aggregate endpoint under /marketbrief/*
+    if (url.pathname === "/marketbrief/aggregate") {
       const sourcesParam = (url.searchParams.get("sources") || "crypto,social,etf").toLowerCase();
       const q = (url.searchParams.get("q") || "").trim();
       const result = await computeAggregate(sourcesParam, q);

@@ -33,7 +33,7 @@ export default function MarketBriefHome() {
   const { toast } = useToast();
   const { theme } = useTheme();
 
-  const workerBase = 'https://xraycrypto-news.xrprat.workers.dev/';
+  const workerBase = 'https://markets.xraycrypto.io/';
 
   const fetchBrief = async (bustCache = false) => {
     try {
