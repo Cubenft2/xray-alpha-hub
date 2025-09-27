@@ -6,6 +6,7 @@ import { Share, Copy, ExternalLink, TrendingUp, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MiniChart } from '@/components/MiniChart';
 import { useTheme } from 'next-themes';
+import { SimpleBriefTrigger } from '@/components/SimpleBriefTrigger';
 
 
 interface MarketBrief {
@@ -263,9 +264,14 @@ export default function MarketBriefHome() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
-      <div className="text-center space-y-2">
+      <div className="text-center space-y-4">
         <h1 className="text-3xl font-bold xr-gradient-text">🚀 XRay Market Brief</h1>
         <p className="text-muted-foreground">Your crypto-first market analysis</p>
+        
+        {/* Simple Brief Generator */}
+        <div className="flex justify-center">
+          <SimpleBriefTrigger />
+        </div>
       </div>
       
       
