@@ -120,6 +120,34 @@ serve(async (req) => {
       author: 'XRayCrypto Live News',
       canonical: `https://your-domain.com/marketbrief/${dateStr}-live`
     };
+
+    // Save to database
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { data: savedBrief, error: dbError } = await supabase
+      .from('market_briefs')
+      .insert({
+        slug: freshBrief.slug,
+        date: freshBrief.date,
+        title: freshBrief.title,
+        summary: freshBrief.summary,
+        article_html: freshBrief.article_html,
+        author: freshBrief.author,
+        canonical: freshBrief.canonical
+      })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error('Database error:', dbError);
+      // Continue anyway - don't fail the whole operation
+    } else {
+      console.log('Brief saved to database with ID:', savedBrief?.id);
+    }
     
     console.log('Fresh brief generated:', freshBrief.title);
     console.log('Total news items processed:', allNews.length);
@@ -127,7 +155,8 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       message: 'Market brief generated successfully with real news',
-      result: freshBrief
+      result: { ...freshBrief, id: savedBrief?.id },
+      database_id: savedBrief?.id
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
