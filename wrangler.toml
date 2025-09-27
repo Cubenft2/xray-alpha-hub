@@ -8,8 +8,8 @@ compatibility_flags = ["nodejs_compat"]
 
 [[kv_namespaces]]
 binding = "MARKET_KV"
-id = "your-kv-namespace-id"
-preview_id = "your-preview-kv-namespace-id"
+id = "2f25cb6f358842028bceb61cb55c9f3d"
+preview_id = "2f25cb6f358842028bceb61cb55c9f3d"
 
 # Cron trigger for generating market briefs twice daily
 [triggers]
