@@ -1,10 +1,10 @@
 name = "xraycrypto-news"
-main = "cloudflare-worker-news.js"
+main = "cloudflare-worker-deployed.js"
 account_id = "3beb86ebb037f29ad4389a8aa47898e0"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-# 🔒 Scope the Worker ONLY to /marketbrief/* so the rest of your site stays untouched
+# 🔒 Scope Worker ONLY to /marketbrief/* so your main site stays untouched
 routes = [
   { pattern = "markets.xraycrypto.io/marketbrief/*", zone_id = "431ec0e3d05286b27e268181bffe8d41" }
 ]
@@ -13,7 +13,7 @@ routes = [
 APP_NAME = "XRayCrypto News"
 BRAND = "XRayCrypto"
 AUDIENCE_LEVEL = "balanced"   # balanced | casual | pro
-QUOTE_SOURCE   = "kv_daily"   # we store the day's Stoic quote in KV (optional admin endpoint)
+QUOTE_SOURCE   = "kv_daily"   # quotes stored in KV
 PRICE_PROVIDER = "binance"    # CoinGecko fills gaps if key present
 
 [[kv_namespaces]]
@@ -22,20 +22,18 @@ id = "2f25cb6f358842028bceb61cb55c9f3d"
 preview_id = "2f25cb6f358842028bceb61cb55c9f3d"
 
 [triggers]
-# Pre-market: 12:00 UTC (08:00 ET)
-# Post-market: 20:15 UTC (04:15 ET)
+# Cron schedules: premarket 12:00 UTC, postmarket 20:15 UTC
 crons = ["0 12 * * *", "15 20 * * *"]
 
-# -------------------------
-# Production environment
-# -------------------------
+# -----------------
+# Production
+# -----------------
 [env.production]
 name = "xraycrypto-news"
 routes = [
   { pattern = "markets.xraycrypto.io/marketbrief/*", zone_id = "431ec0e3d05286b27e268181bffe8d41" }
 ]
 
-# Duplicate vars into env.production so Wrangler doesn't warn about inheritance
 [env.production.vars]
 APP_NAME = "XRayCrypto News"
 BRAND = "XRayCrypto"
@@ -48,12 +46,11 @@ binding = "MARKET_KV"
 id = "2f25cb6f358842028bceb61cb55c9f3d"
 preview_id = "2f25cb6f358842028bceb61cb55c9f3d"
 
-# -------------------------
+# -----------------
 # Staging (optional)
-# -------------------------
+# -----------------
 [env.staging]
 name = "xraycrypto-news-staging"
-# If you add a staging subdomain (proxied) later, uncomment and set the route:
 # routes = [
 #   { pattern = "staging-markets.xraycrypto.io/marketbrief/*", zone_id = "431ec0e3d05286b27e268181bffe8d41" }
 # ]
