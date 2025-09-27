@@ -1,5 +1,5 @@
 name = "xraycrypto-news"
-main = "cloudflare-worker-corrected.js"
+main = "cloudflare-worker-deployed.js"
 account_id = "3beb86ebb037f29ad4389a8aa47898e0"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
