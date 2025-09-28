@@ -14,192 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      earnings_calendar: {
-        Row: {
-          category: string | null
-          company_name: string
-          created_at: string
-          earnings_date: string
-          earnings_time: string | null
-          expected_eps: number | null
-          id: string
-          importance_score: number | null
-          is_crypto_related: boolean | null
-          social_sentiment: number | null
-          stock_symbol: string
-          updated_at: string
-        }
-        Insert: {
-          category?: string | null
-          company_name: string
-          created_at?: string
-          earnings_date: string
-          earnings_time?: string | null
-          expected_eps?: number | null
-          id?: string
-          importance_score?: number | null
-          is_crypto_related?: boolean | null
-          social_sentiment?: number | null
-          stock_symbol: string
-          updated_at?: string
-        }
-        Update: {
-          category?: string | null
-          company_name?: string
-          created_at?: string
-          earnings_date?: string
-          earnings_time?: string | null
-          expected_eps?: number | null
-          id?: string
-          importance_score?: number | null
-          is_crypto_related?: boolean | null
-          social_sentiment?: number | null
-          stock_symbol?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      market_alerts: {
-        Row: {
-          alert_message: string
-          alert_type: string
-          asset_name: string
-          asset_symbol: string
-          created_at: string
-          current_value: number | null
-          id: string
-          is_active: boolean | null
-          resolved_at: string | null
-          severity: string | null
-          trigger_value: number | null
-        }
-        Insert: {
-          alert_message: string
-          alert_type: string
-          asset_name: string
-          asset_symbol: string
-          created_at?: string
-          current_value?: number | null
-          id?: string
-          is_active?: boolean | null
-          resolved_at?: string | null
-          severity?: string | null
-          trigger_value?: number | null
-        }
-        Update: {
-          alert_message?: string
-          alert_type?: string
-          asset_name?: string
-          asset_symbol?: string
-          created_at?: string
-          current_value?: number | null
-          id?: string
-          is_active?: boolean | null
-          resolved_at?: string | null
-          severity?: string | null
-          trigger_value?: number | null
-        }
-        Relationships: []
-      }
       market_briefs: {
         Row: {
-          brief_type: string
-          content_sections: Json
+          article_html: string | null
+          author: string | null
+          canonical: string | null
           created_at: string
-          executive_summary: string
-          featured_assets: string[] | null
-          id: string
-          is_published: boolean | null
-          market_data: Json | null
-          published_at: string | null
-          sentiment_score: number | null
-          slug: string
-          social_data: Json | null
-          stoic_quote: string | null
-          title: string
-          updated_at: string
-          view_count: number | null
+          date: string | null
+          id: number
+          slug: string | null
+          summary: string | null
+          title: string | null
         }
         Insert: {
-          brief_type: string
-          content_sections?: Json
+          article_html?: string | null
+          author?: string | null
+          canonical?: string | null
           created_at?: string
-          executive_summary: string
-          featured_assets?: string[] | null
-          id?: string
-          is_published?: boolean | null
-          market_data?: Json | null
-          published_at?: string | null
-          sentiment_score?: number | null
-          slug: string
-          social_data?: Json | null
-          stoic_quote?: string | null
-          title: string
-          updated_at?: string
-          view_count?: number | null
+          date?: string | null
+          id?: number
+          slug?: string | null
+          summary?: string | null
+          title?: string | null
         }
         Update: {
-          brief_type?: string
-          content_sections?: Json
+          article_html?: string | null
+          author?: string | null
+          canonical?: string | null
           created_at?: string
-          executive_summary?: string
-          featured_assets?: string[] | null
-          id?: string
-          is_published?: boolean | null
-          market_data?: Json | null
-          published_at?: string | null
-          sentiment_score?: number | null
-          slug?: string
-          social_data?: Json | null
-          stoic_quote?: string | null
-          title?: string
-          updated_at?: string
-          view_count?: number | null
-        }
-        Relationships: []
-      }
-      social_sentiment: {
-        Row: {
-          asset_name: string
-          asset_symbol: string
-          created_at: string
-          data_timestamp: string
-          galaxy_score: number | null
-          id: string
-          sentiment_score: number
-          social_volume: number | null
-          social_volume_24h_change: number | null
-          top_influencers: Json | null
-          trending_rank: number | null
-          viral_posts: Json | null
-        }
-        Insert: {
-          asset_name: string
-          asset_symbol: string
-          created_at?: string
-          data_timestamp?: string
-          galaxy_score?: number | null
-          id?: string
-          sentiment_score: number
-          social_volume?: number | null
-          social_volume_24h_change?: number | null
-          top_influencers?: Json | null
-          trending_rank?: number | null
-          viral_posts?: Json | null
-        }
-        Update: {
-          asset_name?: string
-          asset_symbol?: string
-          created_at?: string
-          data_timestamp?: string
-          galaxy_score?: number | null
-          id?: string
-          sentiment_score?: number
-          social_volume?: number | null
-          social_volume_24h_change?: number | null
-          top_influencers?: Json | null
-          trending_rank?: number | null
-          viral_posts?: Json | null
+          date?: string | null
+          id?: number
+          slug?: string | null
+          summary?: string | null
+          title?: string | null
         }
         Relationships: []
       }

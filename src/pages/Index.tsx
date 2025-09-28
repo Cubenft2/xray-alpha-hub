@@ -1,140 +1,138 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { RefreshCw, Sparkles } from 'lucide-react';
-import { toast } from 'sonner';
-
-interface MarketBrief {
-  id: string;
-  brief_type: string;
-  title: string;
-  slug: string;
-  executive_summary: string;
-  content_sections: any;
-  social_data: any;
-  market_data: any;
-  stoic_quote: string | null;
-  featured_assets: string[];
-  sentiment_score: number | null;
-  view_count: number;
-  published_at: string;
-  created_at: string;
-}
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useLayoutSearch } from '@/components/Layout';
+import { TradingViewChart } from '@/components/TradingViewChart';
+import { CryptoScreener } from '@/components/CryptoScreener';
+import { CryptoHeatmap } from '@/components/CryptoHeatmap';
+import { NewsSection } from '@/components/NewsSection';
+import { FinancialDisclaimer } from '@/components/FinancialDisclaimer';
 
 const Index = () => {
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [searchParams] = useSearchParams();
+  const [chartSymbol, setChartSymbol] = useState<string>('BINANCE:BTCUSDT');
+  const [searchTerm, setSearchTerm] = useState('');
+  const { setSearchHandler } = useLayoutSearch();
 
-  const { data: briefs, isLoading: briefsLoading, refetch: refetchBriefs } = useQuery({
-    queryKey: ['market_briefs'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('market_briefs')
-        .select('*')
-        .eq('is_published', true)
-        .order('published_at', { ascending: false })
-        .limit(1);
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    
+    // Convert search term to TradingView symbol format
+    if (term.length >= 2) {
+      const upperTerm = term.toUpperCase();
+      let newSymbol = '';
       
-      if (error) throw error;
-      return data as MarketBrief[];
-    }
-  });
-
-  const latestBrief = briefs && briefs.length > 0 ? briefs[0] : null;
-
-  const generateNewBrief = async () => {
-    setIsGenerating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-brief');
+      // Map common crypto symbols to TradingView format
+      const cryptoMappings: { [key: string]: string } = {
+        'BTC': 'BINANCE:BTCUSDT',
+        'BITCOIN': 'BINANCE:BTCUSDT',
+        'ETH': 'BINANCE:ETHUSDT',
+        'ETHEREUM': 'BINANCE:ETHUSDT',
+        'SOL': 'BINANCE:SOLUSDT',
+        'SOLANA': 'BINANCE:SOLUSDT',
+        'ADA': 'BINANCE:ADAUSDT',
+        'CARDANO': 'BINANCE:ADAUSDT',
+        'DOT': 'BINANCE:DOTUSDT',
+        'POLKADOT': 'BINANCE:DOTUSDT',
+        'MATIC': 'BINANCE:MATICUSDT',
+        'POLYGON': 'BINANCE:MATICUSDT',
+        'AVAX': 'BINANCE:AVAXUSDT',
+        'AVALANCHE': 'BINANCE:AVAXUSDT',
+        'LINK': 'BINANCE:LINKUSDT',
+        'CHAINLINK': 'BINANCE:LINKUSDT',
+        'UNI': 'BINANCE:UNIUSDT',
+        'UNISWAP': 'BINANCE:UNIUSDT',
+        'LTC': 'BINANCE:LTCUSDT',
+        'LITECOIN': 'BINANCE:LTCUSDT',
+        'XRP': 'BINANCE:XRPUSDT',
+        'RIPPLE': 'BINANCE:XRPUSDT',
+        'DOGE': 'BINANCE:DOGEUSDT',
+        'DOGECOIN': 'BINANCE:DOGEUSDT',
+        'FLR': 'BITSTAMP:FLRUSD',
+        'FLARE': 'BITSTAMP:FLRUSD',
+      };
       
-      if (error) throw error;
+      // Check for exact matches first
+      if (cryptoMappings[upperTerm]) {
+        newSymbol = cryptoMappings[upperTerm];
+      } else {
+        // Try to find partial matches
+        const matchedKey = Object.keys(cryptoMappings).find(key => 
+          key.startsWith(upperTerm) || key.includes(upperTerm)
+        );
+        if (matchedKey) {
+          newSymbol = cryptoMappings[matchedKey];
+        } else {
+          // Default format for unknown symbols
+          newSymbol = `BINANCE:${upperTerm}USDT`;
+        }
+      }
       
-      toast.success('Fresh market brief published!');
-      refetchBriefs();
-    } catch (error) {
-      console.error('Error creating brief:', error);
-      toast.error('Failed to create market brief');
-    } finally {
-      setIsGenerating(false);
+      if (newSymbol && newSymbol !== chartSymbol) {
+        setChartSymbol(newSymbol);
+      }
     }
   };
 
+  useEffect(() => {
+    const symbolFromUrl = searchParams.get('symbol');
+    if (symbolFromUrl) {
+      setChartSymbol(symbolFromUrl);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    // Register search handler with layout
+    setSearchHandler(handleSearch);
+  }, [setSearchHandler]);
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-primary mb-4">XRay Market Brief</h1>
-          <p className="text-muted-foreground">Your daily crypto market intelligence</p>
+    <div className="py-6">
+      <FinancialDisclaimer />
+      
+      <div className="w-full">
+        <div className="container mx-auto">
+          <div className="space-y-6">
+            {/* Hero Section */}
+            <div className="text-center py-8">
+              <h1 className="text-4xl sm:text-5xl font-bold xr-gradient-text mb-4">
+                Welcome to XRayCrypto™
+              </h1>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                Your ultimate crypto & stocks dashboard. Real-time charts, live news, 
+                and community support - all in one place! ☢️
+              </p>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* Main Content */}
-        {briefsLoading ? (
-          <div className="text-center py-20">
-            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-muted-foreground">Loading latest brief...</p>
+      {/* Main Chart - Full nav width */}
+      <div className="w-full mb-6">
+        <div className="container mx-auto">
+          <TradingViewChart symbol={chartSymbol} height="700px" />
+        </div>
+      </div>
+
+      {/* Dashboard Grid - Full nav width */}
+      <div className="w-full">
+        <div className="container mx-auto">
+          <div className="grid grid-cols-1 gap-6">
+            {/* Crypto Screener - Full width */}
+            <div>
+              <CryptoScreener />
+            </div>
+
+            {/* Crypto Heatmap - Full width */}
+            <div>
+              <CryptoHeatmap />
+            </div>
           </div>
-        ) : latestBrief ? (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{latestBrief.title}</CardTitle>
-                <Badge>{new Date(latestBrief.published_at).toLocaleDateString()}</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Executive Summary</h3>
-                  <p className="text-muted-foreground">{latestBrief.executive_summary}</p>
-                </div>
-                
-                {latestBrief.content_sections && (
-                  <div className="space-y-4">
-                    {Object.entries(latestBrief.content_sections).map(([key, value]) => (
-                      <div key={key}>
-                        <h3 className="text-lg font-semibold mb-2 capitalize">{key.replace('_', ' ')}</h3>
-                        <div className="text-muted-foreground whitespace-pre-wrap">{String(value)}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+        </div>
+      </div>
 
-                {latestBrief.stoic_quote && (
-                  <div className="bg-muted p-4 rounded-lg">
-                    <p className="italic text-center">"{latestBrief.stoic_quote}"</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="text-center py-20">
-            <p className="text-muted-foreground mb-4">No briefs available yet</p>
-            <Button onClick={generateNewBrief} disabled={isGenerating}>
-              {isGenerating ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
-              )}
-              Create Brief
-            </Button>
-          </div>
-        )}
-
-        {/* Generate Button */}
-        <div className="text-center mt-8">
-          <Button onClick={generateNewBrief} disabled={isGenerating} variant="outline">
-            {isGenerating ? (
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Refresh Brief
-          </Button>
+      {/* News Section - Full nav width */}
+      <div className="w-full">
+        <div className="container mx-auto">
+          <NewsSection searchTerm={searchTerm} defaultTab="crypto" />
         </div>
       </div>
     </div>

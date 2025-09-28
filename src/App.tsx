@@ -9,8 +9,8 @@ import { Layout } from "./components/Layout";
 import { CommunityPromotion } from "./components/CommunityPromotion";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
-import Crypto from "./pages/Crypto";
-import Stocks from "./pages/Stocks";
+import MarketBrief from "./pages/MarketBrief";
+import MarketBriefHome from "./pages/MarketBriefHome";
 import Watchlist from "./pages/Watchlist";
 import News from "./pages/News";
 import Store from "./pages/Store";
@@ -20,7 +20,6 @@ import About from "./pages/About";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
-import MarketBriefs from "./pages/MarketBriefs";
 
 const queryClient = new QueryClient();
 
@@ -40,10 +39,11 @@ const App = () => (
           <Layout>
             <PageTransition>
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/crypto" element={<Crypto />} />
-                <Route path="/stocks" element={<Stocks />} />
+                <Route path="/" element={<MarketBriefHome />} />
+                <Route path="/crypto" element={<Index />} />
                 <Route path="/markets" element={<Markets />} />
+                <Route path="/market-brief" element={<MarketBrief />} />
+                <Route path="/marketbrief/:date" element={<MarketBriefHome />} />
                 <Route path="/watchlist" element={<Watchlist />} />
                 <Route path="/news" element={<News />} />
                 <Route path="/store" element={<Store />} />
@@ -52,7 +52,6 @@ const App = () => (
                 <Route path="/about" element={<About />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
-                
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

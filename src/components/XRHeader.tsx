@@ -30,11 +30,9 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'Crypto', href: '/crypto' },
-    { name: 'Stocks', href: '/stocks' },
+    { name: 'Stocks', href: '/markets' },
     { name: 'Watch', href: '/watchlist' },
     { name: 'News', href: '/news' },
-    { name: 'Store', href: '/store' },
-    { name: 'Chill', href: '/chill' },
     { name: 'About', href: '/about' },
     { name: 'Support', href: '/support' },
   ];
@@ -103,14 +101,14 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
 
           {/* Search & Theme Toggle */}
           <div className="flex items-center space-x-2">
-            {(location.pathname === '/' || location.pathname === '/markets' || location.pathname === '/crypto' || location.pathname === '/stocks') && (
+            {(location.pathname === '/crypto' || location.pathname === '/markets') && (
               <div className="flex items-center space-x-2">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <Input
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchSubmit}
-                  placeholder={location.pathname === '/' ? "Crypto..." : location.pathname === '/crypto' ? "Crypto..." : location.pathname === '/stocks' ? "Stocks..." : "Assets..."}
+                  placeholder={location.pathname === '/crypto' ? "Crypto..." : "Stocks..."}
                   className="w-24 md:w-32"
                 />
               </div>
@@ -162,7 +160,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               ))}
             </nav>
 
-            {(location.pathname === '/' || location.pathname === '/markets' || location.pathname === '/crypto' || location.pathname === '/stocks') && (
+            {(location.pathname === '/crypto' || location.pathname === '/markets') && (
               <div className="mt-6 pt-6 border-t border-border">
                 <div className="flex items-center space-x-2">
                   <Search className="w-4 h-4 text-muted-foreground" />
@@ -170,7 +168,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                     value={searchTerm}
                     onChange={handleSearchChange}
                     onKeyDown={handleSearchSubmit}
-                    placeholder={location.pathname === '/' ? "Crypto..." : location.pathname === '/crypto' ? "Crypto..." : location.pathname === '/stocks' ? "Stocks..." : "Assets..."}
+                    placeholder={location.pathname === '/crypto' ? "Crypto..." : "Stocks..."}
                     className="flex-1"
                   />
                 </div>

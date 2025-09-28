@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, X, TrendingUp, Users, Sparkles, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import gugoMascot from "@/assets/gugo-mascot.jpg";
-import gugoDuckIcon from "@/assets/gugo-duck-icon.png";
-import typeMediaLogo from "@/assets/type-media-logo.png";
 
 interface PromotionData {
   id: string;
@@ -34,27 +31,26 @@ interface PromotionData {
 
 const CURRENT_PROMOTION: PromotionData = {
   id: 'gugo_abstract_2025',
-  title: '🦆 Run With $GUGO',
-  subtitle: 'The Ultimate Meme Coin Movement',
-  description: 'Born in a pool. Forged by loss. Sustained by motion. He runs. Join the $GUGO movement - a community that never stops running.',
+  title: '🚀 Community Spotlight: $GUGO',
+  subtitle: 'Early Access to Abstract Chain Gem',
+  description: 'Join our community in supporting $GUGO, an exciting new memecoin on the innovative Abstract Chain - Ethereum L2 by Pudgy Penguins team.',
   token: {
     symbol: 'GUGO',
-    name: 'Run With GUGO',
+    name: 'GUGO Token',
     chain: 'Abstract Chain',
     chainColor: 'hsl(280 100% 70%)'
   },
   links: {
-    buy: 'https://runwithgugo.com/buy-gugo',
     chart: 'https://www.defined.fi/abs/0xe59a3d6f77e6d0c5daf1da740ab65adc3b674012?quoteToken=token1&cache=faf95',
-    website: 'https://runwithgugo.com/',
+    website: 'https://linktr.ee/runwithgugo?utm_source=linktree_profile_share&ltsid=2f8e530e-f1d5-4feb-8338-1d81465bcdbd',
     twitter: 'https://x.com/runwithgugo',
     community: 'https://x.com/TypeMediaX'
   },
   features: [
-    'Community movement with shared purpose',
-    'Meme sharing platform for runners',
-    'Decentralized governance & collective action',
-    '5,000+ holders and growing'
+    'Built on Abstract Chain (Ethereum L2)',
+    'Backed by Pudgy Penguins ecosystem',
+    'Early stage opportunity',
+    'Community-driven project'
   ],
   isActive: true
 };
@@ -75,12 +71,12 @@ export const CommunityPromotion: React.FC = () => {
       return;
     }
 
-    // Show popup after 10 seconds if not dismissed
+    // Show popup after 3 seconds if not dismissed
     const timer = setTimeout(() => {
       if (!dismissed) {
         setIsOpen(true);
       }
-    }, 10000);
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, [dismissed]);
@@ -137,21 +133,20 @@ export const CommunityPromotion: React.FC = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
-      <div className="fixed inset-0 pointer-events-none">
-        <DialogContent className="max-w-md bg-gradient-to-br from-card to-amber-950/20 border-2 border-yellow-400/30 shadow-2xl shadow-yellow-500/20 w-full sm:w-96 fixed right-4 top-1/2 -translate-y-1/2 pointer-events-auto data-[state=open]:animate-slide-in-right data-[state=closed]:animate-slide-out-right max-h-[80vh] overflow-y-auto backdrop-blur-sm">
+      <DialogContent className="max-w-md mx-auto bg-card border border-primary/20 shadow-xl">
         <DialogHeader className="text-center space-y-3">
           <div className="flex items-center justify-center">
-            <Sparkles className="h-6 w-6 text-yellow-400 animate-pulse" />
+            <Sparkles className="h-6 w-6 text-accent animate-pulse" />
           </div>
           
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-yellow-400 to-orange-300 bg-clip-text text-transparent leading-tight text-center">
+          <DialogTitle className="text-xl font-bold xr-gradient-text leading-tight">
             {CURRENT_PROMOTION.title}
           </DialogTitle>
           
           <div className="flex items-center justify-center gap-2">
             <Badge 
               variant="secondary" 
-              className="bg-yellow-500/20 text-yellow-300 border-yellow-400/50 shadow-lg shadow-yellow-500/20 animate-glow-pulse font-bold"
+              className="bg-accent/60 text-accent-foreground border-accent/80 xr-glow-accent animate-glow-pulse font-bold"
             >
               <Users className="h-3 w-3 mr-1" />
               Community Pick
@@ -167,23 +162,12 @@ export const CommunityPromotion: React.FC = () => {
         </DialogHeader>
 
         <div className="space-y-4 mt-4">
-          {/* GUGO Mascot Image */}
-          <div className="flex justify-center">
-            <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-yellow-400/40 shadow-lg shadow-yellow-500/30">
-              <img 
-                src={gugoMascot} 
-                alt="GUGO Token Mascot" 
-                className="w-full h-full object-cover"
-              />
-            </div>
-          </div>
-
           {/* Token Info */}
-          <div className="text-center p-4 bg-gradient-to-r from-amber-950/30 to-yellow-950/20 rounded-lg border border-yellow-400/30">
-            <div className="text-2xl font-bold bg-gradient-to-r from-yellow-300 to-orange-400 bg-clip-text text-transparent mb-1">
+          <div className="text-center p-4 bg-muted/50 rounded-lg border border-border">
+            <div className="text-2xl font-bold text-primary mb-1">
               ${CURRENT_PROMOTION.token.symbol}
             </div>
-            <div className="text-sm text-yellow-200/80">
+            <div className="text-sm text-muted-foreground">
               {CURRENT_PROMOTION.token.name}
             </div>
           </div>
@@ -211,62 +195,51 @@ export const CommunityPromotion: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="space-y-3 pt-2">
-            {/* Primary Buy Button */}
-            {CURRENT_PROMOTION.links.buy && (
-              <Button
-                onClick={() => handleLinkClick(CURRENT_PROMOTION.links.buy!, 'Buy GUGO')}
-                className="w-full text-sm h-11 font-semibold bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 border-0 shadow-lg shadow-yellow-500/30"
-              >
-                <img src={gugoDuckIcon} alt="GUGO Duck" className="h-6 w-6 mr-2 flex-shrink-0" />
-                Run With GUGO - Buy Now
-              </Button>
-            )}
-            
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {CURRENT_PROMOTION.links.chart && (
                 <Button
                   onClick={() => handleLinkClick(
                     CURRENT_PROMOTION.links.chart!, 
                     'Defined.fi Chart'
                   )}
-                  className="btn-hero text-xs h-10 px-2 whitespace-nowrap text-center flex items-center justify-center"
+                  className="btn-hero text-sm h-9"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span className="truncate">Chart</span>
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  View Chart
                 </Button>
               )}
               {CURRENT_PROMOTION.links.website && (
                 <Button
                   variant="outline"
-                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.website!, 'GUGO Website')}
-                  className="text-xs h-10 px-2 border-primary/30 hover:bg-primary/10 whitespace-nowrap text-center flex items-center justify-center"
+                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.website!, 'Abstract website')}
+                  className="text-sm h-9 border-primary/30 hover:bg-primary/10"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span className="truncate">Website</span>
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Learn More
                 </Button>
               )}
             </div>
             
             {/* Social Links */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {CURRENT_PROMOTION.links.twitter && (
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.twitter!, 'GUGO Twitter')}
-                  className="text-xs h-10 px-2 border-accent/30 hover:bg-accent/10 whitespace-nowrap text-center flex items-center justify-center"
+                  className="text-sm h-9 border-accent/30 hover:bg-accent/10"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span className="truncate">Twitter</span>
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  $GUGO Twitter
                 </Button>
               )}
               {CURRENT_PROMOTION.links.community && (
                 <Button
                   variant="outline"
-                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.community!, 'Type Media')}
-                  className="text-xs h-10 px-2 border-accent/30 hover:bg-accent/10 whitespace-nowrap text-center flex items-center justify-center"
+                  onClick={() => handleLinkClick(CURRENT_PROMOTION.links.community!, 'Type Media Community')}
+                  className="text-sm h-9 border-accent/30 hover:bg-accent/10"
                 >
-                  <img src={typeMediaLogo} alt="Type Media" className="h-4 w-4 mr-1 flex-shrink-0" />
-                  <span className="truncate">Type Media</span>
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Our Community
                 </Button>
               )}
             </div>
@@ -277,11 +250,11 @@ export const CommunityPromotion: React.FC = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => copyToClipboard(CURRENT_PROMOTION.links.buy!, 'Buy GUGO URL')}
+                onClick={() => copyToClipboard(CURRENT_PROMOTION.links.chart!, 'Chart URL')}
                 className="h-7 px-2 text-xs"
               >
                 <Copy className="h-3 w-3 mr-1" />
-                Copy Buy Link
+                Copy Chart Link
               </Button>
             </div>
           </div>
@@ -293,12 +266,12 @@ export const CommunityPromotion: React.FC = () => {
           </div>
 
           {/* Dismiss Options */}
-          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-0 pt-2 border-t border-border">
+          <div className="flex justify-between items-center pt-2 border-t border-border">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => handleDismiss(true)}
-              className="text-xs text-muted-foreground hover:text-foreground w-full sm:w-auto"
+              className="text-xs text-muted-foreground hover:text-foreground"
             >
               Don't show again
             </Button>
@@ -306,14 +279,13 @@ export const CommunityPromotion: React.FC = () => {
               variant="ghost"
               size="sm"
               onClick={() => handleDismiss(false)}
-              className="text-xs w-full sm:w-auto"
+              className="text-xs"
             >
               Maybe later
             </Button>
           </div>
         </div>
       </DialogContent>
-      </div>
     </Dialog>
   );
 };

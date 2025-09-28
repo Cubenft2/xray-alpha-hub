@@ -149,7 +149,7 @@ export function ChillZone() {
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold xr-gradient-text">🎵 Chill Zone</h1>
+        <h1 className="text-3xl font-bold gradient-text">🎵 Chill Zone</h1>
         <p className="text-muted-foreground">
           24/7 background music & ambient sounds for your trading sessions
         </p>

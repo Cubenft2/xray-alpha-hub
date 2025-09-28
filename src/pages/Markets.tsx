@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useLayoutSearch } from '@/components/Layout';
 import { TradingViewChart } from '@/components/TradingViewChart';
-import { CryptoScreener } from '@/components/CryptoScreener';
-import { CryptoHeatmap } from '@/components/CryptoHeatmap';
 import { StocksScreener } from '@/components/StocksScreener';
 import { StocksHeatmap } from '@/components/StocksHeatmap';
 import { NewsSection } from '@/components/NewsSection';
@@ -11,63 +9,61 @@ import { FinancialDisclaimer } from '@/components/FinancialDisclaimer';
 
 export default function Markets() {
   const [searchParams] = useSearchParams();
-  const [chartSymbol, setChartSymbol] = useState<string>('BINANCE:BTCUSDT');
+  const [chartSymbol, setChartSymbol] = useState<string>('AMEX:SPY');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'crypto' | 'stocks'>('crypto');
   const { setSearchHandler } = useLayoutSearch();
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
     
-    if (term.length >= 2) {
+    // Convert search term to TradingView symbol format for stocks
+    if (term.length >= 1) {
       const upperTerm = term.toUpperCase();
       let newSymbol = '';
       
-      // Crypto mappings
-      const cryptoMappings: { [key: string]: string } = {
-        'BTC': 'BINANCE:BTCUSDT',
-        'BITCOIN': 'BINANCE:BTCUSDT',
-        'ETH': 'BINANCE:ETHUSDT',
-        'ETHEREUM': 'BINANCE:ETHUSDT',
-        'SOL': 'BINANCE:SOLUSDT',
-        'SOLANA': 'BINANCE:SOLUSDT',
-        'ADA': 'BINANCE:ADAUSDT',
-        'CARDANO': 'BINANCE:ADAUSDT',
-        'MATIC': 'BINANCE:MATICUSDT',
-        'POLYGON': 'BINANCE:MATICUSDT',
-      };
-
-      // Stock mappings
+      // Map common stock symbols to TradingView format
       const stockMappings: { [key: string]: string } = {
         'SPY': 'AMEX:SPY',
         'QQQ': 'NASDAQ:QQQ',
+        'IWM': 'AMEX:IWM',
         'AAPL': 'NASDAQ:AAPL',
         'APPLE': 'NASDAQ:AAPL',
         'MSFT': 'NASDAQ:MSFT',
         'MICROSOFT': 'NASDAQ:MSFT',
+        'GOOGL': 'NASDAQ:GOOGL',
+        'GOOGLE': 'NASDAQ:GOOGL',
+        'AMZN': 'NASDAQ:AMZN',
+        'AMAZON': 'NASDAQ:AMZN',
         'TSLA': 'NASDAQ:TSLA',
         'TESLA': 'NASDAQ:TSLA',
         'NVDA': 'NASDAQ:NVDA',
         'NVIDIA': 'NASDAQ:NVDA',
+        'META': 'NASDAQ:META',
+        'FACEBOOK': 'NASDAQ:META',
+        'NFLX': 'NASDAQ:NFLX',
+        'NETFLIX': 'NASDAQ:NFLX',
       };
       
-      const mappings = activeTab === 'crypto' ? cryptoMappings : stockMappings;
-      
-      if (mappings[upperTerm]) {
-        newSymbol = mappings[upperTerm];
+      // Check for exact matches first
+      if (stockMappings[upperTerm]) {
+        newSymbol = stockMappings[upperTerm];
       } else {
-        newSymbol = activeTab === 'crypto' ? `BINANCE:${upperTerm}USDT` : `NASDAQ:${upperTerm}`;
+        // Try to find partial matches
+        const matchedKey = Object.keys(stockMappings).find(key => 
+          key.startsWith(upperTerm) || key.includes(upperTerm)
+        );
+        if (matchedKey) {
+          newSymbol = stockMappings[matchedKey];
+        } else {
+          // Default format for unknown symbols - try NASDAQ first
+          newSymbol = `NASDAQ:${upperTerm}`;
+        }
       }
       
       if (newSymbol && newSymbol !== chartSymbol) {
         setChartSymbol(newSymbol);
       }
     }
-  };
-
-  const handleTabChange = (tab: 'crypto' | 'stocks') => {
-    setActiveTab(tab);
-    setChartSymbol(tab === 'crypto' ? 'BINANCE:BTCUSDT' : 'AMEX:SPY');
   };
 
   useEffect(() => {
@@ -78,16 +74,16 @@ export default function Markets() {
   }, [searchParams]);
 
   useEffect(() => {
+    // Register search handler with layout
     setSearchHandler(handleSearch);
-  }, [setSearchHandler, activeTab]);
-
+  }, [setSearchHandler]);
   return (
     <div className="py-6 space-y-6">
       <div className="w-full">
         <div className="container mx-auto">
           <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold xr-gradient-text">📊 Markets Dashboard</h1>
-            <p className="text-muted-foreground">Real-time crypto & stock market data</p>
+            <h1 className="text-3xl font-bold xr-gradient-text">📈 Stock Markets</h1>
+            <p className="text-muted-foreground">Real-time stock market data and analysis</p>
           </div>
           <div className="mt-6">
             <FinancialDisclaimer />
@@ -95,66 +91,27 @@ export default function Markets() {
         </div>
       </div>
 
-      {/* Tab Selector */}
-      <div className="w-full">
-        <div className="container mx-auto">
-          <div className="flex justify-center">
-            <div className="flex bg-card rounded-lg p-1 border">
-              <button
-                onClick={() => handleTabChange('crypto')}
-                className={`px-6 py-2 rounded-md transition-colors ${
-                  activeTab === 'crypto' 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                🪙 Crypto
-              </button>
-              <button
-                onClick={() => handleTabChange('stocks')}
-                className={`px-6 py-2 rounded-md transition-colors ${
-                  activeTab === 'stocks' 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                📈 Stocks
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Chart */}
+      {/* Chart with exact nav width */}
       <div className="w-full">
         <div className="container mx-auto">
           <TradingViewChart symbol={chartSymbol} height="700px" />
         </div>
       </div>
       
-      {/* Widgets */}
+      {/* Widgets with exact nav width */}
       <div className="w-full">
         <div className="container mx-auto">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            {activeTab === 'crypto' ? (
-              <>
-                <CryptoScreener />
-                <CryptoHeatmap />
-              </>
-            ) : (
-              <>
-                <StocksScreener />
-                <StocksHeatmap />
-              </>
-            )}
+            <StocksScreener />
+            <StocksHeatmap />
           </div>
         </div>
       </div>
       
-      {/* News */}
+      {/* News with exact nav width */}
       <div className="w-full">
         <div className="container mx-auto">
-          <NewsSection searchTerm={searchTerm} defaultTab={activeTab === 'crypto' ? 'crypto' : 'stocks'} />
+          <NewsSection searchTerm={searchTerm} defaultTab="stocks" />
         </div>
       </div>
     </div>
