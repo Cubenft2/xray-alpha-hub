@@ -313,88 +313,24 @@ const Index = () => {
         </div>
       </div>
 
-        {/* Previous Briefs Archive */}
-        {briefs && briefs.length > 1 && (
-          <div className="mt-20">
-            <Card className="xr-card-elevated">
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl font-bold flex items-center justify-center gap-3 font-pixel">
-                  <span className="text-3xl">📚</span>
-                  Brief Archive — Recent Intelligence
-                </CardTitle>
-                <CardDescription className="text-base">
-                  Navigate past briefings from the XRay command center
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {briefs.slice(1, 7).map((brief) => (
-                    <Card key={brief.id} className="xr-card hover:xr-glow-primary transition-all duration-300 cursor-pointer group">
-                      <CardContent className="p-5">
-                        <div className="space-y-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <Badge variant="outline" className="text-xs font-pixel shrink-0">
-                              {brief.brief_type.toUpperCase()}
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              {new Date(brief.published_at).toLocaleDateString()}
-                            </Badge>
-                          </div>
-                          
-                          <h4 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-2">
-                            {brief.title}
-                          </h4>
-                          
-                          <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                            {brief.executive_summary}
-                          </p>
-                          
-                          <div className="flex items-center justify-between pt-2">
-                            <div className="flex items-center gap-2">
-                              <Eye className="h-3 w-3 text-muted-foreground" />
-                              <span className="text-xs text-muted-foreground">{brief.view_count}</span>
-                            </div>
-                            {brief.sentiment_score && (
-                              <Badge variant={brief.sentiment_score > 0 ? 'default' : 'destructive'} className="text-xs">
-                                {brief.sentiment_score > 0 ? '+' : ''}{brief.sentiment_score.toFixed(1)}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-                
-                <div className="text-center mt-8">
-                  <p className="text-sm text-muted-foreground font-pixel">
-                    📊 All briefs stored for 30 days • Interactive data • Source-verified intelligence
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Hidden Admin Controls - Only for VIP */}
-        {isVip && (
-          <div className="fixed bottom-4 right-4 space-y-2 opacity-30 hover:opacity-100 transition-opacity z-40">
-            <Button 
-              onClick={generateNewBrief} 
-              disabled={isGenerating}
-              size="sm"
-              variant="outline"
-              className="shadow-lg"
-            >
-              {isGenerating ? (
-                <RefreshCw className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        )}
-      </div>
+      {/* Hidden Admin Controls - Only for VIP */}
+      {isVip && (
+        <div className="fixed bottom-4 right-4 space-y-2 opacity-30 hover:opacity-100 transition-opacity z-40">
+          <Button 
+            onClick={generateNewBrief} 
+            disabled={isGenerating}
+            size="sm"
+            variant="outline"
+            className="shadow-lg"
+          >
+            {isGenerating ? (
+              <RefreshCw className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
