@@ -17,7 +17,6 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     const coingeckoRedirect = new Set([
       'FIGR_HELOC',
       'FIGR',
-      'ASTER',
     ]);
     
     // Check if ticker should redirect to CoinGecko

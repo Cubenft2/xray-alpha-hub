@@ -67,7 +67,7 @@ export default function MarketBriefHome() {
       'RIPPLE': { symbol: 'XRPUSD', displayName: 'XRP (XRP)' },
       'DOGE': { symbol: 'DOGEUSD', displayName: 'Dogecoin (DOGE)' },
       'DOGECOIN': { symbol: 'DOGEUSD', displayName: 'Dogecoin (DOGE)' },
-      'ASTER': { symbol: 'ASTERUSD', displayName: 'Aster (ASTER)' },
+      'ASTER': { symbol: 'ASTERUSDT', displayName: 'Aster (ASTER)' },
       'HYPE': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)' },
       'HYPERLIQUID': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)' },
       'SUI': { symbol: 'SUIUSD', displayName: 'Sui (SUI)' },
@@ -512,7 +512,7 @@ export default function MarketBriefHome() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {extractedTickers.slice(0, 12).map((ticker) => {
                     const { symbol, displayName } = mapTickerToTradingView(ticker);
-                    const unsupportedSet = new Set(['FIGR_HELOC','ASTER']);
+                    const unsupportedSet = new Set(['FIGR_HELOC']);
                     const isUnsupported = unsupportedSet.has(ticker.toUpperCase());
                     return (
                       <Card key={ticker} className="h-48">
