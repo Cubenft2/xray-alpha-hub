@@ -233,34 +233,62 @@ Stock Headlines: ${newsData.stocks?.slice(0, 3).map((item: any) => item.title).j
 
 Write approximately 800-1200 words that inform and entertain while staying true to your voice.`;
 
-    console.log('🤖 Generating AI analysis with comprehensive data...');
-    
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable.'
-          },
-          { role: 'user', content: marketAnalysisPrompt }
-        ],
-        max_tokens: 2000,
-        temperature: 0.8
-      }),
-    });
+    // Generate AI analysis (with graceful fallback if OpenAI fails)
+    let generatedAnalysis = '';
+    try {
+      console.log('🤖 Generating AI analysis with comprehensive data...');
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { 
+              role: 'system', 
+              content: 'You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable.'
+            },
+            { role: 'user', content: marketAnalysisPrompt }
+          ],
+          max_tokens: 2000,
+          temperature: 0.8
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error('OpenAI API error body:', errText);
+        throw new Error(`OpenAI API error: ${response.status} ${errText}`);
+      }
+
+      const aiData = await response.json();
+      generatedAnalysis = aiData.choices?.[0]?.message?.content || '';
+    } catch (err) {
+      console.error('❌ OpenAI generation failed, using deterministic fallback:', err);
+      // Fallback narrative built from real data so we still publish a brief
+      const fgVal = currentFearGreed?.value ?? 50;
+      const fgLbl = currentFearGreed?.value_classification ?? 'Neutral';
+      const hook = biggestMover
+        ? `${biggestMover.name} led the tape with ${biggestMover.price_change_percentage_24h > 0 ? '+' : ''}${biggestMover.price_change_percentage_24h?.toFixed(2)}% in the last 24h.`
+        : 'No single asset stole the show, but the board moved in pockets.';
+      const gainersStr = topGainers.map(c => `${c.name} (${c.symbol.toUpperCase()}) +${c.price_change_percentage_24h?.toFixed(1)}%`).join(', ');
+      const losersStr = topLosers.map(c => `${c.name} (${c.symbol.toUpperCase()}) ${c.price_change_percentage_24h?.toFixed(1)}%`).join(', ');
+      const btcLine = btcData ? `Bitcoin sits around $${btcData.current_price?.toLocaleString()} (${btcData.price_change_percentage_24h > 0 ? '+' : ''}${btcData.price_change_percentage_24h?.toFixed(2)}% 24h).` : '';
+      const ethLine = ethData ? `Ethereum trades near $${ethData.current_price?.toLocaleString()} (${ethData.price_change_percentage_24h > 0 ? '+' : ''}${ethData.price_change_percentage_24h?.toFixed(2)}% 24h).` : '';
+
+      generatedAnalysis = `Let's talk about something.
+
+${hook}
+${btcLine} ${ethLine}
+
+Fear & Greed prints ${fgVal}/100 (${fgLbl}). Top gainers: ${gainersStr || '—'}. Top losers: ${losersStr || '—'}.
+
+In plain English: the tide was ${fgVal >= 55 ? 'favorable' : fgVal <= 45 ? 'choppy' : 'even'} and flows rotated across majors and selected alts. If you’re casting lines today, mind the currents—momentum clusters around strength and leaves weak hands treading water.
+
+What’s next: watch liquidity into US hours, policy headlines, and any unusually strong social buzz around leaders. Keep your tackle box tidy; quick pivots win on days like this.`;
     }
-
-    const aiData = await response.json();
-    const generatedAnalysis = aiData.choices[0].message.content;
 
     // Create today's date and slug
     const today = new Date();
