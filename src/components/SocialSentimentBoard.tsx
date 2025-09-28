@@ -70,8 +70,8 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
 
   return (
     <div className="space-y-6">
-      {/* Overview Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Overview Cards - Hidden on desktop to avoid redundancy */}
+      <div className="grid grid-cols-2 lg:hidden gap-4">
         <Card className="xr-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
