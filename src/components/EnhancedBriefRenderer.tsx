@@ -105,23 +105,22 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       const displayName = name.trim();
       
       if (tickerData && tickerData.price) {
-        // Show ticker with live price data
+        // Show name as regular text, only parentheses part is clickable with live price data
         const price = tickerData.price < 0.01 ? tickerData.price.toFixed(6) : 
                      tickerData.price < 1 ? tickerData.price.toFixed(4) : 
                      tickerData.price.toLocaleString();
         const changeClass = tickerData.change_24h >= 0 ? 'text-green-400 border-green-400/20 bg-green-400/10' : 'text-red-400 border-red-400/20 bg-red-400/10';
         const changeSign = tickerData.change_24h >= 0 ? '+' : '';
         
-        return `<button onclick="window.handleTickerClick('${symbol}')" class="ticker-link-enhanced font-bold ${changeClass} hover:opacity-80 px-2 py-1 rounded transition-all duration-200 cursor-pointer border text-sm inline-flex items-center gap-1">
-          <span>${displayName}</span>
-          <span class="font-mono text-xs">(${symbol})</span>
+        return `${displayName} <button onclick="window.handleTickerClick('${symbol}')" class="ticker-link-enhanced font-bold ${changeClass} hover:opacity-80 px-2 py-1 rounded transition-all duration-200 cursor-pointer border text-sm inline-flex items-center gap-1">
+          <span class="font-mono text-xs">(${symbol}</span>
           <span class="font-mono text-xs">$${price}</span>
-          <span class="font-mono text-xs">${changeSign}${tickerData.change_24h.toFixed(2)}%</span>
+          <span class="font-mono text-xs">${changeSign}${tickerData.change_24h.toFixed(2)}%)</span>
         </button>`;
       } else {
-        // Show basic ticker button for crypto/stocks without price data
-        return `<button onclick="window.handleTickerClick('${symbol}')" class="ticker-link font-bold text-primary hover:text-primary/80 hover:bg-primary/10 px-1.5 py-0.5 rounded transition-all duration-200 cursor-pointer border border-primary/20 bg-primary/5 text-sm">
-          ${displayName} (${symbol})
+        // Show name as regular text, only parentheses part is clickable
+        return `${displayName} <button onclick="window.handleTickerClick('${symbol}')" class="ticker-link font-bold text-primary hover:text-primary/80 hover:bg-primary/10 px-1.5 py-0.5 rounded transition-all duration-200 cursor-pointer border border-primary/20 bg-primary/5 text-sm">
+          (${symbol})
         </button>`;
       }
     });
