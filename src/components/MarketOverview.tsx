@@ -126,16 +126,9 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
                   <>
                     <div className="space-y-1">
                       <p className="text-lg font-bold text-foreground">
-                        {data.biggest_mover.name} {data.biggest_mover.symbol && `(${data.biggest_mover.symbol.toUpperCase()})`}
+                        {data.biggest_mover.name}
                       </p>
                       <div className="flex items-center gap-2">
-                        {data.biggest_mover.price && (
-                          <span className="text-sm font-semibold text-foreground">
-                            ${data.biggest_mover.price < 0.01 ? data.biggest_mover.price.toFixed(6) : 
-                              data.biggest_mover.price < 1 ? data.biggest_mover.price.toFixed(4) : 
-                              data.biggest_mover.price.toLocaleString()}
-                          </span>
-                        )}
                         {data.biggest_mover.change_24h && (
                           <Badge 
                             variant="outline" 
