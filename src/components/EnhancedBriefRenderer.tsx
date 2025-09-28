@@ -4,13 +4,56 @@ import { useNavigate } from 'react-router-dom';
 interface EnhancedBriefRendererProps {
   content: string;
   enhancedTickers?: {[key: string]: any};
+  onTickersExtracted?: (tickers: string[]) => void;
 }
 
-export function EnhancedBriefRenderer({ content, enhancedTickers = {} }: EnhancedBriefRendererProps) {
+export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted }: EnhancedBriefRendererProps) {
   const navigate = useNavigate();
 
   const handleTickerClick = (ticker: string) => {
-    navigate(`/crypto?symbol=${ticker.toUpperCase()}`);
+    // Map common crypto symbols to TradingView format for proper navigation
+    const cryptoMappings: { [key: string]: string } = {
+      'BTC': 'BINANCE:BTCUSDT',
+      'BITCOIN': 'BINANCE:BTCUSDT',
+      'ETH': 'BINANCE:ETHUSDT', 
+      'ETHEREUM': 'BINANCE:ETHUSDT',
+      'SOL': 'BINANCE:SOLUSDT',
+      'SOLANA': 'BINANCE:SOLUSDT',
+      'ADA': 'BINANCE:ADAUSDT',
+      'CARDANO': 'BINANCE:ADAUSDT',
+      'AVAX': 'BINANCE:AVAXUSDT',
+      'AVALANCHE': 'BINANCE:AVAXUSDT',
+      'DOT': 'BINANCE:DOTUSDT',
+      'POLKADOT': 'BINANCE:DOTUSDT',
+      'MATIC': 'BINANCE:MATICUSDT',
+      'POLYGON': 'BINANCE:MATICUSDT',
+      'LINK': 'BINANCE:LINKUSDT',
+      'CHAINLINK': 'BINANCE:LINKUSDT',
+      'UNI': 'BINANCE:UNIUSDT',
+      'UNISWAP': 'BINANCE:UNIUSDT',
+      'XRP': 'BINANCE:XRPUSDT',
+      'RIPPLE': 'BINANCE:XRPUSDT',
+      'DOGE': 'BINANCE:DOGEUSDT',
+      'DOGECOIN': 'BINANCE:DOGEUSDT',
+      'ASTER': 'BINANCE:ASTERUSDT',
+      'HYPE': 'BINANCE:HYPEUSDT',
+      'HYPERLIQUID': 'BINANCE:HYPEUSDT',
+      'SUI': 'BINANCE:SUIUSDT',
+      'BNB': 'BINANCE:BNBUSDT',
+      'WBTC': 'BINANCE:WBTCUSDT',
+      'USDE': 'BINANCE:USDEUSDT',
+      'FIGR_HELOC': 'BINANCE:FIGRUSDT',
+      'FIGR': 'BINANCE:FIGRUSDT',
+      // Stock mappings
+      'SPX': 'SP:SPX',
+      'DXY': 'TVC:DXY',
+      'XAUUSD': 'OANDA:XAUUSD',
+      'GOLD': 'OANDA:XAUUSD'
+    };
+    
+    const upperTicker = ticker.toUpperCase();
+    const tradingViewSymbol = cryptoMappings[upperTicker] || `BINANCE:${upperTicker}USDT`;
+    navigate(`/crypto?symbol=${tradingViewSymbol}`);
   };
 
   const enhanceContent = (text: string) => {
@@ -42,8 +85,11 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {} }: Enhance
       '<span class="font-semibold px-1.5 py-0.5 rounded text-sm percentage-badge" data-change="$1">$1$2%</span>');
 
     // Enhanced ticker detection - looks for "Name (SYMBOL)" patterns
-    const tickerRegex = /([A-Za-z0-9\s&.-]+)\s*\(([A-Z0-9]{2,10})\)/g;
+    const tickerRegex = /([A-Za-z0-9\s&.-]+)\s*\(([A-Z0-9_]{2,12})\)/g;
+    const extractedTickers: string[] = [];
+    
     enhancedText = enhancedText.replace(tickerRegex, (match, name, symbol) => {
+      extractedTickers.push(symbol.toUpperCase());
       const tickerData = enhancedTickers[symbol.toUpperCase()];
       const displayName = name.trim();
       
@@ -68,6 +114,13 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {} }: Enhance
         </button>`;
       }
     });
+
+    // Call callback with extracted tickers
+    React.useEffect(() => {
+      if (onTickersExtracted && extractedTickers.length > 0) {
+        onTickersExtracted([...new Set(extractedTickers)]); // Remove duplicates
+      }
+    }, [extractedTickers.join(','), onTickersExtracted]);
 
     return enhancedText;
   };

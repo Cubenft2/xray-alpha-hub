@@ -34,11 +34,68 @@ export default function MarketBriefHome() {
   const [briefData, setBriefData] = useState<any>(null); // Store raw database data
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [extractedTickers, setExtractedTickers] = useState<string[]>([]);
   
   const [imageLoaded, setImageLoaded] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const { toast } = useToast();
   const { theme } = useTheme();
+
+  // Function to map ticker symbols to TradingView format for charts
+  const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
+    const upperTicker = ticker.toUpperCase();
+    const mappings: { [key: string]: { symbol: string; displayName: string } } = {
+      'BTC': { symbol: 'BTCUSD', displayName: 'Bitcoin (BTC)' },
+      'BITCOIN': { symbol: 'BTCUSD', displayName: 'Bitcoin (BTC)' },
+      'ETH': { symbol: 'ETHUSD', displayName: 'Ethereum (ETH)' },
+      'ETHEREUM': { symbol: 'ETHUSD', displayName: 'Ethereum (ETH)' },
+      'SOL': { symbol: 'SOLUSD', displayName: 'Solana (SOL)' },
+      'SOLANA': { symbol: 'SOLUSD', displayName: 'Solana (SOL)' },
+      'ADA': { symbol: 'ADAUSD', displayName: 'Cardano (ADA)' },
+      'CARDANO': { symbol: 'ADAUSD', displayName: 'Cardano (ADA)' },
+      'AVAX': { symbol: 'AVAXUSD', displayName: 'Avalanche (AVAX)' },
+      'AVALANCHE': { symbol: 'AVAXUSD', displayName: 'Avalanche (AVAX)' },
+      'DOT': { symbol: 'DOTUSD', displayName: 'Polkadot (DOT)' },
+      'POLKADOT': { symbol: 'DOTUSD', displayName: 'Polkadot (DOT)' },
+      'MATIC': { symbol: 'MATICUSD', displayName: 'Polygon (MATIC)' },
+      'POLYGON': { symbol: 'MATICUSD', displayName: 'Polygon (MATIC)' },
+      'LINK': { symbol: 'LINKUSD', displayName: 'Chainlink (LINK)' },
+      'CHAINLINK': { symbol: 'LINKUSD', displayName: 'Chainlink (LINK)' },
+      'UNI': { symbol: 'UNIUSD', displayName: 'Uniswap (UNI)' },
+      'UNISWAP': { symbol: 'UNIUSD', displayName: 'Uniswap (UNI)' },
+      'XRP': { symbol: 'XRPUSD', displayName: 'XRP (XRP)' },
+      'RIPPLE': { symbol: 'XRPUSD', displayName: 'XRP (XRP)' },
+      'DOGE': { symbol: 'DOGEUSD', displayName: 'Dogecoin (DOGE)' },
+      'DOGECOIN': { symbol: 'DOGEUSD', displayName: 'Dogecoin (DOGE)' },
+      'ASTER': { symbol: 'ASTERUSD', displayName: 'Aster (ASTER)' },
+      'HYPE': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)' },
+      'HYPERLIQUID': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)' },
+      'SUI': { symbol: 'SUIUSD', displayName: 'Sui (SUI)' },
+      'BNB': { symbol: 'BNBUSD', displayName: 'BNB (BNB)' },
+      'WBTC': { symbol: 'WBTCUSD', displayName: 'Wrapped Bitcoin (WBTC)' },
+      'USDE': { symbol: 'USDEUSD', displayName: 'Ethena USDe (USDe)' },
+      'FIGR_HELOC': { symbol: 'FIGRUSD', displayName: 'Figure Heloc (FIGR)' },
+      'FIGR': { symbol: 'FIGRUSD', displayName: 'Figure Heloc (FIGR)' },
+      // Stock/Index mappings  
+      'SPX': { symbol: 'SPX', displayName: 'S&P 500' },
+      'DXY': { symbol: 'DXY', displayName: 'US Dollar Index' },
+      'XAUUSD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' },
+      'GOLD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' }
+    };
+    
+    return mappings[upperTicker] || { 
+      symbol: `${upperTicker}USD`, 
+      displayName: `${ticker} (${ticker.toUpperCase()})` 
+    };
+  };
+
+  const handleTickersExtracted = (tickers: string[]) => {
+    // Filter out common featured assets and duplicates
+    const filteredTickers = tickers.filter(ticker => 
+      !['BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SPX', 'DXY', 'XAUUSD', 'GOLD'].includes(ticker.toUpperCase())
+    );
+    setExtractedTickers([...new Set(filteredTickers)]);
+  };
 
 
   useEffect(() => {
@@ -352,6 +409,7 @@ export default function MarketBriefHome() {
               <EnhancedBriefRenderer 
                 content={brief.article_html || ''} 
                 enhancedTickers={briefData?.content_sections?.enhanced_tickers || {}}
+                onTickersExtracted={handleTickersExtracted}
               />
             </div>
 
@@ -441,6 +499,39 @@ export default function MarketBriefHome() {
                   <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
                 </div>
                 <SocialSentimentBoard marketData={briefData} />
+              </div>
+            )}
+
+            {/* All Mentioned Tickers Charts Section */}
+            {extractedTickers.length > 0 && (
+              <div className="border-t border-border pt-6 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">All Mentioned Assets</h3>
+                  <span className="text-sm text-muted-foreground">({extractedTickers.length} assets)</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {extractedTickers.slice(0, 12).map((ticker) => {
+                    const { symbol, displayName } = mapTickerToTradingView(ticker);
+                    return (
+                      <Card key={ticker} className="h-48">
+                        <CardContent className="p-3">
+                          <div className="text-sm font-medium mb-2 text-center truncate" title={displayName}>
+                            {displayName}
+                          </div>
+                          <div className="h-36">
+                            <MiniChart symbol={symbol} theme={theme} />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+                {extractedTickers.length > 12 && (
+                  <p className="text-sm text-muted-foreground mt-4 text-center">
+                    Showing first 12 of {extractedTickers.length} mentioned assets
+                  </p>
+                )}
               </div>
             )}
 
