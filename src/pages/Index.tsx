@@ -138,126 +138,96 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Main Layout: Brief Focus + Sidebar */}
-        <div className="flex gap-8">
-          {/* Main Content - THE BRIEF */}
-          <div className="flex-1 max-w-4xl">
-            {briefsLoading ? (
-              <div className="text-center py-20">
-                <RefreshCw className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
-                <h3 className="text-2xl font-bold text-primary mb-4 font-pixel">Gathering Market Intelligence</h3>
-                <p className="text-lg text-muted-foreground">
-                  Fresh briefing incoming... scanning the waters for actionable insights.
-                </p>
-              </div>
-            ) : latestBrief ? (
-              <div className="space-y-8">
-                {/* Latest Brief Header */}
-                <div className="text-center">
-                  <Badge variant="default" className="text-base font-pixel px-4 py-2 mb-6 btn-hero">
-                    🚨 LATEST BRIEF — {new Date(latestBrief.published_at).toLocaleDateString('en-US', { 
-                      weekday: 'long', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
-                  </Badge>
-                  
-                  {/* Signature Opener Box */}
-                  <Card className="xr-card-elevated border-2 border-accent/40 bg-gradient-to-r from-accent/10 to-primary/10 mb-8">
-                    <CardContent className="p-6">
-                      <div className="text-center space-y-4">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/20 rounded-full border border-accent/50">
-                          <Waves className="h-5 w-5 text-accent" />
-                          <span className="font-bold text-accent font-pixel">Signature Opener</span>
-                        </div>
-                        <blockquote className="text-2xl font-bold text-primary font-pixel mb-3">
-                          "Let's talk about something."
-                        </blockquote>
-                        <p className="text-lg text-foreground/90 italic leading-relaxed">
-                          {latestBrief.content_sections?.opener || 
-                           "The tide's changing, and there's more beneath the surface than most are seeing."}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* THE MAIN BRIEF CONTENT - STAR OF THE SHOW */}
-                <MarketBriefDisplay brief={latestBrief} />
+        {/* Main Content - THE BRIEF (Full Width Focus) */}
+        <div className="max-w-4xl mx-auto">
+          {briefsLoading ? (
+            <div className="text-center py-20">
+              <RefreshCw className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
+              <h3 className="text-2xl font-bold text-primary mb-4 font-pixel">Gathering Market Intelligence</h3>
+              <p className="text-lg text-muted-foreground">
+                Fresh briefing incoming... scanning the waters for actionable insights.
+              </p>
+            </div>
+          ) : latestBrief ? (
+            <div className="space-y-8">
+              {/* Latest Brief Header */}
+              <div className="text-center">
+                <Badge variant="default" className="text-base font-pixel px-4 py-2 mb-6 btn-hero">
+                  🚨 LATEST BRIEF — {new Date(latestBrief.published_at).toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </Badge>
                 
-                {/* Interactive Market Reaction Table */}
-                {latestBrief.market_data?.top_assets && (
-                  <PriceSnapshotTable 
-                    data={latestBrief.market_data.top_assets.map((asset: any) => ({
-                      symbol: asset.symbol,
-                      name: asset.name,
-                      price: asset.price,
-                      change_24h: asset.change_24h,
-                      volume: asset.volume,
-                      sentiment: asset.sentiment_score
-                    }))}
-                  />
+                {/* Signature Opener Box */}
+                <Card className="xr-card-elevated border-2 border-accent/40 bg-gradient-to-r from-accent/10 to-primary/10 mb-8">
+                  <CardContent className="p-6">
+                    <div className="text-center space-y-4">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/20 rounded-full border border-accent/50">
+                        <Waves className="h-5 w-5 text-accent" />
+                        <span className="font-bold text-accent font-pixel">Signature Opener</span>
+                      </div>
+                      <blockquote className="text-2xl font-bold text-primary font-pixel mb-3">
+                        "Let's talk about something."
+                      </blockquote>
+                      <p className="text-lg text-foreground/90 italic leading-relaxed">
+                        {latestBrief.content_sections?.opener || 
+                         "The tide's changing, and there's more beneath the surface than most are seeing."}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* THE MAIN BRIEF CONTENT - STAR OF THE SHOW */}
+              <MarketBriefDisplay brief={latestBrief} />
+              
+              {/* Interactive Market Reaction Table */}
+              {latestBrief.market_data?.top_assets && (
+                <PriceSnapshotTable 
+                  data={latestBrief.market_data.top_assets.map((asset: any) => ({
+                    symbol: asset.symbol,
+                    name: asset.name,
+                    price: asset.price,
+                    change_24h: asset.change_24h,
+                    volume: asset.volume,
+                    sentiment: asset.sentiment_score
+                  }))}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-20">
+              <div className="space-y-6">
+                <div className="text-8xl animate-bounce">🎣</div>
+                <h3 className="text-2xl font-bold text-primary font-pixel">First Brief Loading...</h3>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                  The inaugural XRay Market Brief is being prepared. Captain XRay is scanning the waters.
+                </p>
+                {isVip && (
+                  <Button 
+                    onClick={generateNewBrief} 
+                    disabled={isGenerating}
+                    className="btn-hero mt-6"
+                    size="lg"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                        Generating Intelligence...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-5 w-5 mr-2" />
+                        Generate First Brief
+                      </>
+                    )}
+                  </Button>
                 )}
               </div>
-            ) : (
-              <div className="text-center py-20">
-                <div className="space-y-6">
-                  <div className="text-8xl animate-bounce">🎣</div>
-                  <h3 className="text-2xl font-bold text-primary font-pixel">First Brief Loading...</h3>
-                  <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                    The inaugural XRay Market Brief is being prepared. Captain XRay is scanning the waters.
-                  </p>
-                  {isVip && (
-                    <Button 
-                      onClick={generateNewBrief} 
-                      disabled={isGenerating}
-                      className="btn-hero mt-6"
-                      size="lg"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
-                          Generating Intelligence...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-5 w-5 mr-2" />
-                          Generate First Brief
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Compact Sidebar - Supporting Widgets */}
-          <div className="hidden xl:block w-72">
-            <div className="sticky top-8 space-y-4">
-              <h3 className="font-bold text-primary font-pixel text-center mb-4">📊 Market Pulse</h3>
-              
-              {/* Compact Dashboard Widgets */}
-              <div className="space-y-4">
-                <FearGreedWidget 
-                  score={latestBrief?.market_data?.fear_greed_score || 50}
-                  className="w-full"
-                />
-                <FOMOScoreWidget 
-                  score={latestBrief?.market_data?.fomo_score || 45}
-                  factors={['Social +2.1σ', 'Volume']}
-                  className="w-full"
-                />
-                <TrendingCoinsWidget limit={4} className="w-full" />
-              </div>
-              
-              {/* Sidebar Additional Widgets */}
-              <SidebarWidgets 
-                fearGreedScore={latestBrief?.market_data?.fear_greed_score}
-                fearGreedLabel={latestBrief?.market_data?.fear_greed_label}
-              />
             </div>
-          </div>
+          )}
         </div>
 
         {/* Bottom Section - Archive and Footer */}
