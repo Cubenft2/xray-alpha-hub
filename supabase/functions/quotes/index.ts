@@ -146,20 +146,39 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const symbolsParam = url.searchParams.get('symbols');
+    let symbols: string[] = [];
     
-    if (!symbolsParam) {
-      return new Response(
-        JSON.stringify({ error: 'symbols parameter required' }),
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    // Handle both GET (URL params) and POST (request body) requests
+    if (req.method === 'GET') {
+      const url = new URL(req.url);
+      const symbolsParam = url.searchParams.get('symbols');
+      
+      if (!symbolsParam) {
+        return new Response(
+          JSON.stringify({ error: 'symbols parameter required' }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      symbols = symbolsParam.split(',').map(s => s.trim().toUpperCase());
+    } else {
+      // Handle POST request with body
+      const body = await req.json();
+      if (!body.symbols || !Array.isArray(body.symbols)) {
+        return new Response(
+          JSON.stringify({ error: 'symbols array required in request body' }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      symbols = body.symbols.map((s: string) => s.trim().toUpperCase());
     }
-
-    const symbols = symbolsParam.split(',').map(s => s.trim().toUpperCase());
     const cacheKey = `quotes:${symbols.sort().join(',')}`;
     
     // Check cache first
