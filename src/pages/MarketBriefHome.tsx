@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Share, Copy, ExternalLink, TrendingUp, BarChart3, Users, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useLivePrices } from '@/hooks/useLivePrices';
 import { MiniChart } from '@/components/MiniChart';
 import { MarketOverview } from '@/components/MarketOverview';
 import { EnhancedBriefRenderer } from '@/components/EnhancedBriefRenderer';
@@ -40,6 +41,10 @@ export default function MarketBriefHome() {
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const { toast } = useToast();
   const { theme } = useTheme();
+
+  // Get live prices for all tickers (including BTC, ETH for main display)
+  const allTickers = [...extractedTickers, 'BTC', 'ETH', 'SOL', 'ADA', 'AVAX', 'SUI', 'HYPE', 'ASTER'];
+  const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
 
   // Function to map ticker symbols to TradingView format for charts
   const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
@@ -405,9 +410,18 @@ export default function MarketBriefHome() {
               {!brief.article_html?.toLowerCase().includes("let's talk about something") && (
                 <p className="italic text-muted-foreground mb-4 text-lg">Let&apos;s talk about something.</p>
               )}
+              
+              {/* Live Prices Indicator */}
+              {pricesLoading && (
+                <div className="mb-2 text-xs text-muted-foreground flex items-center gap-2">
+                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  Updating live prices...
+                </div>
+              )}
+              
               <EnhancedBriefRenderer 
                 content={brief.article_html || ''} 
-                enhancedTickers={briefData?.content_sections?.enhanced_tickers || {}}
+                enhancedTickers={livePrices}
                 onTickersExtracted={handleTickersExtracted}
               />
             </div>
