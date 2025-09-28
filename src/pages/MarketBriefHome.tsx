@@ -81,7 +81,8 @@ export default function MarketBriefHome() {
       'USDE': { symbol: 'USDEUSD', displayName: 'Ethena USDe (USDe)' },
       // Note: FIGR_HELOC redirects to CoinGecko instead of local chart
       // Stock/Index mappings
-      'SPX': { symbol: 'SP:SPX', displayName: 'S&P 500' },
+      'SPX': { symbol: 'SPY', displayName: 'S&P 500 (SPY)' },
+      'S&P 500': { symbol: 'SPY', displayName: 'S&P 500 (SPY)' },
       'DXY': { symbol: 'DXY', displayName: 'US Dollar Index' },
       'XAUUSD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' },
       'GOLD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' }
