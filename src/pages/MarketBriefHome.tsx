@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Share, Copy, ExternalLink, TrendingUp } from 'lucide-react';
+import { Share, Copy, ExternalLink, TrendingUp, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MiniChart } from '@/components/MiniChart';
+import { MarketDataWidgets } from '@/components/MarketDataWidgets';
+import { StoicQuote } from '@/components/StoicQuote';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -26,6 +28,7 @@ interface MarketBrief {
 export default function MarketBriefHome() {
   const { date } = useParams();
   const [brief, setBrief] = useState<MarketBrief | null>(null);
+  const [briefData, setBriefData] = useState<any>(null); // Store raw database data
   const [loading, setLoading] = useState(true);
   
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -73,6 +76,9 @@ export default function MarketBriefHome() {
         }
         
         console.log('🐕 XRay: Brief loaded successfully!', briefData);
+        
+        // Store the raw database data for market widgets
+        setBriefData(briefData);
         
         // Convert database format to expected format
         const aiText = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
@@ -293,6 +299,13 @@ export default function MarketBriefHome() {
               <div dangerouslySetInnerHTML={{ __html: brief.article_html }} />
             </div>
 
+            {/* Stoic Quote */}
+            {briefData?.stoic_quote && (
+              <div className="mb-6">
+                <StoicQuote quote={briefData.stoic_quote} />
+              </div>
+            )}
+
             {/* Last Word */}
             {brief.last_word && (
               <div className="border-l-4 border-primary pl-4 mb-6">
@@ -324,6 +337,15 @@ export default function MarketBriefHome() {
                 </ul>
               </details>
             )}
+
+            {/* Market Data Widgets Section */}
+            <div className="border-t border-border pt-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Market Data & Sentiment</h3>
+              </div>
+              <MarketDataWidgets marketData={briefData} />
+            </div>
 
             {/* Market Charts Section */}
             <div className="border-t border-border pt-6 mb-6">
