@@ -45,47 +45,47 @@ export default function MarketBriefHome() {
   const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
     const upperTicker = ticker.toUpperCase();
     const mappings: { [key: string]: { symbol: string; displayName: string } } = {
-      'BTC': { symbol: 'BINANCE:BTCUSDT', displayName: 'Bitcoin (BTC)' },
-      'BITCOIN': { symbol: 'BINANCE:BTCUSDT', displayName: 'Bitcoin (BTC)' },
-      'ETH': { symbol: 'BINANCE:ETHUSDT', displayName: 'Ethereum (ETH)' },
-      'ETHEREUM': { symbol: 'BINANCE:ETHUSDT', displayName: 'Ethereum (ETH)' },
-      'SOL': { symbol: 'BINANCE:SOLUSDT', displayName: 'Solana (SOL)' },
-      'SOLANA': { symbol: 'BINANCE:SOLUSDT', displayName: 'Solana (SOL)' },
-      'ADA': { symbol: 'BINANCE:ADAUSDT', displayName: 'Cardano (ADA)' },
-      'CARDANO': { symbol: 'BINANCE:ADAUSDT', displayName: 'Cardano (ADA)' },
-      'AVAX': { symbol: 'BINANCE:AVAXUSDT', displayName: 'Avalanche (AVAX)' },
-      'AVALANCHE': { symbol: 'BINANCE:AVAXUSDT', displayName: 'Avalanche (AVAX)' },
-      'DOT': { symbol: 'BINANCE:DOTUSDT', displayName: 'Polkadot (DOT)' },
-      'POLKADOT': { symbol: 'BINANCE:DOTUSDT', displayName: 'Polkadot (DOT)' },
-      'MATIC': { symbol: 'BINANCE:MATICUSDT', displayName: 'Polygon (MATIC)' },
-      'POLYGON': { symbol: 'BINANCE:MATICUSDT', displayName: 'Polygon (MATIC)' },
-      'LINK': { symbol: 'BINANCE:LINKUSDT', displayName: 'Chainlink (LINK)' },
-      'CHAINLINK': { symbol: 'BINANCE:LINKUSDT', displayName: 'Chainlink (LINK)' },
-      'UNI': { symbol: 'BINANCE:UNIUSDT', displayName: 'Uniswap (UNI)' },
-      'UNISWAP': { symbol: 'BINANCE:UNIUSDT', displayName: 'Uniswap (UNI)' },
-      'XRP': { symbol: 'BINANCE:XRPUSDT', displayName: 'XRP (XRP)' },
-      'RIPPLE': { symbol: 'BINANCE:XRPUSDT', displayName: 'XRP (XRP)' },
-      'DOGE': { symbol: 'BINANCE:DOGEUSDT', displayName: 'Dogecoin (DOGE)' },
-      'DOGECOIN': { symbol: 'BINANCE:DOGEUSDT', displayName: 'Dogecoin (DOGE)' },
-      'ASTER': { symbol: 'BINANCE:ASTERUSDT', displayName: 'Aster (ASTER)' },
-      'HYPE': { symbol: 'BINANCE:HYPEUSDT', displayName: 'Hyperliquid (HYPE)' },
-      'HYPERLIQUID': { symbol: 'BINANCE:HYPEUSDT', displayName: 'Hyperliquid (HYPE)' },
-      'SUI': { symbol: 'BINANCE:SUIUSDT', displayName: 'Sui (SUI)' },
-      'BNB': { symbol: 'BINANCE:BNBUSDT', displayName: 'BNB (BNB)' },
-      'WBTC': { symbol: 'BINANCE:WBTCUSDT', displayName: 'Wrapped Bitcoin (WBTC)' },
-      'USDE': { symbol: 'BINANCE:USDEUSDT', displayName: 'Ethena USDe (USDe)' },
+      'BTC': { symbol: 'BTCUSD', displayName: 'Bitcoin (BTC)' },
+      'BITCOIN': { symbol: 'BTCUSD', displayName: 'Bitcoin (BTC)' },
+      'ETH': { symbol: 'ETHUSD', displayName: 'Ethereum (ETH)' },
+      'ETHEREUM': { symbol: 'ETHUSD', displayName: 'Ethereum (ETH)' },
+      'SOL': { symbol: 'SOLUSD', displayName: 'Solana (SOL)' },
+      'SOLANA': { symbol: 'SOLUSD', displayName: 'Solana (SOL)' },
+      'ADA': { symbol: 'ADAUSD', displayName: 'Cardano (ADA)' },
+      'CARDANO': { symbol: 'ADAUSD', displayName: 'Cardano (ADA)' },
+      'AVAX': { symbol: 'AVAXUSD', displayName: 'Avalanche (AVAX)' },
+      'AVALANCHE': { symbol: 'AVAXUSD', displayName: 'Avalanche (AVAX)' },
+      'DOT': { symbol: 'DOTUSD', displayName: 'Polkadot (DOT)' },
+      'POLKADOT': { symbol: 'DOTUSD', displayName: 'Polkadot (DOT)' },
+      'MATIC': { symbol: 'MATICUSD', displayName: 'Polygon (MATIC)' },
+      'POLYGON': { symbol: 'MATICUSD', displayName: 'Polygon (MATIC)' },
+      'LINK': { symbol: 'LINKUSD', displayName: 'Chainlink (LINK)' },
+      'CHAINLINK': { symbol: 'LINKUSD', displayName: 'Chainlink (LINK)' },
+      'UNI': { symbol: 'UNIUSD', displayName: 'Uniswap (UNI)' },
+      'UNISWAP': { symbol: 'UNIUSD', displayName: 'Uniswap (UNI)' },
+      'XRP': { symbol: 'XRPUSD', displayName: 'XRP (XRP)' },
+      'RIPPLE': { symbol: 'XRPUSD', displayName: 'XRP (XRP)' },
+      'DOGE': { symbol: 'DOGEUSD', displayName: 'Dogecoin (DOGE)' },
+      'DOGECOIN': { symbol: 'DOGEUSD', displayName: 'Dogecoin (DOGE)' },
+      'ASTER': { symbol: 'ASTERUSD', displayName: 'Aster (ASTER)' },
+      'HYPE': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)' },
+      'HYPERLIQUID': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)' },
+      'SUI': { symbol: 'SUIUSD', displayName: 'Sui (SUI)' },
+      'BNB': { symbol: 'BNBUSD', displayName: 'BNB (BNB)' },
+      'WBTC': { symbol: 'WBTCUSD', displayName: 'Wrapped Bitcoin (WBTC)' },
+      'USDE': { symbol: 'USDEUSD', displayName: 'Ethena USDe (USDe)' },
       // Note: FIGR_HELOC may not be available on TradingView - skip for now
-      // 'FIGR_HELOC': { symbol: 'BINANCE:FIGRUSDT', displayName: 'Figure Heloc (FIGR)' },
-      // 'FIGR': { symbol: 'BINANCE:FIGRUSDT', displayName: 'Figure Heloc (FIGR)' },
+      // 'FIGR_HELOC': { symbol: 'FIGRUSD', displayName: 'Figure Heloc (FIGR)' },
+      // 'FIGR': { symbol: 'FIGRUSD', displayName: 'Figure Heloc (FIGR)' },
       // Stock/Index mappings  
       'SPX': { symbol: 'SP:SPX', displayName: 'S&P 500' },
-      'DXY': { symbol: 'TVC:DXY', displayName: 'US Dollar Index' },
-      'XAUUSD': { symbol: 'OANDA:XAUUSD', displayName: 'Gold (XAU/USD)' },
-      'GOLD': { symbol: 'OANDA:XAUUSD', displayName: 'Gold (XAU/USD)' }
+      'DXY': { symbol: 'DXY', displayName: 'US Dollar Index' },
+      'XAUUSD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' },
+      'GOLD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' }
     };
     
     return mappings[upperTicker] || { 
-      symbol: `BINANCE:${upperTicker}USDT`, 
+      symbol: `${upperTicker}USD`, 
       displayName: `${ticker} (${ticker.toUpperCase()})` 
     };
   };
@@ -93,7 +93,7 @@ export default function MarketBriefHome() {
   const handleTickersExtracted = (tickers: string[]) => {
     // Filter out common featured assets and duplicates
     const filteredTickers = tickers.filter(ticker => 
-      !['BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SPX', 'DXY', 'XAUUSD', 'GOLD', 'FIGR_HELOC', 'FIGR'].includes(ticker.toUpperCase())
+      !['BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SPX', 'DXY', 'XAUUSD', 'GOLD'].includes(ticker.toUpperCase())
     );
     setExtractedTickers([...new Set(filteredTickers)]);
   };
@@ -548,7 +548,7 @@ export default function MarketBriefHome() {
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Bitcoin (BTC)</div>
                     <div className="h-36">
-                      <MiniChart symbol="BINANCE:BTCUSDT" theme={theme} />
+                      <MiniChart symbol="BTCUSD" theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -557,7 +557,7 @@ export default function MarketBriefHome() {
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Ethereum (ETH)</div>
                     <div className="h-36">
-                      <MiniChart symbol="BINANCE:ETHUSDT" theme={theme} />
+                      <MiniChart symbol="ETHUSD" theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -567,9 +567,9 @@ export default function MarketBriefHome() {
                   <Card className="h-48">
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">Solana (SOL)</div>
-                        <div className="h-36">
-                          <MiniChart symbol="BINANCE:SOLUSDT" theme={theme} />
-                        </div>
+                      <div className="h-36">
+                        <MiniChart symbol="SOLUSD" theme={theme} />
+                      </div>
                     </CardContent>
                   </Card>
                 )}
