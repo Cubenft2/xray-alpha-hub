@@ -28,7 +28,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   };
 
   const navigation = [
-    { name: 'Intelligence', href: '/' },
+    { name: 'Home', href: '/' },
     { name: 'Markets', href: '/markets' },
     { name: 'Watch', href: '/watchlist' },
     { name: 'News', href: '/news' },
