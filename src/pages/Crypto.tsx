@@ -79,8 +79,8 @@ export default function Crypto() {
       <div className="w-full">
         <div className="container mx-auto">
           <div className="text-center space-y-2">
-            <h1 className="text-4xl font-bold xr-gradient-text font-pixel">🪙 Crypto Markets</h1>
-            <p className="text-muted-foreground text-lg">Real-time cryptocurrency data, charts, and analysis</p>
+            <h1 className="text-2xl font-bold xr-gradient-text font-pixel">🪙 Crypto Markets</h1>
+            <p className="text-muted-foreground text-base">Real-time cryptocurrency data, charts, and analysis</p>
             <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground font-pixel mt-4">
               <span>📊 Live Charts</span>
               <span>•</span>
@@ -100,14 +100,6 @@ export default function Crypto() {
       {/* Interactive Chart */}
       <div className="w-full">
         <div className="container mx-auto">
-          <div className="mb-4">
-            <h2 className="text-2xl font-bold text-center font-pixel text-primary">
-              📈 Live Trading Chart
-            </h2>
-            <p className="text-center text-muted-foreground">
-              Search for any crypto symbol in the header to update the chart
-            </p>
-          </div>
           <TradingViewChart symbol={chartSymbol} height="700px" />
         </div>
       </div>
