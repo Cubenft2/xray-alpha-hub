@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Share, Copy, ExternalLink, TrendingUp, BarChart3 } from 'lucide-react';
+import { Share, Copy, ExternalLink, TrendingUp, BarChart3, Users, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MiniChart } from '@/components/MiniChart';
-import { MarketDataWidgets } from '@/components/MarketDataWidgets';
+import { MarketOverview } from '@/components/MarketOverview';
+import { ComprehensiveTopMovers } from '@/components/ComprehensiveTopMovers';
+import { SocialSentimentBoard } from '@/components/SocialSentimentBoard';
 import { StoicQuote } from '@/components/StoicQuote';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
@@ -338,79 +340,98 @@ export default function MarketBriefHome() {
               </details>
             )}
 
-            {/* Market Data Widgets Section */}
+            {/* Market Overview Section */}
+            <div className="border-t border-border pt-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Market Overview</h3>
+              </div>
+              <MarketOverview marketData={briefData} />
+            </div>
+
+            {/* Top Movers & Trending Section */}
             <div className="border-t border-border pt-6 mb-6">
               <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Market Data & Sentiment</h3>
+                <h3 className="text-lg font-semibold">Market Movers & Trending</h3>
               </div>
-              <MarketDataWidgets marketData={briefData} />
+              <ComprehensiveTopMovers marketData={briefData} />
+            </div>
+
+            {/* Social Sentiment Section */}
+            <div className="border-t border-border pt-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
+              </div>
+              <SocialSentimentBoard marketData={briefData} />
             </div>
 
             {/* Market Charts Section */}
             <div className="border-t border-border pt-6 mb-6">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Market Focus - Assets Mentioned in Brief</h3>
+                <h3 className="text-lg font-semibold">Market Focus - Featured Assets</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Dynamic charts based on brief focus_assets */}
-                {brief.focus_assets?.includes('SPX') && (
+                {/* Always show BTC and ETH */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Bitcoin (BTC)</div>
+                    <div className="h-36">
+                      <MiniChart symbol="BTCUSD" theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Ethereum (ETH)</div>
+                    <div className="h-36">
+                      <MiniChart symbol="ETHUSD" theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Dynamic charts based on featured assets */}
+                {briefData?.featured_assets?.includes('SOL') && (
                   <Card className="h-48">
                     <CardContent className="p-3">
-                      <div className="text-sm font-medium mb-2 text-center">S&P 500</div>
+                      <div className="text-sm font-medium mb-2 text-center">Solana (SOL)</div>
                       <div className="h-36">
-                        <MiniChart symbol="SPX" theme={theme} />
+                        <MiniChart symbol="SOLUSD" theme={theme} />
                       </div>
                     </CardContent>
                   </Card>
                 )}
-                {brief.focus_assets?.includes('BTC') && (
+
+                {/* Add S&P 500 for market context */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">S&P 500</div>
+                    <div className="h-36">
+                      <MiniChart symbol="SPX" theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Add DXY when discussing macro */}
+                {brief.article_html?.toLowerCase().includes('dollar') && (
                   <Card className="h-48">
                     <CardContent className="p-3">
-                      <div className="text-sm font-medium mb-2 text-center">Bitcoin</div>
+                      <div className="text-sm font-medium mb-2 text-center">US Dollar Index</div>
                       <div className="h-36">
-                        <MiniChart symbol="BTCUSD" theme={theme} />
+                        <MiniChart symbol="DXY" theme={theme} />
                       </div>
                     </CardContent>
                   </Card>
                 )}
-                {brief.focus_assets?.includes('ETH') && (
+
+                {/* Add Gold when discussing safe havens */}
+                {(brief.article_html?.toLowerCase().includes('gold') || brief.article_html?.toLowerCase().includes('safe haven')) && (
                   <Card className="h-48">
                     <CardContent className="p-3">
-                      <div className="text-sm font-medium mb-2 text-center">Ethereum</div>
-                      <div className="h-36">
-                        <MiniChart symbol="ETHUSD" theme={theme} />
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-                {/* Always show key Fed-related charts when discussing Fed policy */}
-                {brief.article_html?.toLowerCase().includes('fed') && (
-                  <>
-                    <Card className="h-48">
-                      <CardContent className="p-3">
-                        <div className="text-sm font-medium mb-2 text-center">US Dollar Index</div>
-                        <div className="h-36">
-                          <MiniChart symbol="DXY" theme={theme} />
-                        </div>
-                      </CardContent>
-                    </Card>
-                    <Card className="h-48">
-                      <CardContent className="p-3">
-                        <div className="text-sm font-medium mb-2 text-center">10-Year Treasury</div>
-                        <div className="h-36">
-                          <MiniChart symbol="TNX" theme={theme} />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
-                {/* Show Gold when discussing inflation or uncertainty */}
-                {(brief.article_html?.toLowerCase().includes('inflation') || brief.article_html?.toLowerCase().includes('uncertainty')) && (
-                  <Card className="h-48">
-                    <CardContent className="p-3">
-                      <div className="text-sm font-medium mb-2 text-center">Gold</div>
+                      <div className="text-sm font-medium mb-2 text-center">Gold (XAU/USD)</div>
                       <div className="h-36">
                         <MiniChart symbol="XAUUSD" theme={theme} />
                       </div>
