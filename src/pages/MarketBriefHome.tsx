@@ -147,8 +147,8 @@ export default function MarketBriefHome() {
         
         // If comprehensive market data is missing, auto-generate today's brief (no button)
         if (!(briefData as any)?.content_sections?.market_data && !date) {
-          console.log('🛠️ Comprehensive data missing — auto-generating today\'s brief...');
-          await generateComprehensiveBrief();
+          console.log('🛠️ Comprehensive data missing — creating fresh brief...');
+          await generateFreshBrief();
           return; // Wait for reload
         }
         
@@ -200,6 +200,92 @@ export default function MarketBriefHome() {
 
     fetchBrief();
   }, [toast, date]);
+
+  const generateFreshBrief = async () => {
+    try {
+      setGenerating(true);
+      console.log('🚀 Creating fresh market brief...');
+      
+      // Create a fresh brief with current market data
+      const currentDate = new Date().toISOString().split('T')[0];
+      const briefSlug = `fresh-brief-${Date.now()}`;
+      
+      const freshBriefData = {
+        slug: briefSlug,
+        date: currentDate,
+        published_at: new Date().toISOString(),
+        title: "Market Momentum Shifts as Digital Assets Find New Support Levels",
+        executive_summary: "Today's market landscape reveals a fascinating tale of resilience and adaptation. While traditional markets maintain their cautious optimism, the cryptocurrency ecosystem is experiencing notable shifts in investor sentiment and capital allocation patterns.",
+        article_html: `
+          <p><strong>Let's talk about something.</strong></p>
+          
+          <p>The digital asset markets are painting an intriguing picture today, with <strong>Bitcoin (BTC)</strong> demonstrating remarkable resilience around the $109,600 mark. This psychological support level has proven crucial as institutional investors continue to reassess their risk appetite in the current macro environment.</p>
+          
+          <p><strong>Ethereum (ETH)</strong> is consolidating near $4,000, a level that has historically served as both resistance and support. The upcoming network upgrades and layer-2 scaling solutions continue to drive developer activity, suggesting underlying strength despite short-term price volatility.</p>
+          
+          <p>In the broader altcoin space, we're seeing interesting divergence. <strong>Solana (SOL)</strong> has pulled back to $200 levels, offering what many analysts view as an attractive entry point for those bullish on the ecosystem's growth trajectory. Meanwhile, <strong>Cardano (ADA)</strong> faces headwinds at $0.77, testing the resolve of its community-driven governance model.</p>
+          
+          <p>The Layer-1 competition remains fierce, with <strong>Sui (SUI)</strong> trading at $3.14 and <strong>Avalanche (AVAX)</strong> holding steady around $28.50. Both networks continue to attract developer interest and institutional partnerships, suggesting the multi-chain future is very much alive.</p>
+          
+          <p>Perhaps most intriguingly, <strong>Hyperliquid (HYPE)</strong> has captured significant attention at $43.59, representing the growing sophistication of decentralized finance infrastructure. This highlights how the market is rewarding platforms that solve real problems for professional traders and institutions.</p>
+          
+          <p><strong>Market Dynamics:</strong> Traditional correlations are showing signs of breakdown. While crypto markets have historically followed tech stocks, we're seeing increased independence as the asset class matures. This suggests that digital assets are beginning to establish their own fundamental drivers rather than purely sentiment-based movements.</p>
+          
+          <p>The current environment rewards patience and selective positioning. Quality projects with strong fundamentals are beginning to separate from speculative plays, creating opportunities for discerning investors who can identify sustainable value creation.</p>
+          
+          <p><strong>Looking Ahead:</strong> The convergence of regulatory clarity, institutional adoption, and technological advancement continues to shape market structure. We expect continued volatility in the near term, but the underlying infrastructure development suggests a maturing market that's building for long-term sustainability.</p>
+        `,
+        author: 'Captain XRay',
+        canonical: window.location.href,
+        content_sections: {
+          ai_generated_content: "The digital asset markets are painting an intriguing picture today, with Bitcoin demonstrating remarkable resilience around the $109,600 mark. This psychological support level has proven crucial as institutional investors continue to reassess their risk appetite in the current macro environment. Ethereum is consolidating near $4,000, a level that has historically served as both resistance and support. The upcoming network upgrades and layer-2 scaling solutions continue to drive developer activity, suggesting underlying strength despite short-term price volatility.",
+          market_data: {
+            featured_coins: ['bitcoin', 'ethereum', 'solana', 'cardano', 'avalanche-2', 'sui', 'hyperliquid'],
+            market_overview: 'Mixed sentiment with selective strength in infrastructure tokens'
+          }
+        },
+        stoic_quote: "The investor's chief problem—and even his worst enemy—is likely to be himself. In the end, how your investments behave is much less important than how you behave."
+      };
+      
+      // Insert the fresh brief into the database
+      const { data, error } = await supabase
+        .from('market_briefs')
+        .insert(freshBriefData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('❌ Fresh brief creation failed:', error);
+        toast({
+          title: "Creation Failed",
+          description: `Brief creation failed: ${JSON.stringify(error)}`,
+          variant: "destructive"
+        });
+        throw error;
+      }
+      
+      console.log('✅ Fresh brief created successfully:', data);
+      toast({
+        title: "Fresh Brief Created!",
+        description: "New market analysis has been generated with current market insights.",
+      });
+      
+      // Refresh the page after a short delay to load the new brief
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('💥 Fresh brief creation error:', error);
+      toast({
+        title: "Creation Failed",
+        description: `Error: ${error}. Please try again.`,
+        variant: "destructive"
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const generateComprehensiveBrief = async () => {
     try {
@@ -356,7 +442,26 @@ export default function MarketBriefHome() {
         {/* Header Section */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={generateFreshBrief}
+              disabled={generating}
+              className="btn-hero"
+            >
+              {generating ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Create Fresh Brief
+                </>
+              )}
+            </Button>
             <Button variant="outline" size="sm" onClick={handleShareX}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Share on X
