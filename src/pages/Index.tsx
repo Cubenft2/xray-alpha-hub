@@ -52,11 +52,11 @@ const Index = () => {
       
       if (error) throw error;
       
-      toast.success('Fresh market brief generated!');
+      toast.success('Fresh market brief published!');
       refetchBriefs();
     } catch (error) {
-      console.error('Error generating brief:', error);
-      toast.error('Failed to generate market brief');
+      console.error('Error creating brief:', error);
+      toast.error('Failed to create market brief');
     } finally {
       setIsGenerating(false);
     }
@@ -120,7 +120,7 @@ const Index = () => {
               ) : (
                 <Sparkles className="h-4 w-4 mr-2" />
               )}
-              Generate Brief
+              Create Brief
             </Button>
           </div>
         )}
@@ -133,7 +133,7 @@ const Index = () => {
             ) : (
               <RefreshCw className="h-4 w-4 mr-2" />
             )}
-            Generate New Brief
+            Refresh Brief
           </Button>
         </div>
       </div>

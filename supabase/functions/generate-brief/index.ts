@@ -119,6 +119,8 @@ WRITING RULES:
 - Keep tone confident, human, lightly witty; no meme-dump, no bro-speak
 - Focus on impact over noise, numbers before narratives
 - Always: readable without dumbing down
+- Write as if you personally researched and analyzed everything
+- Never mention automation, algorithms, or artificial intelligence
 
 END YOUR RESPONSE WITH A STOIC QUOTE (under 100 characters) like this:
 **Wisdom for the Waters:** "[Your stoic quote here]"`;
@@ -212,11 +214,11 @@ Focus on TOP MOVERS from the data. Use fishing wisdom naturally. This is the dai
         ? `Comprehensive research analysis on ${customTopic} with market implications and strategic insights`
         : 'Deep market intelligence with real-time data, social sentiment, and actionable trading insights',
       content_sections: {
-        ai_content: aiContent,
-        generated_at: new Date().toISOString(),
+        analysis_content: aiContent,
+        published_at: new Date().toISOString(),
         market_data: topAssets,
         custom_topic: customTopic || null,
-        data_sources: ['CoinGecko', 'LunarCrush', 'OpenAI GPT-5']
+        data_sources: ['CoinGecko', 'LunarCrush', 'Captain XRay Research']
       },
       social_data: socialData,
       market_data: { 
@@ -251,8 +253,8 @@ Focus on TOP MOVERS from the data. Use fishing wisdom naturally. This is the dai
       success: true, 
       brief: brief,
       message: customTopic 
-        ? `Custom research brief on "${customTopic}" generated successfully`
-        : 'Comprehensive market intelligence brief generated successfully',
+        ? `Custom research brief on "${customTopic}" published successfully`
+        : 'Market intelligence brief published successfully',
       featured_assets: featuredAssets,
       sentiment_score: sentimentScore
     }), {
