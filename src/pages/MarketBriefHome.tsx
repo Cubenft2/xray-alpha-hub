@@ -27,48 +27,12 @@ export default function MarketBriefHome() {
   const { date } = useParams();
   const [brief, setBrief] = useState<MarketBrief | null>(null);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
+  
   const [imageLoaded, setImageLoaded] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const { toast } = useToast();
   const { theme } = useTheme();
 
-  const generateTodaysBrief = async () => {
-    try {
-      setGenerating(true);
-      console.log('🐕 XRay: Generating today\'s market brief...');
-      
-      const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
-        body: {}
-      });
-      
-      if (error) {
-        console.error('🐕 XRay: Brief generation failed:', error);
-        throw error;
-      }
-      
-      console.log('🐕 XRay: Brief generated successfully!', data);
-      toast({
-        title: "Success!",
-        description: "Today's market brief has been generated. Refreshing page...",
-      });
-      
-      // Refresh the page to show the new brief
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('🐕 XRay: Brief generation error:', error);
-      toast({
-        title: "Generation Failed",
-        description: "Could not generate today's market brief. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setGenerating(false);
-    }
-  };
 
   useEffect(() => {
     const fetchBrief = async () => {
@@ -111,12 +75,24 @@ export default function MarketBriefHome() {
         console.log('🐕 XRay: Brief loaded successfully!', briefData);
         
         // Convert database format to expected format
+        const aiText = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
+        const articleHtmlFromAI = aiText
+          ? `<p>${aiText
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\n\n+/g, '</p><p>')
+              .replace(/\n/g, '<br/>')
+            }</p>`
+          : '';
+
         const brief: MarketBrief = {
           slug: briefData.slug || briefData.date || '',
-          date: briefData.date || '',
+          date: briefData.published_at ? new Date(briefData.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : (briefData.date || ''),
           title: briefData.title || '',
-          summary: briefData.summary || '',
-          article_html: briefData.article_html || '',
+          summary: briefData.executive_summary || briefData.summary || '',
+          article_html: briefData.article_html || articleHtmlFromAI || '',
           last_word: '',
           social_text: '',
           sources: [],
@@ -261,15 +237,6 @@ export default function MarketBriefHome() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
           <div className="flex items-center gap-2">
-            <Button 
-              variant="default" 
-              size="sm" 
-              onClick={generateTodaysBrief}
-              disabled={generating}
-            >
-              <TrendingUp className="w-4 h-4 mr-2" />
-              {generating ? 'Generating...' : 'Generate Today\'s Brief'}
-            </Button>
             <Button variant="outline" size="sm" onClick={handleShareX}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Share on X
