@@ -116,65 +116,8 @@ const Index = () => {
     <div className="py-6">
       <FinancialDisclaimer />
       
-      <div className="container mx-auto p-6 space-y-8">
-        {/* Header with controls */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold xr-gradient-text">🎣 Captain XRay's Market Brief</h1>
-            <p className="text-muted-foreground mt-1">
-              Daily crypto intelligence with interactive charts & deep research
-            </p>
-          </div>
-          <div className="flex gap-3">
-            {isVip && (
-              <Button 
-                onClick={generateNewBrief} 
-                disabled={isGenerating}
-                size="sm"
-                variant="outline"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Fresh Brief
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Custom Topic Generator - Compact */}
-        {isVip && (
-          <Card className="xr-card border-primary/20">
-            <CardContent className="p-4">
-              <div className="flex gap-3 items-center">
-                <Target className="h-4 w-4 text-primary flex-shrink-0" />
-                <Input
-                  placeholder="Generate custom brief: Hyperliquidity, DeFi trends, Layer 2..."
-                  value={customTopic}
-                  onChange={(e) => setCustomTopic(e.target.value)}
-                  className="flex-1"
-                  onKeyDown={(e) => e.key === 'Enter' && customTopic.trim() && generateCustomBrief()}
-                />
-                <Button 
-                  onClick={generateCustomBrief}
-                  disabled={isGenerating || !customTopic.trim()}
-                  size="sm"
-                >
-                  Generate
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Main Brief Display */}
+      <div className="container mx-auto p-6">
+        {/* Main Brief Display - Clean Presentation */}
         <div className="space-y-8">
           {briefsLoading ? (
             <div className="text-center py-20">
@@ -185,68 +128,111 @@ const Index = () => {
           ) : latestBrief ? (
             <MarketBriefDisplay brief={latestBrief} />
           ) : (
-            <Card className="text-center py-20 xr-card border-dashed">
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="text-6xl">🎣</div>
-                  <h3 className="text-xl font-semibold">No market brief available yet</h3>
-                  <p className="text-muted-foreground max-w-md mx-auto">
-                    Generate your first comprehensive market brief with AI-powered analysis, 
-                    interactive charts, and Captain XRay's signature fishing wisdom.
-                  </p>
-                  {isVip && (
-                    <Button onClick={generateNewBrief} className="mt-6" disabled={isGenerating}>
-                      {isGenerating ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Generating Brief...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Generate First Brief
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <div className="text-center py-20">
+              <div className="space-y-4">
+                <div className="text-6xl">🎣</div>
+                <h3 className="text-xl font-semibold">Market Brief Loading...</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Fresh market intelligence is being prepared. Please check back in a moment.
+                </p>
+                {isVip && (
+                  <Button 
+                    onClick={generateNewBrief} 
+                    disabled={isGenerating}
+                    variant="ghost"
+                    size="sm"
+                    className="mt-6 opacity-50 hover:opacity-100"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Load Brief
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
         {/* Previous Briefs - Compact List */}
         {briefs && briefs.length > 1 && (
-          <Card className="xr-card">
-            <CardHeader>
-              <CardTitle className="text-lg">📚 Previous Briefs</CardTitle>
-              <CardDescription>
-                Recent market intelligence reports
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {briefs.slice(1, 4).map((brief) => (
-                  <div key={brief.id} className="flex items-center justify-between p-3 rounded-lg border bg-background/50 hover:bg-background/80 transition-colors">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">{brief.title}</h4>
-                      <p className="text-sm text-muted-foreground truncate">{brief.executive_summary}</p>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <Badge variant="outline" className="text-xs">
-                        {new Date(brief.published_at).toLocaleDateString()}
-                      </Badge>
-                      {brief.sentiment_score && (
-                        <Badge variant={brief.sentiment_score > 0 ? 'default' : 'destructive'} className="text-xs">
-                          {brief.sentiment_score.toFixed(1)}
+          <div className="mt-16">
+            <Card className="xr-card">
+              <CardHeader>
+                <CardTitle className="text-lg">📚 Previous Market Intelligence</CardTitle>
+                <CardDescription>
+                  Recent analysis and market reports
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {briefs.slice(1, 4).map((brief) => (
+                    <div key={brief.id} className="flex items-center justify-between p-3 rounded-lg border bg-background/50 hover:bg-background/80 transition-colors cursor-pointer">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium truncate">{brief.title}</h4>
+                        <p className="text-sm text-muted-foreground truncate">{brief.executive_summary}</p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Badge variant="outline" className="text-xs">
+                          {new Date(brief.published_at).toLocaleDateString()}
                         </Badge>
-                      )}
+                        {brief.sentiment_score && (
+                          <Badge variant={brief.sentiment_score > 0 ? 'default' : 'destructive'} className="text-xs">
+                            {brief.sentiment_score.toFixed(1)}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Hidden Admin Controls - Only for VIP */}
+        {isVip && (
+          <div className="fixed bottom-4 right-4 space-y-2 opacity-30 hover:opacity-100 transition-opacity">
+            <Button 
+              onClick={generateNewBrief} 
+              disabled={isGenerating}
+              size="sm"
+              variant="outline"
+              className="shadow-lg"
+            >
+              {isGenerating ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+            </Button>
+            {customTopic && (
+              <div className="flex gap-1">
+                <Input
+                  placeholder="Custom topic..."
+                  value={customTopic}
+                  onChange={(e) => setCustomTopic(e.target.value)}
+                  className="text-xs h-8 w-32"
+                  onKeyDown={(e) => e.key === 'Enter' && customTopic.trim() && generateCustomBrief()}
+                />
+                <Button 
+                  onClick={generateCustomBrief}
+                  disabled={isGenerating || !customTopic.trim()}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Target className="h-3 w-3" />
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            )}
+          </div>
         )}
       </div>
     </div>
