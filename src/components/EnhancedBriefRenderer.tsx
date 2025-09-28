@@ -11,7 +11,22 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   const navigate = useNavigate();
 
   const handleTickerClick = (ticker: string) => {
-    // Map common crypto symbols to TradingView format for proper navigation
+    const upperTicker = ticker.toUpperCase();
+    
+    // Tickers that should redirect to CoinGecko instead of local charts
+    const coingeckoTickers: { [key: string]: string } = {
+      'FIGR_HELOC': 'figure-heloc',
+      'FIGR': 'figure',
+      // Add other unavailable tickers here as needed
+    };
+    
+    // Check if ticker should redirect to CoinGecko
+    if (coingeckoTickers[upperTicker]) {
+      window.open(`https://www.coingecko.com/en/coins/${coingeckoTickers[upperTicker]}`, '_blank');
+      return;
+    }
+    
+    // Map common crypto symbols to TradingView format for local navigation
     const cryptoMappings: { [key: string]: string } = {
       'BTC': 'BINANCE:BTCUSDT',
       'BITCOIN': 'BINANCE:BTCUSDT',
@@ -42,9 +57,6 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       'BNB': 'BINANCE:BNBUSDT',
       'WBTC': 'BINANCE:WBTCUSDT',
       'USDE': 'BINANCE:USDEUSDT',
-      // Note: FIGR_HELOC may not be available on exchanges - skip for now
-      // 'FIGR_HELOC': 'BINANCE:FIGRUSDT',
-      // 'FIGR': 'BINANCE:FIGRUSDT',
       // Stock mappings
       'SPX': 'SP:SPX',
       'DXY': 'TVC:DXY',
@@ -52,7 +64,6 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       'GOLD': 'OANDA:XAUUSD'
     };
     
-    const upperTicker = ticker.toUpperCase();
     const tradingViewSymbol = cryptoMappings[upperTicker] || `BINANCE:${upperTicker}USDT`;
     navigate(`/crypto?symbol=${tradingViewSymbol}`);
   };

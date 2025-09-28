@@ -74,8 +74,8 @@ export default function MarketBriefHome() {
       'BNB': { symbol: 'BNBUSD', displayName: 'BNB (BNB)' },
       'WBTC': { symbol: 'WBTCUSD', displayName: 'Wrapped Bitcoin (WBTC)' },
       'USDE': { symbol: 'USDEUSD', displayName: 'Ethena USDe (USDe)' },
-'FIGR_HELOC': { symbol: 'FIGR_HELOC', displayName: 'Figure HELOC (FIGR_HELOC)' },
-      // Stock/Index mappings  
+      // Note: FIGR_HELOC redirects to CoinGecko instead of local chart
+      // Stock/Index mappings
       'SPX': { symbol: 'SP:SPX', displayName: 'S&P 500' },
       'DXY': { symbol: 'DXY', displayName: 'US Dollar Index' },
       'XAUUSD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' },
