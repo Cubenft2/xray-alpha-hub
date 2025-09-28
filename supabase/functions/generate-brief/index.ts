@@ -7,18 +7,60 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const STOIC_QUOTES = [
-  "The best trader is one who can adapt to changing tides without losing sight of the horizon.",
-  "In the market's storms, the wise captain doesn't fight the waves—they navigate through them.",
-  "A smooth sea never made a skilled sailor, just as easy profits never made a wise trader.",
-  "The market will test your patience like the ocean tests a fisherman's resolve.",
-  "Fortune favors the prepared mind, but it rewards the disciplined hand.",
-  "What we control is our response to the market, not the market itself.",
-  "The best time to repair your nets is when the sea is calm.",
-  "Every loss is a lesson the market offers for the price of tuition.",
-  "The wise trader fishes with patience, not desperation.",
-  "In volatile waters, steady hands catch the biggest fish."
-];
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY')!;
+const coinGeckoApiKey = Deno.env.get('COINGECKO_API_KEY')!;
+const lunarCrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY')!;
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Fetch comprehensive market data
+async function fetchMarketData() {
+  try {
+    console.log('Fetching market data from CoinGecko...');
+    
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=1h%2C24h%2C7d&x_cg_demo_api_key=${coinGeckoApiKey}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`CoinGecko API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching market data:', error);
+    return [];
+  }
+}
+
+// Fetch social sentiment data
+async function fetchSocialData() {
+  try {
+    console.log('Fetching social data from LunarCrush...');
+    
+    const response = await fetch(
+      `https://lunarcrush.com/api3/coins?data=market&type=fast&sort=galaxy_score&limit=20`,
+      {
+        headers: {
+          'Authorization': `Bearer ${lunarCrushApiKey}`,
+        },
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error(`LunarCrush API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching social data:', error);
+    return { data: [] };
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -26,183 +68,205 @@ serve(async (req) => {
   }
 
   try {
-    const { briefType = 'premarket' } = await req.json();
+    console.log('Starting comprehensive brief generation process...');
     
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openaiKey = Deno.env.get('OPENAI_API_KEY')!;
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    console.log(`🎣 Generating ${briefType} market brief...`);
-
-    // Get latest social sentiment data
-    const { data: socialData, error: socialError } = await supabase
-      .from('social_sentiment')
-      .select('*')
-      .order('data_timestamp', { ascending: false })
-      .limit(10);
-
-    if (socialError) {
-      console.error('Error fetching social data:', socialError);
+    // Parse request body for custom topic
+    let customTopic = '';
+    try {
+      const body = await req.json();
+      customTopic = body?.customTopic || '';
+    } catch {
+      // No body or invalid JSON, continue with default brief
     }
-
-    // Get latest market alerts
-    const { data: alertsData, error: alertsError } = await supabase
-      .from('market_alerts')
-      .select('*')
-      .eq('is_active', true)
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    if (alertsError) {
-      console.error('Error fetching alerts:', alertsError);
-    }
-
-    // Generate current market context
-    const currentTime = new Date();
-    const timeContext = briefType === 'premarket' ? 'before market open' : 
-                       briefType === 'postmarket' ? 'after market close' : 
-                       briefType === 'weekend' ? 'weekend analysis' : 'special brief';
-
-    const marketContext = {
-      timeContext,
-      briefType,
-      socialSentiment: socialData || [],
-      marketAlerts: alertsData || [],
-      timestamp: currentTime.toISOString(),
-      topAssets: socialData?.slice(0, 5).map(d => ({ 
-        symbol: d.asset_symbol, 
-        sentiment: d.sentiment_score,
-        volume: d.social_volume 
-      })) || []
-    };
-
-    // Generate AI brief
-    console.log('🤖 Calling OpenAI for brief generation...');
     
-    const systemPrompt = `You are the market brief writer with an American-Latino fisherman persona. Your voice is:
+    // Fetch real market data
+    const [marketData, socialData] = await Promise.all([
+      fetchMarketData(),
+      fetchSocialData()
+    ]);
+    
+    console.log(`Fetched ${marketData.length} coins and social data`);
+    
+    // Extract top assets and key metrics
+    const topAssets = marketData.slice(0, 10).map((coin: any) => ({
+      symbol: coin.symbol.toUpperCase(),
+      name: coin.name,
+      price: coin.current_price,
+      change_24h: coin.price_change_percentage_24h,
+      market_cap: coin.market_cap,
+      volume: coin.total_volume
+    }));
+    
+    const featuredAssets = topAssets.slice(0, 5).map((asset: any) => asset.symbol);
+    
+    // Build comprehensive prompt
+    let systemPrompt = `You are Captain XRay, a legendary crypto analyst and fishing enthusiast. You've been tracking crypto markets for over a decade, using fishing wisdom to guide traders through volatile waters.
 
-IDENTITY: American-Latino narrator, fisherman/traveler vibes, plainspoken but sharp
-OPENER: Always start with "Let's talk about something..."
-TONE: Witty, confident, clear (John Oliver sarcasm + fishing analogies, but professional)
-FACTUAL: Only use verified data provided. No invention. Be realistic but not offensive.
-STYLE: Can be sarcastic but respectful. Use technical jargon but explain for newcomers.
-OPTIMISM: Optimistic but cautious. Confident but realistic.
+PERSONALITY: Wise, experienced, uses fishing analogies naturally, folksy but analytical, occasionally philosophical with stoic wisdom.
 
-STRUCTURE:
-1. Executive Summary (2-3 sentences)
-2. Opener (Let's talk about something...)
-3. What Happened (facts from data)
-4. Why It Matters (analysis)
-5. Market Reaction (sentiment/social data)
-6. What to Watch Next (forward-looking)
-7. Last Word (personal sign-off)
-8. Mini-section with fishing theme
-9. Wisdom for the Waters (Stoic quote)
+WRITING STYLE: 
+- Use fishing metaphors naturally (not forced)
+- Keep tone conversational but informative  
+- Include specific data and actionable insights
+- Add personal observations and market wisdom
+- Structure with clear sections and bullet points`;
 
-Use fishing/ocean analogies naturally. Target both salty traders and newcomers. Be worth reading.`;
+    let userPrompt = '';
+    
+    if (customTopic) {
+      userPrompt = `Write a comprehensive research brief about: "${customTopic}"
 
-    const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+Focus on:
+- Deep analysis of the topic
+- Current market implications
+- Key players and developments
+- Future outlook and opportunities
+- Your signature fishing wisdom applied to this topic
+
+Use the current market data provided to give context where relevant.`;
+    } else {
+      userPrompt = `Generate a comprehensive crypto market intelligence brief using this REAL market data:
+
+TOP CRYPTO ANALYSIS:
+${topAssets.map((asset: any) => 
+  `• ${asset.name} (${asset.symbol}): $${asset.price.toFixed(4)} | 24h: ${asset.change_24h.toFixed(2)}% | Vol: $${(asset.volume/1e9).toFixed(2)}B`
+).join('\n')}
+
+BRIEF REQUIREMENTS:
+1. **Executive Summary** - Key market moves and sentiment
+2. **Deep Dive Analysis** - Focus on top movers and why
+3. **Whale Watch** - Large volume movements and implications  
+4. **Social Sentiment** - Community buzz and trending topics
+5. **Fishing Wisdom** - Your perspective on current market psychology
+6. **Action Items** - Specific opportunities and risks to watch
+
+Make it comprehensive, data-driven, and include your signature fishing analogies. This is premium intelligence, not basic news.`;
+    }
+    
+    // Add market context to system prompt
+    systemPrompt += `\n\nCURRENT MARKET CONTEXT:\n${JSON.stringify({ topAssets, timestamp: new Date().toISOString() }, null, 2)}`;
+    
+    // Generate AI content with comprehensive research
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiKey}`,
+        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-5-2025-08-07',
         messages: [
           { role: 'system', content: systemPrompt },
-          { 
-            role: 'user', 
-            content: `Generate a ${briefType} market brief using this data: ${JSON.stringify(marketContext)}. 
-            Focus on crypto markets, social sentiment analysis, and provide actionable insights. 
-            Make it engaging for both experienced traders and newcomers.` 
-          }
+          { role: 'user', content: userPrompt }
         ],
-        max_tokens: 2000,
-        temperature: 0.8
+        max_completion_tokens: 3000,
       }),
     });
 
-    const aiData = await aiResponse.json();
-    
-    if (!aiData.choices?.[0]?.message?.content) {
-      throw new Error('Failed to generate AI content');
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
     }
 
-    const briefContent = aiData.choices[0].message.content;
-    console.log('✅ AI brief generated successfully');
+    const aiData = await response.json();
+    const aiContent = aiData.choices[0].message.content;
 
-    // Select random Stoic quote
-    const randomQuote = STOIC_QUOTES[Math.floor(Math.random() * STOIC_QUOTES.length)];
+    console.log('AI content generated successfully');
+
+    // Generate stoic quote
+    const quoteResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-5-mini-2025-08-07',
+        messages: [
+          {
+            role: 'system',
+            content: 'Generate a brief stoic philosophy quote related to trading psychology and market wisdom. Keep it under 100 characters.'
+          },
+          {
+            role: 'user',
+            content: 'Generate a stoic quote about patience and wisdom in volatile markets.'
+          }
+        ],
+        max_completion_tokens: 100,
+      }),
+    });
+
+    const quoteData = await quoteResponse.json();
+    const stoicQuote = quoteData.choices[0].message.content.replace(/"/g, '');
 
     // Calculate overall sentiment score
-    const avgSentiment = socialData && socialData.length > 0 
-      ? socialData.reduce((acc, curr) => acc + curr.sentiment_score, 0) / socialData.length 
-      : 0;
+    const avgChange = topAssets.reduce((sum: number, asset: any) => sum + asset.change_24h, 0) / topAssets.length;
+    const sentimentScore = Math.round(avgChange * 2); // Amplify for sentiment scale
 
-    // Create brief slug
-    const briefSlug = `${briefType}-brief-${currentTime.toISOString().split('T')[0]}-${Date.now()}`;
+    // Create comprehensive brief entry
+    const briefTitle = customTopic 
+      ? `Deep Dive: ${customTopic} - Captain XRay's Research`
+      : `Captain XRay's Market Intelligence - ${new Date().toLocaleDateString()}`;
+      
+    const briefData = {
+      brief_type: customTopic ? 'custom_research' : 'comprehensive_daily',
+      title: briefTitle,
+      slug: `${customTopic ? 'research' : 'market-brief'}-${Date.now()}`,
+      executive_summary: customTopic 
+        ? `Comprehensive research analysis on ${customTopic} with market implications and strategic insights`
+        : 'Deep market intelligence with real-time data, social sentiment, and actionable trading insights',
+      content_sections: {
+        ai_content: aiContent,
+        generated_at: new Date().toISOString(),
+        market_data: topAssets,
+        custom_topic: customTopic || null,
+        data_sources: ['CoinGecko', 'LunarCrush', 'OpenAI GPT-5']
+      },
+      social_data: socialData,
+      market_data: { 
+        top_assets: topAssets,
+        market_summary: {
+          avg_change_24h: avgChange,
+          total_market_cap: topAssets.reduce((sum: number, asset: any) => sum + asset.market_cap, 0),
+          total_volume: topAssets.reduce((sum: number, asset: any) => sum + asset.volume, 0)
+        }
+      },
+      stoic_quote: stoicQuote,
+      featured_assets: featuredAssets,
+      sentiment_score: sentimentScore,
+      is_published: true,
+      published_at: new Date().toISOString(),
+    };
 
-    // Store the brief
-    const { data: briefData, error: briefError } = await supabase
+    const { data: brief, error: briefError } = await supabase
       .from('market_briefs')
-      .insert({
-        brief_type: briefType,
-        title: `${briefType.charAt(0).toUpperCase() + briefType.slice(1)} Market Brief - ${currentTime.toLocaleDateString()}`,
-        slug: briefSlug,
-        executive_summary: `AI-generated ${briefType} market intelligence combining social sentiment and market analysis`,
-        content_sections: {
-          ai_generated_content: briefContent,
-          social_sentiment_data: socialData?.slice(0, 10) || [],
-          market_alerts: alertsData || [],
-          generation_timestamp: currentTime.toISOString(),
-          model_used: 'gpt-4o-mini'
-        },
-        social_data: {
-          top_assets: marketContext.topAssets,
-          total_tracked: socialData?.length || 0,
-          avg_sentiment: avgSentiment
-        },
-        market_data: {
-          brief_type: briefType,
-          alerts_count: alertsData?.length || 0,
-          time_context: timeContext
-        },
-        stoic_quote: randomQuote,
-        featured_assets: marketContext.topAssets.map(asset => asset.symbol),
-        sentiment_score: Math.round(avgSentiment * 100) / 100,
-        is_published: true,
-        published_at: currentTime.toISOString()
-      })
+      .insert(briefData)
       .select()
       .single();
 
     if (briefError) {
-      console.error('Error storing brief:', briefError);
+      console.error('Error inserting brief:', briefError);
       throw briefError;
     }
 
-    console.log(`🎣 ${briefType} market brief generated and stored successfully`);
+    console.log('Comprehensive brief created successfully:', brief.id);
 
-    return new Response(JSON.stringify({
-      success: true,
-      brief: briefData,
-      slug: briefSlug,
-      contentPreview: briefContent.substring(0, 300) + '...',
-      socialRecords: socialData?.length || 0,
-      alertsProcessed: alertsData?.length || 0,
-      sentimentScore: avgSentiment
+    return new Response(JSON.stringify({ 
+      success: true, 
+      brief: brief,
+      message: customTopic 
+        ? `Custom research brief on "${customTopic}" generated successfully`
+        : 'Comprehensive market intelligence brief generated successfully',
+      featured_assets: featuredAssets,
+      sentiment_score: sentimentScore
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('🔥 Error generating market brief:', error);
+    console.error('Error in generate-brief function:', error);
     return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-      details: 'Check function logs for more information'
+      error: error instanceof Error ? error.message : 'Unknown error',
+      success: false
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
