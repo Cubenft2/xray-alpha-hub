@@ -74,9 +74,7 @@ export default function MarketBriefHome() {
       'BNB': { symbol: 'BNBUSD', displayName: 'BNB (BNB)' },
       'WBTC': { symbol: 'WBTCUSD', displayName: 'Wrapped Bitcoin (WBTC)' },
       'USDE': { symbol: 'USDEUSD', displayName: 'Ethena USDe (USDe)' },
-      // Note: FIGR_HELOC may not be available on TradingView - skip for now
-      // 'FIGR_HELOC': { symbol: 'FIGRUSD', displayName: 'Figure Heloc (FIGR)' },
-      // 'FIGR': { symbol: 'FIGRUSD', displayName: 'Figure Heloc (FIGR)' },
+'FIGR_HELOC': { symbol: 'FIGR_HELOC', displayName: 'Figure HELOC (FIGR_HELOC)' },
       // Stock/Index mappings  
       'SPX': { symbol: 'SP:SPX', displayName: 'S&P 500' },
       'DXY': { symbol: 'DXY', displayName: 'US Dollar Index' },
