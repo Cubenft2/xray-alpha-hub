@@ -312,13 +312,13 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
     const { data: briefData, error: insertError } = await supabase
       .from('market_briefs')
       .insert({
-        brief_type: 'daily',
-        title: `Daily Market Brief - ${today.toLocaleDateString('en-US', { 
+        brief_type: 'premarket',
+        title: `Premarket Market Brief - ${today.toLocaleDateString('en-US', { 
           year: 'numeric', 
           month: 'long', 
           day: 'numeric' 
         })}`,
-        slug: `daily-market-brief-${dateStr}-${timestamp}`,
+        slug: `premarket-brief-${dateStr}-${timestamp}`,
         executive_summary: `Comprehensive daily market intelligence combining price action, social sentiment, and trend analysis. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads with ${biggestMover.price_change_percentage_24h > 0 ? '+' : ''}${biggestMover.price_change_percentage_24h.toFixed(1)}% move.` : 'Markets showing mixed signals.'}`,
         content_sections: {
           ai_generated_content: generatedAnalysis,
