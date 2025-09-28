@@ -204,79 +204,32 @@ export default function MarketBriefHome() {
   const generateFreshBrief = async () => {
     try {
       setGenerating(true);
-      console.log('🚀 Creating completely fresh market brief...');
-      
-      // Create a totally fresh brief with current market insights
-      const currentDate = new Date().toISOString().split('T')[0];
-      const briefSlug = `market-outlook-${Date.now()}`;
-      
-      const freshBriefData = {
-        slug: briefSlug,
-        date: currentDate,
-        published_at: new Date().toISOString(),
-        title: "Digital Assets Navigate Choppy Waters as Institutional Interest Evolves",
-        executive_summary: "Markets are showing signs of maturation as traditional financial dynamics increasingly influence crypto price action. Today's session reveals a complex interplay between macro sentiment, regulatory developments, and evolving institutional strategies that are reshaping the digital asset landscape.",
-        article_html: `
-          <p><strong>Let's talk about something.</strong></p>
-          
-          <p>The crypto markets are experiencing a fascinating phase of evolution right now. <strong>Bitcoin (BTC)</strong> continues to command attention around the six-figure mark, with $109,000+ levels acting as a psychological battleground between bulls and bears. The institutional narrative remains strong, but we're seeing more selective capital deployment as professional investors become increasingly sophisticated in their approach.</p>
-          
-          <p>What's particularly interesting is how <strong>Ethereum (ETH)</strong> is behaving near the $4,000 threshold. This isn't just about price action – it's about the fundamental shift happening in how the network is being utilized. Layer-2 adoption is accelerating, and we're seeing real-world applications gaining meaningful traction beyond speculative trading.</p>
-          
-          <p>The altcoin landscape tells a story of divergence and specialization. <strong>Solana (SOL)</strong> at $200 represents more than just a price point – it's a testament to the ecosystem's resilience and the growing sophistication of its developer community. The network's ability to handle high-frequency applications is becoming increasingly valuable as DeFi matures.</p>
-          
-          <p><strong>Cardano (ADA)</strong> around $0.77 faces critical momentum tests, while its methodical approach to development continues to attract long-term believers. The academic rigor behind the project remains a differentiator in a space often driven by rapid iteration over careful planning.</p>
-          
-          <p>In the competitive Layer-1 space, <strong>Sui (SUI)</strong> at $3.14 and <strong>Avalanche (AVAX)</strong> near $28.50 represent different philosophies on blockchain architecture. Both are carving out distinct niches – Sui focusing on object-centric programming models while Avalanche emphasizes subnet customization for enterprise applications.</p>
-          
-          <p>Perhaps most telling is <strong>Hyperliquid (HYPE)</strong> trading around $43.59. This represents the market's growing appreciation for infrastructure that serves professional traders. The platform's success suggests that the next phase of crypto adoption will be driven by sophisticated financial products rather than pure speculation.</p>
-          
-          <p><strong>Market Structure Evolution:</strong> We're witnessing a gradual shift from retail-driven volatility to more institutional-influenced price discovery. This doesn't eliminate volatility – it changes its character. Professional market makers and algorithmic traders are becoming more dominant, creating different risk-reward dynamics.</p>
-          
-          <p>The regulatory environment continues to evolve, with increased clarity in some jurisdictions creating new opportunities for compliant innovation. This is particularly evident in the derivatives markets, where institutional products are gaining acceptance and trading volume.</p>
-          
-          <p><strong>Forward Looking:</strong> The current environment rewards projects that can demonstrate real utility beyond token appreciation. We expect continued consolidation around platforms that solve genuine problems for users, whether that's scaling, interoperability, or specialized financial services. The market is becoming more discerning, which ultimately benefits sustainable projects with strong fundamentals.</p>
-        `,
-        author: 'Captain XRay',
-        canonical: window.location.href,
-        content_sections: {
-          ai_generated_content: "The crypto markets are experiencing a fascinating phase of evolution right now. Bitcoin continues to command attention around the six-figure mark, with $109,000+ levels acting as a psychological battleground between bulls and bears. The institutional narrative remains strong, but we're seeing more selective capital deployment as professional investors become increasingly sophisticated in their approach.",
-          market_data: {
-            featured_coins: ['bitcoin', 'ethereum', 'solana', 'cardano', 'avalanche-2', 'sui', 'hyperliquid'],
-            market_overview: 'Evolution toward institutional-driven price discovery with selective strength'
-          }
-        },
-        stoic_quote: "Time is the friend of the wonderful company, the enemy of the mediocre. In markets, as in life, patience and selectivity create the foundation for lasting success."
-      };
-      
-      // Insert the fresh brief into the database
-      const { data, error } = await supabase
-        .from('market_briefs')
-        .insert(freshBriefData)
-        .select()
-        .single();
-      
+      console.log('🚀 Generating fresh market brief via edge function...');
+
+      const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
+        body: {}
+      });
+
       if (error) {
-        console.error('❌ Fresh brief creation failed:', error);
+        console.error('❌ Brief generation failed:', error);
         toast({
-          title: "Creation Failed",
-          description: `Brief creation failed: ${JSON.stringify(error)}`,
+          title: "Generation Failed",
+          description: `Brief generation failed: ${JSON.stringify(error)}`,
           variant: "destructive"
         });
         throw error;
       }
-      
-      console.log('✅ Completely fresh brief created successfully:', data);
+
+      console.log('✅ Fresh brief generated successfully:', data);
       toast({
-        title: "Fresh Brief Generated!",
-        description: "Brand new market analysis created with today's insights and current market conditions.",
+        title: "Fresh Brief Published!",
+        description: data?.message || 'New brief created with current market insights.',
       });
-      
-      // Refresh the page after a short delay to load the new brief
+
       setTimeout(() => {
         window.location.reload();
-      }, 2000);
-      
+      }, 1500);
+
     } catch (error) {
       console.error('💥 Fresh brief creation error:', error);
       toast({

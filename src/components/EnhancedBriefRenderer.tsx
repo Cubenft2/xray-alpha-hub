@@ -10,7 +10,7 @@ interface EnhancedBriefRendererProps {
 export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted }: EnhancedBriefRendererProps) {
   const navigate = useNavigate();
 
-  const handleTickerClick = (ticker: string) => {
+  const handleTickerClick = React.useCallback((ticker: string) => {
     const upperTicker = ticker.toUpperCase();
     
     // Tickers that should redirect to CoinGecko search instead of local charts
@@ -65,9 +65,9 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     
     const tradingViewSymbol = cryptoMappings[upperTicker] || `BINANCE:${upperTicker}USDT`;
     navigate(`/crypto?symbol=${tradingViewSymbol}`);
-  };
+  }, [navigate]);
 
-  const enhanceContent = (text: string) => {
+  const processContent = (text: string) => {
     // Normalize any pre-existing HTML tags in the source to plain newlines first
     const normalized = text
       .replace(/<\/p>\s*<p>/gi, '\n\n')
@@ -125,15 +125,16 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       }
     });
 
-    // Call callback with extracted tickers
-    React.useEffect(() => {
-      if (onTickersExtracted && extractedTickers.length > 0) {
-        onTickersExtracted([...new Set(extractedTickers)]); // Remove duplicates
-      }
-    }, [extractedTickers.join(','), onTickersExtracted]);
-
-    return enhancedText;
+    return { html: enhancedText, tickers: extractedTickers };
   };
+
+  const { html: enhancedHtml, tickers } = React.useMemo(() => processContent(content), [content, enhancedTickers]);
+
+  React.useEffect(() => {
+    if (onTickersExtracted && tickers.length > 0) {
+      onTickersExtracted([...new Set(tickers)]);
+    }
+  }, [onTickersExtracted, tickers.join(',')]);
 
   React.useEffect(() => {
     // Add global click handler for ticker buttons
@@ -155,7 +156,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     };
   }, [handleTickerClick]);
 
-  const processedContent = `<div class="space-y-6"><p class="mb-6 leading-relaxed text-foreground/90">${enhanceContent(content)}</p></div>`;
+  const processedContent = `<div class="space-y-6"><p class="mb-6 leading-relaxed text-foreground/90">${enhancedHtml}</p></div>`;
 
   return (
     <div className="enhanced-brief font-medium text-base leading-7 space-y-4 font-pixel">
