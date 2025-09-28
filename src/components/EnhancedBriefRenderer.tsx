@@ -86,24 +86,31 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {} }: Enhance
   const processedContent = `<p class="mb-4 leading-relaxed text-foreground/90">${enhanceContent(content)}</p>`;
 
   return (
-    <div className="enhanced-brief font-medium text-base leading-7 space-y-4">
+    <div className="enhanced-brief font-medium text-base leading-7 space-y-4 font-pixel">
       <style>{`
         .enhanced-brief {
-          font-family: system-ui, -apple-system, 'Segoe UI', 'Roboto', sans-serif;
+          font-family: var(--font-pixel);
           line-height: 1.7;
+          letter-spacing: 0.02em;
         }
         .enhanced-brief p {
           margin-bottom: 1rem;
         }
         .enhanced-brief strong {
-          font-weight: 600;
+          font-weight: 700;
+          font-family: var(--font-pixel);
         }
         .ticker-link:hover, .ticker-link-enhanced:hover {
           transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+          box-shadow: var(--glow-primary);
         }
         .ticker-link-enhanced {
-          font-family: system-ui, -apple-system, monospace;
+          font-family: var(--font-mono);
+          font-weight: 600;
+        }
+        .ticker-link {
+          font-family: var(--font-pixel);
+          font-weight: 700;
         }
       `}</style>
       <div dangerouslySetInnerHTML={{ __html: processedContent }} />
