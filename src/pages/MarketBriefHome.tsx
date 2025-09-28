@@ -83,6 +83,13 @@ export default function MarketBriefHome() {
         // Store the raw database data for market widgets
         setBriefData(briefData);
         
+        // If comprehensive market data is missing, auto-generate today's brief (no button)
+        if (!(briefData as any)?.content_sections?.market_data && !date) {
+          console.log('🛠️ Comprehensive data missing — auto-generating today\'s brief...');
+          await generateComprehensiveBrief();
+          return; // Wait for reload
+        }
+        
         // Convert database format to expected format
         const aiText = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
         const articleHtmlFromAI = aiText
@@ -283,13 +290,6 @@ export default function MarketBriefHome() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
           <div className="flex items-center gap-2">
-            <Button 
-              onClick={generateComprehensiveBrief}
-              disabled={generating}
-              className="xr-button"
-            >
-              {generating ? 'Generating...' : 'Generate New Brief'}
-            </Button>
             <Button variant="outline" size="sm" onClick={handleShareX}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Share on X
@@ -400,13 +400,9 @@ export default function MarketBriefHome() {
                   <CardContent className="p-6 text-center">
                     <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">Comprehensive Market Data Unavailable</h3>
-                    <p className="text-muted-foreground mb-4">
-                      This brief doesn't contain the comprehensive market data (CoinGecko + LunarCrush). 
-                      Generate a new brief to see market overview, top movers, and social sentiment analysis.
+                    <p className="text-muted-foreground">
+                      Preparing today's comprehensive brief... This may take 10–20 seconds.
                     </p>
-                    <Button onClick={generateComprehensiveBrief} disabled={generating}>
-                      {generating ? 'Generating...' : 'Generate Comprehensive Brief'}
-                    </Button>
                   </CardContent>
                 </Card>
               </div>
