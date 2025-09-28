@@ -45,9 +45,13 @@ serve(async (req) => {
   }
 
   try {
+    const requestBody = await req.json().catch(() => ({}));
+    const briefType = requestBody.briefType || 'premarket';
+    const isWeekendBrief = briefType === 'weekend';
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('🚀 Starting comprehensive market data collection...');
+    console.log(`🚀 Starting ${isWeekendBrief ? 'comprehensive WEEKLY' : 'comprehensive daily'} market data collection...`, { briefType });
     
     // Add try-catch around API calls to identify which one is failing
     let newsData = { crypto: [], stocks: [] };
@@ -68,8 +72,8 @@ serve(async (req) => {
     }
 
     try {
-      console.log('🪙 Fetching CoinGecko market data...');
-      const coingeckoResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=25&page=1&price_change_percentage=24h,7d&x_cg_demo_api_key=${coingeckoApiKey}`);
+      console.log(`🪙 Fetching CoinGecko market data ${isWeekendBrief ? '(with enhanced weekly metrics)' : ''}...`);
+      const coingeckoResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${isWeekendBrief ? 50 : 25}&page=1&price_change_percentage=24h,7d,30d&x_cg_demo_api_key=${coingeckoApiKey}`);
       if (coingeckoResponse.ok) {
         coingeckoData = await coingeckoResponse.json();
         console.log('✅ CoinGecko data fetched successfully:', coingeckoData.length, 'coins');
@@ -171,19 +175,22 @@ serve(async (req) => {
     const btcData = coingeckoData.find(coin => coin.symbol === 'btc');
     const ethData = coingeckoData.find(coin => coin.symbol === 'eth');
     
+    // For weekend briefs, focus on 7-day movements; for daily briefs, use 24h
+    const changeField = isWeekendBrief ? 'price_change_percentage_7d_in_currency' : 'price_change_percentage_24h';
+    
     const topGainers = coingeckoData
-      .filter(coin => coin.price_change_percentage_24h > 0)
-      .sort((a, b) => b.price_change_percentage_24h - a.price_change_percentage_24h)
-      .slice(0, 5);
+      .filter(coin => coin[changeField] > 0)
+      .sort((a, b) => b[changeField] - a[changeField])
+      .slice(0, isWeekendBrief ? 8 : 5);
 
     const topLosers = coingeckoData
-      .filter(coin => coin.price_change_percentage_24h < 0)
-      .sort((a, b) => a.price_change_percentage_24h - b.price_change_percentage_24h)
-      .slice(0, 5);
+      .filter(coin => coin[changeField] < 0)
+      .sort((a, b) => a[changeField] - b[changeField])
+      .slice(0, isWeekendBrief ? 8 : 5);
 
     const biggestMover = coingeckoData
-      .filter(coin => Math.abs(coin.price_change_percentage_24h) > 0)
-      .sort((a, b) => Math.abs(b.price_change_percentage_24h) - Math.abs(a.price_change_percentage_24h))[0];
+      .filter(coin => Math.abs(coin[changeField]) > 0)
+      .sort((a, b) => Math.abs(b[changeField]) - Math.abs(a[changeField]))[0];
 
     const currentFearGreed = fearGreedArray[0] || { value: 50, value_classification: 'Neutral' };
     const yesterdayFearGreed = fearGreedArray[1] || currentFearGreed;
@@ -208,8 +215,76 @@ serve(async (req) => {
     ];
     const randomQuote = stoicQuotes[Math.floor(Math.random() * stoicQuotes.length)];
 
-    // Enhanced AI prompt with comprehensive market strategy
-    const marketAnalysisPrompt = `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive daily market brief that feels like a smart friend talking through important market moves. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
+    // Enhanced AI prompt with comprehensive market strategy - different for weekend vs daily
+    const marketAnalysisPrompt = isWeekendBrief ? 
+    // WEEKEND COMPREHENSIVE ANALYSIS PROMPT
+    `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive WEEKLY market recap - this is your signature Sunday evening brief that covers the whole week and sets up the upcoming one. This should be longer, richer, and more entertaining than your daily briefs. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
+
+IMPORTANT: When mentioning any cryptocurrency or stock, ALWAYS format it as "Name (SYMBOL)" - for example: "Bitcoin (BTC)", "Ethereum (ETH)", "Apple (AAPL)", "Hyperliquid (HYPE)", etc. This helps readers identify the exact ticker symbol.
+
+**REQUIRED STRUCTURE FOR WEEKLY RECAP:**
+1. Start with: "Let's talk about something special."
+2. **Weekly Hook** - Lead with the biggest story/move of the week backed by real numbers
+3. **What Happened Last Week** - Comprehensive 7-day recap with macro events, policy moves, ETF flows, regulatory news
+4. **Weekly Performance Breakdown** - Deep dive into top weekly gainers/losers with context
+5. **Social Momentum & Sentiment Shifts** - How the crowd mood evolved over the week
+6. **Exchange Dynamics** - Weekly volume patterns, new listings, major exchange developments
+7. **Macro Context & Institutional Moves** - Fed policy, inflation data, institutional adoption, ETF flows
+8. **Technical Landscape** - Weekly chart patterns, key support/resistance levels tested
+9. **What's Coming Next Week** - Calendar events, earnings, policy announcements, potential catalysts
+10. End with a thoughtful Stoic quote or witty philosophical observation
+
+**WEEKLY MARKET DATA (7-DAY FOCUS):**
+
+**Weekly Overview:**
+- Total Market Cap: $${(totalMarketCap / 1e12).toFixed(2)}T
+- Weekly Volume: $${(totalVolume / 1e9).toFixed(2)}B daily avg
+- Fear & Greed: ${currentFearGreed.value}/100 (${currentFearGreed.value_classification})
+- Weekly F&G Range: Track sentiment swings across the week
+
+**Major Assets Weekly Performance:**
+${btcData ? `Bitcoin (BTC): $${btcData.current_price.toLocaleString()} (7d: ${btcData.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${btcData.price_change_percentage_7d_in_currency?.toFixed(2)}%)` : 'BTC data unavailable'}
+${ethData ? `Ethereum (ETH): $${ethData.current_price.toLocaleString()} (7d: ${ethData.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${ethData.price_change_percentage_7d_in_currency?.toFixed(2)}%)` : 'ETH data unavailable'}
+
+**Biggest Weekly Mover:**
+${biggestMover ? `${biggestMover.name} (${biggestMover.symbol.toUpperCase()}): ${biggestMover.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${biggestMover.price_change_percentage_7d_in_currency?.toFixed(2)}% over 7 days ($${biggestMover.current_price})` : 'No significant weekly movers'}
+
+**Top Weekly Gainers (7d):**
+${topGainers.map(coin => 
+  `${coin.name} (${coin.symbol.toUpperCase()}): +${coin.price_change_percentage_7d_in_currency?.toFixed(2)}% - $${coin.current_price < 1 ? coin.current_price.toFixed(6) : coin.current_price.toFixed(2)}`
+).join('\n')}
+
+**Top Weekly Losers (7d):**
+${topLosers.map(coin => 
+  `${coin.name} (${coin.symbol.toUpperCase()}): ${coin.price_change_percentage_7d_in_currency?.toFixed(2)}% - $${coin.current_price < 1 ? coin.current_price.toFixed(6) : coin.current_price.toFixed(2)}`
+).join('\n')}
+
+**Weekly Social Sentiment Evolution:**
+${lunarcrushData.data?.slice(0, 6).map(asset => 
+  `${asset.name} (${asset.symbol?.toUpperCase()}): Weekly Galaxy Score ${asset.galaxy_score}/100 | Social Momentum: ${asset.social_volume?.toLocaleString()} | Sentiment: ${asset.sentiment?.toFixed(2)} | FOMO Level: ${asset.fomo_score?.toFixed(0)}`
+).join('\n') || 'Social data unavailable'}
+
+**Weekly News & Events Recap:**
+Major Crypto Developments: ${newsData.crypto?.slice(0, 5).map((item: any) => item.title).join(' | ') || 'No major crypto news this week'}
+Macro & Traditional Markets: ${newsData.stocks?.slice(0, 5).map((item: any) => item.title).join(' | ') || 'No major macro news this week'}
+
+**WEEKEND BRIEF STYLE REQUIREMENTS:**
+- This is your premium weekly content - make it comprehensive and entertaining
+- Include macro context: Fed policy, inflation data, traditional market correlations
+- Discuss institutional adoption, ETF flows, regulatory developments
+- Cover emerging narratives and sector rotations over the week
+- Analyze social sentiment shifts and crowd psychology evolution
+- Reference specific exchanges for volume and liquidity insights
+- Include technical analysis perspectives on weekly charts
+- Preview the upcoming week with calendar events and potential catalysts
+- Make it feel like a premium weekend read - thoughtful, insightful, entertaining
+- Use more sophisticated analysis while keeping your conversational voice
+- End with a meaningful Stoic quote that ties into the week's themes
+
+Write approximately 1500-2000+ words - this is your signature long-form weekend content that readers look forward to.` :
+    
+    // DAILY BRIEF PROMPT (original)
+    `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive daily market brief that feels like a smart friend talking through important market moves. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
 
 IMPORTANT: When mentioning any cryptocurrency or stock, ALWAYS format it as "Name (SYMBOL)" - for example: "Bitcoin (BTC)", "Ethereum (ETH)", "Apple (AAPL)", "Hyperliquid (HYPE)", etc. This helps readers identify the exact ticker symbol.
 
@@ -298,11 +373,11 @@ Write approximately 800-1200 words that inform and entertain while staying true 
           messages: [
             { 
               role: 'system', 
-              content: 'You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable.'
+              content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. ${isWeekendBrief ? 'This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs.' : ''}`
             },
             { role: 'user', content: marketAnalysisPrompt }
           ],
-          max_tokens: 2000,
+          max_tokens: isWeekendBrief ? 4000 : 2000,
           temperature: 0.8
         }),
       });
@@ -381,14 +456,22 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
     const { data: briefData, error: insertError } = await supabase
       .from('market_briefs')
       .insert({
-        brief_type: 'premarket',
-        title: `Premarket Market Brief - ${today.toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })}`,
-        slug: `premarket-brief-${dateStr}-${timestamp}`,
-        executive_summary: `Comprehensive daily market intelligence combining price action, social sentiment, and trend analysis. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads with ${biggestMover.price_change_percentage_24h > 0 ? '+' : ''}${biggestMover.price_change_percentage_24h.toFixed(1)}% move.` : 'Markets showing mixed signals.'}`,
+        brief_type: briefType,
+        title: isWeekendBrief ? 
+          `Weekly Market Recap - ${today.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}` :
+          `${briefType === 'postmarket' ? 'Postmarket' : 'Premarket'} Market Brief - ${today.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          })}`,
+        slug: `${briefType}-brief-${dateStr}-${timestamp}`,
+        executive_summary: isWeekendBrief ?
+          `Comprehensive weekly market analysis covering 7-day performance, macro events, and next week's outlook. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads weekly performance with ${biggestMover.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${biggestMover.price_change_percentage_7d_in_currency?.toFixed(1)}% move.` : 'Mixed weekly performance across markets.'}` :
+          `Comprehensive daily market intelligence combining price action, social sentiment, and trend analysis. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads with ${biggestMover.price_change_percentage_24h > 0 ? '+' : ''}${biggestMover.price_change_percentage_24h.toFixed(1)}% move.` : 'Markets showing mixed signals.'}`,
         content_sections: {
           ai_generated_content: generatedAnalysis,
           generation_timestamp: new Date().toISOString(),
@@ -404,12 +487,14 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
               name: biggestMover.name,
               symbol: biggestMover.symbol,
               change_24h: biggestMover.price_change_percentage_24h,
+              change_7d: biggestMover.price_change_percentage_7d_in_currency,
               price: biggestMover.current_price
             } : null,
             top_gainers: topGainers.map(coin => ({
               name: coin.name,
               symbol: coin.symbol,
               change_24h: coin.price_change_percentage_24h,
+              change_7d: coin.price_change_percentage_7d_in_currency,
               price: coin.current_price,
               market_cap_rank: coin.market_cap_rank
             })),
@@ -417,6 +502,7 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
               name: coin.name,
               symbol: coin.symbol,
               change_24h: coin.price_change_percentage_24h,
+              change_7d: coin.price_change_percentage_7d_in_currency,
               price: coin.current_price,
               market_cap_rank: coin.market_cap_rank
             })),
@@ -499,7 +585,7 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
           }
         },
         market_data: {
-          session_type: 'comprehensive_daily',
+          session_type: isWeekendBrief ? 'comprehensive_weekly' : 'comprehensive_daily',
           generation_time: dateStr,
           fear_greed_index: currentFearGreed.value,
           market_cap_total: totalMarketCap,
