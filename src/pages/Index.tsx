@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { RefreshCw, Sparkles, Target, Activity } from 'lucide-react';
+import { RefreshCw, Sparkles, Target, Activity, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { FinancialDisclaimer } from '@/components/FinancialDisclaimer';
 import { MarketBriefDisplay } from '@/components/MarketBriefDisplay';
@@ -113,45 +113,86 @@ const Index = () => {
   };
 
   return (
-    <div className="py-6">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <FinancialDisclaimer />
       
-      <div className="container mx-auto p-6">
-        {/* Main Brief Display - Clean Presentation */}
-        <div className="space-y-8">
+      {/* XRay Market Brief Homepage */}
+      <div className="container mx-auto px-4 py-8">
+        {/* Hero Introduction */}
+        <div className="text-center mb-12 space-y-6">
+          <div className="inline-flex items-center gap-3 px-6 py-3 bg-primary/10 rounded-full border border-primary/30 mb-4">
+            <span className="text-3xl animate-bounce">🎣</span>
+            <span className="font-bold text-primary text-xl font-pixel tracking-wide">XRay Market Brief</span>
+          </div>
+          <h1 className="text-4xl md:text-6xl font-black xr-gradient-text mb-4 font-pixel">
+            Command Center for Crypto Intelligence
+          </h1>
+          <p className="text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed font-medium">
+            Twice-daily briefings that cut through the noise. From Bitcoin and Ethereum to Layer-2s, DeFi blue-chips, 
+            memecoins, ETF flows, and the macro events that move markets. If it shifts the tide, it's here.
+          </p>
+          <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground font-pixel">
+            <span>📅 Pre-Market & Post-Market</span>
+            <span>•</span>
+            <span>🔄 Live Data</span>
+            <span>•</span>
+            <span>📊 Interactive Charts</span>
+          </div>
+        </div>
+
+        {/* Main Brief Display */}
+        <div className="space-y-12">
           {briefsLoading ? (
-            <div className="text-center py-20">
-              <RefreshCw className="h-12 w-12 animate-spin mx-auto mb-6 text-primary" />
-              <p className="text-lg">Loading today's market brief...</p>
-              <p className="text-sm text-muted-foreground mt-2">Gathering fresh market intelligence</p>
+            <div className="text-center py-32">
+              <div className="relative">
+                <RefreshCw className="h-16 w-16 animate-spin mx-auto mb-8 text-primary" />
+                <div className="absolute inset-0 rounded-full border-4 border-primary/20 animate-pulse"></div>
+              </div>
+              <h3 className="text-2xl font-bold text-primary mb-4 font-pixel">Gathering Market Intelligence</h3>
+              <p className="text-lg text-muted-foreground max-w-md mx-auto">
+                Fresh briefing incoming... scanning the waters for actionable insights.
+              </p>
             </div>
           ) : latestBrief ? (
-            <MarketBriefDisplay brief={latestBrief} />
+            <div className="space-y-8">
+              <div className="text-center mb-8">
+                <Badge variant="outline" className="text-sm font-pixel mb-4">
+                  🚨 LATEST BRIEF — {new Date(latestBrief.published_at).toLocaleDateString()}
+                </Badge>
+                <h2 className="text-2xl font-bold text-foreground mb-2">
+                  Today's Market Intelligence
+                </h2>
+                <p className="text-muted-foreground">
+                  Fresh analysis from the trading docks
+                </p>
+              </div>
+              <MarketBriefDisplay brief={latestBrief} />
+            </div>
           ) : (
-            <div className="text-center py-20">
-              <div className="space-y-4">
-                <div className="text-6xl">🎣</div>
-                <h3 className="text-xl font-semibold">Market Brief Loading...</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Fresh market intelligence is being prepared. Please check back in a moment.
+            <div className="text-center py-32">
+              <div className="space-y-6">
+                <div className="text-8xl animate-bounce">🎣</div>
+                <h3 className="text-3xl font-bold text-primary font-pixel">First Brief Loading...</h3>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                  The inaugural XRay Market Brief is being prepared. Captain XRay is scanning the waters 
+                  for the most important market developments to bring you.
                 </p>
                 {isVip && (
                   <Button 
                     onClick={generateNewBrief} 
                     disabled={isGenerating}
-                    variant="ghost"
-                    size="sm"
-                    className="mt-6 opacity-50 hover:opacity-100"
+                    className="btn-hero mt-8"
+                    size="lg"
                   >
                     {isGenerating ? (
                       <>
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        Generating...
+                        <RefreshCw className="h-5 w-5 mr-2 animate-spin" />
+                        Generating Intelligence...
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-4 w-4 mr-2" />
-                        Load Brief
+                        <Sparkles className="h-5 w-5 mr-2" />
+                        Generate First Brief
                       </>
                     )}
                   </Button>
@@ -161,36 +202,63 @@ const Index = () => {
           )}
         </div>
 
-        {/* Previous Briefs - Compact List */}
+        {/* Previous Briefs Archive */}
         {briefs && briefs.length > 1 && (
-          <div className="mt-16">
-            <Card className="xr-card">
-              <CardHeader>
-                <CardTitle className="text-lg">📚 Previous Market Intelligence</CardTitle>
-                <CardDescription>
-                  Recent analysis and market reports
+          <div className="mt-20">
+            <Card className="xr-card-elevated">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl font-bold flex items-center justify-center gap-3 font-pixel">
+                  <span className="text-3xl">📚</span>
+                  Brief Archive — Recent Intelligence
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Navigate past briefings from the XRay command center
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {briefs.slice(1, 4).map((brief) => (
-                    <div key={brief.id} className="flex items-center justify-between p-3 rounded-lg border bg-background/50 hover:bg-background/80 transition-colors cursor-pointer">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium truncate">{brief.title}</h4>
-                        <p className="text-sm text-muted-foreground truncate">{brief.executive_summary}</p>
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <Badge variant="outline" className="text-xs">
-                          {new Date(brief.published_at).toLocaleDateString()}
-                        </Badge>
-                        {brief.sentiment_score && (
-                          <Badge variant={brief.sentiment_score > 0 ? 'default' : 'destructive'} className="text-xs">
-                            {brief.sentiment_score.toFixed(1)}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {briefs.slice(1, 7).map((brief) => (
+                    <Card key={brief.id} className="xr-card hover:xr-glow-primary transition-all duration-300 cursor-pointer group">
+                      <CardContent className="p-5">
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <Badge variant="outline" className="text-xs font-pixel shrink-0">
+                              {brief.brief_type.toUpperCase()}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {new Date(brief.published_at).toLocaleDateString()}
+                            </Badge>
+                          </div>
+                          
+                          <h4 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-2">
+                            {brief.title}
+                          </h4>
+                          
+                          <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                            {brief.executive_summary}
+                          </p>
+                          
+                          <div className="flex items-center justify-between pt-2">
+                            <div className="flex items-center gap-2">
+                              <Eye className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">{brief.view_count}</span>
+                            </div>
+                            {brief.sentiment_score && (
+                              <Badge variant={brief.sentiment_score > 0 ? 'default' : 'destructive'} className="text-xs">
+                                {brief.sentiment_score > 0 ? '+' : ''}{brief.sentiment_score.toFixed(1)}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
+                </div>
+                
+                <div className="text-center mt-8">
+                  <p className="text-sm text-muted-foreground font-pixel">
+                    📊 All briefs stored for 30 days • Interactive data • Source-verified intelligence
+                  </p>
                 </div>
               </CardContent>
             </Card>
