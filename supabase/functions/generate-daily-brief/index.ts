@@ -390,11 +390,64 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
               price: coin.current_price,
               market_cap_rank: coin.market_cap_rank
             })),
-            trending_coins: trendingData.coins?.slice(0, 5).map((coin: any) => ({
-              name: coin.item?.name,
-              symbol: coin.item?.symbol,
-              market_cap_rank: coin.item?.market_cap_rank
-            })) || [],
+            trending_coins: await (async () => {
+              // Get price data for trending coins
+              const trendingWithPrices = [];
+              if (trendingData.coins?.length > 0) {
+                const trendingIds = trendingData.coins.slice(0, 5)
+                  .map((coin: any) => coin.item?.id)
+                  .filter(Boolean)
+                  .join(',');
+                
+                try {
+                  console.log('📈 Fetching price data for trending coins...');
+                  const priceResponse = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${trendingIds}&vs_currencies=usd&include_24hr_change=true&x_cg_demo_api_key=${coingeckoApiKey}`);
+                  
+                  if (priceResponse.ok) {
+                    const priceData = await priceResponse.json();
+                    
+                    for (const coin of trendingData.coins.slice(0, 5)) {
+                      const coinId = coin.item?.id;
+                      const priceInfo = priceData[coinId];
+                      
+                      trendingWithPrices.push({
+                        name: coin.item?.name,
+                        symbol: coin.item?.symbol,
+                        market_cap_rank: coin.item?.market_cap_rank,
+                        price: priceInfo?.usd || null,
+                        change_24h: priceInfo?.usd_24h_change || null
+                      });
+                    }
+                    console.log('✅ Trending coins price data fetched successfully');
+                  } else {
+                    // Fallback to basic trending data without prices
+                    console.log('⚠️ Price fetch failed, using basic trending data');
+                    trendingData.coins.slice(0, 5).forEach((coin: any) => {
+                      trendingWithPrices.push({
+                        name: coin.item?.name,
+                        symbol: coin.item?.symbol,
+                        market_cap_rank: coin.item?.market_cap_rank,
+                        price: null,
+                        change_24h: null
+                      });
+                    });
+                  }
+                } catch (err) {
+                  console.error('❌ Trending price fetch failed:', err);
+                  // Fallback to basic trending data
+                  trendingData.coins.slice(0, 5).forEach((coin: any) => {
+                    trendingWithPrices.push({
+                      name: coin.item?.name,
+                      symbol: coin.item?.symbol,
+                      market_cap_rank: coin.item?.market_cap_rank,
+                      price: null,
+                      change_24h: null
+                    });
+                  });
+                }
+              }
+              return trendingWithPrices;
+            })(),
             social_sentiment: lunarcrushData.data?.map(asset => ({
               name: asset.name,
               symbol: asset.symbol,

@@ -18,6 +18,8 @@ interface TrendingCoin {
   name: string;
   symbol: string;
   market_cap_rank?: number;
+  price?: number;
+  change_24h?: number;
 }
 
 interface ComprehensiveTopMoversProps {
@@ -220,35 +222,27 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                   </div>
 
                   <div className="col-span-4 text-right flex flex-col items-end justify-center">
-                    {(() => {
-                      const match = gainers.find((m) => m.symbol?.toUpperCase() === coin.symbol?.toUpperCase()) ||
-                        losers.find((m) => m.symbol?.toUpperCase() === coin.symbol?.toUpperCase());
-                      if (match) {
-                        const isUp = (match.change_24h ?? 0) >= 0;
-                        return (
-                          <>
-                            <div className="font-semibold text-sm text-foreground">{formatPrice(match.price)}</div>
-                            <Badge
-                              variant="outline"
-                              className={`${isUp ? 'text-green-500 border-green-500/20 bg-green-500/10' : 'text-red-500 border-red-500/20 bg-red-500/10'} font-semibold text-xs`}
-                            >
-                              {isUp ? '+' : ''}{match.change_24h?.toFixed(2)}%
-                            </Badge>
-                          </>
-                        );
-                      }
-                      return (
-                        <>
-                          <div className="font-semibold text-sm text-muted-foreground mb-1">—</div>
-                          <Badge
-                            variant="outline"
-                            className="text-muted-foreground border-muted-foreground/20 bg-muted/10 font-semibold text-xs"
-                          >
-                            Trending
-                          </Badge>
-                        </>
-                      );
-                    })()}
+                    {coin.price && coin.change_24h !== null ? (
+                      <>
+                        <div className="font-semibold text-sm text-foreground">{formatPrice(coin.price)}</div>
+                        <Badge
+                          variant="outline"
+                          className={`${coin.change_24h >= 0 ? 'text-green-500 border-green-500/20 bg-green-500/10' : 'text-red-500 border-red-500/20 bg-red-500/10'} font-semibold text-xs`}
+                        >
+                          {coin.change_24h >= 0 ? '+' : ''}{coin.change_24h.toFixed(2)}%
+                        </Badge>
+                      </>
+                    ) : (
+                      <>
+                        <div className="font-semibold text-sm text-muted-foreground mb-1">—</div>
+                        <Badge
+                          variant="outline"
+                          className="text-muted-foreground border-muted-foreground/20 bg-muted/10 font-semibold text-xs"
+                        >
+                          Trending
+                        </Badge>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

@@ -76,7 +76,51 @@ const Index = () => {
   useEffect(() => {
     const symbolFromUrl = searchParams.get('symbol');
     if (symbolFromUrl) {
-      setChartSymbol(symbolFromUrl);
+      // Convert symbol to TradingView format
+      const upperSymbol = symbolFromUrl.toUpperCase();
+      const cryptoMappings: { [key: string]: string } = {
+        'BTC': 'BINANCE:BTCUSDT',
+        'BITCOIN': 'BINANCE:BTCUSDT',
+        'ETH': 'BINANCE:ETHUSDT',
+        'ETHEREUM': 'BINANCE:ETHUSDT',
+        'SOL': 'BINANCE:SOLUSDT',
+        'SOLANA': 'BINANCE:SOLUSDT',
+        'ADA': 'BINANCE:ADAUSDT',
+        'CARDANO': 'BINANCE:ADAUSDT',
+        'DOT': 'BINANCE:DOTUSDT',
+        'POLKADOT': 'BINANCE:DOTUSDT',
+        'MATIC': 'BINANCE:MATICUSDT',
+        'POLYGON': 'BINANCE:MATICUSDT',
+        'AVAX': 'BINANCE:AVAXUSDT',
+        'AVALANCHE': 'BINANCE:AVAXUSDT',
+        'LINK': 'BINANCE:LINKUSDT',
+        'CHAINLINK': 'BINANCE:LINKUSDT',
+        'UNI': 'BINANCE:UNIUSDT',
+        'UNISWAP': 'BINANCE:UNIUSDT',
+        'LTC': 'BINANCE:LTCUSDT',
+        'LITECOIN': 'BINANCE:LTCUSDT',
+        'XRP': 'BINANCE:XRPUSDT',
+        'RIPPLE': 'BINANCE:XRPUSDT',
+        'DOGE': 'BINANCE:DOGEUSDT',
+        'DOGECOIN': 'BINANCE:DOGEUSDT',
+        'FLR': 'BITSTAMP:FLRUSD',
+        'FLARE': 'BITSTAMP:FLRUSD',
+      };
+      
+      let newSymbol = '';
+      if (cryptoMappings[upperSymbol]) {
+        newSymbol = cryptoMappings[upperSymbol];
+      } else {
+        // Check if it's already in TradingView format
+        if (symbolFromUrl.includes(':')) {
+          newSymbol = symbolFromUrl;
+        } else {
+          // Default format for unknown symbols
+          newSymbol = `BINANCE:${upperSymbol}USDT`;
+        }
+      }
+      
+      setChartSymbol(newSymbol);
     }
   }, [searchParams]);
 
