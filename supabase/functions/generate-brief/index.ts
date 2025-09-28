@@ -21,7 +21,7 @@ async function fetchMarketData() {
     console.log('Fetching market data from CoinGecko...');
     
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=true&price_change_percentage=1h%2C24h%2C7d&x_cg_demo_api_key=${coinGeckoApiKey}`
+      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false&price_change_percentage=24h&x_cg_demo_api_key=${coinGeckoApiKey}`
     );
     
     if (!response.ok) {
@@ -112,14 +112,16 @@ CRITICAL BRIEF STRUCTURE (follow exactly in this order):
 5. **Market Reaction** - What prices/flows actually did (2-3 short paragraphs)
 6. **What to Watch Next** - Specific events/levels/dates (no vague fluff)
 7. **Last Word** - Memorable, human takeaway in your voice (1 short paragraph)
-8. **Wisdom for the Waters** - Daily Stoic line, concise and relevant
 
 WRITING RULES:
 - Use fishing metaphors naturally (not forced)
 - Jargon gets parenthetical gloss first time (e.g., "funding turned positive *(longs paying fees)*")
 - Keep tone confident, human, lightly witty; no meme-dump, no bro-speak
 - Focus on impact over noise, numbers before narratives
-- Always: readable without dumbing down`;
+- Always: readable without dumbing down
+
+END YOUR RESPONSE WITH A STOIC QUOTE (under 100 characters) like this:
+**Wisdom for the Waters:** "[Your stoic quote here]"`;
 
     let userPrompt = '';
     
@@ -134,7 +136,8 @@ MUST FOLLOW EXACT STRUCTURE:
 5. **Market Reaction** - How markets responded to ${customTopic} news
 6. **What to Watch Next** - Specific dates/levels/events related to ${customTopic}
 7. **Last Word** - Your memorable take on ${customTopic}
-8. **Wisdom for the Waters** - Relevant Stoic quote
+
+END WITH: **Wisdom for the Waters:** "[Relevant stoic quote under 100 chars]"
 
 Use current market data for context. Make it comprehensive but follow the structure exactly.`;
     } else {
@@ -153,7 +156,8 @@ MUST FOLLOW EXACT STRUCTURE:
 5. **Market Reaction** - Price movements, volume, flows (2-3 paragraphs)
 6. **What to Watch Next** - Specific levels, dates, events coming up
 7. **Last Word** - Your memorable takeaway on today's session
-8. **Wisdom for the Waters** - Daily Stoic quote
+
+END WITH: **Wisdom for the Waters:** "[Daily stoic quote under 100 chars]"
 
 Focus on TOP MOVERS from the data. Use fishing wisdom naturally. This is the daily brief that defines the market narrative.`;
     }
@@ -169,12 +173,12 @@ Focus on TOP MOVERS from the data. Use fishing wisdom naturally. This is the dai
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5-2025-08-07',
+        model: 'gpt-4o-mini',  // Using cheaper model to save credits
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_completion_tokens: 3000,
+        max_completion_tokens: 2000,  // Reduced token limit
       }),
     });
 
@@ -187,31 +191,9 @@ Focus on TOP MOVERS from the data. Use fishing wisdom naturally. This is the dai
 
     console.log('AI content generated successfully');
 
-    // Generate stoic quote
-    const quoteResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-5-mini-2025-08-07',
-        messages: [
-          {
-            role: 'system',
-            content: 'Generate a brief stoic philosophy quote related to trading psychology and market wisdom. Keep it under 100 characters.'
-          },
-          {
-            role: 'user',
-            content: 'Generate a stoic quote about patience and wisdom in volatile markets.'
-          }
-        ],
-        max_completion_tokens: 100,
-      }),
-    });
-
-    const quoteData = await quoteResponse.json();
-    const stoicQuote = quoteData.choices[0].message.content.replace(/"/g, '');
+    // Extract stoic quote from AI content (no separate API call)
+    const stoicQuoteMatch = aiContent.match(/\*\*Wisdom for the Waters:\*\*\s*"([^"]+)"/);
+    const stoicQuote = stoicQuoteMatch ? stoicQuoteMatch[1] : "The tide always turns for those who wait.";
 
     // Calculate overall sentiment score
     const avgChange = topAssets.reduce((sum: number, asset: any) => sum + asset.change_24h, 0) / topAssets.length;

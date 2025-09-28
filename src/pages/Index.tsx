@@ -55,13 +55,13 @@ const Index = () => {
     }
   });
 
-  // Auto-generate brief if none exists and it's the first load
-  useEffect(() => {
-    if (!briefsLoading && briefs && briefs.length === 0 && !autoGenerateOnLoad && isVip) {
-      setAutoGenerateOnLoad(true);
-      generateNewBrief();
-    }
-  }, [briefsLoading, briefs, autoGenerateOnLoad, isVip]);
+  // Disabled auto-generation to save credits
+  // useEffect(() => {
+  //   if (!briefsLoading && briefs && briefs.length === 0 && !autoGenerateOnLoad && isVip) {
+  //     setAutoGenerateOnLoad(true);
+  //     generateNewBrief();
+  //   }
+  // }, [briefsLoading, briefs, autoGenerateOnLoad, isVip]);
 
   // Get the latest brief for main display
   const latestBrief = briefs && briefs.length > 0 ? briefs[0] : null;
