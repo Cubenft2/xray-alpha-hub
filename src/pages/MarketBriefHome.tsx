@@ -512,6 +512,8 @@ export default function MarketBriefHome() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {extractedTickers.slice(0, 12).map((ticker) => {
                     const { symbol, displayName } = mapTickerToTradingView(ticker);
+                    const unsupportedSet = new Set(['FIGR_HELOC','ASTER']);
+                    const isUnsupported = unsupportedSet.has(ticker.toUpperCase());
                     return (
                       <Card key={ticker} className="h-48">
                         <CardContent className="p-3">
@@ -519,7 +521,19 @@ export default function MarketBriefHome() {
                             {displayName}
                           </div>
                           <div className="h-36">
-                            <MiniChart symbol={symbol} theme={theme} />
+                            {isUnsupported ? (
+                              <a
+                                href={`https://www.coingecko.com/en/search?query=${encodeURIComponent(ticker)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center w-full h-full text-sm text-primary underline"
+                              >
+                                View on CoinGecko
+                                <ExternalLink className="w-4 h-4 ml-1" />
+                              </a>
+                            ) : (
+                              <MiniChart symbol={symbol} theme={theme} />
+                            )}
                           </div>
                         </CardContent>
                       </Card>

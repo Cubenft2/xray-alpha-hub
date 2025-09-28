@@ -13,16 +13,16 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   const handleTickerClick = (ticker: string) => {
     const upperTicker = ticker.toUpperCase();
     
-    // Tickers that should redirect to CoinGecko instead of local charts
-    const coingeckoTickers: { [key: string]: string } = {
-      'FIGR_HELOC': 'figure-heloc',
-      'FIGR': 'figure',
-      // Add other unavailable tickers here as needed
-    };
+    // Tickers that should redirect to CoinGecko search instead of local charts
+    const coingeckoRedirect = new Set([
+      'FIGR_HELOC',
+      'FIGR',
+      'ASTER',
+    ]);
     
     // Check if ticker should redirect to CoinGecko
-    if (coingeckoTickers[upperTicker]) {
-      window.open(`https://www.coingecko.com/en/coins/${coingeckoTickers[upperTicker]}`, '_blank');
+    if (coingeckoRedirect.has(upperTicker)) {
+      window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
       return;
     }
     
