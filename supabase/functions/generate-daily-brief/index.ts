@@ -49,47 +49,75 @@ serve(async (req) => {
 
     console.log('🚀 Starting comprehensive market data collection...');
     
-    // Fetch all data sources in parallel for maximum efficiency
-    const [newsResponse, coingeckoResponse, trendingResponse, lunarcrushResponse, fearGreedResponse] = await Promise.allSettled([
-      // News data from our existing function
-      supabase.functions.invoke('news-fetch', { body: { limit: 50 } }),
-      
-      // CoinGecko: Top coins with comprehensive data
-      fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&price_change_percentage=24h,7d&x_cg_demo_api_key=${coingeckoApiKey}`),
-      
-      // CoinGecko: Trending coins (what's hot)
-      fetch(`https://api.coingecko.com/api/v3/search/trending?x_cg_demo_api_key=${coingeckoApiKey}`),
-      
-      // LunarCrush: Social sentiment for top assets
-      fetch(`https://api.lunarcrush.com/v2?data=assets&key=${lunarcrushApiKey}&symbol=BTC,ETH,SOL,ADA,DOGE,MATIC,LINK,UNI,AVAX,ATOM,DOT,LTC,XRP,BNB,USDC&interval=24h&data_points=1`),
-      
-      // Fear & Greed Index
-      fetch('https://api.alternative.me/fng/?limit=7') // Get last 7 days for trend
-    ]);
-
-    // Process all results with proper error handling
-    const newsData = newsResponse.status === 'fulfilled' && !newsResponse.value.error 
-      ? newsResponse.value.data : { crypto: [], stocks: [] };
-    
+    // Add try-catch around API calls to identify which one is failing
+    let newsData = { crypto: [], stocks: [] };
     let coingeckoData: CoinGeckoData[] = [];
-    if (coingeckoResponse.status === 'fulfilled' && coingeckoResponse.value.ok) {
-      coingeckoData = await coingeckoResponse.value.json();
-    }
-    
     let trendingData: any = { coins: [] };
-    if (trendingResponse.status === 'fulfilled' && trendingResponse.value.ok) {
-      trendingData = await trendingResponse.value.json();
-    }
-    
     let lunarcrushData: { data: LunarCrushAsset[] } = { data: [] };
-    if (lunarcrushResponse.status === 'fulfilled' && lunarcrushResponse.value.ok) {
-      lunarcrushData = await lunarcrushResponse.value.json();
-    }
-    
     let fearGreedArray: any[] = [];
-    if (fearGreedResponse.status === 'fulfilled' && fearGreedResponse.value.ok) {
-      const fgData = await fearGreedResponse.value.json();
-      fearGreedArray = fgData.data || [];
+    
+    try {
+      console.log('📰 Fetching news data...');
+      const newsResponse = await supabase.functions.invoke('news-fetch', { body: { limit: 50 } });
+      if (!newsResponse.error) {
+        newsData = newsResponse.data || { crypto: [], stocks: [] };
+        console.log('✅ News data fetched successfully');
+      }
+    } catch (err) {
+      console.error('❌ News fetch failed:', err);
+    }
+
+    try {
+      console.log('🪙 Fetching CoinGecko market data...');
+      const coingeckoResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=25&page=1&price_change_percentage=24h,7d&x_cg_demo_api_key=${coingeckoApiKey}`);
+      if (coingeckoResponse.ok) {
+        coingeckoData = await coingeckoResponse.json();
+        console.log('✅ CoinGecko data fetched successfully:', coingeckoData.length, 'coins');
+      } else {
+        console.error('❌ CoinGecko API error:', coingeckoResponse.status, coingeckoResponse.statusText);
+      }
+    } catch (err) {
+      console.error('❌ CoinGecko fetch failed:', err);
+    }
+
+    try {
+      console.log('📈 Fetching trending coins...');
+      const trendingResponse = await fetch(`https://api.coingecko.com/api/v3/search/trending?x_cg_demo_api_key=${coingeckoApiKey}`);
+      if (trendingResponse.ok) {
+        trendingData = await trendingResponse.json();
+        console.log('✅ Trending data fetched successfully');
+      } else {
+        console.error('❌ Trending API error:', trendingResponse.status, trendingResponse.statusText);
+      }
+    } catch (err) {
+      console.error('❌ Trending fetch failed:', err);
+    }
+
+    try {
+      console.log('🌙 Fetching LunarCrush social data...');
+      const lunarcrushResponse = await fetch(`https://api.lunarcrush.com/v2?data=assets&key=${lunarcrushApiKey}&symbol=BTC,ETH,SOL&interval=24h&data_points=1`);
+      if (lunarcrushResponse.ok) {
+        lunarcrushData = await lunarcrushResponse.json();
+        console.log('✅ LunarCrush data fetched successfully:', lunarcrushData.data?.length || 0, 'assets');
+      } else {
+        console.error('❌ LunarCrush API error:', lunarcrushResponse.status, lunarcrushResponse.statusText);
+      }
+    } catch (err) {
+      console.error('❌ LunarCrush fetch failed:', err);
+    }
+
+    try {
+      console.log('😨 Fetching Fear & Greed Index...');
+      const fearGreedResponse = await fetch('https://api.alternative.me/fng/?limit=7');
+      if (fearGreedResponse.ok) {
+        const fgData = await fearGreedResponse.json();
+        fearGreedArray = fgData.data || [];
+        console.log('✅ Fear & Greed data fetched successfully');
+      } else {
+        console.error('❌ Fear & Greed API error:', fearGreedResponse.status, fearGreedResponse.statusText);
+      }
+    } catch (err) {
+      console.error('❌ Fear & Greed fetch failed:', err);
     }
 
     console.log('📊 Market data collection complete:', {
@@ -326,10 +354,10 @@ Write approximately 800-1200 words that inform and entertain while staying true 
           market_cap_total: totalMarketCap,
           volume_24h: totalVolume,
           data_quality: {
-            coingecko_success: coingeckoResponse.status === 'fulfilled',
-            lunarcrush_success: lunarcrushResponse.status === 'fulfilled',
-            fear_greed_success: fearGreedResponse.status === 'fulfilled',
-            trending_success: trendingResponse.status === 'fulfilled'
+            coingecko_success: coingeckoData.length > 0,
+            lunarcrush_success: lunarcrushData.data?.length > 0,
+            fear_greed_success: fearGreedArray.length > 0,
+            trending_success: trendingData.coins?.length > 0
           }
         },
         social_data: {
@@ -380,10 +408,24 @@ Write approximately 800-1200 words that inform and entertain while staying true 
 
   } catch (error) {
     console.error('💥 Market brief generation failed:', error);
+    
+    // Log detailed error information for debugging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error_type: error instanceof Error ? error.name : 'UnknownError',
       success: false,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      debug_info: {
+        function: 'generate-daily-brief',
+        step: 'unknown',
+        message: 'Check edge function logs for detailed error information'
+      }
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

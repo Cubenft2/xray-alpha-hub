@@ -295,6 +295,14 @@ export default function MarketBriefHome() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
           <div className="flex items-center gap-2">
+            <Button 
+              onClick={generateComprehensiveBrief}
+              disabled={generating}
+              variant="outline"
+              size="sm"
+            >
+              {generating ? 'Testing APIs...' : '🧪 Test API Integration'}
+            </Button>
             <Button variant="outline" size="sm" onClick={handleShareX}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Share on X
