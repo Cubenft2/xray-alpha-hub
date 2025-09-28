@@ -134,18 +134,27 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
                         </Badge>
                       )}
                     </div>
-                    {data.biggest_mover.change_24h && (
-                      <Badge 
-                        variant="outline" 
-                        className={`${data.biggest_mover.change_24h > 0 
-                          ? 'text-green-500 border-green-500/20 bg-green-500/10' 
-                          : 'text-red-500 border-red-500/20 bg-red-500/10'
-                        } font-semibold mt-1`}
-                      >
-                        {data.biggest_mover.change_24h > 0 ? '+' : ''}
-                        {data.biggest_mover.change_24h.toFixed(2)}%
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {data.biggest_mover.price && (
+                        <span className="text-sm font-semibold text-foreground">
+                          ${data.biggest_mover.price < 0.01 ? data.biggest_mover.price.toFixed(6) : 
+                            data.biggest_mover.price < 1 ? data.biggest_mover.price.toFixed(4) : 
+                            data.biggest_mover.price.toLocaleString()}
+                        </span>
+                      )}
+                      {data.biggest_mover.change_24h && (
+                        <Badge 
+                          variant="outline" 
+                          className={`${data.biggest_mover.change_24h > 0 
+                            ? 'text-green-500 border-green-500/20 bg-green-500/10' 
+                            : 'text-red-500 border-red-500/20 bg-red-500/10'
+                          } font-semibold text-xs`}
+                        >
+                          {data.biggest_mover.change_24h > 0 ? '+' : ''}
+                          {data.biggest_mover.change_24h.toFixed(2)}%
+                        </Badge>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <p className="text-muted-foreground">No data available</p>
