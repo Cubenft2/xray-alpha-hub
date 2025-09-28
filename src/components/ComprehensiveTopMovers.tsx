@@ -98,7 +98,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                   </div>
 
                   <div className="col-span-2 hidden xl:block">
-                    <div className="h-10 w-full">
+                    <div className="h-16 sm:h-20 w-full min-w-[120px]">
                       <MiniChart symbol={`${coin.symbol.toUpperCase()}USD`} theme={theme} />
                     </div>
                   </div>
@@ -170,7 +170,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                   </div>
 
                   <div className="col-span-2 hidden xl:block">
-                    <div className="h-10 w-full">
+                    <div className="h-16 sm:h-20 w-full min-w-[120px]">
                       <MiniChart symbol={`${coin.symbol.toUpperCase()}USD`} theme={theme} />
                     </div>
                   </div>
@@ -245,7 +245,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
 
                   {coin.symbol && (
                     <div className="col-span-2 hidden xl:block">
-                      <div className="h-10 w-full">
+                      <div className="h-16 sm:h-20 w-full min-w-[120px]">
                         <MiniChart symbol={`${coin.symbol.toUpperCase()}USD`} theme={theme} />
                       </div>
                     </div>

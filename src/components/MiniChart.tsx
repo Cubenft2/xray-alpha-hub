@@ -38,7 +38,7 @@ export function MiniChart({ symbol, theme, onClick }: MiniChartProps) {
 
     const widgetInner = document.createElement('div');
     widgetInner.className = 'tradingview-widget-container__widget';
-    widgetInner.style.height = 'calc(100% - 32px)';
+    widgetInner.style.height = '100%';
     widgetInner.style.width = '100%';
 
     if (onClick) {
