@@ -71,7 +71,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                     {index + 1}
                   </div>
 
-                  <div className="col-span-5 min-w-0">
+                  <div className="col-span-7 min-w-0">
                     <div className="font-medium flex items-center gap-1 flex-wrap">
                       <span className="text-foreground group-hover:text-primary transition-colors truncate">
                         {coin.name}
@@ -97,13 +97,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                     </div>
                   </div>
 
-                  <div className="col-span-3 hidden xl:block">
-                    <div className="h-12 w-full min-w-[100px]">
-                      <MiniChart symbol={`${coin.symbol.toUpperCase()}USD`} theme={theme} />
-                    </div>
-                  </div>
-
-                  <div className="col-span-3 xl:col-span-3 text-right flex flex-col items-end justify-center">
+                  <div className="col-span-4 text-right flex flex-col items-end justify-center">
                     <div className="font-semibold text-sm text-foreground">
                       {formatPrice(coin.price)}
                     </div>
@@ -143,7 +137,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                     {index + 1}
                   </div>
 
-                  <div className="col-span-5 min-w-0">
+                  <div className="col-span-7 min-w-0">
                     <div className="font-medium flex items-center gap-1 flex-wrap">
                       <span className="text-foreground group-hover:text-primary transition-colors truncate">
                         {coin.name}
@@ -169,13 +163,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                     </div>
                   </div>
 
-                  <div className="col-span-3 hidden xl:block">
-                    <div className="h-12 w-full min-w-[100px]">
-                      <MiniChart symbol={`${coin.symbol.toUpperCase()}USD`} theme={theme} />
-                    </div>
-                  </div>
-
-                  <div className="col-span-3 xl:col-span-3 text-right flex flex-col items-end justify-center">
+                  <div className="col-span-4 text-right flex flex-col items-end justify-center">
                     <div className="font-semibold text-sm text-foreground">
                       {formatPrice(coin.price)}
                     </div>
@@ -215,7 +203,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                     {index + 1}
                   </div>
 
-                  <div className="col-span-5 min-w-0">
+                  <div className="col-span-7 min-w-0">
                     <div className="font-medium flex items-center gap-1 flex-wrap">
                       <span className="text-foreground group-hover:text-primary transition-colors truncate">
                         {coin.name || 'Unknown'}
@@ -243,15 +231,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                     </div>
                   </div>
 
-                  {coin.symbol && (
-                    <div className="col-span-3 hidden xl:block">
-                      <div className="h-12 w-full min-w-[100px]">
-                        <MiniChart symbol={`${coin.symbol.toUpperCase()}USD`} theme={theme} />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="col-span-3 xl:col-span-3 text-right flex flex-col items-end justify-center">
+                  <div className="col-span-4 text-right flex flex-col items-end justify-center">
                     <Badge
                       variant="outline"
                       className="text-yellow-500 border-yellow-500/20 bg-yellow-500/10 font-semibold text-xs"
