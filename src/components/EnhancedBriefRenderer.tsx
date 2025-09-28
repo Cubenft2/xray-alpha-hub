@@ -42,8 +42,9 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       'BNB': 'BINANCE:BNBUSDT',
       'WBTC': 'BINANCE:WBTCUSDT',
       'USDE': 'BINANCE:USDEUSDT',
-      'FIGR_HELOC': 'BINANCE:FIGRUSDT',
-      'FIGR': 'BINANCE:FIGRUSDT',
+      // Note: FIGR_HELOC may not be available on exchanges - skip for now
+      // 'FIGR_HELOC': 'BINANCE:FIGRUSDT',
+      // 'FIGR': 'BINANCE:FIGRUSDT',
       // Stock mappings
       'SPX': 'SP:SPX',
       'DXY': 'TVC:DXY',
