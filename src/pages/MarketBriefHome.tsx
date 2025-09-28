@@ -113,9 +113,10 @@ export default function MarketBriefHome() {
         if (date) {
           // If we have a date parameter, fetch that specific brief
           console.log('🐕 XRay: Fetching specific date:', date);
+          // @ts-ignore - TypeScript type inference issue with Supabase types
           const { data, error } = await supabase
             .from('market_briefs')
-            .select('*')
+            .select('slug, date, title, executive_summary, content_sections, featured_assets, social_data, market_data, stoic_quote, sentiment_score')
             .eq('date', date)
             .single();
           
@@ -398,25 +399,28 @@ export default function MarketBriefHome() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
           <div className="flex items-center gap-2 flex-wrap">
-            <Button 
-              variant="default" 
-              size="sm" 
-              onClick={generateFreshBrief}
-              disabled={generating}
-              className="btn-hero"
-            >
-              {generating ? (
-                <>
-                  <div className="w-4 h-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Create Fresh Brief
-                </>
-              )}
-            </Button>
+            {/* Create Fresh Brief button hidden to prevent API overuse - only available to admins */}
+            {false && (
+              <Button 
+                variant="default" 
+                size="sm" 
+                onClick={generateFreshBrief}
+                disabled={generating}
+                className="btn-hero"
+              >
+                {generating ? (
+                  <>
+                    <div className="w-4 h-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Create Fresh Brief
+                  </>
+                )}
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleShareX}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Share on X

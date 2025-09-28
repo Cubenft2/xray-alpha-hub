@@ -101,28 +101,16 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     
     enhancedText = enhancedText.replace(tickerRegex, (match, name, symbol) => {
       extractedTickers.push(symbol.toUpperCase());
-      const tickerData = enhancedTickers[symbol.toUpperCase()];
       const displayName = name.trim();
       
-      if (tickerData && tickerData.price) {
-        // Show name as regular text, only parentheses part is clickable with live price data
-        const price = tickerData.price < 0.01 ? tickerData.price.toFixed(6) : 
-                     tickerData.price < 1 ? tickerData.price.toFixed(4) : 
-                     tickerData.price.toLocaleString();
-        const changeClass = tickerData.change_24h >= 0 ? 'text-green-400 border-green-400/20 bg-green-400/10' : 'text-red-400 border-red-400/20 bg-red-400/10';
-        const changeSign = tickerData.change_24h >= 0 ? '+' : '';
-        
-        return `${displayName} <button onclick="window.handleTickerClick('${symbol}')" class="ticker-link-enhanced font-bold ${changeClass} hover:opacity-80 px-2 py-1 rounded transition-all duration-200 cursor-pointer border text-sm inline-flex items-center gap-1">
-          <span class="font-mono text-xs">(${symbol}</span>
-          <span class="font-mono text-xs">$${price}</span>
-          <span class="font-mono text-xs">${changeSign}${tickerData.change_24h.toFixed(2)}%)</span>
-        </button>`;
-      } else {
-        // Show name as regular text, only parentheses part is clickable
-        return `${displayName} <button onclick="window.handleTickerClick('${symbol}')" class="ticker-link font-bold text-primary hover:text-primary/80 hover:bg-primary/10 px-1.5 py-0.5 rounded transition-all duration-200 cursor-pointer border border-primary/20 bg-primary/5 text-sm">
-          (${symbol})
-        </button>`;
-      }
+      // Use new inline quote system with live API data
+      return `${displayName} <span 
+        class="ticker-quote-inline font-semibold cursor-help hover:opacity-80 transition-opacity" 
+        data-quote-symbol="${symbol.toUpperCase()}" 
+        onclick="window.handleTickerClick('${symbol}')"
+        style="color: inherit;">
+        (${symbol.toUpperCase()} loading...)
+      </span>`;
     });
 
     return { html: enhancedText, tickers: extractedTickers };
@@ -140,6 +128,17 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     // Add global click handler for ticker buttons
     (window as any).handleTickerClick = handleTickerClick;
     
+    // Initialize inline quotes after DOM is ready
+    const initQuotes = async () => {
+      // Import and initialize quotes system
+      const { initializeInlineQuotes } = await import('./InlineQuote');
+      setTimeout(() => initializeInlineQuotes(), 100); // Small delay to ensure DOM is ready
+    };
+    
+    if (tickers.length > 0) {
+      initQuotes();
+    }
+    
     // Style percentage elements based on positive/negative values
     const percentageElements = document.querySelectorAll('.percentage-badge[data-change]');
     percentageElements.forEach(el => {
@@ -154,7 +153,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     return () => {
       delete (window as any).handleTickerClick;
     };
-  }, [handleTickerClick]);
+  }, [handleTickerClick, tickers.length]);
 
   const processedContent = `<div class="space-y-6"><p class="mb-6 leading-relaxed text-foreground/90">${enhancedHtml}</p></div>`;
 

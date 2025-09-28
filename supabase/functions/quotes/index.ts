@@ -1,0 +1,208 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const coinGeckoApiKey = Deno.env.get('COINGECKO_API_KEY');
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Symbol mappings for CoinGecko
+const symbolToCoinId: Record<string, string> = {
+  'BTC': 'bitcoin',
+  'ETH': 'ethereum', 
+  'SOL': 'solana',
+  'AVAX': 'avalanche-2',
+  'XRP': 'ripple',
+  'ADA': 'cardano',
+  'DOT': 'polkadot',
+  'LINK': 'chainlink',
+  'MATIC': 'matic-network',
+  'ATOM': 'cosmos',
+  'NEAR': 'near',
+  'FTM': 'fantom',
+  'ALGO': 'algorand',
+  'ICP': 'internet-computer',
+  'VET': 'vechain',
+  'SAND': 'the-sandbox',
+  'MANA': 'decentraland',
+  'CRV': 'curve-dao-token',
+  'AAVE': 'aave',
+  'UNI': 'uniswap',
+  'SUSHI': 'sushi',
+  'COMP': 'compound-governance-token',
+  'YFI': 'yearn-finance'
+};
+
+interface QuoteData {
+  symbol: string;
+  price: number;
+  change24h: number;
+  timestamp: string;
+  source: string;
+}
+
+async function getCachedData(key: string): Promise<any | null> {
+  try {
+    const { data, error } = await supabase
+      .from('cache_kv')
+      .select('v, expires_at')
+      .eq('k', key)
+      .single();
+
+    if (error || !data) return null;
+    
+    const now = new Date();
+    const expiresAt = new Date(data.expires_at);
+    
+    if (now > expiresAt) {
+      // Clean up expired entry
+      await supabase.from('cache_kv').delete().eq('k', key);
+      return null;
+    }
+    
+    return data.v;
+  } catch (error) {
+    console.error('Cache read error:', error);
+    return null;
+  }
+}
+
+async function setCachedData(key: string, value: any, ttlSeconds: number): Promise<void> {
+  try {
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+    
+    await supabase
+      .from('cache_kv')
+      .upsert({
+        k: key,
+        v: value,
+        expires_at: expiresAt
+      });
+  } catch (error) {
+    console.error('Cache write error:', error);
+  }
+}
+
+async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
+  const coinIds = symbols.map(symbol => symbolToCoinId[symbol]).filter(Boolean);
+  
+  if (coinIds.length === 0) return [];
+  
+  const url = coinGeckoApiKey 
+    ? `https://pro-api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true&x_cg_pro_api_key=${coinGeckoApiKey}`
+    : `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true`;
+
+  const response = await fetch(url);
+  
+  if (!response.ok) {
+    throw new Error(`CoinGecko API error: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  const timestamp = new Date().toISOString();
+  
+  const quotes: QuoteData[] = [];
+  
+  for (const [symbol, coinId] of Object.entries(symbolToCoinId)) {
+    if (symbols.includes(symbol) && data[coinId]) {
+      quotes.push({
+        symbol,
+        price: data[coinId].usd,
+        change24h: data[coinId].usd_24h_change || 0,
+        timestamp,
+        source: 'coingecko'
+      });
+    }
+  }
+  
+  return quotes;
+}
+
+// Basic stock data (placeholder - you'd integrate with your preferred stock API)
+async function fetchStockData(symbols: string[]): Promise<QuoteData[]> {
+  // For now, return empty array - you'd integrate with Polygon, Alpha Vantage, etc.
+  const stockSymbols = symbols.filter(s => ['SPY', 'QQQ', 'VTI', 'TSLA', 'AAPL', 'MSFT', 'GOOGL'].includes(s));
+  
+  // Placeholder stock data - replace with real API
+  return stockSymbols.map(symbol => ({
+    symbol,
+    price: Math.random() * 500 + 100, // Mock price
+    change24h: (Math.random() - 0.5) * 10, // Mock change
+    timestamp: new Date().toISOString(),
+    source: 'placeholder'
+  }));
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const url = new URL(req.url);
+    const symbolsParam = url.searchParams.get('symbols');
+    
+    if (!symbolsParam) {
+      return new Response(
+        JSON.stringify({ error: 'symbols parameter required' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const symbols = symbolsParam.split(',').map(s => s.trim().toUpperCase());
+    const cacheKey = `quotes:${symbols.sort().join(',')}`;
+    
+    // Check cache first
+    const cached = await getCachedData(cacheKey);
+    if (cached) {
+      console.log('Returning cached quotes data');
+      return new Response(
+        JSON.stringify(cached),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Fetching fresh quotes data for:', symbols);
+    
+    // Fetch crypto and stock data concurrently
+    const [cryptoQuotes, stockQuotes] = await Promise.all([
+      fetchCoinGeckoData(symbols),
+      fetchStockData(symbols)
+    ]);
+    
+    const allQuotes = [...cryptoQuotes, ...stockQuotes];
+    const result = {
+      quotes: allQuotes,
+      timestamp: new Date().toISOString(),
+      cached: false
+    };
+    
+    // Cache for 150 seconds (2.5 minutes)
+    await setCachedData(cacheKey, result, 150);
+    
+    return new Response(
+      JSON.stringify(result),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+    
+  } catch (error) {
+    console.error('Error in quotes function:', error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+});
