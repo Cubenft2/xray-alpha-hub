@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, TrendingDown, Star, Crown, ExternalLink } from 'lucide-react';
-import { MiniChart } from './MiniChart';
 import { useTheme } from 'next-themes';
 
 interface TopMover {
@@ -34,9 +33,9 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
   }
 
   const data = marketData.content_sections.market_data;
-  const gainers = data.top_gainers || [];
-  const losers = data.top_losers || [];
-  const trending = data.trending_coins || [];
+  const gainers: TopMover[] = data.top_gainers || [];
+  const losers: TopMover[] = data.top_losers || [];
+  const trending: TrendingCoin[] = data.trending_coins || [];
 
   const formatPrice = (price: number) => {
     if (price < 0.01) return `$${price.toFixed(6)}`;
@@ -45,7 +44,6 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
   };
 
   const handleTokenClick = (symbol: string) => {
-    // Navigate to crypto page with the token symbol
     navigate(`/crypto?symbol=${symbol.toUpperCase()}`);
   };
 
@@ -61,9 +59,9 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
         </CardHeader>
         <CardContent className="space-y-2">
           {gainers.length > 0 ? (
-            gainers.slice(0, 5).map((coin: TopMover, index: number) => (
+            gainers.slice(0, 5).map((coin, index) => (
               <div key={coin.symbol}>
-                <div 
+                <div
                   className="grid grid-cols-12 items-center gap-2 py-3 border-b border-border/30 last:border-0 hover:bg-accent/20 transition-colors rounded-lg cursor-pointer group"
                   onClick={() => handleTokenClick(coin.symbol)}
                 >
@@ -92,15 +90,11 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                         <Crown className="w-3 h-3 text-yellow-500 flex-shrink-0" />
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      #{coin.market_cap_rank || 'N/A'}
-                    </div>
+                    <div className="text-xs text-muted-foreground truncate">#{coin.market_cap_rank || 'N/A'}</div>
                   </div>
 
                   <div className="col-span-4 text-right flex flex-col items-end justify-center">
-                    <div className="font-semibold text-sm text-foreground">
-                      {formatPrice(coin.price)}
-                    </div>
+                    <div className="font-semibold text-sm text-foreground">{formatPrice(coin.price)}</div>
                     <Badge
                       variant="outline"
                       className="text-green-500 border-green-500/20 bg-green-500/10 font-semibold text-xs"
@@ -127,9 +121,9 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
         </CardHeader>
         <CardContent className="space-y-2">
           {losers.length > 0 ? (
-            losers.slice(0, 5).map((coin: TopMover, index: number) => (
+            losers.slice(0, 5).map((coin, index) => (
               <div key={coin.symbol}>
-                <div 
+                <div
                   className="grid grid-cols-12 items-center gap-2 py-3 border-b border-border/30 last:border-0 hover:bg-accent/20 transition-colors rounded-lg cursor-pointer group"
                   onClick={() => handleTokenClick(coin.symbol)}
                 >
@@ -158,15 +152,11 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                         <Crown className="w-3 h-3 text-yellow-500 flex-shrink-0" />
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      #{coin.market_cap_rank || 'N/A'}
-                    </div>
+                    <div className="text-xs text-muted-foreground truncate">#{coin.market_cap_rank || 'N/A'}</div>
                   </div>
 
                   <div className="col-span-4 text-right flex flex-col items-end justify-center">
-                    <div className="font-semibold text-sm text-foreground">
-                      {formatPrice(coin.price)}
-                    </div>
+                    <div className="font-semibold text-sm text-foreground">{formatPrice(coin.price)}</div>
                     <Badge
                       variant="outline"
                       className="text-red-500 border-red-500/20 bg-red-500/10 font-semibold text-xs"
@@ -193,9 +183,9 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
         </CardHeader>
         <CardContent className="space-y-2">
           {trending.length > 0 ? (
-            trending.slice(0, 5).map((coin: TrendingCoin, index: number) => (
+            trending.slice(0, 5).map((coin, index) => (
               <div key={coin.symbol || index}>
-                <div 
+                <div
                   className="grid grid-cols-12 items-center gap-2 py-3 border-b border-border/30 last:border-0 hover:bg-accent/20 transition-colors rounded-lg cursor-pointer group"
                   onClick={() => coin.symbol && handleTokenClick(coin.symbol)}
                 >
@@ -226,21 +216,39 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                         <Star className="w-3 h-3 text-yellow-500 flex-shrink-0" />
                       )}
                     </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      #{coin.market_cap_rank || 'N/A'}
-                    </div>
+                    <div className="text-xs text-muted-foreground truncate">#{coin.market_cap_rank || 'N/A'}</div>
                   </div>
 
                   <div className="col-span-4 text-right flex flex-col items-end justify-center">
-                    <div className="font-semibold text-sm text-muted-foreground mb-1">
-                      Price N/A
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className="text-muted-foreground border-muted-foreground/20 bg-muted/10 font-semibold text-xs"
-                    >
-                      Trending
-                    </Badge>
+                    {(() => {
+                      const match = gainers.find((m) => m.symbol?.toUpperCase() === coin.symbol?.toUpperCase()) ||
+                        losers.find((m) => m.symbol?.toUpperCase() === coin.symbol?.toUpperCase());
+                      if (match) {
+                        const isUp = (match.change_24h ?? 0) >= 0;
+                        return (
+                          <>
+                            <div className="font-semibold text-sm text-foreground">{formatPrice(match.price)}</div>
+                            <Badge
+                              variant="outline"
+                              className={`${isUp ? 'text-green-500 border-green-500/20 bg-green-500/10' : 'text-red-500 border-red-500/20 bg-red-500/10'} font-semibold text-xs`}
+                            >
+                              {isUp ? '+' : ''}{match.change_24h?.toFixed(2)}%
+                            </Badge>
+                          </>
+                        );
+                      }
+                      return (
+                        <>
+                          <div className="font-semibold text-sm text-muted-foreground mb-1">—</div>
+                          <Badge
+                            variant="outline"
+                            className="text-muted-foreground border-muted-foreground/20 bg-muted/10 font-semibold text-xs"
+                          >
+                            Trending
+                          </Badge>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
