@@ -63,12 +63,12 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                   alt="XRay Profile" 
                   className="w-10 h-10 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-2"
                 />
-                <span className="text-xl xr-pixel-text hidden sm:block leading-tight text-primary font-black">
+                <span className="text-xl xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
                   XRayCrypto™
                 </span>
               </div>
               <span className="text-xs text-muted-foreground hidden sm:block font-mono ml-12 -mt-1">
-                Your crypto-first market analysis, twice a day
+                Powered by XRay Dog
               </span>
               <div className="flex items-center space-x-1 sm:hidden">
                 <img 
@@ -76,7 +76,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                   alt="XRay Profile" 
                   className="w-8 h-8 rounded-full"
                 />
-                <span className="text-lg xr-pixel-text text-primary font-black">
+                <span className="text-lg xr-pixel-text animate-radioactive-glow">
                   XR™
                 </span>
               </div>
