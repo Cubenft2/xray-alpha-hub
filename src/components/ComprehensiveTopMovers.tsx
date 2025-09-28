@@ -188,7 +188,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Star className="w-5 h-5 text-yellow-500" />
-            Trending Coins
+            🔥 Trending Coins
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -232,11 +232,14 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                   </div>
 
                   <div className="col-span-4 text-right flex flex-col items-end justify-center">
+                    <div className="font-semibold text-sm text-muted-foreground mb-1">
+                      Price N/A
+                    </div>
                     <Badge
                       variant="outline"
-                      className="text-yellow-500 border-yellow-500/20 bg-yellow-500/10 font-semibold text-xs"
+                      className="text-muted-foreground border-muted-foreground/20 bg-muted/10 font-semibold text-xs"
                     >
-                      🔥 Hot
+                      Trending
                     </Badge>
                   </div>
                 </div>
