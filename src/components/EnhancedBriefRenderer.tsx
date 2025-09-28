@@ -14,7 +14,15 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {} }: Enhance
   };
 
   const enhanceContent = (text: string) => {
-    let enhancedText = text;
+    // Normalize any pre-existing HTML tags in the source to plain newlines first
+    const normalized = text
+      .replace(/<\/p>\s*<p>/gi, '\n\n')
+      .replace(/<\/?p>/gi, '')
+      .replace(/<br\s*\/?>(\n)?/gi, '\n')
+      .replace(/&lt;<\/p>&gt;\s*&lt;<p>&gt;/gi, '\n\n')
+      .replace(/&lt;br\s*\/?&gt;/gi, '\n');
+
+    let enhancedText = normalized;
 
     // Enhanced typography and styling
     enhancedText = enhancedText.replace(/&/g, '&amp;')
