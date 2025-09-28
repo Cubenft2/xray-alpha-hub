@@ -5,8 +5,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink } from 'lucide-react';
-import { MiniChart } from './MiniChart';
-import { useTheme } from 'next-themes';
 
 interface SocialAsset {
   name: string;
@@ -25,7 +23,7 @@ interface SocialSentimentBoardProps {
 
 export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) {
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  
 
   if (!marketData?.content_sections?.market_data?.social_sentiment) {
     return null;
@@ -167,16 +165,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="h-16 w-24 hidden lg:block">
-                        <MiniChart symbol={`${asset.symbol.toUpperCase()}USD`} theme={theme} />
-                      </div>
-                      <div className="text-right">
-                        <Badge variant="outline" className={`${getScoreBadgeColor(asset.galaxy_score || 0)} font-semibold`}>
-                          Galaxy Score: {asset.galaxy_score || 0}
-                        </Badge>
-                      </div>
-                    </div>
+                    {/* Right-side visuals removed to reduce redundancy */}
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
