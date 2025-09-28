@@ -6,6 +6,7 @@ import { Share, Copy, ExternalLink, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { MiniChart } from '@/components/MiniChart';
 import { useTheme } from 'next-themes';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MarketBrief {
   slug: string;
@@ -31,95 +32,73 @@ export default function MarketBriefHome() {
   const { toast } = useToast();
   const { theme } = useTheme();
 
-  const workerBase = 'https://xraycrypto-news.xrprat.workers.dev/';
-
   useEffect(() => {
     const fetchBrief = async () => {
       try {
         setLoading(true);
         console.log('🐕 XRay: Fetching market brief...', date ? `for date: ${date}` : 'latest');
-        console.log('🐕 XRay: Current URL pathname:', window.location.pathname);
-        console.log('🐕 XRay: Date parameter from useParams:', date);
         
-        // If we have a date parameter, fetch that specific brief
+        let briefData;
+        
         if (date) {
+          // If we have a date parameter, fetch that specific brief
           console.log('🐕 XRay: Fetching specific date:', date);
-          const dateRes = await fetch(`${workerBase}marketbrief/${date}.json`, { 
-            cache: 'no-store',
-            headers: {
-              'Accept': 'application/json',
-            }
-          });
+          const { data, error } = await supabase
+            .from('market_briefs')
+            .select('*')
+            .eq('date', date)
+            .single();
           
-          console.log('🐕 XRay: Date-specific request status:', dateRes.status);
-          
-          if (dateRes.ok) {
-            const briefData = await dateRes.json();
-            console.log('🐕 XRay: Date-specific brief loaded!', briefData);
-            setBrief(briefData);
-            
-            if (briefData.title) {
-              document.title = briefData.title + ' — XRayCrypto News';
-            }
-            return;
-          } else {
-            console.error('🐕 XRay: Date-specific request failed:', dateRes.status, dateRes.statusText);
+          if (error || !data) {
+            console.error('🐕 XRay: Brief fetch failed:', error);
             throw new Error(`Brief for ${date} not found`);
           }
-        }
-        
-        console.log('🐕 XRay: No date parameter, fetching latest');
-        // Otherwise fetch the latest brief
-        const directRes = await fetch(`${workerBase}marketbrief/latest.json`, { 
-          cache: 'no-store',
-          headers: {
-            'Accept': 'application/json',
-          }
-        });
-        
-        if (directRes.ok) {
-          const briefData = await directRes.json();
-          console.log('🐕 XRay: Brief loaded successfully!', briefData);
-          setBrief(briefData);
+          briefData = data;
+        } else {
+          // Otherwise fetch the latest brief
+          const { data, error } = await supabase
+            .from('market_briefs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
           
-          if (briefData.title) {
-            document.title = briefData.title + ' — XRayCrypto News';
+          if (error || !data) {
+            console.error('🐕 XRay: Brief fetch failed:', error);
+            throw new Error('No market briefs available');
           }
-          return;
+          briefData = data;
         }
         
-        console.log('🐕 XRay: Direct endpoint failed, trying feed method...');
+        console.log('🐕 XRay: Brief loaded successfully!', briefData);
         
-        // Fallback to the original method
-        const feedRes = await fetch(`${workerBase}marketbrief/feed/index.json`, { 
-          cache: 'no-store' 
-        });
+        // Convert database format to expected format
+        const brief: MarketBrief = {
+          slug: briefData.slug || briefData.date || '',
+          date: briefData.date || '',
+          title: briefData.title || '',
+          summary: briefData.summary || '',
+          article_html: briefData.article_html || '',
+          last_word: '',
+          social_text: '',
+          sources: [],
+          focus_assets: ['BTC', 'SPX'], // Default assets for now
+          og_image: '',
+          author: briefData.author || 'Captain XRay',
+          canonical: briefData.canonical || window.location.href
+        };
         
-        if (!feedRes.ok) throw new Error('Feed fetch failed');
+        setBrief(brief);
         
-        const feed = await feedRes.json();
-        if (!feed?.latest) throw new Error('No latest brief available');
-
-        // Fetch the actual brief content
-        const briefRes = await fetch(`${workerBase}marketbrief/briefs/${feed.latest}.json`, {
-          cache: 'no-store'
-        });
-        
-        if (!briefRes.ok) throw new Error('Brief fetch failed');
-        
-        const briefData = await briefRes.json();
-        setBrief(briefData);
-        
-        // Update document title and meta
-        if (briefData.title) {
-          document.title = briefData.title + ' — XRayCrypto News';
+        if (brief.title) {
+          document.title = brief.title + ' — XRayCrypto News';
         }
         
       } catch (error) {
         console.error('🐕 XRay: Brief load failed:', error);
         toast({
           title: "Connection Issue",  
-          description: `Can't reach XRay servers: ${error}`,
+          description: `Can't reach database: ${error}`,
           variant: "destructive"
         });
       } finally {
@@ -128,7 +107,7 @@ export default function MarketBriefHome() {
     };
 
     fetchBrief();
-  }, [toast, workerBase, date]);
+  }, [toast, date]);
 
   const handleShareX = () => {
     if (!brief) return;
