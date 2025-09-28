@@ -142,7 +142,7 @@ export default function MarketBriefHome() {
   const generateComprehensiveBrief = async () => {
     try {
       setGenerating(true);
-      console.log('🚀 Generating comprehensive market brief...');
+      console.log('🚀 Generating comprehensive market brief with API keys...');
       
       const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
         body: {}
@@ -150,13 +150,18 @@ export default function MarketBriefHome() {
       
       if (error) {
         console.error('❌ Brief generation failed:', error);
+        toast({
+          title: "API Error",
+          description: `Brief generation failed: ${JSON.stringify(error)}`,
+          variant: "destructive"
+        });
         throw error;
       }
       
-      console.log('✅ Brief generated successfully:', data);
+      console.log('✅ Brief generated successfully with data sources:', data?.data_summary);
       toast({
-        title: "New Brief Generated!",
-        description: "Comprehensive market brief created with live data. Refreshing page...",
+        title: "Success!",
+        description: `New brief created with ${data?.data_summary?.coins_analyzed || 0} coins analyzed and ${data?.data_summary?.social_assets || 0} social assets tracked.`,
       });
       
       // Refresh the page after a short delay to load the new brief
@@ -168,7 +173,7 @@ export default function MarketBriefHome() {
       console.error('💥 Brief generation error:', error);
       toast({
         title: "Generation Failed",
-        description: `Failed to generate brief: ${error}`,
+        description: `Error: ${error}. Check if API keys are working.`,
         variant: "destructive"
       });
     } finally {
