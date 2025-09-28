@@ -58,57 +58,112 @@ serve(async (req) => {
     
     if (cryptoSymbols.length > 0) {
       try {
-        // Try to fetch crypto data for all symbols
-        const symbolList = cryptoSymbols.map(t => t.symbol.toLowerCase()).join(',');
-        console.log(`🔄 Fetching crypto data for: ${symbolList}`);
+        console.log(`🔄 Fetching comprehensive exchange data...`);
         
-        const cryptoResponse = await fetch(
-          `https://api.coingecko.com/api/v3/simple/price?ids=${symbolList}&vs_currencies=usd&include_24hr_change=true&x_cg_demo_api_key=${coingeckoApiKey}`
-        );
-
-        if (cryptoResponse.ok) {
-          const cryptoData = await cryptoResponse.json();
-          console.log('✅ Crypto price data fetched successfully');
+        // First, try to get exchange aggregated data
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const symbols = cryptoSymbols.map(t => t.symbol);
+        
+        const exchangeResponse = await supabase.functions.invoke('exchange-data-aggregator', {
+          body: { symbols }
+        });
+        
+        if (exchangeResponse.data?.success && exchangeResponse.data.data?.length > 0) {
+          console.log('✅ Exchange aggregated data fetched successfully');
           
-          // Map the price data back to symbols
-          Object.entries(cryptoData).forEach(([id, data]: [string, any]) => {
-            const ticker = cryptoSymbols.find(t => t.symbol.toLowerCase() === id);
+          exchangeResponse.data.data.forEach((tokenData: any) => {
+            const ticker = uniqueTickers.get(tokenData.symbol);
             if (ticker) {
-              tickerData.set(ticker.symbol, {
-                symbol: ticker.symbol,
+              tickerData.set(tokenData.symbol, {
+                symbol: tokenData.symbol,
                 name: ticker.name,
-                price: data.usd || null,
-                change_24h: data.usd_24h_change || null,
+                price: tokenData.current_price || null,
+                change_24h: tokenData.weighted_change_24h || null,
                 isStock: false
               });
             }
           });
-        } else {
-          console.log('⚠️ Primary crypto API failed, trying alternative approach...');
+        }
+        
+        // For any remaining symbols, try CoinGecko fallback
+        const remainingSymbols = cryptoSymbols.filter(t => !tickerData.has(t.symbol));
+        
+        if (remainingSymbols.length > 0) {
+          console.log(`🔄 Fetching CoinGecko data for remaining symbols: ${remainingSymbols.map(t => t.symbol).join(', ')}`);
           
-          // Fallback: Try symbol-based search for major cryptos
-          const majorCryptos = ['BTC', 'ETH', 'SOL', 'ADA', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI', 'LTC', 'XRP', 'DOGE'];
-          const symbolsToFetch = cryptoSymbols.filter(t => majorCryptos.includes(t.symbol));
-          
-          if (symbolsToFetch.length > 0) {
-            const fallbackIds = symbolsToFetch.map(t => {
-              const idMap: {[key: string]: string} = {
-                'BTC': 'bitcoin',
-                'ETH': 'ethereum', 
-                'SOL': 'solana',
-                'ADA': 'cardano',
-                'DOT': 'polkadot',
-                'MATIC': 'polygon',
-                'AVAX': 'avalanche-2',
-                'LINK': 'chainlink',
-                'UNI': 'uniswap',
-                'LTC': 'litecoin',
-                'XRP': 'ripple',
-                'DOGE': 'dogecoin'
-              };
-              return idMap[t.symbol];
-            }).filter(Boolean).join(',');
+          // Try to fetch crypto data for remaining symbols using symbol search
+          for (const ticker of remainingSymbols) {
+            try {
+              // Search for the coin first to get its ID
+              const searchResponse = await fetch(
+                `https://api.coingecko.com/api/v3/search?query=${ticker.symbol}&x_cg_demo_api_key=${coingeckoApiKey}`
+              );
+              
+              if (searchResponse.ok) {
+                const searchData = await searchResponse.json();
+                const coin = searchData.coins?.find((c: any) => 
+                  c.symbol.toLowerCase() === ticker.symbol.toLowerCase()
+                );
+                
+                if (coin) {
+                  // Get market data using coin ID
+                  const marketResponse = await fetch(
+                    `https://api.coingecko.com/api/v3/simple/price?ids=${coin.id}&vs_currencies=usd&include_24hr_change=true&x_cg_demo_api_key=${coingeckoApiKey}`
+                  );
+                  
+                  if (marketResponse.ok) {
+                    const marketData = await marketResponse.json();
+                    const coinData = marketData[coin.id];
+                    
+                    if (coinData) {
+                      tickerData.set(ticker.symbol, {
+                        symbol: ticker.symbol,
+                        name: ticker.name,
+                        price: coinData.usd || null,
+                        change_24h: coinData.usd_24h_change || null,
+                        isStock: false
+                      });
+                      console.log(`✅ CoinGecko data found for ${ticker.symbol}`);
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.error(`❌ Error fetching CoinGecko data for ${ticker.symbol}:`, err);
+            }
             
+            // Add delay to respect rate limits
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+        }
+        
+      } catch (err) {
+        console.error('❌ Error fetching exchange data:', err);
+        
+        // Ultimate fallback: Try CoinGecko for major cryptos
+        const majorCryptos = ['BTC', 'ETH', 'SOL', 'ADA', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI', 'LTC', 'XRP', 'DOGE'];
+        const symbolsToFetch = cryptoSymbols.filter(t => majorCryptos.includes(t.symbol));
+        
+        if (symbolsToFetch.length > 0) {
+          const fallbackIds = symbolsToFetch.map(t => {
+            const idMap: {[key: string]: string} = {
+              'BTC': 'bitcoin',
+              'ETH': 'ethereum', 
+              'SOL': 'solana',
+              'ADA': 'cardano',
+              'DOT': 'polkadot',
+              'MATIC': 'polygon',
+              'AVAX': 'avalanche-2',
+              'LINK': 'chainlink',
+              'UNI': 'uniswap',
+              'LTC': 'litecoin',
+              'XRP': 'ripple',
+              'DOGE': 'dogecoin'
+            };
+            return idMap[t.symbol];
+          }).filter(Boolean).join(',');
+          
+          try {
             const fallbackResponse = await fetch(
               `https://api.coingecko.com/api/v3/simple/price?ids=${fallbackIds}&vs_currencies=usd&include_24hr_change=true&x_cg_demo_api_key=${coingeckoApiKey}`
             );
@@ -135,7 +190,7 @@ serve(async (req) => {
               Object.entries(fallbackData).forEach(([id, data]: [string, any]) => {
                 const symbol = idToSymbol[id];
                 const ticker = uniqueTickers.get(symbol);
-                if (ticker) {
+                if (ticker && !tickerData.has(symbol)) {
                   tickerData.set(symbol, {
                     symbol,
                     name: ticker.name,
@@ -146,10 +201,10 @@ serve(async (req) => {
                 }
               });
             }
+          } catch (fallbackErr) {
+            console.error('❌ Fallback CoinGecko request failed:', fallbackErr);
           }
         }
-      } catch (err) {
-        console.error('❌ Error fetching crypto data:', err);
       }
     }
 
