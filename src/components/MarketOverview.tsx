@@ -124,36 +124,31 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
                 <p className="text-sm text-muted-foreground">Biggest Mover</p>
                 {data.biggest_mover ? (
                   <>
-                    <div className="flex items-center gap-1">
+                    <div className="space-y-1">
                       <p className="text-lg font-bold text-foreground">
-                        {data.biggest_mover.name}
+                        {data.biggest_mover.name} {data.biggest_mover.symbol && `(${data.biggest_mover.symbol.toUpperCase()})`}
                       </p>
-                      {data.biggest_mover.symbol && (
-                        <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 font-mono text-xs">
-                          {data.biggest_mover.symbol.toUpperCase()}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      {data.biggest_mover.price && (
-                        <span className="text-sm font-semibold text-foreground">
-                          ${data.biggest_mover.price < 0.01 ? data.biggest_mover.price.toFixed(6) : 
-                            data.biggest_mover.price < 1 ? data.biggest_mover.price.toFixed(4) : 
-                            data.biggest_mover.price.toLocaleString()}
-                        </span>
-                      )}
-                      {data.biggest_mover.change_24h && (
-                        <Badge 
-                          variant="outline" 
-                          className={`${data.biggest_mover.change_24h > 0 
-                            ? 'text-green-500 border-green-500/20 bg-green-500/10' 
-                            : 'text-red-500 border-red-500/20 bg-red-500/10'
-                          } font-semibold text-xs`}
-                        >
-                          {data.biggest_mover.change_24h > 0 ? '+' : ''}
-                          {data.biggest_mover.change_24h.toFixed(2)}%
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {data.biggest_mover.price && (
+                          <span className="text-sm font-semibold text-foreground">
+                            ${data.biggest_mover.price < 0.01 ? data.biggest_mover.price.toFixed(6) : 
+                              data.biggest_mover.price < 1 ? data.biggest_mover.price.toFixed(4) : 
+                              data.biggest_mover.price.toLocaleString()}
+                          </span>
+                        )}
+                        {data.biggest_mover.change_24h && (
+                          <Badge 
+                            variant="outline" 
+                            className={`${data.biggest_mover.change_24h > 0 
+                              ? 'text-green-500 border-green-500/20 bg-green-500/10' 
+                              : 'text-red-500 border-red-500/20 bg-red-500/10'
+                            } font-semibold text-xs`}
+                          >
+                            {data.biggest_mover.change_24h > 0 ? '+' : ''}
+                            {data.biggest_mover.change_24h.toFixed(2)}%
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </>
                 ) : (
