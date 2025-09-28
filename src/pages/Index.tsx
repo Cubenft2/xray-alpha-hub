@@ -149,53 +149,20 @@ const Index = () => {
               </p>
             </div>
           ) : latestBrief ? (
-            <div className="space-y-8">
-              {/* Latest Brief Header */}
-              <div className="text-center">
-                <Badge variant="default" className="text-base font-pixel px-4 py-2 mb-6 btn-hero">
+            <div className="space-y-6">
+              {/* Brief Header */}
+              <div className="text-center mb-6">
+                <Badge variant="default" className="text-base font-pixel px-4 py-2 btn-hero">
                   🚨 LATEST BRIEF — {new Date(latestBrief.published_at).toLocaleDateString('en-US', { 
                     weekday: 'long', 
                     month: 'long', 
                     day: 'numeric' 
                   })}
                 </Badge>
-                
-                {/* Signature Opener Box */}
-                <Card className="xr-card-elevated border-2 border-accent/40 bg-gradient-to-r from-accent/10 to-primary/10 mb-8">
-                  <CardContent className="p-6">
-                    <div className="text-center space-y-4">
-                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/20 rounded-full border border-accent/50">
-                        <Waves className="h-5 w-5 text-accent" />
-                        <span className="font-bold text-accent font-pixel">Signature Opener</span>
-                      </div>
-                      <blockquote className="text-2xl font-bold text-primary font-pixel mb-3">
-                        "Let's talk about something."
-                      </blockquote>
-                      <p className="text-lg text-foreground/90 italic leading-relaxed">
-                        {latestBrief.content_sections?.opener || 
-                         "The tide's changing, and there's more beneath the surface than most are seeing."}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
 
-              {/* THE MAIN BRIEF CONTENT - STAR OF THE SHOW */}
+              {/* THE MARKET BRIEF */}
               <MarketBriefDisplay brief={latestBrief} />
-              
-              {/* Interactive Market Reaction Table */}
-              {latestBrief.market_data?.top_assets && (
-                <PriceSnapshotTable 
-                  data={latestBrief.market_data.top_assets.map((asset: any) => ({
-                    symbol: asset.symbol,
-                    name: asset.name,
-                    price: asset.price,
-                    change_24h: asset.change_24h,
-                    volume: asset.volume,
-                    sentiment: asset.sentiment_score
-                  }))}
-                />
-              )}
             </div>
           ) : (
             <div className="text-center py-20">
