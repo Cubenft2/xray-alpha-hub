@@ -1,8 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Users, Zap, Target, TrendingUp, MessageSquare } from 'lucide-react';
+import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink } from 'lucide-react';
+import { MiniChart } from './MiniChart';
+import { useTheme } from 'next-themes';
 
 interface SocialAsset {
   name: string;
@@ -20,11 +24,19 @@ interface SocialSentimentBoardProps {
 }
 
 export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) {
+  const navigate = useNavigate();
+  const { theme } = useTheme();
+
   if (!marketData?.content_sections?.market_data?.social_sentiment) {
     return null;
   }
 
   const socialAssets: SocialAsset[] = marketData.content_sections.market_data.social_sentiment;
+
+  const handleTokenClick = (symbol: string) => {
+    // Navigate to crypto page with the token symbol
+    navigate(`/crypto?symbol=${symbol.toUpperCase()}`);
+  };
 
   const getScoreColor = (score: number) => {
     if (score >= 80) return 'text-emerald-500';
@@ -130,21 +142,40 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
           <div className="space-y-4">
             {socialAssets.length > 0 ? (
               socialAssets.map((asset, index) => (
-                <div key={asset.symbol} className="border border-border/30 rounded-lg p-4 space-y-3">
+                <div key={asset.symbol} className="border border-border/30 rounded-lg p-4 space-y-3 hover:bg-accent/10 transition-colors cursor-pointer group" onClick={() => handleTokenClick(asset.symbol)}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="text-lg font-bold text-muted-foreground">#{index + 1}</span>
-                      <div>
-                        <h3 className="font-semibold text-lg">{asset.name}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">{asset.name}</h3>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-xs px-2 py-1 h-6 bg-primary/10 text-primary hover:bg-primary/20 font-mono"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleTokenClick(asset.symbol);
+                            }}
+                          >
+                            {asset.symbol.toUpperCase()}
+                            <ExternalLink className="w-3 h-3 ml-1" />
+                          </Button>
+                        </div>
                         <p className="text-sm text-muted-foreground">
-                          {asset.symbol} • AltRank #{asset.alt_rank || 'N/A'}
+                          AltRank #{asset.alt_rank || 'N/A'}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge variant="outline" className={getScoreBadgeColor(asset.galaxy_score || 0)}>
-                        Galaxy Score: {asset.galaxy_score || 0}/100
-                      </Badge>
+                    <div className="flex items-center gap-3">
+                      <div className="h-16 w-24 hidden lg:block">
+                        <MiniChart symbol={`${asset.symbol.toUpperCase()}USD`} theme={theme} />
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="outline" className={`${getScoreBadgeColor(asset.galaxy_score || 0)} font-semibold`}>
+                          Galaxy Score: {asset.galaxy_score || 0}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
 
@@ -153,7 +184,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Galaxy Score</span>
-                        <span className={getScoreColor(asset.galaxy_score || 0)}>
+                        <span className={`${getScoreColor(asset.galaxy_score || 0)} font-semibold`}>
                           {asset.galaxy_score || 0}/100
                         </span>
                       </div>
@@ -164,7 +195,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>FOMO Score</span>
-                        <span className={getScoreColor(asset.fomo_score || 0)}>
+                        <span className={`${getScoreColor(asset.fomo_score || 0)} font-semibold`}>
                           {asset.fomo_score?.toFixed(0) || 0}
                         </span>
                       </div>
@@ -174,7 +205,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     {/* Social Volume */}
                     <div>
                       <p className="text-sm text-muted-foreground">Social Volume</p>
-                      <p className="font-semibold">{formatSocialVolume(asset.social_volume || 0)}</p>
+                      <p className="font-bold text-foreground">{formatSocialVolume(asset.social_volume || 0)}</p>
                     </div>
 
                     {/* Sentiment */}
@@ -182,10 +213,10 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                       <p className="text-sm text-muted-foreground">Sentiment</p>
                       <Badge 
                         variant="outline" 
-                        className={asset.sentiment >= 0 
+                        className={`${asset.sentiment >= 0 
                           ? 'text-green-500 border-green-500/20 bg-green-500/10' 
                           : 'text-red-500 border-red-500/20 bg-red-500/10'
-                        }
+                        } font-semibold`}
                       >
                         {getSentimentLabel(asset.sentiment || 0)}
                       </Badge>

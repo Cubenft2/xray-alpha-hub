@@ -1,18 +1,30 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, DollarSign, Activity } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, TrendingDown, DollarSign, Activity, ExternalLink } from 'lucide-react';
 
 interface MarketOverviewProps {
   marketData: any;
 }
 
 export function MarketOverview({ marketData }: MarketOverviewProps) {
+  const navigate = useNavigate();
+
   if (!marketData?.content_sections?.market_data) {
     return null;
   }
 
   const data = marketData.content_sections.market_data;
+
+  const handleCryptoNavigation = () => {
+    navigate('/crypto');
+  };
+
+  const handleStockNavigation = () => {
+    navigate('/markets');
+  };
   
   const formatCurrency = (value: number) => {
     if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
@@ -36,84 +48,113 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
   };
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Total Market Cap */}
-      <Card className="xr-card">
-        <CardContent className="p-6">
+      <Card className="xr-card hover:bg-accent/20 transition-colors cursor-pointer group" onClick={handleCryptoNavigation}>
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Market Cap</p>
-              <p className="text-2xl font-bold">
-                {formatCurrency(data.total_market_cap || 0)}
-              </p>
+            <div className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-green-500" />
+              <div>
+                <p className="text-sm text-muted-foreground">Total Market Cap</p>
+                <p className="text-xl font-bold text-green-500 group-hover:text-green-400 transition-colors">
+                  {formatCurrency(data.total_market_cap || 0)}
+                </p>
+              </div>
             </div>
-            <DollarSign className="w-8 h-8 text-primary/60" />
+            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <ExternalLink className="w-4 h-4" />
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* 24h Volume */}
-      <Card className="xr-card">
-        <CardContent className="p-6">
+      <Card className="xr-card hover:bg-accent/20 transition-colors cursor-pointer group" onClick={handleCryptoNavigation}>
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">24h Volume</p>
-              <p className="text-2xl font-bold">
-                {formatCurrency(data.total_volume || 0)}
-              </p>
+            <div className="flex items-center gap-2">
+              <Activity className="w-5 h-5 text-blue-500" />
+              <div>
+                <p className="text-sm text-muted-foreground">24h Volume</p>
+                <p className="text-xl font-bold text-blue-500 group-hover:text-blue-400 transition-colors">
+                  {formatCurrency(data.total_volume || 0)}
+                </p>
+              </div>
             </div>
-            <Activity className="w-8 h-8 text-primary/60" />
+            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <ExternalLink className="w-4 h-4" />
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Fear & Greed Index */}
-      <Card className="xr-card">
-        <CardContent className="p-6">
+      <Card className="xr-card hover:bg-accent/20 transition-colors cursor-pointer group" onClick={handleStockNavigation}>
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Fear & Greed</p>
-              <div className="flex items-center gap-2">
-                <p className="text-2xl font-bold">{data.fear_greed_index || 50}</p>
-                {getTrendIcon(data.fear_greed_trend || 0)}
+            <div className="flex items-center gap-2">
+              {getTrendIcon(data.fear_greed_trend || 0)}
+              <div>
+                <p className="text-sm text-muted-foreground">Fear & Greed</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xl font-bold text-foreground">
+                    {data.fear_greed_index || 50}
+                  </p>
+                  <Badge variant="outline" className={`${getFearGreedColor(data.fear_greed_index || 50)} font-semibold`}>
+                    {data.fear_greed_label || 'Neutral'}
+                  </Badge>
+                </div>
               </div>
-              <Badge 
-                variant="outline" 
-                className={`mt-1 ${getFearGreedColor(data.fear_greed_index || 50)}`}
-              >
-                {data.fear_greed_label || 'Neutral'}
-              </Badge>
             </div>
+            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <ExternalLink className="w-4 h-4" />
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Biggest Mover */}
-      <Card className="xr-card">
-        <CardContent className="p-6">
-          <div>
-            <p className="text-sm text-muted-foreground">Biggest Mover</p>
-            {data.biggest_mover ? (
-              <>
-                <p className="font-bold text-lg truncate">
-                  {data.biggest_mover.name}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Badge 
-                    variant="outline" 
-                    className={data.biggest_mover.change_24h > 0 
-                      ? 'text-green-500 border-green-500/20 bg-green-500/10' 
-                      : 'text-red-500 border-red-500/20 bg-red-500/10'
-                    }
-                  >
-                    {data.biggest_mover.change_24h > 0 ? '+' : ''}
-                    {data.biggest_mover.change_24h?.toFixed(1)}%
-                  </Badge>
-                </div>
-              </>
-            ) : (
-              <p className="text-muted-foreground">No significant moves</p>
-            )}
+      <Card className="xr-card hover:bg-accent/20 transition-colors cursor-pointer group" onClick={handleCryptoNavigation}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-yellow-500" />
+              <div>
+                <p className="text-sm text-muted-foreground">Biggest Mover</p>
+                {data.biggest_mover ? (
+                  <>
+                    <div className="flex items-center gap-1">
+                      <p className="text-lg font-bold text-foreground">
+                        {data.biggest_mover.name}
+                      </p>
+                      {data.biggest_mover.symbol && (
+                        <Badge variant="outline" className="text-primary border-primary/20 bg-primary/10 font-mono text-xs">
+                          {data.biggest_mover.symbol.toUpperCase()}
+                        </Badge>
+                      )}
+                    </div>
+                    {data.biggest_mover.change_24h && (
+                      <Badge 
+                        variant="outline" 
+                        className={`${data.biggest_mover.change_24h > 0 
+                          ? 'text-green-500 border-green-500/20 bg-green-500/10' 
+                          : 'text-red-500 border-red-500/20 bg-red-500/10'
+                        } font-semibold mt-1`}
+                      >
+                        {data.biggest_mover.change_24h > 0 ? '+' : ''}
+                        {data.biggest_mover.change_24h.toFixed(2)}%
+                      </Badge>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-muted-foreground">No data available</p>
+                )}
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+              <ExternalLink className="w-4 h-4" />
+            </Button>
           </div>
         </CardContent>
       </Card>
