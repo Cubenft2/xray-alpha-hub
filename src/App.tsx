@@ -9,6 +9,8 @@ import { Layout } from "./components/Layout";
 import { CommunityPromotion } from "./components/CommunityPromotion";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
+import Crypto from "./pages/Crypto";
+import Stocks from "./pages/Stocks";
 import Watchlist from "./pages/Watchlist";
 import News from "./pages/News";
 import Store from "./pages/Store";
@@ -39,7 +41,8 @@ const App = () => (
             <PageTransition>
               <Routes>
                 <Route path="/" element={<Index />} />
-                <Route path="/crypto" element={<Index />} />
+                <Route path="/crypto" element={<Crypto />} />
+                <Route path="/stocks" element={<Stocks />} />
                 <Route path="/markets" element={<Markets />} />
                 <Route path="/watchlist" element={<Watchlist />} />
                 <Route path="/news" element={<News />} />
