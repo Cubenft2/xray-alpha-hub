@@ -211,6 +211,8 @@ serve(async (req) => {
     // Enhanced AI prompt with comprehensive market strategy
     const marketAnalysisPrompt = `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive daily market brief that feels like a smart friend talking through important market moves. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
 
+IMPORTANT: When mentioning any cryptocurrency or stock, ALWAYS format it as "Name (SYMBOL)" - for example: "Bitcoin (BTC)", "Ethereum (ETH)", "Apple (AAPL)", "Hyperliquid (HYPE)", etc. This helps readers identify the exact ticker symbol.
+
 **REQUIRED STRUCTURE & VOICE:**
 1. Start with: "Let's talk about something."
 2. **Data-Driven Hook** - Lead with the biggest market move/surprise backed by real numbers
@@ -229,11 +231,11 @@ serve(async (req) => {
 - F&G Trend: ${fearGreedTrend > 0 ? '+' : ''}${fearGreedTrend.toFixed(0)} vs yesterday
 
 **Major Assets:**
-${btcData ? `Bitcoin: $${btcData.current_price.toLocaleString()} (${btcData.price_change_percentage_24h > 0 ? '+' : ''}${btcData.price_change_percentage_24h.toFixed(2)}%)` : 'BTC data unavailable'}
-${ethData ? `Ethereum: $${ethData.current_price.toLocaleString()} (${ethData.price_change_percentage_24h > 0 ? '+' : ''}${ethData.price_change_percentage_24h.toFixed(2)}%)` : 'ETH data unavailable'}
+${btcData ? `Bitcoin (BTC): $${btcData.current_price.toLocaleString()} (${btcData.price_change_percentage_24h > 0 ? '+' : ''}${btcData.price_change_percentage_24h.toFixed(2)}%)` : 'BTC data unavailable'}
+${ethData ? `Ethereum (ETH): $${ethData.current_price.toLocaleString()} (${ethData.price_change_percentage_24h > 0 ? '+' : ''}${ethData.price_change_percentage_24h.toFixed(2)}%)` : 'ETH data unavailable'}
 
 **Biggest Mover:**
-${biggestMover ? `${biggestMover.name}: ${biggestMover.price_change_percentage_24h > 0 ? '+' : ''}${biggestMover.price_change_percentage_24h.toFixed(2)}% ($${biggestMover.current_price})` : 'No significant movers'}
+${biggestMover ? `${biggestMover.name} (${biggestMover.symbol.toUpperCase()}): ${biggestMover.price_change_percentage_24h > 0 ? '+' : ''}${biggestMover.price_change_percentage_24h.toFixed(2)}% ($${biggestMover.current_price})` : 'No significant movers'}
 
 **Top Gainers (24h):**
 ${topGainers.map(coin => 
@@ -247,12 +249,12 @@ ${topLosers.map(coin =>
 
 **Trending/Hot Coins:**
 ${trendingData.coins?.slice(0, 5).map((coin: any) => 
-  `${coin.item?.name || 'Unknown'} (${coin.item?.symbol || 'N/A'}) - Rank #${coin.item?.market_cap_rank || 'N/A'}`
+  `${coin.item?.name || 'Unknown'} (${coin.item?.symbol?.toUpperCase() || 'N/A'}) - Rank #${coin.item?.market_cap_rank || 'N/A'}`
 ).join('\n') || 'No trending data'}
 
 **Social Sentiment (LunarCrush):**
 ${lunarcrushData.data?.slice(0, 6).map(asset => 
-  `${asset.name}: Galaxy Score ${asset.galaxy_score}/100 | AltRank ${asset.alt_rank} | Social Vol: ${asset.social_volume?.toLocaleString()} | Sentiment: ${asset.sentiment?.toFixed(2)} | FOMO: ${asset.fomo_score?.toFixed(0)}`
+  `${asset.name} (${asset.symbol?.toUpperCase()}): Galaxy Score ${asset.galaxy_score}/100 | AltRank ${asset.alt_rank} | Social Vol: ${asset.social_volume?.toLocaleString()} | Sentiment: ${asset.sentiment?.toFixed(2)} | FOMO: ${asset.fomo_score?.toFixed(0)}`
 ).join('\n') || 'Social data unavailable'}
 
 **News Context:**
@@ -269,6 +271,7 @@ Stock Headlines: ${newsData.stocks?.slice(0, 3).map((item: any) => item.title).j
 - Focus on actionable insights traders and investors can actually use
 - Keep sections flowing naturally - don't use obvious headers like "Top Movers Analysis"
 - Make it feel like premium financial content, not a generic crypto newsletter
+- ALWAYS format crypto/stock mentions as "Name (SYMBOL)" for clarity
 
 Write approximately 800-1200 words that inform and entertain while staying true to your voice.`;
 
@@ -327,6 +330,25 @@ Fear & Greed prints ${fgVal}/100 (${fgLbl}). Top gainers: ${gainersStr || '—'}
 In plain English: the tide was ${fgVal >= 55 ? 'favorable' : fgVal <= 45 ? 'choppy' : 'even'} and flows rotated across majors and selected alts. If you’re casting lines today, mind the currents—momentum clusters around strength and leaves weak hands treading water.
 
 What’s next: watch liquidity into US hours, policy headlines, and any unusually strong social buzz around leaders. Keep your tackle box tidy; quick pivots win on days like this.`;
+    }
+
+    // Enhance the generated content with live ticker data
+    console.log('🎯 Enhancing content with live ticker data...');
+    let enhancedTickerData = {};
+    try {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const tickerResponse = await supabase.functions.invoke('enhance-ticker-data', {
+        body: { content: generatedAnalysis }
+      });
+      
+      if (!tickerResponse.error && tickerResponse.data?.success) {
+        enhancedTickerData = tickerResponse.data.enhancedTickerData || {};
+        console.log('✅ Ticker enhancement successful:', Object.keys(enhancedTickerData).length, 'tickers enhanced');
+      } else {
+        console.log('⚠️ Ticker enhancement failed, continuing without enhancement');
+      }
+    } catch (tickerErr) {
+      console.error('❌ Ticker enhancement error:', tickerErr);
     }
 
     // Create today's date and slug
@@ -459,6 +481,7 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
               fomo_score: asset.fomo_score
             })) || []
           },
+          enhanced_tickers: enhancedTickerData,
           data_points: {
             crypto_articles: newsData.crypto?.length || 0,
             stock_articles: newsData.stocks?.length || 0,

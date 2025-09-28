@@ -349,7 +349,10 @@ export default function MarketBriefHome() {
               {!brief.article_html?.toLowerCase().includes("let's talk about something") && (
                 <p className="italic text-muted-foreground mb-4 text-lg">Let&apos;s talk about something.</p>
               )}
-              <EnhancedBriefRenderer content={brief.article_html || ''} />
+              <EnhancedBriefRenderer 
+                content={brief.article_html || ''} 
+                enhancedTickers={briefData?.content_sections?.enhanced_tickers || {}}
+              />
             </div>
 
             {/* Stoic Quote */}

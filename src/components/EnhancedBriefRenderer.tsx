@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 
 interface EnhancedBriefRendererProps {
   content: string;
+  enhancedTickers?: {[key: string]: any};
 }
 
-export function EnhancedBriefRenderer({ content }: EnhancedBriefRendererProps) {
+export function EnhancedBriefRenderer({ content, enhancedTickers = {} }: EnhancedBriefRendererProps) {
   const navigate = useNavigate();
 
   const handleTickerClick = (ticker: string) => {
@@ -13,22 +14,6 @@ export function EnhancedBriefRenderer({ content }: EnhancedBriefRendererProps) {
   };
 
   const enhanceContent = (text: string) => {
-    // Common crypto symbols and their full names
-    const cryptoPatterns = [
-      { symbol: 'BTC', name: 'Bitcoin' },
-      { symbol: 'ETH', name: 'Ethereum' },
-      { symbol: 'SOL', name: 'Solana' },
-      { symbol: 'ADA', name: 'Cardano' },
-      { symbol: 'DOT', name: 'Polkadot' },
-      { symbol: 'MATIC', name: 'Polygon' },
-      { symbol: 'AVAX', name: 'Avalanche' },
-      { symbol: 'LINK', name: 'Chainlink' },
-      { symbol: 'UNI', name: 'Uniswap' },
-      { symbol: 'LTC', name: 'Litecoin' },
-      { symbol: 'XRP', name: 'Ripple' },
-      { symbol: 'DOGE', name: 'Dogecoin' },
-    ];
-
     let enhancedText = text;
 
     // Enhanced typography and styling
@@ -45,19 +30,34 @@ export function EnhancedBriefRenderer({ content }: EnhancedBriefRendererProps) {
 
     // Style percentages (e.g., +5.2%, -3.1%)
     enhancedText = enhancedText.replace(/([+-]?)([0-9]+\.?[0-9]*)%/g, 
-      '<span class="font-semibold px-1.5 py-0.5 rounded text-sm $1" data-change="$1">$1$2%</span>');
+      '<span class="font-semibold px-1.5 py-0.5 rounded text-sm percentage-badge" data-change="$1">$1$2%</span>');
 
-    // Replace crypto symbols and names with clickable links
-    cryptoPatterns.forEach(({ symbol, name}) => {
-      // Match symbol patterns (BTC, Bitcoin, etc.)
-      const symbolRegex = new RegExp(`\\b(${symbol})\\b`, 'gi');
-      const nameRegex = new RegExp(`\\b(${name})\\b`, 'gi');
+    // Enhanced ticker detection - looks for "Name (SYMBOL)" patterns
+    const tickerRegex = /([A-Za-z0-9\s&.-]+)\s*\(([A-Z0-9]{2,10})\)/g;
+    enhancedText = enhancedText.replace(tickerRegex, (match, name, symbol) => {
+      const tickerData = enhancedTickers[symbol.toUpperCase()];
+      const displayName = name.trim();
       
-      enhancedText = enhancedText.replace(symbolRegex, 
-        `<button onclick="window.handleTickerClick('${symbol}')" class="ticker-link font-bold text-primary hover:text-primary/80 hover:bg-primary/10 px-1.5 py-0.5 rounded transition-all duration-200 cursor-pointer border border-primary/20 bg-primary/5 text-sm">$1</button>`);
-      
-      enhancedText = enhancedText.replace(nameRegex, 
-        `<button onclick="window.handleTickerClick('${symbol}')" class="ticker-link font-semibold text-primary hover:text-primary/80 hover:bg-primary/10 px-1 py-0.5 rounded transition-all duration-200 cursor-pointer underline underline-offset-2 decoration-primary/50">$1</button>`);
+      if (tickerData && tickerData.price) {
+        // Show ticker with live price data
+        const price = tickerData.price < 0.01 ? tickerData.price.toFixed(6) : 
+                     tickerData.price < 1 ? tickerData.price.toFixed(4) : 
+                     tickerData.price.toLocaleString();
+        const changeClass = tickerData.change_24h >= 0 ? 'text-green-400 border-green-400/20 bg-green-400/10' : 'text-red-400 border-red-400/20 bg-red-400/10';
+        const changeSign = tickerData.change_24h >= 0 ? '+' : '';
+        
+        return `<button onclick="window.handleTickerClick('${symbol}')" class="ticker-link-enhanced font-bold ${changeClass} hover:opacity-80 px-2 py-1 rounded transition-all duration-200 cursor-pointer border text-sm inline-flex items-center gap-1">
+          <span>${displayName}</span>
+          <span class="font-mono text-xs">(${symbol})</span>
+          <span class="font-mono text-xs">$${price}</span>
+          <span class="font-mono text-xs">${changeSign}${tickerData.change_24h.toFixed(2)}%</span>
+        </button>`;
+      } else {
+        // Show basic ticker button for crypto/stocks without price data
+        return `<button onclick="window.handleTickerClick('${symbol}')" class="ticker-link font-bold text-primary hover:text-primary/80 hover:bg-primary/10 px-1.5 py-0.5 rounded transition-all duration-200 cursor-pointer border border-primary/20 bg-primary/5 text-sm">
+          ${displayName} (${symbol})
+        </button>`;
+      }
     });
 
     return enhancedText;
@@ -68,7 +68,7 @@ export function EnhancedBriefRenderer({ content }: EnhancedBriefRendererProps) {
     (window as any).handleTickerClick = handleTickerClick;
     
     // Style percentage elements based on positive/negative values
-    const percentageElements = document.querySelectorAll('[data-change]');
+    const percentageElements = document.querySelectorAll('.percentage-badge[data-change]');
     percentageElements.forEach(el => {
       const change = el.getAttribute('data-change');
       if (change === '+' || (change !== '-' && !change?.startsWith('-'))) {
@@ -98,9 +98,12 @@ export function EnhancedBriefRenderer({ content }: EnhancedBriefRendererProps) {
         .enhanced-brief strong {
           font-weight: 600;
         }
-        .ticker-link:hover {
+        .ticker-link:hover, .ticker-link-enhanced:hover {
           transform: translateY(-1px);
           box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+        }
+        .ticker-link-enhanced {
+          font-family: system-ui, -apple-system, monospace;
         }
       `}</style>
       <div dangerouslySetInnerHTML={{ __html: processedContent }} />
