@@ -6,6 +6,7 @@ import { Share, Copy, ExternalLink, TrendingUp, BarChart3, Users, DollarSign } f
 import { useToast } from '@/hooks/use-toast';
 import { MiniChart } from '@/components/MiniChart';
 import { MarketOverview } from '@/components/MarketOverview';
+import { EnhancedBriefRenderer } from '@/components/EnhancedBriefRenderer';
 import { ComprehensiveTopMovers } from '@/components/ComprehensiveTopMovers';
 import { SocialSentimentBoard } from '@/components/SocialSentimentBoard';
 import { StoicQuote } from '@/components/StoicQuote';
@@ -344,11 +345,11 @@ export default function MarketBriefHome() {
             </div>
 
             {/* Article Content */}
-            <div className="prose prose-invert max-w-none mb-6">
+            <div className="mb-6">
               {!brief.article_html?.toLowerCase().includes("let's talk about something") && (
-                <p className="italic text-muted-foreground mb-2">Let's talk about something.</p>
+                <p className="italic text-muted-foreground mb-4 text-lg">Let&apos;s talk about something.</p>
               )}
-              <div dangerouslySetInnerHTML={{ __html: brief.article_html }} />
+              <EnhancedBriefRenderer content={brief.article_html || ''} />
             </div>
 
             {/* Stoic Quote */}
