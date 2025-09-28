@@ -84,8 +84,10 @@ export function MarketBriefDisplay({ brief }: MarketBriefDisplayProps) {
     return parsed;
   };
 
-  const contentSections = brief.content_sections?.ai_content 
-    ? parseContentSections(brief.content_sections.ai_content)
+  const contentSections = brief.content_sections?.ai_generated_content 
+    ? parseContentSections(brief.content_sections.ai_generated_content)
+    : brief.content_sections?.analysis_content 
+    ? parseContentSections(brief.content_sections.analysis_content)
     : { whatHappened: '', whyMatters: '', whatToWatch: '', lastWord: '' };
 
   return (
