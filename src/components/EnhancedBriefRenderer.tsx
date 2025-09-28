@@ -21,7 +21,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {} }: Enhance
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>')
-      .replace(/\n\n+/g, '</p><p class="mb-4 leading-relaxed text-foreground/90">')
+      .replace(/\n\n\n+/g, '</div><div class="section-break my-8 border-t border-border/30"></div><div class="mb-6 leading-relaxed text-foreground/90">')
+      .replace(/\n\n+/g, '</p><p class="mb-6 leading-relaxed text-foreground/90">')
       .replace(/\n/g, '<br/>');
 
     // Style prices (e.g., $50,000, $1.25, $0.00045)
@@ -83,7 +84,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {} }: Enhance
     };
   }, [handleTickerClick]);
 
-  const processedContent = `<p class="mb-4 leading-relaxed text-foreground/90">${enhanceContent(content)}</p>`;
+  const processedContent = `<div class="mb-6 leading-relaxed text-foreground/90">${enhanceContent(content)}</div>`;
 
   return (
     <div className="enhanced-brief font-medium text-base leading-7 space-y-4 font-pixel">
