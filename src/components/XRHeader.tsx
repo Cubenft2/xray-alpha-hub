@@ -29,7 +29,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
 
   const navigation = [
     { name: 'Home', href: '/' },
-    { name: 'Crypto', href: '/markets' },
+    { name: 'Crypto', href: '/crypto' },
     { name: 'Stocks', href: '/stocks' },
     { name: 'Watch', href: '/watchlist' },
     { name: 'News', href: '/news' },
@@ -103,14 +103,14 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
 
           {/* Search & Theme Toggle */}
           <div className="flex items-center space-x-2">
-            {(location.pathname === '/' || location.pathname === '/markets') && (
+            {(location.pathname === '/' || location.pathname === '/markets' || location.pathname === '/crypto' || location.pathname === '/stocks') && (
               <div className="flex items-center space-x-2">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <Input
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchSubmit}
-                  placeholder={location.pathname === '/' ? "Crypto..." : "Assets..."}
+                  placeholder={location.pathname === '/' ? "Crypto..." : location.pathname === '/crypto' ? "Crypto..." : location.pathname === '/stocks' ? "Stocks..." : "Assets..."}
                   className="w-24 md:w-32"
                 />
               </div>
@@ -162,7 +162,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               ))}
             </nav>
 
-            {(location.pathname === '/' || location.pathname === '/markets') && (
+            {(location.pathname === '/' || location.pathname === '/markets' || location.pathname === '/crypto' || location.pathname === '/stocks') && (
               <div className="mt-6 pt-6 border-t border-border">
                 <div className="flex items-center space-x-2">
                   <Search className="w-4 h-4 text-muted-foreground" />
@@ -170,7 +170,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                     value={searchTerm}
                     onChange={handleSearchChange}
                     onKeyDown={handleSearchSubmit}
-                    placeholder={location.pathname === '/' ? "Crypto..." : "Assets..."}
+                    placeholder={location.pathname === '/' ? "Crypto..." : location.pathname === '/crypto' ? "Crypto..." : location.pathname === '/stocks' ? "Stocks..." : "Assets..."}
                     className="flex-1"
                   />
                 </div>
