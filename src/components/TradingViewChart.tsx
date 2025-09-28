@@ -165,26 +165,6 @@ export function TradingViewChart({
 
   const chart = (
     <div className={`${isFullscreen ? 'fixed inset-0 z-[9999] bg-background' : ''} ${className}`}>
-      {!isFullscreen && (
-        <div className="flex justify-end gap-2 mb-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setIsFullscreen((f) => !f)}
-            aria-label="Enter fullscreen"
-          >
-            <Maximize size={16} />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setReloadToken((t) => t + 1)}
-            aria-label="Reload chart"
-          >
-            <RotateCcw size={16} />
-          </Button>
-        </div>
-      )}
       {isFullscreen && (
         <div className="fixed top-4 right-4 z-[10000] flex gap-2">
           <Button
