@@ -74,14 +74,17 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       .replace(/<\/?p>/gi, '')
       .replace(/<br\s*\/?>(\n)?/gi, '\n')
       .replace(/&lt;<\/p>&gt;\s*&lt;<p>&gt;/gi, '\n\n')
-      .replace(/&lt;br\s*\/?&gt;/gi, '\n');
+      .replace(/&lt;br\s*\/?&gt;/gi, '\n')
+      // Clean up any existing <strong> tags that might be in the content
+      .replace(/<\/?strong>/gi, '**');
 
     let enhancedText = normalized;
 
-    // Enhanced typography and styling
+    // Enhanced typography and styling - handle entities first, then convert markdown
     enhancedText = enhancedText.replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
+      // Convert markdown-style bold to HTML
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>')
       .replace(/\n\n\n+/g, '</p></div><div class="section-break my-8"><hr class="border-border/30" /></div><div class="space-y-6"><p class="mb-6 leading-relaxed text-foreground/90">')
       .replace(/\n\n+/g, '</p><p class="mb-6 leading-relaxed text-foreground/90">')
