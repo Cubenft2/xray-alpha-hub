@@ -408,6 +408,11 @@ export default function MarketBriefHome() {
                     <p className="text-muted-foreground">
                       Preparing today's comprehensive brief... This may take 10–20 seconds.
                     </p>
+                    <div className="mt-4">
+                      <Button size="sm" onClick={generateComprehensiveBrief} disabled={generating}>
+                        {generating ? 'Generating…' : 'Regenerate Now'}
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
