@@ -33,6 +33,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
     { name: 'Stocks', href: '/markets' },
     { name: 'Watch', href: '/watchlist' },
     { name: 'News', href: '/news' },
+    { name: 'Store', href: '/store' },
     { name: 'About', href: '/about' },
     { name: 'Support', href: '/support' },
   ];
