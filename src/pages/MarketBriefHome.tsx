@@ -32,6 +32,7 @@ export default function MarketBriefHome() {
   const [brief, setBrief] = useState<MarketBrief | null>(null);
   const [briefData, setBriefData] = useState<any>(null); // Store raw database data
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   
   const [imageLoaded, setImageLoaded] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
@@ -130,6 +131,43 @@ export default function MarketBriefHome() {
 
     fetchBrief();
   }, [toast, date]);
+
+  const generateComprehensiveBrief = async () => {
+    try {
+      setGenerating(true);
+      console.log('🚀 Generating comprehensive market brief...');
+      
+      const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
+        body: {}
+      });
+      
+      if (error) {
+        console.error('❌ Brief generation failed:', error);
+        throw error;
+      }
+      
+      console.log('✅ Brief generated successfully:', data);
+      toast({
+        title: "New Brief Generated!",
+        description: "Comprehensive market brief created with live data. Refreshing page...",
+      });
+      
+      // Refresh the page after a short delay to load the new brief
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('💥 Brief generation error:', error);
+      toast({
+        title: "Generation Failed",
+        description: `Failed to generate brief: ${error}`,
+        variant: "destructive"
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleShareX = () => {
     if (!brief) return;
@@ -245,6 +283,13 @@ export default function MarketBriefHome() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
           <div className="flex items-center gap-2">
+            <Button 
+              onClick={generateComprehensiveBrief}
+              disabled={generating}
+              className="xr-button"
+            >
+              {generating ? 'Generating...' : 'Generate New Brief'}
+            </Button>
             <Button variant="outline" size="sm" onClick={handleShareX}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Share on X
@@ -341,31 +386,53 @@ export default function MarketBriefHome() {
             )}
 
             {/* Market Overview Section */}
-            <div className="border-t border-border pt-6 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <DollarSign className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Market Overview</h3>
+            {briefData?.content_sections?.market_data ? (
+              <div className="border-t border-border pt-6 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Market Overview</h3>
+                </div>
+                <MarketOverview marketData={briefData} />
               </div>
-              <MarketOverview marketData={briefData} />
-            </div>
+            ) : (
+              <div className="border-t border-border pt-6 mb-6">
+                <Card className="xr-card">
+                  <CardContent className="p-6 text-center">
+                    <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Comprehensive Market Data Unavailable</h3>
+                    <p className="text-muted-foreground mb-4">
+                      This brief doesn't contain the comprehensive market data (CoinGecko + LunarCrush). 
+                      Generate a new brief to see market overview, top movers, and social sentiment analysis.
+                    </p>
+                    <Button onClick={generateComprehensiveBrief} disabled={generating}>
+                      {generating ? 'Generating...' : 'Generate Comprehensive Brief'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Top Movers & Trending Section */}
-            <div className="border-t border-border pt-6 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <BarChart3 className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Market Movers & Trending</h3>
+            {briefData?.content_sections?.market_data && (
+              <div className="border-t border-border pt-6 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Market Movers & Trending</h3>
+                </div>
+                <ComprehensiveTopMovers marketData={briefData} />
               </div>
-              <ComprehensiveTopMovers marketData={briefData} />
-            </div>
+            )}
 
             {/* Social Sentiment Section */}
-            <div className="border-t border-border pt-6 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
+            {briefData?.content_sections?.market_data && (
+              <div className="border-t border-border pt-6 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
+                </div>
+                <SocialSentimentBoard marketData={briefData} />
               </div>
-              <SocialSentimentBoard marketData={briefData} />
-            </div>
+            )}
 
             {/* Market Charts Section */}
             <div className="border-t border-border pt-6 mb-6">
