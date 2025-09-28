@@ -77,7 +77,7 @@ export default function MarketBriefHome() {
       'FIGR_HELOC': { symbol: 'FIGRUSD', displayName: 'Figure Heloc (FIGR)' },
       'FIGR': { symbol: 'FIGRUSD', displayName: 'Figure Heloc (FIGR)' },
       // Stock/Index mappings  
-      'SPX': { symbol: 'SPX', displayName: 'S&P 500' },
+      'SPX': { symbol: 'SP:SPX', displayName: 'S&P 500' },
       'DXY': { symbol: 'DXY', displayName: 'US Dollar Index' },
       'XAUUSD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' },
       'GOLD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' }
@@ -578,7 +578,7 @@ export default function MarketBriefHome() {
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">S&P 500</div>
                     <div className="h-36">
-                      <MiniChart symbol="SPX" theme={theme} />
+                      <MiniChart symbol="SP:SPX" theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
