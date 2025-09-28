@@ -123,64 +123,38 @@ const Index = () => {
       <FinancialDisclaimer />
       
       {/* XRay Market Brief Homepage Layout */}
-      <div className="flex container mx-auto px-4 py-8 gap-8">
-        {/* Main Content Area */}
-        <div className="flex-1 space-y-12">
-          {/* Hero Section - Latest Brief Featured */}
-          <div className="text-center space-y-8">
-            {/* Header / Branding */}
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-3 px-8 py-4 bg-primary/10 rounded-full border-2 border-primary/30 mb-6">
-                <span className="text-4xl animate-bounce">🎣</span>
-                <div className="text-left">
-                  <div className="font-black text-primary text-2xl font-pixel tracking-wide">XRayCrypto™</div>
-                  <div className="text-sm text-muted-foreground font-pixel">Your crypto-first market analysis, twice a day</div>
-                </div>
-              </div>
-              
-              <h1 className="text-4xl md:text-6xl font-black xr-gradient-text mb-6 font-pixel">
-                🖥️ Command Center
-              </h1>
-              
-              <p className="text-xl text-muted-foreground max-w-4xl mx-auto leading-relaxed font-medium">
-                Twice-daily briefings cutting through the noise. From Bitcoin and Ethereum to Layer-2s, DeFi blue-chips, 
-                memecoins, ETF flows, and macro events. If it shifts the tide, it's here.
-              </p>
-            </div>
-
-            {/* Interactive Dashboard Widgets */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-              <FearGreedWidget 
-                score={latestBrief?.market_data?.fear_greed_score || 50}
-                className="w-full"
-              />
-              <FOMOScoreWidget 
-                score={latestBrief?.market_data?.fomo_score || 45}
-                factors={['Social +2.1σ', 'Volume Spike', 'Momentum']}
-                className="w-full"
-              />
-              <TrendingCoinsWidget limit={3} className="w-full" />
-            </div>
+      <div className="container mx-auto px-4 py-8">
+        {/* Simple Hero Section */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-3 px-6 py-3 bg-primary/10 rounded-full border border-primary/30 mb-4">
+            <span className="text-3xl animate-bounce">🎣</span>
+            <span className="font-bold text-primary text-xl font-pixel tracking-wide">XRay Market Brief</span>
           </div>
+          <h1 className="text-3xl md:text-4xl font-black xr-gradient-text mb-4 font-pixel">
+            Command Center for Crypto Intelligence
+          </h1>
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+            Twice-daily briefings that cut through the noise. Your source of truth for crypto markets.
+          </p>
+        </div>
 
-          {/* Main Brief Display */}
-          <div className="space-y-12">
+        {/* Main Layout: Brief Focus + Sidebar */}
+        <div className="flex gap-8">
+          {/* Main Content - THE BRIEF */}
+          <div className="flex-1 max-w-4xl">
             {briefsLoading ? (
-              <div className="text-center py-32">
-                <div className="relative">
-                  <RefreshCw className="h-20 w-20 animate-spin mx-auto mb-8 text-primary" />
-                  <div className="absolute inset-0 rounded-full border-4 border-primary/20 animate-pulse"></div>
-                </div>
-                <h3 className="text-3xl font-bold text-primary mb-4 font-pixel">Gathering Market Intelligence</h3>
-                <p className="text-lg text-muted-foreground max-w-md mx-auto">
+              <div className="text-center py-20">
+                <RefreshCw className="h-16 w-16 animate-spin mx-auto mb-6 text-primary" />
+                <h3 className="text-2xl font-bold text-primary mb-4 font-pixel">Gathering Market Intelligence</h3>
+                <p className="text-lg text-muted-foreground">
                   Fresh briefing incoming... scanning the waters for actionable insights.
                 </p>
               </div>
             ) : latestBrief ? (
-              <div className="space-y-12">
+              <div className="space-y-8">
                 {/* Latest Brief Header */}
-                <div className="text-center space-y-4">
-                  <Badge variant="default" className="text-lg font-pixel px-6 py-2 mb-4 btn-hero">
+                <div className="text-center">
+                  <Badge variant="default" className="text-base font-pixel px-4 py-2 mb-6 btn-hero">
                     🚨 LATEST BRIEF — {new Date(latestBrief.published_at).toLocaleDateString('en-US', { 
                       weekday: 'long', 
                       month: 'long', 
@@ -189,27 +163,28 @@ const Index = () => {
                   </Badge>
                   
                   {/* Signature Opener Box */}
-                  <div className="max-w-4xl mx-auto">
-                    <Card className="xr-card-elevated border-2 border-accent/40 bg-gradient-to-r from-accent/10 to-primary/10">
-                      <CardContent className="p-8">
-                        <div className="text-center space-y-4">
-                          <div className="inline-flex items-center gap-3 px-6 py-3 bg-accent/20 rounded-full border border-accent/50">
-                            <Waves className="h-6 w-6 text-accent" />
-                            <span className="font-bold text-accent text-lg font-pixel">Signature Opener</span>
-                          </div>
-                          <blockquote className="text-3xl font-bold text-primary font-pixel mb-4">
-                            "Let's talk about something."
-                          </blockquote>
-                          <p className="text-xl text-foreground/90 italic leading-relaxed max-w-2xl mx-auto">
-                            {latestBrief.content_sections?.opener || 
-                             "The tide's changing, and there's more beneath the surface than most are seeing. Here's today's hook."}
-                          </p>
+                  <Card className="xr-card-elevated border-2 border-accent/40 bg-gradient-to-r from-accent/10 to-primary/10 mb-8">
+                    <CardContent className="p-6">
+                      <div className="text-center space-y-4">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/20 rounded-full border border-accent/50">
+                          <Waves className="h-5 w-5 text-accent" />
+                          <span className="font-bold text-accent font-pixel">Signature Opener</span>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                        <blockquote className="text-2xl font-bold text-primary font-pixel mb-3">
+                          "Let's talk about something."
+                        </blockquote>
+                        <p className="text-lg text-foreground/90 italic leading-relaxed">
+                          {latestBrief.content_sections?.opener || 
+                           "The tide's changing, and there's more beneath the surface than most are seeing."}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
+                {/* THE MAIN BRIEF CONTENT - STAR OF THE SHOW */}
+                <MarketBriefDisplay brief={latestBrief} />
+                
                 {/* Interactive Market Reaction Table */}
                 {latestBrief.market_data?.top_assets && (
                   <PriceSnapshotTable 
@@ -223,24 +198,20 @@ const Index = () => {
                     }))}
                   />
                 )}
-
-                {/* Full Brief Content */}
-                <MarketBriefDisplay brief={latestBrief} />
               </div>
             ) : (
-              <div className="text-center py-32">
+              <div className="text-center py-20">
                 <div className="space-y-6">
                   <div className="text-8xl animate-bounce">🎣</div>
-                  <h3 className="text-3xl font-bold text-primary font-pixel">First Brief Loading...</h3>
+                  <h3 className="text-2xl font-bold text-primary font-pixel">First Brief Loading...</h3>
                   <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                    The inaugural XRay Market Brief is being prepared. Captain XRay is scanning the waters 
-                    for the most important market developments.
+                    The inaugural XRay Market Brief is being prepared. Captain XRay is scanning the waters.
                   </p>
                   {isVip && (
                     <Button 
                       onClick={generateNewBrief} 
                       disabled={isGenerating}
-                      className="btn-hero mt-8"
+                      className="btn-hero mt-6"
                       size="lg"
                     >
                       {isGenerating ? (
@@ -261,6 +232,36 @@ const Index = () => {
             )}
           </div>
 
+          {/* Compact Sidebar - Supporting Widgets */}
+          <div className="hidden xl:block w-72">
+            <div className="sticky top-8 space-y-4">
+              <h3 className="font-bold text-primary font-pixel text-center mb-4">📊 Market Pulse</h3>
+              
+              {/* Compact Dashboard Widgets */}
+              <div className="space-y-4">
+                <FearGreedWidget 
+                  score={latestBrief?.market_data?.fear_greed_score || 50}
+                  className="w-full"
+                />
+                <FOMOScoreWidget 
+                  score={latestBrief?.market_data?.fomo_score || 45}
+                  factors={['Social +2.1σ', 'Volume']}
+                  className="w-full"
+                />
+                <TrendingCoinsWidget limit={4} className="w-full" />
+              </div>
+              
+              {/* Sidebar Additional Widgets */}
+              <SidebarWidgets 
+                fearGreedScore={latestBrief?.market_data?.fear_greed_score}
+                fearGreedLabel={latestBrief?.market_data?.fear_greed_label}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Section - Archive and Footer */}
+        <div className="mt-16 space-y-12">
           {/* Past Briefs Archive */}
           {briefs && briefs.length > 1 && (
             <BriefArchive briefs={briefs.slice(1)} />
@@ -268,48 +269,28 @@ const Index = () => {
 
           {/* Footer */}
           <Card className="xr-card bg-muted/20">
-            <CardContent className="p-8">
-              <div className="text-center space-y-6">
-                {/* Mission Statement */}
-                <div className="space-y-4">
-                  <h3 className="text-2xl font-bold text-primary font-pixel">About the XRay Brief</h3>
-                  <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-                    Crypto-first market analysis delivered twice daily. We blend verified news, real data, and clear context 
-                    for pros and smart newcomers. Numbers before narratives, always.
+            <CardContent className="p-6">
+              <div className="text-center space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-primary font-pixel">About the XRay Brief</h3>
+                  <p className="text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                    Crypto-first market analysis delivered twice daily. Numbers before narratives, always.
                   </p>
                 </div>
                 
-                {/* Sources Disclaimer */}
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">
-                    <strong>Data Sources:</strong> CoinGecko Pro, Binance, LunarCrush, Alternative.me, Reuters, AP, SEC, Fed, CoinDesk, Blockworks
-                  </div>
-                  <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-                    <Badge variant="outline" className="font-pixel">@XRayCryptoX</Badge>
-                    <Badge variant="outline" className="font-pixel">@XRayMetaX</Badge>
-                  </div>
+                <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+                  <Badge variant="outline" className="font-pixel">@XRayCryptoX</Badge>
+                  <Badge variant="outline" className="font-pixel">@XRayMetaX</Badge>
                 </div>
                 
-                {/* Educational Disclaimer */}
-                <Alert className="max-w-2xl mx-auto">
-                  <AlertDescription className="text-center">
-                    ⚠️ <strong>Not financial advice.</strong> For educational purposes only. 
-                    Trade responsibly and do your own research.
+                <Alert className="max-w-xl mx-auto">
+                  <AlertDescription className="text-center text-sm">
+                    ⚠️ <strong>Not financial advice.</strong> For educational purposes only.
                   </AlertDescription>
                 </Alert>
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Sidebar Widgets - Always Visible */}
-        <div className="hidden xl:block w-80 space-y-6">
-          <div className="sticky top-24">
-            <SidebarWidgets 
-              fearGreedScore={latestBrief?.market_data?.fear_greed_score}
-              fearGreedLabel={latestBrief?.market_data?.fear_greed_label}
-            />
-          </div>
         </div>
       </div>
 
