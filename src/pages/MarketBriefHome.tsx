@@ -668,9 +668,9 @@ export default function MarketBriefHome() {
                 {/* Add S&P 500 for market context */}
                 <Card className="h-48">
                   <CardContent className="p-3">
-                    <div className="text-sm font-medium mb-2 text-center">S&P 500</div>
+                    <div className="text-sm font-medium mb-2 text-center">S&P 500 (SPY)</div>
                     <div className="h-36">
-                      <MiniChart symbol="SP:SPX" theme={theme} />
+                      <MiniChart symbol="SPY" theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
