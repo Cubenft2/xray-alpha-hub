@@ -137,9 +137,10 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
 
   React.useEffect(() => {
     if (onTickersExtracted && tickers.length > 0) {
-      onTickersExtracted([...new Set(tickers)]);
+      const uniqueTickers = [...new Set(tickers)];
+      onTickersExtracted(uniqueTickers);
     }
-  }, [onTickersExtracted, tickers.join(',')]);
+  }, [tickers.length]); // Only depend on length to avoid infinite loops
 
   React.useEffect(() => {
     // Add global click handler for ticker buttons
