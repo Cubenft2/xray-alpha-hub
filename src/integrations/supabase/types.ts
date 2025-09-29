@@ -224,6 +224,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ticker_mappings: {
+        Row: {
+          created_at: string
+          display_name: string
+          exchange: string | null
+          id: string
+          is_active: boolean
+          symbol: string
+          tradingview_symbol: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          exchange?: string | null
+          id?: string
+          is_active?: boolean
+          symbol: string
+          tradingview_symbol: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          exchange?: string | null
+          id?: string
+          is_active?: boolean
+          symbol?: string
+          tradingview_symbol?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
