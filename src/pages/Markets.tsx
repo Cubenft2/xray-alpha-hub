@@ -49,6 +49,9 @@ export default function Markets() {
         'SNAP': 'NYSE:SNAP',
         'SBUX': 'NASDAQ:SBUX',
         'STARBUCKS': 'NASDAQ:SBUX',
+        'EA': 'NASDAQ:EA',
+        'MNPR': 'NASDAQ:MNPR',
+        'MONOPAR': 'NASDAQ:MNPR',
       };
       
       // Check for exact matches first
