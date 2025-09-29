@@ -37,8 +37,22 @@ const symbolToCoinId: Record<string, string> = {
   'UNI': 'uniswap',
   'SUSHI': 'sushi',
   'COMP': 'compound-governance-token',
-  'YFI': 'yearn-finance'
+  'YFI': 'yearn-finance',
+  'HYPE': 'hyperliquid',
+  'SUI': 'sui',
+  'TRX': 'tron',
+  'USDT': 'tether',
+  'BNB': 'binancecoin',
+  'DOGE': 'dogecoin',
+  'ASTER': 'aster'
 };
+
+// Known stock tickers
+const stockTickers = new Set([
+  'MNPR', 'EA', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META',
+  'NFLX', 'AMD', 'INTC', 'COIN', 'MSTR', 'HOOD', 'SQ', 'PYPL',
+  'SPY', 'QQQ', 'VTI'
+]);
 
 interface QuoteData {
   symbol: string;
@@ -91,7 +105,9 @@ async function setCachedData(key: string, value: any, ttlSeconds: number): Promi
 }
 
 async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
-  const coinIds = symbols.map(symbol => symbolToCoinId[symbol]).filter(Boolean);
+  // Filter out stock tickers
+  const cryptoSymbols = symbols.filter(s => !stockTickers.has(s));
+  const coinIds = cryptoSymbols.map(symbol => symbolToCoinId[symbol]).filter(Boolean);
   
   if (coinIds.length === 0) return [];
   
@@ -111,7 +127,7 @@ async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
   const quotes: QuoteData[] = [];
   
   for (const [symbol, coinId] of Object.entries(symbolToCoinId)) {
-    if (symbols.includes(symbol) && data[coinId]) {
+    if (cryptoSymbols.includes(symbol) && data[coinId]) {
       quotes.push({
         symbol,
         price: data[coinId].usd,
@@ -127,11 +143,13 @@ async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
 
 // Basic stock data (placeholder - you'd integrate with your preferred stock API)
 async function fetchStockData(symbols: string[]): Promise<QuoteData[]> {
-  // For now, return empty array - you'd integrate with Polygon, Alpha Vantage, etc.
-  const stockSymbols = symbols.filter(s => ['SPY', 'QQQ', 'VTI', 'TSLA', 'AAPL', 'MSFT', 'GOOGL'].includes(s));
+  // Filter only recognized stock tickers
+  const recognizedStocks = symbols.filter(s => stockTickers.has(s));
   
-  // Placeholder stock data - replace with real API
-  return stockSymbols.map(symbol => ({
+  if (recognizedStocks.length === 0) return [];
+  
+  // Placeholder stock data - replace with real API integration
+  return recognizedStocks.map(symbol => ({
     symbol,
     price: Math.random() * 500 + 100, // Mock price
     change24h: (Math.random() - 0.5) * 10, // Mock change
