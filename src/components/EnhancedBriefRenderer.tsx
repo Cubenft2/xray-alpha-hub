@@ -26,8 +26,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     
     // Known stock tickers - route to Markets page
     const stockTickers = new Set([
-      'MNPR', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META',
-      'NFLX', 'AMD', 'INTC', 'COIN', 'MSTR', 'HOOD', 'SQ', 'PYPL'
+      'MNPR', 'EA', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META',
+      'NFLX', 'AMD', 'INTC', 'COIN', 'MSTR', 'HOOD', 'SQ', 'PYPL', 'ASTER'
     ]);
     
     if (stockTickers.has(upperTicker)) {
