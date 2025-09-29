@@ -13,19 +13,30 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   const handleTickerClick = React.useCallback((ticker: string) => {
     const upperTicker = ticker.toUpperCase();
     
-    // Tickers that should redirect to CoinGecko search instead of local charts
+    // Tickers that should redirect to CoinGecko search
     const coingeckoRedirect = new Set([
       'FIGR_HELOC',
       'FIGR',
     ]);
     
-    // Check if ticker should redirect to CoinGecko
     if (coingeckoRedirect.has(upperTicker)) {
       window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
       return;
     }
     
-    // Map common crypto symbols to TradingView format for local navigation
+    // Known stock tickers - route to Markets page
+    const stockTickers = new Set([
+      'MNPR', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META',
+      'NFLX', 'AMD', 'INTC', 'COIN', 'MSTR', 'HOOD', 'SQ', 'PYPL'
+    ]);
+    
+    if (stockTickers.has(upperTicker)) {
+      // Route to Markets page with NASDAQ prefix for stocks
+      navigate(`/markets?symbol=NASDAQ:${upperTicker}`);
+      return;
+    }
+    
+    // Crypto mappings
     const cryptoMappings: { [key: string]: string } = {
       'BTC': 'BINANCE:BTCUSDT',
       'BITCOIN': 'BINANCE:BTCUSDT',
@@ -56,7 +67,9 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       'BNB': 'BINANCE:BNBUSDT',
       'WBTC': 'BINANCE:WBTCUSDT',
       'USDE': 'BINANCE:USDEUSDT',
-      // Stock mappings
+      'TRX': 'BINANCE:TRXUSDT',
+      'TRON': 'BINANCE:TRXUSDT',
+      // Index mappings
       'SPX': 'SP:SPX',
       'DXY': 'TVC:DXY',
       'XAUUSD': 'OANDA:XAUUSD',
@@ -105,14 +118,15 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     enhancedText = enhancedText.replace(tickerRegex, (match, name, symbol) => {
       extractedTickers.push(symbol.toUpperCase());
       const displayName = name.trim();
+      const upperSymbol = symbol.toUpperCase();
       
-      // Use new inline quote system with live API data
+      // Create ticker span that will be updated by InlineQuote system
       return `${displayName} <span 
-        class="ticker-quote-inline font-semibold cursor-help hover:opacity-80 transition-opacity" 
-        data-quote-symbol="${symbol.toUpperCase()}" 
+        class="ticker-quote-inline font-semibold cursor-pointer hover:opacity-80 transition-opacity" 
+        data-quote-symbol="${upperSymbol}" 
         onclick="window.handleTickerClick('${symbol}')"
         style="color: inherit;">
-        (${symbol.toUpperCase()} loading...)
+        (${upperSymbol} ...)
       </span>`;
     });
 
