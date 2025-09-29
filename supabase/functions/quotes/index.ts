@@ -43,15 +43,15 @@ const symbolToCoinId: Record<string, string> = {
   'TRX': 'tron',
   'USDT': 'tether',
   'BNB': 'binancecoin',
-  'DOGE': 'dogecoin',
-  'ASTER': 'aster'
+  'DOGE': 'dogecoin'
+  // ASTER removed - not a valid CoinGecko ID
 };
 
 // Known stock tickers
 const stockTickers = new Set([
   'MNPR', 'EA', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META',
   'NFLX', 'AMD', 'INTC', 'COIN', 'MSTR', 'HOOD', 'SQ', 'PYPL',
-  'SPY', 'QQQ', 'VTI'
+  'SPY', 'QQQ', 'VTI', 'ASTER' // Added ASTER as it's not a valid crypto ID
 ]);
 
 interface QuoteData {
