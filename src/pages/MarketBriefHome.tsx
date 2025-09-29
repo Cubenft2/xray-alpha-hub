@@ -533,10 +533,6 @@ export default function MarketBriefHome() {
 
             {/* Article Content */}
             <div className="mb-6">
-              {!brief.article_html?.toLowerCase().includes("let's talk about something") && (
-                <p className="italic text-muted-foreground mb-4 text-lg">Let&apos;s talk about something.</p>
-              )}
-              
               {/* Live Prices Indicator */}
               {pricesLoading && (
                 <div className="mb-2 text-xs text-muted-foreground flex items-center gap-2">
