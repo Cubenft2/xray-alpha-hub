@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { isKnownStock, isKnownCrypto } from '@/config/tickerMappings';
 
 interface EnhancedBriefRendererProps {
   content: string;
@@ -13,7 +14,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   const handleTickerClick = React.useCallback((ticker: string) => {
     const upperTicker = ticker.toUpperCase();
     
-    // Tickers that should redirect to CoinGecko search
+    // Special cases that should redirect to CoinGecko search
     const coingeckoRedirect = new Set([
       'FIGR_HELOC',
       'FIGR',
@@ -24,60 +25,22 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       return;
     }
     
-    // Known stock tickers - route to Markets page
-    const stockTickers = new Set([
-      'MNPR', 'EA', 'AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META',
-      'NFLX', 'AMD', 'INTC', 'COIN', 'MSTR', 'HOOD', 'SQ', 'PYPL', 'ASTER'
-    ]);
-    
-    if (stockTickers.has(upperTicker)) {
-      // Route to Markets page with NASDAQ prefix for stocks
+    // Use centralized configuration to determine routing
+    if (isKnownStock(upperTicker)) {
+      // Route to Markets page for stocks
       navigate(`/markets?symbol=NASDAQ:${upperTicker}`);
       return;
     }
     
-    // Crypto mappings
-    const cryptoMappings: { [key: string]: string } = {
-      'BTC': 'BINANCE:BTCUSDT',
-      'BITCOIN': 'BINANCE:BTCUSDT',
-      'ETH': 'BINANCE:ETHUSDT', 
-      'ETHEREUM': 'BINANCE:ETHUSDT',
-      'SOL': 'BINANCE:SOLUSDT',
-      'SOLANA': 'BINANCE:SOLUSDT',
-      'ADA': 'BINANCE:ADAUSDT',
-      'CARDANO': 'BINANCE:ADAUSDT',
-      'AVAX': 'BINANCE:AVAXUSDT',
-      'AVALANCHE': 'BINANCE:AVAXUSDT',
-      'DOT': 'BINANCE:DOTUSDT',
-      'POLKADOT': 'BINANCE:DOTUSDT',
-      'MATIC': 'BINANCE:MATICUSDT',
-      'POLYGON': 'BINANCE:MATICUSDT',
-      'LINK': 'BINANCE:LINKUSDT',
-      'CHAINLINK': 'BINANCE:LINKUSDT',
-      'UNI': 'BINANCE:UNIUSDT',
-      'UNISWAP': 'BINANCE:UNIUSDT',
-      'XRP': 'BINANCE:XRPUSDT',
-      'RIPPLE': 'BINANCE:XRPUSDT',
-      'DOGE': 'BINANCE:DOGEUSDT',
-      'DOGECOIN': 'BINANCE:DOGEUSDT',
-      'ASTER': 'BINANCE:ASTERUSDT',
-      'HYPE': 'BINANCE:HYPEUSDT',
-      'HYPERLIQUID': 'BINANCE:HYPEUSDT',
-      'SUI': 'BINANCE:SUIUSDT',
-      'BNB': 'BINANCE:BNBUSDT',
-      'WBTC': 'BINANCE:WBTCUSDT',
-      'USDE': 'BINANCE:USDEUSDT',
-      'TRX': 'BINANCE:TRXUSDT',
-      'TRON': 'BINANCE:TRXUSDT',
-      // Index mappings
-      'SPX': 'SP:SPX',
-      'DXY': 'TVC:DXY',
-      'XAUUSD': 'OANDA:XAUUSD',
-      'GOLD': 'OANDA:XAUUSD'
-    };
+    if (isKnownCrypto(upperTicker)) {
+      // Route to CoinGecko for crypto
+      window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
+      return;
+    }
     
-    const tradingViewSymbol = cryptoMappings[upperTicker] || `BINANCE:${upperTicker}USDT`;
-    navigate(`/crypto?symbol=${tradingViewSymbol}`);
+    // If not found in our mappings, log warning and default to CoinGecko
+    console.warn(`⚠️ Unknown ticker "${upperTicker}" clicked - add to src/config/tickerMappings.ts for proper routing`);
+    window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
   }, [navigate]);
 
   const processContent = (text: string) => {
