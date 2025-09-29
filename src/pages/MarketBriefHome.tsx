@@ -146,7 +146,9 @@ export default function MarketBriefHome() {
       'S&P 500': { symbol: 'SPY', displayName: 'S&P 500 (SPY)' },
       'DXY': { symbol: 'DXY', displayName: 'US Dollar Index' },
       'XAUUSD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' },
-      'GOLD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' }
+      'GOLD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' },
+      'MNPR': { symbol: 'NASDAQ:MNPR', displayName: 'Monopar Therapeutics (MNPR)' },
+      'EA': { symbol: 'NASDAQ:EA', displayName: 'Electronic Arts (EA)' }
     };
     
     return mappings[upperTicker] || { 
