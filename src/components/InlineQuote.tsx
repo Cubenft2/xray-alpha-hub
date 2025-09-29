@@ -181,6 +181,7 @@ export function InlineQuote({ symbol, showDerivs = false, className = "" }: Inli
 
 // Global inline quote system for use with EnhancedBriefRenderer
 export function initializeInlineQuotes() {
+  console.log('🔄 Initializing inline quotes system...');
   const quotesCache = new Map<string, QuoteData>();
   const derivsCache = new Map<string, DerivData>();
   
@@ -188,26 +189,37 @@ export function initializeInlineQuotes() {
   const fetchAllQuotes = async (symbols: string[]) => {
     if (symbols.length === 0) return;
     
+    console.log('📡 Fetching quotes for symbols:', symbols);
+    
     try {
-      const { data: quotesResponse } = await supabase.functions.invoke('quotes', {
+      const { data: quotesResponse, error } = await supabase.functions.invoke('quotes', {
         body: { symbols }
       });
+
+      if (error) {
+        console.error('❌ Error from quotes function:', error);
+        return;
+      }
+
+      console.log('✅ Received quotes response:', quotesResponse);
 
       if (quotesResponse?.quotes) {
         quotesResponse.quotes.forEach((quote: QuoteData) => {
           quotesCache.set(quote.symbol, quote);
+          console.log(`💰 Cached quote for ${quote.symbol}: $${quote.price}`);
         });
       }
 
       // Update all quote spans on the page
       updateQuoteSpans();
     } catch (error) {
-      console.error('Error fetching bulk quotes:', error);
+      console.error('❌ Error fetching bulk quotes:', error);
     }
   };
 
   const updateQuoteSpans = () => {
     const quoteSpans = document.querySelectorAll('[data-quote-symbol]');
+    console.log(`🔍 Found ${quoteSpans.length} quote spans to update`);
     
     quoteSpans.forEach((span) => {
       const symbol = span.getAttribute('data-quote-symbol');
@@ -215,7 +227,8 @@ export function initializeInlineQuotes() {
       
       const quoteData = quotesCache.get(symbol);
       if (!quoteData) {
-        span.textContent = `(${symbol} loading...)`;
+        console.log(`⏳ No data yet for ${symbol}, showing loading...`);
+        span.textContent = `(${symbol} ...)`;
         return;
       }
       
@@ -241,6 +254,7 @@ export function initializeInlineQuotes() {
       
       span.innerHTML = `(${symbol} $${formatPrice(quoteData.price)} <span style="color: ${changeColor}">${formatChange(quoteData.change24h)}</span>)`;
       span.setAttribute('title', `${formatTimestamp(quoteData.timestamp)} • source: ${quoteData.source}`);
+      console.log(`✨ Updated ${symbol} with price $${quoteData.price}`);
     });
   };
 
@@ -251,8 +265,12 @@ export function initializeInlineQuotes() {
   
   const uniqueSymbols = [...new Set(symbols)];
   
+  console.log('📋 Extracted symbols from page:', uniqueSymbols);
+  
   if (uniqueSymbols.length > 0) {
     fetchAllQuotes(uniqueSymbols);
+  } else {
+    console.log('⚠️ No symbols found on page to fetch');
   }
 }
 

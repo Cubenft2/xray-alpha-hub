@@ -105,8 +105,8 @@ async function setCachedData(key: string, value: any, ttlSeconds: number): Promi
 }
 
 async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
-  // Filter out stock tickers
-  const cryptoSymbols = symbols.filter(s => !stockTickers.has(s));
+  // Filter out stock tickers and invalid symbols
+  const cryptoSymbols = symbols.filter(s => !stockTickers.has(s) && symbolToCoinId[s]);
   const coinIds = cryptoSymbols.map(symbol => symbolToCoinId[symbol]).filter(Boolean);
   
   console.log('Crypto symbols to fetch:', cryptoSymbols);
@@ -121,35 +121,40 @@ async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
     ? `https://pro-api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true&x_cg_pro_api_key=${coinGeckoApiKey}`
     : `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true`;
 
-  console.log('CoinGecko URL:', url);
+  console.log('Fetching from CoinGecko...');
   
-  const response = await fetch(url);
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('CoinGecko error response:', errorText);
-    throw new Error(`CoinGecko API error: ${response.status}`);
-  }
-  
-  const data = await response.json();
-  const timestamp = new Date().toISOString();
-  
-  const quotes: QuoteData[] = [];
-  
-  for (const [symbol, coinId] of Object.entries(symbolToCoinId)) {
-    if (cryptoSymbols.includes(symbol) && data[coinId]) {
-      quotes.push({
-        symbol,
-        price: data[coinId].usd,
-        change24h: data[coinId].usd_24h_change || 0,
-        timestamp,
-        source: 'coingecko'
-      });
+  try {
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('CoinGecko error response:', errorText);
+      return []; // Return empty array instead of throwing
     }
+    
+    const data = await response.json();
+    const timestamp = new Date().toISOString();
+    
+    const quotes: QuoteData[] = [];
+    
+    for (const [symbol, coinId] of Object.entries(symbolToCoinId)) {
+      if (cryptoSymbols.includes(symbol) && data[coinId]) {
+        quotes.push({
+          symbol,
+          price: data[coinId].usd,
+          change24h: data[coinId].usd_24h_change || 0,
+          timestamp,
+          source: 'coingecko'
+        });
+      }
+    }
+    
+    console.log('Successfully fetched', quotes.length, 'quotes');
+    return quotes;
+  } catch (error) {
+    console.error('Error fetching from CoinGecko:', error);
+    return []; // Return empty array on error
   }
-  
-  console.log('Successfully fetched', quotes.length, 'quotes');
-  return quotes;
 }
 
 // Basic stock data (placeholder - you'd integrate with your preferred stock API)
