@@ -117,9 +117,8 @@ async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
     return [];
   }
   
-  const url = coinGeckoApiKey 
-    ? `https://pro-api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true&x_cg_pro_api_key=${coinGeckoApiKey}`
-    : `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true`;
+  // Always use the free API endpoint - pro endpoint requires paid key
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true`;
 
   console.log('Fetching from CoinGecko...');
   
