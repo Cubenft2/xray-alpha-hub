@@ -109,15 +109,25 @@ async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
   const cryptoSymbols = symbols.filter(s => !stockTickers.has(s));
   const coinIds = cryptoSymbols.map(symbol => symbolToCoinId[symbol]).filter(Boolean);
   
-  if (coinIds.length === 0) return [];
+  console.log('Crypto symbols to fetch:', cryptoSymbols);
+  console.log('Coin IDs for CoinGecko:', coinIds);
+  
+  if (coinIds.length === 0) {
+    console.log('No valid coin IDs to fetch');
+    return [];
+  }
   
   const url = coinGeckoApiKey 
     ? `https://pro-api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true&x_cg_pro_api_key=${coinGeckoApiKey}`
     : `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds.join(',')}&vs_currencies=usd&include_24hr_change=true`;
 
+  console.log('CoinGecko URL:', url);
+  
   const response = await fetch(url);
   
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('CoinGecko error response:', errorText);
     throw new Error(`CoinGecko API error: ${response.status}`);
   }
   
@@ -138,6 +148,7 @@ async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
     }
   }
   
+  console.log('Successfully fetched', quotes.length, 'quotes');
   return quotes;
 }
 
