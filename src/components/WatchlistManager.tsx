@@ -21,6 +21,22 @@ export function WatchlistManager() {
   const navigate = useNavigate();
   const { theme } = useTheme();
 
+  // TradingView symbol overrides for problematic tickers
+  const TV_OVERRIDES: Record<string, string> = {
+    ATH: 'COINBASE:ATHUSD',
+  };
+
+  const getBaseSymbol = (sym: string) => {
+    const s = sym.includes(':') ? sym.split(':')[1] : sym;
+    return s.replace(/(USDT|USD|BTC|UST)$/,'');
+  };
+
+  const chartSymbolFor = (sym: string) => {
+    const base = getBaseSymbol(sym);
+    return TV_OVERRIDES[base] ?? sym;
+  };
+
+
   useEffect(() => {
     const stored = localStorage.getItem('xr_watchlist');
     if (stored) {
@@ -144,7 +160,7 @@ export function WatchlistManager() {
               <CardContent>
                 <div className="relative h-48 rounded-lg overflow-hidden group">
                   <MiniChart 
-                    symbol={item.symbol} 
+                    symbol={chartSymbolFor(item.symbol)} 
                     theme={theme} 
                     onClick={() => handleChartClick(item)}
                   />
