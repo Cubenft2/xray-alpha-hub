@@ -133,7 +133,7 @@ export const CommunityPromotion: React.FC = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
-      <DialogContent className="max-w-[95vw] sm:max-w-md mx-auto bg-card border border-primary/20 shadow-xl max-h-[90vh] overflow-y-auto overflow-hidden">
+      <DialogContent className="max-w-[90vw] sm:max-w-xs mx-auto bg-card border border-primary/20 shadow-xl max-h-[85vh] overflow-y-auto overflow-hidden">
         {/* Animated Background */}
         <div 
           className="absolute inset-0 z-0 opacity-30"
@@ -155,59 +155,59 @@ export const CommunityPromotion: React.FC = () => {
             <span className="sr-only">Close</span>
           </button>
 
-        <DialogHeader className="text-center space-y-2 sm:space-y-3 pr-8">
+        <DialogHeader className="text-center space-y-1 sm:space-y-2 pr-8">
           <div className="flex items-center justify-center">
-            <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-accent animate-pulse" />
+            <Sparkles className="h-4 w-4 text-accent animate-pulse" />
           </div>
           
-          <DialogTitle className="text-lg sm:text-xl font-bold xr-gradient-text leading-tight">
+          <DialogTitle className="text-base sm:text-lg font-bold xr-gradient-text leading-tight">
             {CURRENT_PROMOTION.title}
           </DialogTitle>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-1">
             <Badge 
               variant="secondary" 
-              className="bg-accent/60 text-accent-foreground border-accent/80 xr-glow-accent animate-glow-pulse font-bold text-xs"
+              className="bg-accent/60 text-accent-foreground border-accent/80 xr-glow-accent animate-glow-pulse font-bold text-[10px]"
             >
-              <Users className="h-3 w-3 mr-1" />
+              <Users className="h-2.5 w-2.5 mr-1" />
               Community Pick
             </Badge>
             <Badge 
               variant="outline"
               style={{ borderColor: CURRENT_PROMOTION.token.chainColor, color: CURRENT_PROMOTION.token.chainColor }}
-              className="xr-xray-glow animate-glow-pulse text-xs"
+              className="xr-xray-glow animate-glow-pulse text-[10px]"
             >
               {CURRENT_PROMOTION.token.chain}
             </Badge>
           </div>
         </DialogHeader>
 
-        <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
+        <div className="space-y-2 mt-2">
           {/* Token Info */}
-          <div className="text-center p-3 sm:p-4 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm">
-            <div className="text-xl sm:text-2xl font-bold text-primary mb-1">
+          <div className="text-center p-2 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm">
+            <div className="text-lg font-bold text-primary mb-0.5">
               ${CURRENT_PROMOTION.token.symbol}
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               {CURRENT_PROMOTION.token.name}
             </div>
           </div>
 
           {/* Description */}
-          <p className="text-sm text-muted-foreground text-center leading-relaxed px-2">
+          <p className="text-xs text-muted-foreground text-center leading-relaxed px-1">
             {CURRENT_PROMOTION.description}
           </p>
 
-          {/* Features - Condensed for mobile */}
-          <div className="space-y-2">
-            <div className="text-sm font-semibold text-foreground flex items-center gap-2 justify-center">
-              <TrendingUp className="h-4 w-4 text-success" />
+          {/* Features - Condensed */}
+          <div className="space-y-1">
+            <div className="text-xs font-semibold text-foreground flex items-center gap-1 justify-center">
+              <TrendingUp className="h-3 w-3 text-success" />
               Key Highlights:
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs">
+            <div className="grid grid-cols-1 gap-0.5 text-[10px]">
               {CURRENT_PROMOTION.features.map((feature, index) => (
-                <div key={index} className="text-muted-foreground flex items-start gap-2">
-                  <span className="text-accent mt-1">•</span>
+                <div key={index} className="text-muted-foreground flex items-start gap-1.5 justify-center">
+                  <span className="text-accent">•</span>
                   {feature}
                 </div>
               ))}
@@ -215,77 +215,77 @@ export const CommunityPromotion: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-2 sm:space-y-3 pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+          <div className="space-y-1.5 pt-1">
+            <div className="grid grid-cols-2 gap-1.5">
               {CURRENT_PROMOTION.links.chart && (
                 <Button
                   onClick={() => handleLinkClick(
                     CURRENT_PROMOTION.links.chart!, 
                     'Defined.fi Chart'
                   )}
-                  className="btn-hero text-xs sm:text-sm h-8 sm:h-9 w-full"
+                  className="btn-hero text-[10px] h-7 w-full"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  View Chart
+                  <ExternalLink className="h-2.5 w-2.5 mr-1" />
+                  Chart
                 </Button>
               )}
               {CURRENT_PROMOTION.links.website && (
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.website!, 'Abstract website')}
-                  className="text-xs sm:text-sm h-8 sm:h-9 border-primary/30 hover:bg-primary/10 w-full"
+                  className="text-[10px] h-7 border-primary/30 hover:bg-primary/10 w-full"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Learn More
+                  <ExternalLink className="h-2.5 w-2.5 mr-1" />
+                  Learn
                 </Button>
               )}
             </div>
             
             {/* Social Links */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 gap-1.5">
               {CURRENT_PROMOTION.links.twitter && (
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.twitter!, 'GUGO Twitter')}
-                  className="text-xs sm:text-sm h-8 sm:h-9 border-accent/30 hover:bg-accent/10 w-full"
+                  className="text-[10px] h-7 border-accent/30 hover:bg-accent/10 w-full"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  $GUGO Twitter
+                  <ExternalLink className="h-2.5 w-2.5 mr-1" />
+                  Twitter
                 </Button>
               )}
               {CURRENT_PROMOTION.links.community && (
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.community!, 'Type Media Community')}
-                  className="text-xs sm:text-sm h-8 sm:h-9 border-accent/30 hover:bg-accent/10 w-full"
+                  className="text-[10px] h-7 border-accent/30 hover:bg-accent/10 w-full"
                 >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Our Community
+                  <ExternalLink className="h-2.5 w-2.5 mr-1" />
+                  Community
                 </Button>
               )}
             </div>
           </div>
 
           {/* Disclaimer - Condensed */}
-          <div className="text-xs text-muted-foreground/80 text-center p-2 sm:p-3 bg-warning/10 rounded border border-warning/20">
-            ⚠️ <strong>DYOR:</strong> Not financial advice. Research before investing.
+          <div className="text-[10px] text-muted-foreground/80 text-center p-1.5 bg-warning/10 rounded border border-warning/20">
+            ⚠️ <strong>DYOR:</strong> Not financial advice.
           </div>
 
-          {/* Quick Dismiss - More prominent */}
-          <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border">
+          {/* Quick Dismiss */}
+          <div className="flex gap-1.5 pt-2 border-t border-border">
             <Button
               onClick={() => handleDismiss(false)}
               variant="secondary"
-              className="text-xs sm:text-sm h-8 flex-1"
+              className="text-[10px] h-6 flex-1"
             >
               Close
             </Button>
             <Button
               variant="ghost"
               onClick={() => handleDismiss(true)}
-              className="text-xs text-muted-foreground hover:text-foreground flex-1"
+              className="text-[10px] text-muted-foreground hover:text-foreground flex-1"
             >
-              Don't show again
+              Don't show
             </Button>
           </div>
           </div>
