@@ -171,11 +171,31 @@ export default function MarketBriefHome() {
           await generateFreshBrief();
           return; // Wait for reload
         }
+        // If an admin audit block accidentally leaked into the article, regenerate a clean brief (no button)
+        if (!date) {
+          const aiTextRaw = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
+          const articleHtmlRaw = (briefData as any)?.article_html as string | undefined;
+          const hasAdminLeak =
+            (aiTextRaw && aiTextRaw.includes('[ADMIN] Symbol Intelligence Audit')) ||
+            (articleHtmlRaw && articleHtmlRaw.includes('[ADMIN] Symbol Intelligence Audit'));
+          if (hasAdminLeak) {
+            console.log('🧹 Admin audit detected in brief — regenerating clean version...');
+            await generateFreshBrief();
+            return; // Wait for reload
+          }
+        }
         
-        // Convert database format to expected format
+        // Remove any accidental ADMIN audit block from content just in case old cached content is shown
+        const sanitizeAdminLeak = (text?: string) => {
+          if (!text) return '';
+          return text.replace(/---[\s\S]*?\*\*\[ADMIN\]\s*Symbol Intelligence Audit\*\*[\s\S]*?---/g, '').trim();
+        };
+
         const aiText = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
-        const articleHtmlFromAI = aiText
-          ? `<p>${aiText
+        const cleanAiText = sanitizeAdminLeak(aiText);
+
+        const articleHtmlFromAI = cleanAiText
+          ? `<p>${cleanAiText
               .replace(/&/g, '&amp;')
               .replace(/</g, '&lt;')
               .replace(/>/g, '&gt;')
@@ -185,6 +205,7 @@ export default function MarketBriefHome() {
             }</p>`
           : '';
 
+        const cleanArticleHtml = sanitizeAdminLeak(briefData.article_html);
         const displayDate = briefData.published_at || briefData.created_at;
 
         const brief: MarketBrief = {
@@ -192,7 +213,7 @@ export default function MarketBriefHome() {
           date: displayDate ? new Date(displayDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
           title: briefData.title || '',
           summary: briefData.executive_summary || briefData.summary || '',
-          article_html: briefData.article_html || articleHtmlFromAI || '',
+          article_html: cleanArticleHtml || articleHtmlFromAI || '',
           last_word: '',
           social_text: '',
           sources: [],
