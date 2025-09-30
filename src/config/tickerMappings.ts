@@ -138,8 +138,8 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'ZEC': { symbol: 'BINANCE:ZECUSDT', displayName: 'Zcash (ZEC)', type: 'crypto' },
   'ZCASH': { symbol: 'BINANCE:ZECUSDT', displayName: 'Zcash (ZEC)', type: 'crypto' },
   'PUMP': { symbol: 'CRYPTO:PUMPUSD', displayName: 'PUMP (PUMP)', type: 'crypto' },
-  'UXLINK': { symbol: 'BINANCE:UXLINKUSDT', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
-  'UXPL': { symbol: 'BINANCE:UXLINKUSDT', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
+  'UXLINK': { symbol: 'CRYPTO:UXLINKUSD', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
+  'UXPL': { symbol: 'CRYPTO:UXLINKUSD', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
 };
 
 // Index and Forex tickers
