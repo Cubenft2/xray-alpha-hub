@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.news-fetch]
 verify_jwt = false
+
+[functions.symbol-validation]
+verify_jwt = false

@@ -7,6 +7,11 @@ interface QuoteData {
   change24h: number;
   timestamp: string;
   source: string;
+  // SIL capability flags
+  price_ok?: boolean;
+  tv_ok?: boolean;
+  derivs_ok?: boolean;
+  social_ok?: boolean;
 }
 
 interface DerivData {
@@ -144,7 +149,11 @@ export function InlineQuote({ symbol, showDerivs = false, className = "" }: Inli
     );
   }
 
-  if (error || !quoteData || quoteData.price === null) {
+  // Check SIL capability flags
+  const priceOk = quoteData?.price_ok !== false;
+  const derivsOk = quoteData?.derivs_ok === true;
+
+  if (error || !quoteData || quoteData.price === null || !priceOk) {
     return (
       <span 
         className={`inline-quote error ${className}`}
@@ -164,7 +173,7 @@ export function InlineQuote({ symbol, showDerivs = false, className = "" }: Inli
       title={`${formatTimestamp(quoteData.timestamp)} • source: ${quoteData.source}`}
     >
       ({symbol} ${formatPrice(quoteData.price)} <span className={changeColorClass}>{formatChange(quoteData.change24h)}</span>
-      {showDerivs && derivData && (
+      {showDerivs && derivsOk && derivData && (
         <>
           {derivData.fundingRate !== 0 && (
             <span className="text-xs ml-1 text-muted-foreground">
@@ -245,7 +254,10 @@ export function initializeInlineQuotes() {
         return;
       }
       
-      if (quoteData.price === null) {
+      // Check SIL capability flags
+      const priceOk = quoteData.price_ok !== false;
+      
+      if (quoteData.price === null || !priceOk) {
         span.textContent = `(${symbol} n/a)`;
         span.setAttribute('title', 'Data not mapped yet - please contact admin to add this symbol');
         if (span instanceof HTMLElement) {

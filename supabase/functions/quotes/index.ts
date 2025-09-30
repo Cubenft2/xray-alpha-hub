@@ -20,6 +20,11 @@ interface QuoteData {
   change24h: number;
   timestamp: string;
   source: string;
+  // SIL capability flags
+  price_ok?: boolean;
+  tv_ok?: boolean;
+  derivs_ok?: boolean;
+  social_ok?: boolean;
 }
 
 interface TickerMapping {
@@ -38,30 +43,42 @@ function norm(symbol: string): string {
   return symbol.toUpperCase().replace(/[\s\-_]/g, '');
 }
 
-// Fetch ticker mappings from database
-async function getTickerMapping(symbol: string): Promise<TickerMapping | null> {
+// Fetch ticker mappings from database with capability flags
+async function getTickerMapping(symbol: string): Promise<any | null> {
   const normalized = norm(symbol);
   
   try {
     // Try exact match on display_symbol
     const { data, error } = await supabase
       .from('ticker_mappings')
-      .select('*')
+      .select(`
+        *,
+        price_supported,
+        tradingview_supported,
+        derivs_supported,
+        social_supported
+      `)
       .eq('display_symbol', normalized)
       .eq('is_active', true)
       .maybeSingle();
     
-    if (data) return data as TickerMapping;
+    if (data) return data;
     
     // Try matching symbol column
     const { data: symbolData } = await supabase
       .from('ticker_mappings')
-      .select('*')
+      .select(`
+        *,
+        price_supported,
+        tradingview_supported,
+        derivs_supported,
+        social_supported
+      `)
       .eq('symbol', normalized)
       .eq('is_active', true)
       .maybeSingle();
     
-    if (symbolData) return symbolData as TickerMapping;
+    if (symbolData) return symbolData;
     
     return null;
   } catch (error) {
@@ -142,6 +159,7 @@ async function resolveSymbol(symbol: string): Promise<{
   polygonTicker?: string;
   preferredExchange?: string;
   resolved: boolean;
+  mapping?: any;
 }> {
   // First check database mapping
   const mapping = await getTickerMapping(symbol);
@@ -151,7 +169,8 @@ async function resolveSymbol(symbol: string): Promise<{
       coinGeckoId: mapping.coingecko_id || undefined,
       polygonTicker: mapping.polygon_ticker || undefined,
       preferredExchange: mapping.preferred_exchange || undefined,
-      resolved: true
+      resolved: true,
+      mapping
     };
   }
   
@@ -170,7 +189,7 @@ async function resolveSymbol(symbol: string): Promise<{
 }
 
 // Fetch from CoinGecko
-async function fetchCoinGeckoPrice(coinId: string, symbol: string): Promise<QuoteData | null> {
+async function fetchCoinGeckoPrice(coinId: string, symbol: string, mapping?: any): Promise<QuoteData | null> {
   try {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`;
     const response = await fetch(url);
@@ -184,7 +203,12 @@ async function fetchCoinGeckoPrice(coinId: string, symbol: string): Promise<Quot
         price: data[coinId].usd,
         change24h: data[coinId].usd_24h_change || 0,
         timestamp: new Date().toISOString(),
-        source: 'coingecko'
+        source: 'coingecko',
+        // SIL capability flags from mapping
+        price_ok: mapping?.price_supported !== false,
+        tv_ok: mapping?.tradingview_supported !== false,
+        derivs_ok: mapping?.derivs_supported === true,
+        social_ok: mapping?.social_supported === true,
       };
     }
     
@@ -196,7 +220,7 @@ async function fetchCoinGeckoPrice(coinId: string, symbol: string): Promise<Quot
 }
 
 // Fetch from Polygon
-async function fetchPolygonPrice(ticker: string, symbol: string): Promise<QuoteData | null> {
+async function fetchPolygonPrice(ticker: string, symbol: string, mapping?: any): Promise<QuoteData | null> {
   if (!polygonApiKey) return null;
   
   try {
@@ -217,7 +241,12 @@ async function fetchPolygonPrice(ticker: string, symbol: string): Promise<QuoteD
         price,
         change24h,
         timestamp: new Date().toISOString(),
-        source: 'polygon'
+        source: 'polygon',
+        // SIL capability flags from mapping
+        price_ok: mapping?.price_supported !== false,
+        tv_ok: mapping?.tradingview_supported !== false,
+        derivs_ok: mapping?.derivs_supported === true,
+        social_ok: mapping?.social_supported === true,
       };
     }
     
@@ -256,12 +285,12 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
     
     // Try CoinGecko first
     if (resolution.coinGeckoId) {
-      quote = await fetchCoinGeckoPrice(resolution.coinGeckoId, symbol);
+      quote = await fetchCoinGeckoPrice(resolution.coinGeckoId, symbol, resolution.mapping);
     }
     
     // Try Polygon if CoinGecko failed
     if (!quote && resolution.polygonTicker) {
-      quote = await fetchPolygonPrice(resolution.polygonTicker, symbol);
+      quote = await fetchPolygonPrice(resolution.polygonTicker, symbol, resolution.mapping);
     }
     
     // If still no quote, mark as missing
