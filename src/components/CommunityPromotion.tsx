@@ -133,7 +133,7 @@ export const CommunityPromotion: React.FC = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
-      <DialogContent className="max-w-[90vw] sm:max-w-xs mx-auto bg-card border border-primary/20 shadow-xl max-h-[85vh] overflow-y-auto overflow-hidden">
+      <DialogContent className="max-w-[85vw] sm:max-w-[280px] mx-auto bg-card border border-primary/20 shadow-xl max-h-[80vh] overflow-y-auto overflow-hidden">
         {/* Animated Background */}
         <div 
           className="absolute inset-0 z-0 opacity-30"
@@ -155,75 +155,55 @@ export const CommunityPromotion: React.FC = () => {
             <span className="sr-only">Close</span>
           </button>
 
-        <DialogHeader className="text-center space-y-1 sm:space-y-2 pr-8 flex flex-col items-center">
-          <div className="flex items-center justify-center w-full">
-            <Sparkles className="h-4 w-4 text-accent animate-pulse" />
-          </div>
-          
-          <DialogTitle className="text-base sm:text-lg font-bold xr-gradient-text leading-tight text-center w-full">
+        <DialogHeader className="text-center space-y-0.5 pr-8 flex flex-col items-center">
+          <DialogTitle className="text-sm font-bold xr-gradient-text leading-tight text-center w-full">
             {CURRENT_PROMOTION.title}
           </DialogTitle>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-1 w-full">
+          <div className="flex items-center justify-center gap-1 w-full">
             <Badge 
               variant="secondary" 
-              className="bg-accent/60 text-accent-foreground border-accent/80 xr-glow-accent animate-glow-pulse font-bold text-[10px]"
+              className="bg-accent/60 text-accent-foreground border-accent/80 xr-glow-accent animate-glow-pulse font-bold text-[9px]"
             >
-              <Users className="h-2.5 w-2.5 mr-1" />
-              Community Pick
+              <Users className="h-2 w-2 mr-0.5" />
+              Community
             </Badge>
             <Badge 
               variant="outline"
               style={{ borderColor: CURRENT_PROMOTION.token.chainColor, color: CURRENT_PROMOTION.token.chainColor }}
-              className="xr-xray-glow animate-glow-pulse text-[10px]"
+              className="xr-xray-glow animate-glow-pulse text-[9px]"
             >
               {CURRENT_PROMOTION.token.chain}
             </Badge>
           </div>
         </DialogHeader>
 
-        <div className="space-y-2 mt-2 flex flex-col items-center">
-          {/* Token Info */}
-          <div className="w-full flex flex-col items-center justify-center p-2 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm mx-auto">
-            <div className="text-lg font-bold text-primary mb-0.5 text-center">
+        <div className="space-y-1.5 mt-1.5 flex flex-col items-center">
+          {/* Token Info - Condensed */}
+          <div className="w-full text-center p-1.5 rounded border border-primary/30 bg-card/60 backdrop-blur-sm">
+            <div className="text-base font-bold text-primary">
               ${CURRENT_PROMOTION.token.symbol}
             </div>
-            <div className="text-xs text-muted-foreground text-center">
-              {CURRENT_PROMOTION.token.name}
+            <div className="text-[9px] text-muted-foreground">
+              {CURRENT_PROMOTION.description}
             </div>
           </div>
 
-          {/* Description */}
-          <p className="text-xs text-muted-foreground text-center leading-relaxed px-1">
-            {CURRENT_PROMOTION.description}
-          </p>
-
-          {/* Features - Condensed */}
-          <div className="space-y-1">
-            <div className="text-xs font-semibold text-foreground flex items-center gap-1 justify-center">
-              <TrendingUp className="h-3 w-3 text-success" />
-              Key Highlights:
-            </div>
-            <div className="grid grid-cols-1 gap-0.5 text-[10px]">
-              {CURRENT_PROMOTION.features.map((feature, index) => (
-                <div key={index} className="text-muted-foreground flex items-start gap-1.5 justify-center">
-                  <span className="text-accent">•</span>
-                  {feature}
-                </div>
-              ))}
-            </div>
+          {/* Features - Ultra Condensed */}
+          <div className="text-[9px] text-muted-foreground text-center">
+            {CURRENT_PROMOTION.features.join(' • ')}
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-1.5 pt-1">
-            <div className="grid grid-cols-2 gap-1.5">
+          <div className="space-y-1 pt-0.5 w-full">
+            <div className="grid grid-cols-2 gap-1">
               {CURRENT_PROMOTION.links.chart && (
                 <Button
                   onClick={() => handleLinkClick(
                     CURRENT_PROMOTION.links.chart!, 
                     'Defined.fi Chart'
                   )}
-                  className="btn-hero text-[10px] h-7 w-full"
+                  className="btn-hero text-[9px] h-6 w-full"
                 >
                   <ExternalLink className="h-2.5 w-2.5 mr-1" />
                   Chart
@@ -233,7 +213,7 @@ export const CommunityPromotion: React.FC = () => {
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.website!, 'Abstract website')}
-                  className="text-[10px] h-7 border-primary/30 hover:bg-primary/10 w-full"
+                  className="text-[9px] h-6 border-primary/30 hover:bg-primary/10 w-full"
                 >
                   <ExternalLink className="h-2.5 w-2.5 mr-1" />
                   Learn
@@ -242,12 +222,12 @@ export const CommunityPromotion: React.FC = () => {
             </div>
             
             {/* Social Links */}
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-1">
               {CURRENT_PROMOTION.links.twitter && (
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.twitter!, 'GUGO Twitter')}
-                  className="text-[10px] h-7 border-accent/30 hover:bg-accent/10 w-full"
+                  className="text-[9px] h-6 border-accent/30 hover:bg-accent/10 w-full"
                 >
                   <ExternalLink className="h-2.5 w-2.5 mr-1" />
                   Twitter
@@ -257,7 +237,7 @@ export const CommunityPromotion: React.FC = () => {
                 <Button
                   variant="outline"
                   onClick={() => handleLinkClick(CURRENT_PROMOTION.links.community!, 'Type Media Community')}
-                  className="text-[10px] h-7 border-accent/30 hover:bg-accent/10 w-full"
+                  className="text-[9px] h-6 border-accent/30 hover:bg-accent/10 w-full"
                 >
                   <ExternalLink className="h-2.5 w-2.5 mr-1" />
                   Community
@@ -267,23 +247,23 @@ export const CommunityPromotion: React.FC = () => {
           </div>
 
           {/* Disclaimer - Condensed */}
-          <div className="text-[10px] text-muted-foreground/80 text-center p-1.5 bg-warning/10 rounded border border-warning/20">
-            ⚠️ <strong>DYOR:</strong> Not financial advice.
+          <div className="text-[8px] text-muted-foreground/80 text-center p-1 bg-warning/10 rounded border border-warning/20">
+            ⚠️ DYOR: Not financial advice
           </div>
 
           {/* Quick Dismiss */}
-          <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-border">
+          <div className="grid grid-cols-2 gap-1 pt-1 border-t border-border w-full">
             <Button
               onClick={() => handleDismiss(false)}
               variant="secondary"
-              className="text-[10px] h-7 w-full"
+              className="text-[9px] h-6 w-full"
             >
               Close
             </Button>
             <Button
               onClick={() => handleDismiss(true)}
               variant="outline"
-              className="text-[10px] h-7 w-full"
+              className="text-[9px] h-6 w-full"
             >
               Don't show
             </Button>
