@@ -631,7 +631,7 @@ export default function MarketBriefHome() {
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Bitcoin (BTC)</div>
                     <div className="h-36">
-                      <MiniChart symbol="BTCUSD" theme={theme} />
+                      <MiniChart symbol={mapTickerToTradingView('BTC').symbol} theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -640,7 +640,7 @@ export default function MarketBriefHome() {
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Ethereum (ETH)</div>
                     <div className="h-36">
-                      <MiniChart symbol="ETHUSD" theme={theme} />
+                      <MiniChart symbol={mapTickerToTradingView('ETH').symbol} theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -651,7 +651,7 @@ export default function MarketBriefHome() {
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">Solana (SOL)</div>
                       <div className="h-36">
-                        <MiniChart symbol="SOLUSD" theme={theme} />
+                        <MiniChart symbol={mapTickerToTradingView('SOL').symbol} theme={theme} />
                       </div>
                     </CardContent>
                   </Card>
@@ -662,7 +662,7 @@ export default function MarketBriefHome() {
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">S&P 500 (SPY)</div>
                     <div className="h-36">
-                      <MiniChart symbol="SPY" theme={theme} />
+                      <MiniChart symbol={mapTickerToTradingView('SPY').symbol} theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -673,7 +673,7 @@ export default function MarketBriefHome() {
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">US Dollar Index</div>
                       <div className="h-36">
-                        <MiniChart symbol="DXY" theme={theme} />
+                        <MiniChart symbol={mapTickerToTradingView('DXY').symbol} theme={theme} />
                       </div>
                     </CardContent>
                   </Card>
@@ -685,7 +685,7 @@ export default function MarketBriefHome() {
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">Gold (XAU/USD)</div>
                       <div className="h-36">
-                        <MiniChart symbol="XAUUSD" theme={theme} />
+                        <MiniChart symbol={mapTickerToTradingView('XAUUSD').symbol} theme={theme} />
                       </div>
                     </CardContent>
                   </Card>

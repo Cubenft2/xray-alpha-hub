@@ -127,9 +127,9 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
 export const INDEX_FOREX_TICKERS: Record<string, TickerMapping> = {
   'SPX': { symbol: 'SPY', displayName: 'S&P 500 (SPY)', type: 'index' },
   'S&P 500': { symbol: 'SPY', displayName: 'S&P 500 (SPY)', type: 'index' },
-  'DXY': { symbol: 'DXY', displayName: 'US Dollar Index', type: 'forex' },
-  'XAUUSD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)', type: 'forex' },
-  'GOLD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)', type: 'forex' },
+  'DXY': { symbol: 'TVC:DXY', displayName: 'US Dollar Index (DXY)', type: 'forex' },
+  'XAUUSD': { symbol: 'OANDA:XAUUSD', displayName: 'Gold (XAU/USD)', type: 'forex' },
+  'GOLD': { symbol: 'OANDA:XAUUSD', displayName: 'Gold (XAU/USD)', type: 'forex' },
 };
 
 // Combine all mappings
