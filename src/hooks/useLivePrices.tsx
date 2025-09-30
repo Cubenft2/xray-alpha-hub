@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PriceData {
   price: number;
@@ -22,49 +23,38 @@ export function useLivePrices(tickers: string[] = []) {
 
     try {
       setLoading(true);
-      
-      // Create a comma-separated list of ticker symbols
-      const tickerParams = tickerList.join(',').toLowerCase();
-      
-      // Fetch from CoinGecko API - using coins/markets endpoint for live data
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${tickerParams}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`,
-        {
-          headers: {
-            'Accept': 'application/json'
-          }
-        }
-      );
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // Normalize and de-duplicate symbols
+      const symbols = [...new Set(tickerList.map((s) => s.toUpperCase().trim()))];
 
-      const data = await response.json();
-      console.log('🔴 Live prices fetched:', data);
-
-      // Transform the data to match our format
-      const transformedPrices: LivePricesData = {};
-      
-      Object.entries(data).forEach(([coinId, priceInfo]: [string, any]) => {
-        // Map coin IDs back to ticker symbols
-        const symbol = mapCoinIdToSymbol(coinId);
-        if (symbol && priceInfo.usd) {
-          transformedPrices[symbol] = {
-            price: priceInfo.usd,
-            change_24h: priceInfo.usd_24h_change || 0,
-            market_cap_rank: priceInfo.market_cap_rank,
-            symbol: symbol,
-            name: coinId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-          };
-        }
+      // Fetch via Supabase Edge Function to avoid CORS/rate limits
+      const { data, error } = await supabase.functions.invoke('quotes', {
+        body: { symbols }
       });
 
-      setPrices(prev => ({
-        ...prev,
-        ...transformedPrices
-      }));
+      if (error) throw error;
+      if (!data || !Array.isArray(data.quotes)) {
+        throw new Error('Invalid quotes response');
+      }
 
+      const transformedPrices: LivePricesData = {};
+      for (const q of data.quotes) {
+        if (!q || !q.symbol) continue;
+        const sym = q.symbol.toUpperCase();
+        if (q.price !== null && typeof q.price === 'number') {
+          transformedPrices[sym] = {
+            price: q.price,
+            change_24h: typeof q.change24h === 'number' ? q.change24h : 0,
+            symbol: sym,
+            name: sym
+          };
+        }
+      }
+
+      setPrices((prev) => ({
+        ...prev,
+        ...transformedPrices,
+      }));
     } catch (error) {
       console.error('🔴 Error fetching live prices:', error);
     } finally {
@@ -246,16 +236,15 @@ export function useLivePrices(tickers: string[] = []) {
   useEffect(() => {
     if (tickers.length === 0) return;
 
-    // Map ticker symbols to CoinGecko coin IDs
-    const coinIds = tickers.map(mapSymbolToCoinId).filter(Boolean);
-    
-    // Initial fetch
-    fetchPrices(coinIds);
+    const symbols = [...new Set(tickers.map((s) => s.toUpperCase().trim()))];
 
-    // Set up polling every 30 seconds for live updates
+    // Initial fetch
+    fetchPrices(symbols);
+
+    // Set up polling every 60 seconds for live updates
     intervalRef.current = setInterval(() => {
-      fetchPrices(coinIds);
-    }, 30000);
+      fetchPrices(symbols);
+    }, 60000);
 
     return () => {
       if (intervalRef.current) {
@@ -264,5 +253,5 @@ export function useLivePrices(tickers: string[] = []) {
     };
   }, [tickers.join(',')]); // Re-run when tickers change
 
-  return { prices, loading, refetch: () => fetchPrices(tickers.map(mapSymbolToCoinId)) };
+  return { prices, loading, refetch: () => fetchPrices([...new Set(tickers.map((s) => s.toUpperCase().trim()))]) };
 }
