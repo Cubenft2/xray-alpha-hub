@@ -437,7 +437,7 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
 
     // ============= PRE-PUBLISH VALIDATION & CACHE WARM-UP =============
     // Extract all ticker symbols from the generated content and validate mappings
-    console.log('🔍 Validating ticker symbols before publish...');
+    console.log('🔍 Running Symbol Intelligence Layer validation...');
     
     // Extract symbols from Name (SYMBOL) patterns in content
     const tickerPatterns = generatedAnalysis.match(/\(([A-Z0-9_]{2,12})\)/g);
@@ -460,34 +460,50 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
       try {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
         
-        // First validate all symbols exist in ticker_mappings
-        const validationResponse = await supabase.functions.invoke('symbol-validation', {
+        // Use symbol-intelligence for capability-aware validation
+        const intelligenceResponse = await supabase.functions.invoke('symbol-intelligence', {
           body: { symbols: uniqueSymbols }
         });
         
-        if (!validationResponse.error && validationResponse.data) {
-          const validation = validationResponse.data;
-          missingSymbols = validation.missing || [];
+        if (!intelligenceResponse.error && intelligenceResponse.data) {
+          const intelligence = intelligenceResponse.data;
+          missingSymbols = intelligence.missing?.map((m: any) => m.symbol) || [];
           
-          console.log('✅ Symbol validation complete:', {
-            total: validation.summary?.total,
-            resolved: validation.summary?.resolved,
-            missing: validation.summary?.missing,
-            price_supported: validation.summary?.price_supported
+          const resolved = intelligence.symbols || [];
+          const priceSupported = resolved.filter((s: any) => s.price_ok).length;
+          const tvSupported = resolved.filter((s: any) => s.tv_ok).length;
+          
+          console.log('✅ Symbol Intelligence validation complete:', {
+            total: uniqueSymbols.length,
+            resolved: resolved.length,
+            missing: missingSymbols.length,
+            price_supported: priceSupported,
+            tv_supported: tvSupported
           });
           
           if (missingSymbols.length > 0) {
             console.warn('🚨 MISSING MAPPINGS:', missingSymbols);
             console.warn('⚠️ These symbols will show (n/a) in the published brief');
-            console.warn('💡 Add mappings in ticker_mappings table before next brief generation');
+            console.warn('💡 Check pending_ticker_mappings or add to ticker_mappings table');
           }
           
-          // Build audit data for admin block
-          auditData = validation.symbols || [];
+          // Build audit data for admin block with capability flags
+          auditData = resolved;
+          
+          // Log capability warnings
+          const noPriceSymbols = resolved.filter((s: any) => !s.price_ok).map((s: any) => s.symbol);
+          const noTvSymbols = resolved.filter((s: any) => !s.tv_ok).map((s: any) => s.symbol);
+          
+          if (noPriceSymbols.length > 0) {
+            console.warn('⚠️ Symbols without price support (parentheses hidden):', noPriceSymbols);
+          }
+          if (noTvSymbols.length > 0) {
+            console.warn('⚠️ Symbols without TV support (charts hidden):', noTvSymbols);
+          }
         }
         
-        // Warm cache for all symbols (even missing ones will be cached as missing)
-        console.log('🔥 Warming quote cache...');
+        // Warm cache for all symbols (120-180s TTL)
+        console.log('🔥 Warming quote cache (120-180s TTL)...');
         const warmupResponse = await supabase.functions.invoke('quotes', {
           body: { symbols: uniqueSymbols }
         });
@@ -498,42 +514,45 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
           console.log('✅ Cache warmed for', uniqueSymbols.length, 'symbols');
         }
       } catch (validationErr) {
-        console.error('❌ Symbol validation error:', validationErr);
+        console.error('❌ Symbol Intelligence validation error:', validationErr);
       }
     } else {
       console.log('ℹ️ No ticker symbols found in content');
     }
 
     // ============= ADMIN AUDIT BLOCK =============
-    // Build admin audit section with detailed mapping information
+    // Build admin audit section with detailed capability information
     let adminAuditBlock = '';
     if (auditData.length > 0) {
-      adminAuditBlock = '\n\n---\n\n**[ADMIN] All Mentioned Assets — Audit**\n\n';
-      adminAuditBlock += 'Symbol | Display | Normalized | Mapping | Price | TV | Derivs | Status\n';
-      adminAuditBlock += '-------|---------|------------|---------|-------|----|----|-------\n';
+      adminAuditBlock = '\n\n---\n\n**[ADMIN] Symbol Intelligence Audit**\n\n';
+      adminAuditBlock += 'Symbol | Display | Normalized | Source | Price | TV | Derivs | Social | Confidence\n';
+      adminAuditBlock += '-------|---------|------------|--------|-------|-------|--------|--------|------------\n';
       
       auditData.forEach((asset: any) => {
-        const displaySymbol = asset.display_symbol || asset.symbol;
-        const normalized = asset.normalized_symbol || asset.symbol;
-        const hasMapping = asset.resolved ? '✓' : '✗';
-        const priceOk = asset.price_supported ? '✓' : '✗';
-        const tvOk = asset.tradingview_supported ? '✓' : '✗';
-        const derivsOk = asset.derivs_supported ? '✓' : '✗';
-        const status = asset.resolved 
-          ? (asset.price_supported ? 'OK' : 'NO_PRICE')
-          : 'MISSING';
-        const reason = asset.reason || '';
+        const displaySymbol = asset.displaySymbol || asset.symbol;
+        const normalized = asset.normalized || asset.symbol;
+        const source = asset.source || '—';
+        const priceOk = asset.price_ok ? '✓' : '✗';
+        const tvOk = asset.tv_ok ? '✓' : '✗';
+        const derivsOk = asset.derivs_ok ? '✓' : '✗';
+        const socialOk = asset.social_ok ? '✓' : '✗';
+        const confidence = asset.confidence ? `${(asset.confidence * 100).toFixed(0)}%` : '—';
         
-        adminAuditBlock += `${asset.symbol} | ${displaySymbol} | ${normalized} | ${hasMapping} | ${priceOk} | ${tvOk} | ${derivsOk} | ${status}${reason ? ' - ' + reason : ''}\n`;
+        adminAuditBlock += `${asset.symbol} | ${displaySymbol} | ${normalized} | ${source} | ${priceOk} | ${tvOk} | ${derivsOk} | ${socialOk} | ${confidence}\n`;
       });
       
       if (missingSymbols.length > 0) {
-        adminAuditBlock += '\n**⚠️ Missing Mappings:**\n';
+        adminAuditBlock += '\n**⚠️ Missing Mappings (added to pending queue):**\n';
         missingSymbols.forEach(sym => {
-          adminAuditBlock += `- ${sym}: Add to ticker_mappings with coingecko_id and aliases\n`;
+          adminAuditBlock += `- ${sym}: Check pending_ticker_mappings table or add manually to ticker_mappings\n`;
         });
       }
       
+      adminAuditBlock += '\n**Legend:**\n';
+      adminAuditBlock += '- Price ✓ = Parentheses with price shown\n';
+      adminAuditBlock += '- TV ✓ = TradingView chart available\n';
+      adminAuditBlock += '- Derivs ✓ = Derivatives data available\n';
+      adminAuditBlock += '- Social ✓ = Social sentiment tracked\n';
       adminAuditBlock += '\n---\n';
     }
 
