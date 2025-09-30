@@ -57,13 +57,19 @@ export function WatchlistManager() {
     if (!newSymbol.trim()) return;
     
     const symbol = newSymbol.toUpperCase().trim();
-    const isStock = symbol.includes(':') || symbol.match(/^[A-Z]{1,5}$/);
+    
+    // Check if it's explicitly a stock (has exchange prefix or common stock symbols)
+    const hasExchangePrefix = symbol.includes(':');
+    const isExplicitStock = hasExchangePrefix && (symbol.startsWith('NASDAQ:') || symbol.startsWith('NYSE:'));
+    
+    // Default to crypto unless explicitly marked as stock
+    const isCrypto = !isExplicitStock;
     
     const newItem: WatchlistItem = {
       id: Date.now().toString(),
-      symbol: isStock ? symbol : `BINANCE:${symbol}USDT`,
+      symbol: isCrypto && !hasExchangePrefix ? `BINANCE:${symbol}USDT` : symbol,
       name: symbol,
-      type: isStock ? 'stock' : 'crypto'
+      type: isCrypto ? 'crypto' : 'stock'
     };
 
     if (!watchlist.find(item => item.symbol === newItem.symbol)) {
