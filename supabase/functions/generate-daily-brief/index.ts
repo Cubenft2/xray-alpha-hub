@@ -595,7 +595,7 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
           `Comprehensive weekly market analysis covering 7-day performance, macro events, and next week's outlook. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads weekly performance with ${biggestMover.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${biggestMover.price_change_percentage_7d_in_currency?.toFixed(1)}% move.` : 'Mixed weekly performance across markets.'}` :
           `Comprehensive daily market intelligence combining price action, social sentiment, and trend analysis. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads with ${biggestMover.price_change_percentage_24h > 0 ? '+' : ''}${biggestMover.price_change_percentage_24h.toFixed(1)}% move.` : 'Markets showing mixed signals.'}`,
         content_sections: {
-          ai_generated_content: generatedAnalysis + adminAuditBlock,
+          ai_generated_content: generatedAnalysis,
           generation_timestamp: new Date().toISOString(),
           audit_data: auditData,
           missing_symbols: missingSymbols,
