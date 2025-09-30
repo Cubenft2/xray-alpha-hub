@@ -53,6 +53,7 @@ export function WatchlistManager() {
             const key = (s.normalized || s.symbol || '').toUpperCase();
             if (key) map[key] = s;
           }
+          console.log('✅ Watchlist silMap updated:', map);
           setSilMap(map);
         }
       })
