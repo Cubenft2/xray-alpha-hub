@@ -123,8 +123,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       if (symbols.length === 0) return;
 
       try {
-        // Call symbol-intelligence to get capabilities
-        const response = await fetch(
+        // Step 1: Get capabilities from symbol-intelligence
+        const intelligenceResponse = await fetch(
           'https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/symbol-intelligence',
           {
             method: 'POST',
@@ -133,35 +133,76 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           }
         );
 
-        const { symbols: resolved } = await response.json();
+        const { symbols: resolved } = await intelligenceResponse.json();
+        console.log('✅ Symbol intelligence resolved:', resolved);
 
-        // Update each element based on capabilities
+        // Step 2: Get live quotes
+        const quotesResponse = await fetch(
+          'https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/quotes',
+          {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+            },
+            body: JSON.stringify({ symbols }),
+          }
+        );
+
+        const quotesData = await quotesResponse.json();
+        console.log('✅ Quotes fetched:', quotesData);
+
+        // Step 3: Update each element with capability-aware rendering
         quoteElements.forEach(el => {
           const sym = el.getAttribute('data-quote-symbol');
-          const displayName = el.getAttribute('data-display-name');
-          const result = resolved.find((r: any) => r.normalized === sym);
+          const capability = resolved.find((r: any) => r.normalized === sym);
+          const quote = quotesData.quotes?.find((q: any) => q.symbol === sym);
 
-          if (result) {
-            // Set capability flags
-            el.setAttribute('data-price-ok', String(result.price_ok));
-            el.setAttribute('data-tv-ok', String(result.tv_ok));
-            el.setAttribute('data-derivs-ok', String(result.derivs_ok));
-            el.setAttribute('data-sym', result.displaySymbol || sym);
+          if (!capability) return;
 
-            // Only show parentheses if price_ok
-            const nameSpan = el.querySelector('.ticker-name');
-            if (result.price_ok && nameSpan && !el.querySelector('.ticker-symbol')) {
-              const symbolSpan = document.createElement('span');
-              symbolSpan.className = 'ticker-symbol';
-              symbolSpan.textContent = ` (${result.displaySymbol || sym})`;
-              nameSpan.after(symbolSpan);
-            }
+          // Set capability flags
+          el.setAttribute('data-price-ok', String(capability.price_ok));
+          el.setAttribute('data-tv-ok', String(capability.tv_ok));
+
+          const nameSpan = el.querySelector('.ticker-name');
+          if (!nameSpan) return;
+
+          // Remove any existing ticker-symbol span
+          const existingSymbol = el.querySelector('.ticker-symbol');
+          if (existingSymbol) existingSymbol.remove();
+
+          // Only show parentheses with price if price_ok AND we have a quote
+          if (capability.price_ok && quote && quote.price !== null) {
+            const symbolSpan = document.createElement('span');
+            symbolSpan.className = 'ticker-symbol font-semibold';
+            
+            const formatPrice = (price: number) => {
+              if (price >= 1000) return price.toLocaleString('en-US', { maximumFractionDigits: 0 });
+              if (price >= 1) return price.toLocaleString('en-US', { maximumFractionDigits: 2 });
+              return price.toLocaleString('en-US', { maximumFractionDigits: 6 });
+            };
+
+            const formatChange = (change: number) => {
+              const sign = change >= 0 ? '+' : '';
+              return `${sign}${change.toFixed(2)}%`;
+            };
+
+            const isPositive = quote.change24h >= 0;
+            const changeColor = isPositive ? '#26a269' : '#c01c28';
+
+            symbolSpan.innerHTML = ` (${capability.displaySymbol || sym} $${formatPrice(quote.price)} <span style="color: ${changeColor}">${formatChange(quote.change24h)}</span>)`;
+            nameSpan.after(symbolSpan);
+            
+            console.log(`✅ Updated ${sym} with price $${quote.price}`);
+          } else if (capability.price_ok) {
+            // price_ok but no quote data - show loading
+            const symbolSpan = document.createElement('span');
+            symbolSpan.className = 'ticker-symbol text-muted-foreground';
+            symbolSpan.textContent = ` (${capability.displaySymbol || sym} ...)`;
+            nameSpan.after(symbolSpan);
           }
+          // If !price_ok, don't show parentheses at all
         });
-
-        // Now initialize quote prices
-        const { initializeInlineQuotes } = await import('./InlineQuote');
-        setTimeout(() => initializeInlineQuotes(), 100);
       } catch (error) {
         console.error('Error initializing capability quotes:', error);
       }
