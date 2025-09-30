@@ -34,7 +34,7 @@ const CURRENT_PROMOTION: PromotionData = {
   id: 'gugo_abstract_2025',
   title: '🚀 Community Spotlight: $GUGO',
   subtitle: 'Early Access to Abstract Chain Gem',
-  description: 'Join our community in supporting $GUGO, an exciting new memecoin on the innovative Abstract Chain - Ethereum L2 by Pudgy Penguins team.',
+  description: '$GUGO is an emerging memecoin on Abstract Chain, Ethereum L2.',
   token: {
     symbol: 'GUGO',
     name: 'GUGO Token',
@@ -48,10 +48,9 @@ const CURRENT_PROMOTION: PromotionData = {
     community: 'https://x.com/TypeMediaX'
   },
   features: [
-    'Built on Abstract Chain (Ethereum L2)',
-    'Backed by Pudgy Penguins ecosystem',
+    'Abstract Chain (Ethereum L2)',
     'Early stage opportunity',
-    'Community-driven project'
+    'Community-driven'
   ],
   isActive: true
 };
