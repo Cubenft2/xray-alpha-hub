@@ -23,7 +23,7 @@ export function WatchlistManager() {
 
   // TradingView symbol overrides for problematic tickers
   const TV_OVERRIDES: Record<string, string> = {
-    ATH: 'COINBASE:ATHUSD',
+    ATH: 'MEXC:ATHUSDT',
   };
 
   const getBaseSymbol = (sym: string) => {
