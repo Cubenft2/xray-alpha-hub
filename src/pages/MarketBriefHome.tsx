@@ -135,8 +135,8 @@ export default function MarketBriefHome() {
           // @ts-ignore - TypeScript type inference issue with Supabase types
           const { data, error } = await supabase
             .from('market_briefs')
-            .select('slug, date, title, executive_summary, content_sections, featured_assets, social_data, market_data, stoic_quote, sentiment_score')
-            .eq('date', date)
+            .select('slug, title, executive_summary, content_sections, featured_assets, social_data, market_data, stoic_quote, sentiment_score, published_at, created_at')
+            .eq('slug', date)
             .single();
           
           if (error || !data) {
@@ -185,9 +185,11 @@ export default function MarketBriefHome() {
             }</p>`
           : '';
 
+        const displayDate = briefData.published_at || briefData.created_at;
+
         const brief: MarketBrief = {
-          slug: briefData.slug || briefData.date || '',
-          date: briefData.published_at ? new Date(briefData.published_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : (briefData.date || ''),
+          slug: briefData.slug || '',
+          date: displayDate ? new Date(displayDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
           title: briefData.title || '',
           summary: briefData.executive_summary || briefData.summary || '',
           article_html: briefData.article_html || articleHtmlFromAI || '',
