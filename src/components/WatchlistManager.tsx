@@ -173,7 +173,8 @@ export function WatchlistManager() {
                   {(() => {
                     const base = baseSymbolFrom(item.symbol);
                     const cap = silMap[base];
-                    const tvOk = cap?.tv_ok === true;
+                    // Default to true if no cap info yet, only false if explicitly unsupported
+                    const tvOk = cap ? (cap.tv_ok !== false) : true;
                     const tvSymbol = cap?.tradingview_symbol as string | undefined;
                     return (
                       <MiniChart 
