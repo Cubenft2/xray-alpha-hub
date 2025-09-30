@@ -179,6 +179,45 @@ export type Database = {
         }
         Relationships: []
       }
+      missing_symbols: {
+        Row: {
+          context: Json | null
+          created_at: string | null
+          first_seen_at: string | null
+          id: string
+          last_seen_at: string | null
+          normalized_symbol: string
+          occurrence_count: number | null
+          resolved: boolean | null
+          resolved_at: string | null
+          symbol: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string | null
+          first_seen_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          normalized_symbol: string
+          occurrence_count?: number | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          symbol: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string | null
+          first_seen_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          normalized_symbol?: string
+          occurrence_count?: number | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          symbol?: string
+        }
+        Relationships: []
+      }
       social_sentiment: {
         Row: {
           asset_name: string
@@ -227,57 +266,78 @@ export type Database = {
       ticker_mappings: {
         Row: {
           aliases: string[] | null
+          alpha_symbol: string | null
           coingecko_id: string | null
           coinglass_symbol: string | null
           created_at: string
+          derivs_supported: boolean | null
           dex_address: string | null
           dex_chain: string | null
           display_name: string
           display_symbol: string | null
           exchange: string | null
+          finnhub_symbol: string | null
           id: string
           is_active: boolean
           polygon_ticker: string | null
           preferred_exchange: string | null
+          price_supported: boolean | null
+          primary_stock_provider: string | null
+          social_supported: boolean | null
           symbol: string
+          tradingview_supported: boolean | null
           tradingview_symbol: string
           type: string
           updated_at: string
         }
         Insert: {
           aliases?: string[] | null
+          alpha_symbol?: string | null
           coingecko_id?: string | null
           coinglass_symbol?: string | null
           created_at?: string
+          derivs_supported?: boolean | null
           dex_address?: string | null
           dex_chain?: string | null
           display_name: string
           display_symbol?: string | null
           exchange?: string | null
+          finnhub_symbol?: string | null
           id?: string
           is_active?: boolean
           polygon_ticker?: string | null
           preferred_exchange?: string | null
+          price_supported?: boolean | null
+          primary_stock_provider?: string | null
+          social_supported?: boolean | null
           symbol: string
+          tradingview_supported?: boolean | null
           tradingview_symbol: string
           type: string
           updated_at?: string
         }
         Update: {
           aliases?: string[] | null
+          alpha_symbol?: string | null
           coingecko_id?: string | null
           coinglass_symbol?: string | null
           created_at?: string
+          derivs_supported?: boolean | null
           dex_address?: string | null
           dex_chain?: string | null
           display_name?: string
           display_symbol?: string | null
           exchange?: string | null
+          finnhub_symbol?: string | null
           id?: string
           is_active?: boolean
           polygon_ticker?: string | null
           preferred_exchange?: string | null
+          price_supported?: boolean | null
+          primary_stock_provider?: string | null
+          social_supported?: boolean | null
           symbol?: string
+          tradingview_supported?: boolean | null
           tradingview_symbol?: string
           type?: string
           updated_at?: string

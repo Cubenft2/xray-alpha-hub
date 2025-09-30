@@ -38,17 +38,18 @@ interface TickerMapping {
   aliases: string[] | null;
 }
 
-// Normalize symbol: uppercase, strip spaces and hyphens
+// Normalize symbol: uppercase, strip spaces and hyphens but KEEP underscores
 function norm(symbol: string): string {
-  return symbol.toUpperCase().replace(/[\s\-_]/g, '');
+  return symbol.toUpperCase().replace(/[\s\-]/g, '');
 }
 
 // Fetch ticker mappings from database with capability flags
+// Use canonical display_symbol → coingecko_id/polygon_ticker resolution
 async function getTickerMapping(symbol: string): Promise<any | null> {
   const normalized = norm(symbol);
   
   try {
-    // Try exact match first (case-insensitive)
+    // Try exact match on symbol or display_symbol (case-insensitive)
     const { data, error } = await supabase
       .from('ticker_mappings')
       .select(`
@@ -58,13 +59,35 @@ async function getTickerMapping(symbol: string): Promise<any | null> {
         derivs_supported,
         social_supported
       `)
-      .or(`symbol.eq.${normalized},display_symbol.eq.${normalized}`)
+      .ilike('symbol', normalized)
       .eq('is_active', true)
       .maybeSingle();
     
-    if (data) return data;
+    if (data) {
+      console.log(`✅ Resolved ${symbol} → ${data.display_symbol} (via symbol match)`);
+      return data;
+    }
     
-    // Check aliases if exact match failed
+    // Try display_symbol match
+    const { data: displayData } = await supabase
+      .from('ticker_mappings')
+      .select(`
+        *,
+        price_supported,
+        tradingview_supported,
+        derivs_supported,
+        social_supported
+      `)
+      .ilike('display_symbol', normalized)
+      .eq('is_active', true)
+      .maybeSingle();
+    
+    if (displayData) {
+      console.log(`✅ Resolved ${symbol} → ${displayData.display_symbol} (via display_symbol match)`);
+      return displayData;
+    }
+    
+    // Check aliases array
     const { data: aliasData } = await supabase
       .from('ticker_mappings')
       .select(`
@@ -78,8 +101,12 @@ async function getTickerMapping(symbol: string): Promise<any | null> {
       .eq('is_active', true)
       .maybeSingle();
     
-    if (aliasData) return aliasData;
+    if (aliasData) {
+      console.log(`✅ Resolved ${symbol} → ${aliasData.display_symbol} (via aliases match)`);
+      return aliasData;
+    }
     
+    console.warn(`❌ No mapping found for ${symbol} (normalized: ${normalized})`);
     return null;
   } catch (error) {
     console.error('Error fetching ticker mapping:', error);

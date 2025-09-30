@@ -435,20 +435,55 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
       console.error('❌ Ticker enhancement error:', tickerErr);
     }
 
-    // ============= CACHE WARM-UP =============
-    // Extract all ticker symbols from the generated content and warm cache
-    console.log('🔥 Warming cache for inline quotes...');
-    const symbolMatches = generatedAnalysis.match(/data-quote-symbol="([^"]+)"/g);
-    if (symbolMatches && symbolMatches.length > 0) {
-      const symbols = symbolMatches
-        .map(match => match.match(/data-quote-symbol="([^"]+)"/)?.[1])
+    // ============= PRE-PUBLISH VALIDATION & CACHE WARM-UP =============
+    // Extract all ticker symbols from the generated content and validate mappings
+    console.log('🔍 Validating ticker symbols before publish...');
+    
+    // Extract symbols from Name (SYMBOL) patterns in content
+    const tickerPatterns = generatedAnalysis.match(/\(([A-Z0-9_]{2,12})\)/g);
+    let symbolsToValidate: string[] = [];
+    
+    if (tickerPatterns) {
+      symbolsToValidate = tickerPatterns
+        .map(pattern => pattern.replace(/[()]/g, ''))
         .filter((s): s is string => s !== null && s !== undefined);
-      
-      const uniqueSymbols = [...new Set(symbols)];
-      console.log('📊 Found', uniqueSymbols.length, 'unique symbols to warm:', uniqueSymbols);
-      
+    }
+    
+    const uniqueSymbols = [...new Set(symbolsToValidate)];
+    console.log('📊 Found', uniqueSymbols.length, 'symbols in content:', uniqueSymbols);
+    
+    // Validate symbols and warm cache
+    let missingSymbols: string[] = [];
+    
+    if (uniqueSymbols.length > 0) {
       try {
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        // First validate all symbols exist in ticker_mappings
+        const validationResponse = await supabase.functions.invoke('symbol-validation', {
+          body: { symbols: uniqueSymbols }
+        });
+        
+        if (!validationResponse.error && validationResponse.data) {
+          const validation = validationResponse.data;
+          missingSymbols = validation.missing || [];
+          
+          console.log('✅ Symbol validation complete:', {
+            total: validation.summary?.total,
+            resolved: validation.summary?.resolved,
+            missing: validation.summary?.missing,
+            price_supported: validation.summary?.price_supported
+          });
+          
+          if (missingSymbols.length > 0) {
+            console.warn('🚨 MISSING MAPPINGS:', missingSymbols);
+            console.warn('⚠️ These symbols will show (n/a) in the published brief');
+            console.warn('💡 Add mappings in ticker_mappings table before next brief generation');
+          }
+        }
+        
+        // Warm cache for all symbols (even missing ones will be cached as missing)
+        console.log('🔥 Warming quote cache...');
         const warmupResponse = await supabase.functions.invoke('quotes', {
           body: { symbols: uniqueSymbols }
         });
@@ -457,15 +492,12 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
           console.warn('⚠️ Cache warmup failed:', warmupResponse.error);
         } else {
           console.log('✅ Cache warmed for', uniqueSymbols.length, 'symbols');
-          if (warmupResponse.data?.missing && warmupResponse.data.missing.length > 0) {
-            console.warn('🚨 Missing ticker mappings:', warmupResponse.data.missing);
-          }
         }
-      } catch (warmupErr) {
-        console.error('❌ Cache warmup error:', warmupErr);
+      } catch (validationErr) {
+        console.error('❌ Symbol validation error:', validationErr);
       }
     } else {
-      console.log('ℹ️ No inline quote symbols found in content');
+      console.log('ℹ️ No ticker symbols found in content');
     }
 
     // Create today's date and slug
