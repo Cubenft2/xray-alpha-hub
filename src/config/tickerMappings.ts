@@ -130,10 +130,10 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'SUPER': { symbol: 'BINANCE:SUPERUSDT', displayName: 'SuperVerse (SUPER)', type: 'crypto' },
   'SUPERVERSE': { symbol: 'BINANCE:SUPERUSDT', displayName: 'SuperVerse (SUPER)', type: 'crypto' },
   '0G': { symbol: 'CRYPTO:0GUSD', displayName: '0G (0G)', type: 'crypto' },
-  'ATH': { symbol: 'CRYPTO:ATHUSDT', displayName: 'Aethir (ATH)', type: 'crypto' },
-  'AETHIR': { symbol: 'CRYPTO:ATHUSDT', displayName: 'Aethir (ATH)', type: 'crypto' },
-  'XPL': { symbol: 'CRYPTO:XPLUSD', displayName: 'Plasma (XPL)', type: 'crypto' },
-  'PLASMA': { symbol: 'CRYPTO:XPLUSD', displayName: 'Plasma (XPL)', type: 'crypto' },
+  'ATH': { symbol: 'BINANCE:ATHUSDT', displayName: 'Aethir (ATH)', type: 'crypto' },
+  'AETHIR': { symbol: 'BINANCE:ATHUSDT', displayName: 'Aethir (ATH)', type: 'crypto' },
+  'XPL': { symbol: 'BINANCE:XPLUSDT', displayName: 'Plasma (XPL)', type: 'crypto' },
+  'PLASMA': { symbol: 'BINANCE:XPLUSDT', displayName: 'Plasma (XPL)', type: 'crypto' },
 };
 
 // Index and Forex tickers
