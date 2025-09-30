@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, X, TrendingUp, Users, Sparkles, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import gugoLandscape from "@/assets/gugo-landscape.jpeg";
 
 interface PromotionData {
   id: string;
@@ -71,12 +72,12 @@ export const CommunityPromotion: React.FC = () => {
       return;
     }
 
-    // Show popup after 3 seconds if not dismissed
+    // Show popup after 60 seconds if not dismissed
     const timer = setTimeout(() => {
       if (!dismissed) {
         setIsOpen(true);
       }
-    }, 3000);
+    }, 60000);
 
     return () => clearTimeout(timer);
   }, [dismissed]);
@@ -172,12 +173,22 @@ export const CommunityPromotion: React.FC = () => {
 
         <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
           {/* Token Info */}
-          <div className="text-center p-3 sm:p-4 bg-muted/50 rounded-lg border border-border">
-            <div className="text-xl sm:text-2xl font-bold text-primary mb-1">
-              ${CURRENT_PROMOTION.token.symbol}
-            </div>
-            <div className="text-sm text-muted-foreground">
-              {CURRENT_PROMOTION.token.name}
+          <div 
+            className="text-center p-3 sm:p-4 rounded-lg border border-border relative overflow-hidden"
+            style={{
+              backgroundImage: `url(${gugoLandscape})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
+          >
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
+            <div className="relative z-10">
+              <div className="text-xl sm:text-2xl font-bold text-primary mb-1">
+                ${CURRENT_PROMOTION.token.symbol}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {CURRENT_PROMOTION.token.name}
+              </div>
             </div>
           </div>
 
