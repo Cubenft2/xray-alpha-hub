@@ -134,6 +134,11 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'AETHIR': { symbol: 'BINANCE:ATHUSDT', displayName: 'Aethir (ATH)', type: 'crypto' },
   'XPL': { symbol: 'BINANCE:XPLUSDT', displayName: 'Plasma (XPL)', type: 'crypto' },
   'PLASMA': { symbol: 'BINANCE:XPLUSDT', displayName: 'Plasma (XPL)', type: 'crypto' },
+  // Added to resolve admin audit missing mappings
+  'ZEC': { symbol: 'BINANCE:ZECUSDT', displayName: 'Zcash (ZEC)', type: 'crypto' },
+  'ZCASH': { symbol: 'BINANCE:ZECUSDT', displayName: 'Zcash (ZEC)', type: 'crypto' },
+  'PUMP': { symbol: 'CRYPTO:PUMPUSD', displayName: 'PUMP (PUMP)', type: 'crypto' },
+  'UXPL': { symbol: 'CRYPTO:UXPLUSD', displayName: 'UXPL (UXPL)', type: 'crypto' },
 };
 
 // Index and Forex tickers
