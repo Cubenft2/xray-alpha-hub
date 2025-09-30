@@ -29,7 +29,8 @@ interface InlineQuoteProps {
 
 interface QuotesResponse {
   quotes: QuoteData[];
-  timestamp: string;
+  missing: string[];
+  ts: string;
   cached: boolean;
 }
 
@@ -143,9 +144,12 @@ export function InlineQuote({ symbol, showDerivs = false, className = "" }: Inli
     );
   }
 
-  if (error || !quoteData) {
+  if (error || !quoteData || quoteData.price === null) {
     return (
-      <span className={`inline-quote error ${className}`}>
+      <span 
+        className={`inline-quote error ${className}`}
+        title="Data not mapped yet - please contact admin to add this symbol"
+      >
         ({symbol} n/a)
       </span>
     );
@@ -206,8 +210,17 @@ export function initializeInlineQuotes() {
       if (quotesResponse?.quotes) {
         quotesResponse.quotes.forEach((quote: QuoteData) => {
           quotesCache.set(quote.symbol, quote);
-          console.log(`💰 Cached quote for ${quote.symbol}: $${quote.price}`);
+          if (quote.price !== null) {
+            console.log(`💰 Cached quote for ${quote.symbol}: $${quote.price}`);
+          } else {
+            console.warn(`⚠️ Missing data for ${quote.symbol}`);
+          }
         });
+      }
+      
+      // Log missing symbols
+      if (quotesResponse?.missing && quotesResponse.missing.length > 0) {
+        console.warn('⚠️ Missing ticker mappings for:', quotesResponse.missing);
       }
 
       // Update all quote spans on the page
@@ -229,6 +242,15 @@ export function initializeInlineQuotes() {
       if (!quoteData) {
         console.log(`⏳ No data yet for ${symbol}, showing loading...`);
         span.textContent = `(${symbol} ...)`;
+        return;
+      }
+      
+      if (quoteData.price === null) {
+        span.textContent = `(${symbol} n/a)`;
+        span.setAttribute('title', 'Data not mapped yet - please contact admin to add this symbol');
+        if (span instanceof HTMLElement) {
+          span.style.color = '#999';
+        }
         return;
       }
       

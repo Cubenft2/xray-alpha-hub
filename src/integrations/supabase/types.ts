@@ -226,33 +226,57 @@ export type Database = {
       }
       ticker_mappings: {
         Row: {
+          aliases: string[] | null
+          coingecko_id: string | null
+          coinglass_symbol: string | null
           created_at: string
+          dex_address: string | null
+          dex_chain: string | null
           display_name: string
+          display_symbol: string | null
           exchange: string | null
           id: string
           is_active: boolean
+          polygon_ticker: string | null
+          preferred_exchange: string | null
           symbol: string
           tradingview_symbol: string
           type: string
           updated_at: string
         }
         Insert: {
+          aliases?: string[] | null
+          coingecko_id?: string | null
+          coinglass_symbol?: string | null
           created_at?: string
+          dex_address?: string | null
+          dex_chain?: string | null
           display_name: string
+          display_symbol?: string | null
           exchange?: string | null
           id?: string
           is_active?: boolean
+          polygon_ticker?: string | null
+          preferred_exchange?: string | null
           symbol: string
           tradingview_symbol: string
           type: string
           updated_at?: string
         }
         Update: {
+          aliases?: string[] | null
+          coingecko_id?: string | null
+          coinglass_symbol?: string | null
           created_at?: string
+          dex_address?: string | null
+          dex_chain?: string | null
           display_name?: string
+          display_symbol?: string | null
           exchange?: string | null
           id?: string
           is_active?: boolean
+          polygon_ticker?: string | null
+          preferred_exchange?: string | null
           symbol?: string
           tradingview_symbol?: string
           type?: string
