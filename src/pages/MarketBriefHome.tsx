@@ -418,7 +418,7 @@ export default function MarketBriefHome() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Regenerate Brief button - enabled to apply new ticker fixes */}
+            {/* Regenerate Brief button disabled per request */} {false && (
             <Button 
               variant="default" 
               size="sm" 
@@ -437,7 +437,7 @@ export default function MarketBriefHome() {
                   Regenerate Today's Brief
                 </>
               )}
-            </Button>
+            </Button>)}
             <Button variant="outline" size="sm" onClick={handleShareX}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Share on X

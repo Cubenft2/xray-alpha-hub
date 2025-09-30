@@ -121,6 +121,9 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'ASTR': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar (ASTR)', type: 'crypto' },
   'ASTER': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar (ASTR)', type: 'crypto' },
   'FF': { symbol: 'BINANCE:FFUSDT', displayName: 'Falcon Finance (FF)', type: 'crypto' },
+  // User-specified cryptos
+  'BORG': { symbol: 'BORGUSD', displayName: 'BORG (BORG)', type: 'crypto' },
+  'XAN': { symbol: 'XANUSD', displayName: 'Anoma (XAN)', type: 'crypto' },
 };
 
 // Index and Forex tickers
