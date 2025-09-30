@@ -184,7 +184,7 @@ export const CommunityPromotion: React.FC = () => {
 
         <div className="space-y-2 mt-2">
           {/* Token Info */}
-          <div className="text-center p-2 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center justify-center p-2 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm">
             <div className="text-lg font-bold text-primary mb-0.5">
               ${CURRENT_PROMOTION.token.symbol}
             </div>
