@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, X, TrendingUp, ExternalLink } from 'lucide-react';
 import { MiniChart } from './MiniChart';
+import { supabase } from '@/integrations/supabase/client';
 
 interface WatchlistItem {
   id: string;
@@ -20,6 +21,7 @@ export function WatchlistManager() {
   const [newSymbol, setNewSymbol] = useState('');
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const [silMap, setSilMap] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const stored = localStorage.getItem('xr_watchlist');
@@ -31,6 +33,31 @@ export function WatchlistManager() {
       }
     }
   }, []);
+
+  // Helper to extract base ticker symbol for capability lookup
+  const baseSymbolFrom = (s: string) => {
+    const raw = s.toUpperCase();
+    const withoutPrefix = raw.includes(':') ? raw.split(':')[1] : raw;
+    return withoutPrefix.replace(/USDT|USD|USDC|PERP|USDTPERP|USDCPERP$/,'');
+  };
+
+  // Fetch Symbol Intelligence for watchlist items
+  useEffect(() => {
+    const symbols = Array.from(new Set(watchlist.map(w => baseSymbolFrom(w.symbol)).filter(Boolean)));
+    if (symbols.length === 0) return;
+    supabase.functions.invoke('symbol-intelligence', { body: { symbols }})
+      .then(({ data, error }) => {
+        if (!error && data?.symbols) {
+          const map: Record<string, any> = {};
+          for (const s of data.symbols) {
+            const key = (s.normalized || s.symbol || '').toUpperCase();
+            if (key) map[key] = s;
+          }
+          setSilMap(map);
+        }
+      })
+      .catch((e) => console.error('SIL fetch failed (watchlist):', e));
+  }, [watchlist]);
 
   const saveWatchlist = (newWatchlist: WatchlistItem[]) => {
     setWatchlist(newWatchlist);
@@ -45,7 +72,7 @@ export function WatchlistManager() {
     
     const newItem: WatchlistItem = {
       id: Date.now().toString(),
-      symbol: isStock ? symbol : `BINANCE:${symbol}USDT`,
+      symbol: symbol, // store raw; chart capability mapping handled at render
       name: symbol,
       type: isStock ? 'stock' : 'crypto'
     };
@@ -143,11 +170,20 @@ export function WatchlistManager() {
               </CardHeader>
               <CardContent>
                 <div className="relative h-48 rounded-lg overflow-hidden group">
-                  <MiniChart 
-                    symbol={item.symbol} 
-                    theme={theme} 
-                    onClick={() => handleChartClick(item)}
-                  />
+                  {(() => {
+                    const base = baseSymbolFrom(item.symbol);
+                    const cap = silMap[base];
+                    const tvOk = cap?.tv_ok === true;
+                    const tvSymbol = cap?.tradingview_symbol as string | undefined;
+                    return (
+                      <MiniChart 
+                        symbol={tvSymbol || item.symbol} 
+                        theme={theme} 
+                        onClick={() => handleChartClick(item)}
+                        tvOk={tvOk}
+                      />
+                    );
+                  })()}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <Button 
                       variant="secondary" 
