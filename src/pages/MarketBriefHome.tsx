@@ -14,6 +14,8 @@ import { StoicQuote } from '@/components/StoicQuote';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 import { getTickerMapping, isKnownStock, isKnownCrypto } from '@/config/tickerMappings';
+import { toZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns';
 
 interface MarketBrief {
   slug: string;
@@ -37,6 +39,7 @@ export default function MarketBriefHome() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [extractedTickers, setExtractedTickers] = useState<string[]>([]);
+  const [quotesTimestamp, setQuotesTimestamp] = useState<string | null>(null);
   
   const [imageLoaded, setImageLoaded] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
@@ -53,6 +56,25 @@ export default function MarketBriefHome() {
     'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER'
   ];
   const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
+
+  // Fetch quotes timestamp from API
+  useEffect(() => {
+    const fetchQuotesTimestamp = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('quotes', {
+          body: { symbols: ['BTC'] } // Just fetch one symbol to get timestamp
+        });
+        
+        if (!error && data?.timestamp) {
+          setQuotesTimestamp(data.timestamp);
+        }
+      } catch (error) {
+        console.error('Failed to fetch quotes timestamp:', error);
+      }
+    };
+    
+    fetchQuotesTimestamp();
+  }, []);
 
   // Function to map ticker symbols to TradingView format for charts
   // Uses centralized configuration to prevent mistakes that waste credits
@@ -468,6 +490,20 @@ export default function MarketBriefHome() {
 
             {/* Article Content */}
             <div className="mb-6">
+              {/* Live Refs Timestamp */}
+              {quotesTimestamp && (
+                <div className="mb-4 pb-3 border-b border-border/50 text-xs text-muted-foreground flex items-center gap-2">
+                  <div className="w-2 h-2 bg-primary/60 rounded-full"></div>
+                  <span>
+                    Live refs updated at{' '}
+                    <strong className="text-foreground">
+                      {format(toZonedTime(new Date(quotesTimestamp), 'America/Denver'), 'HH:mm')} MT
+                    </strong>
+                    {' '}• data: CoinGecko, Polygon, CoinGlass
+                  </span>
+                </div>
+              )}
+              
               {/* Live Prices Indicator */}
               {pricesLoading && (
                 <div className="mb-2 text-xs text-muted-foreground flex items-center gap-2">
