@@ -40,8 +40,6 @@ export default function MarketBriefHome() {
   const [generating, setGenerating] = useState(false);
   const [extractedTickers, setExtractedTickers] = useState<string[]>([]);
   const [quotesTimestamp, setQuotesTimestamp] = useState<string | null>(null);
-  // Symbol Intelligence capabilities map keyed by normalized symbol
-  const [silMap, setSilMap] = useState<Record<string, any>>({});
   
   const [imageLoaded, setImageLoaded] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
@@ -78,28 +76,6 @@ export default function MarketBriefHome() {
     fetchQuotesTimestamp();
   }, []);
 
-  // Fetch Symbol Intelligence capabilities for extracted tickers
-  useEffect(() => {
-    const runSIL = async () => {
-      if (extractedTickers.length === 0) return;
-      try {
-        const { data, error } = await supabase.functions.invoke('symbol-intelligence', {
-          body: { symbols: extractedTickers }
-        });
-        if (!error && data?.symbols) {
-          const map: Record<string, any> = {};
-          for (const s of data.symbols) {
-            const key = (s.normalized || s.symbol || '').toUpperCase();
-            if (key) map[key] = s;
-          }
-          setSilMap(map);
-        }
-      } catch (e) {
-        console.error('SIL fetch failed:', e);
-      }
-    };
-    runSIL();
-  }, [extractedTickers]);
   // Function to map ticker symbols to TradingView format for charts
   // Uses centralized configuration to prevent mistakes that waste credits
   const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
@@ -642,13 +618,9 @@ export default function MarketBriefHome() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {extractedTickers.slice(0, 12).map((ticker) => {
-                    const upper = ticker.toUpperCase();
-                    const cap = silMap[upper];
-                    const tvOk = cap?.tv_ok === true;
-                    const tvSymbol = cap?.tradingview_symbol || mapTickerToTradingView(ticker).symbol;
-                    const displayName = mapTickerToTradingView(ticker).displayName;
+                    const { symbol, displayName } = mapTickerToTradingView(ticker);
                     const unsupportedSet = new Set(['FIGR_HELOC']);
-                    const isUnsupported = unsupportedSet.has(upper);
+                    const isUnsupported = unsupportedSet.has(ticker.toUpperCase());
                     return (
                       <Card key={ticker} className="h-48">
                         <CardContent className="p-3">
@@ -667,7 +639,7 @@ export default function MarketBriefHome() {
                                 <ExternalLink className="w-4 h-4 ml-1" />
                               </a>
                             ) : (
-                              <MiniChart symbol={tvSymbol} theme={theme} tvOk={tvOk} />
+                              <MiniChart symbol={symbol} theme={theme} />
                             )}
                           </div>
                         </CardContent>
