@@ -418,28 +418,26 @@ export default function MarketBriefHome() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Create Fresh Brief button hidden to prevent API overuse - only available to admins */}
-            {false && (
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={generateFreshBrief}
-                disabled={generating}
-                className="btn-hero"
-              >
-                {generating ? (
-                  <>
-                    <div className="w-4 h-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Create Fresh Brief
-                  </>
-                )}
-              </Button>
-            )}
+            {/* Regenerate Brief button - enabled to apply new ticker fixes */}
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={generateFreshBrief}
+              disabled={generating}
+              className="btn-hero"
+            >
+              {generating ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Regenerating...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Regenerate Today's Brief
+                </>
+              )}
+            </Button>
             <Button variant="outline" size="sm" onClick={handleShareX}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Share on X
