@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, X, TrendingUp, Users, Sparkles, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import gugoLandscape from "@/assets/gugo-landscape.jpeg";
+import gugoAnimated from "@/assets/gugo-animated.gif";
 
 interface PromotionData {
   id: string;
@@ -176,7 +176,7 @@ export const CommunityPromotion: React.FC = () => {
           <div 
             className="text-center p-3 sm:p-4 rounded-lg border border-border relative overflow-hidden"
             style={{
-              backgroundImage: `url(${gugoLandscape})`,
+              backgroundImage: `url(${gugoAnimated})`,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             }}
