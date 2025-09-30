@@ -140,6 +140,8 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'PUMP': { symbol: 'CRYPTO:PUMPUSD', displayName: 'PUMP (PUMP)', type: 'crypto' },
   'UXLINK': { symbol: 'CRYPTO:UXLINKUSD', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
   'UXPL': { symbol: 'CRYPTO:UXLINKUSD', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
+  'AVNT': { symbol: 'COINBASE:AVNTUSD', displayName: 'Avanti (AVNT)', type: 'crypto' },
+  'AVANTI': { symbol: 'COINBASE:AVNTUSD', displayName: 'Avanti (AVNT)', type: 'crypto' },
 };
 
 // Index and Forex tickers
