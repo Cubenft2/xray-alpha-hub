@@ -124,6 +124,8 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   // User-specified cryptos
   'BORG': { symbol: 'BORGUSD', displayName: 'BORG (BORG)', type: 'crypto' },
   'XAN': { symbol: 'XANUSD', displayName: 'Anoma (XAN)', type: 'crypto' },
+  'STRK': { symbol: 'BINANCE:STRKUSDT', displayName: 'Starknet (STRK)', type: 'crypto' },
+  'STARKNET': { symbol: 'BINANCE:STRKUSDT', displayName: 'Starknet (STRK)', type: 'crypto' },
 };
 
 // Index and Forex tickers
