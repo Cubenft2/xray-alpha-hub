@@ -147,12 +147,12 @@ export const CommunityPromotion: React.FC = () => {
         {/* Content Overlay */}
         <div className="relative z-10">
 
-        <DialogHeader className="text-center space-y-0.5 pr-8 flex flex-col items-center">
+        <DialogHeader className="text-center space-y-1 flex flex-col items-center">
           <DialogTitle className="text-sm font-bold xr-gradient-text leading-tight text-center w-full">
             {CURRENT_PROMOTION.title}
           </DialogTitle>
           
-          <div className="flex items-center justify-center gap-1 w-full">
+          <div className="flex items-center justify-center gap-1.5 w-full pt-0.5">
             <Badge 
               variant="secondary" 
               className="bg-accent/60 text-accent-foreground border-accent/80 xr-glow-accent animate-glow-pulse font-bold text-[9px]"
@@ -170,20 +170,20 @@ export const CommunityPromotion: React.FC = () => {
           </div>
         </DialogHeader>
 
-        <div className="space-y-1.5 mt-1.5 flex flex-col items-center">
+        <div className="space-y-1.5 mt-2 flex flex-col items-center">
           {/* Token Info - Condensed */}
-          <div className="text-center p-1.5 px-3 rounded border border-primary/30 bg-card/60 backdrop-blur-sm mx-auto">
+          <div className="text-center p-1.5 px-3 rounded border border-primary/30 bg-card/60 backdrop-blur-sm mx-auto w-fit">
             <div className="text-base font-bold text-primary">
               ${CURRENT_PROMOTION.token.symbol}
             </div>
             <div className="text-[9px] text-muted-foreground">
-              {CURRENT_PROMOTION.description}
+              Emerging memecoin opportunity
             </div>
           </div>
 
           {/* Features - Ultra Condensed */}
           <div className="text-[9px] text-muted-foreground text-center">
-            {CURRENT_PROMOTION.features.join(' • ')}
+            Early stage • Community-driven
           </div>
 
           {/* Action Buttons */}
