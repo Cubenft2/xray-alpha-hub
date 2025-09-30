@@ -134,17 +134,28 @@ export const CommunityPromotion: React.FC = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
-      <DialogContent className="max-w-[95vw] sm:max-w-md mx-auto bg-card border border-primary/20 shadow-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-[95vw] sm:max-w-md mx-auto border border-primary/20 shadow-xl max-h-[90vh] overflow-y-auto relative"
+        style={{
+          backgroundImage: `url(${gugoAnimated})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-background/95 backdrop-blur-sm rounded-lg" />
         {/* Close Button */}
         <button
           onClick={() => handleDismiss(false)}
-          className="absolute right-3 top-3 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+          className="absolute right-3 top-3 z-20 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
         >
           <X className="h-5 w-5" />
           <span className="sr-only">Close</span>
         </button>
+        
+        <div className="relative z-10">
 
-        <DialogHeader className="text-center space-y-2 sm:space-y-3 pr-8">
+        <DialogHeader className="text-center space-y-2 sm:space-y-3 pr-8 relative z-10">
           <div className="flex items-center justify-center">
             <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-accent animate-pulse" />
           </div>
@@ -171,24 +182,14 @@ export const CommunityPromotion: React.FC = () => {
           </div>
         </DialogHeader>
 
-        <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
+        <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4 relative z-10">
           {/* Token Info */}
-          <div 
-            className="text-center p-3 sm:p-4 rounded-lg border border-border relative overflow-hidden"
-            style={{
-              backgroundImage: `url(${gugoAnimated})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}
-          >
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
-            <div className="relative z-10">
-              <div className="text-xl sm:text-2xl font-bold text-primary mb-1">
-                ${CURRENT_PROMOTION.token.symbol}
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {CURRENT_PROMOTION.token.name}
-              </div>
+          <div className="text-center p-3 sm:p-4 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm">
+            <div className="text-xl sm:text-2xl font-bold text-primary mb-1">
+              ${CURRENT_PROMOTION.token.symbol}
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {CURRENT_PROMOTION.token.name}
             </div>
           </div>
 
@@ -287,6 +288,7 @@ export const CommunityPromotion: React.FC = () => {
               Don't show again
             </Button>
           </div>
+        </div>
         </div>
       </DialogContent>
     </Dialog>
