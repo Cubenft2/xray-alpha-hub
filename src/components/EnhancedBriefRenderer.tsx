@@ -75,7 +75,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       '<span class="font-semibold px-1.5 py-0.5 rounded text-sm percentage-badge" data-change="$1">$1$2%</span>');
 
     // Enhanced ticker detection - looks for "Name (SYMBOL)" patterns
-    // Use data-sym attribute for canonical display_symbol tracking
+    // Parentheses will only be shown if price_ok via capability check
     const tickerRegex = /([A-Za-z0-9\s&.-]+)\s*\(([A-Z0-9_]{2,12})\)/g;
     const extractedTickers: string[] = [];
     
@@ -84,16 +84,14 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       const displayName = name.trim();
       const upperSymbol = symbol.toUpperCase();
       
-      // Create ticker span with data-sym for canonical tracking
-      // InlineQuote will populate with price if price_ok is true
-      // The span will show (SYMBOL ...) until updated by the quote system
-      return `${displayName} <span 
-        class="ticker-quote-inline font-semibold cursor-pointer hover:opacity-80 transition-opacity" 
+      // Create ticker span - parentheses added conditionally by capability check
+      return `<span 
+        class="ticker-mention"
         data-quote-symbol="${upperSymbol}"
         data-sym="${upperSymbol}"
-        onclick="window.handleTickerClick('${symbol}')"
-        style="color: inherit;">
-        (${upperSymbol} ...)
+        data-display-name="${displayName}"
+        onclick="window.handleTickerClick('${symbol}')">
+        <span class="ticker-name font-semibold cursor-pointer hover:opacity-80 transition-opacity" style="color: inherit;">${displayName}</span>
       </span>`;
     });
 
@@ -113,15 +111,64 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     // Add global click handler for ticker buttons
     (window as any).handleTickerClick = handleTickerClick;
     
-    // Initialize inline quotes after DOM is ready
-    const initQuotes = async () => {
-      // Import and initialize quotes system
-      const { initializeInlineQuotes } = await import('./InlineQuote');
-      setTimeout(() => initializeInlineQuotes(), 100); // Small delay to ensure DOM is ready
+    // Initialize capability-aware inline quotes
+    const initCapabilityQuotes = async () => {
+      const quoteElements = document.querySelectorAll('[data-quote-symbol]');
+      if (quoteElements.length === 0) return;
+
+      const symbols = Array.from(quoteElements).map(
+        el => el.getAttribute('data-quote-symbol')
+      ).filter(Boolean) as string[];
+
+      if (symbols.length === 0) return;
+
+      try {
+        // Call symbol-intelligence to get capabilities
+        const response = await fetch(
+          'https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/symbol-intelligence',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbols }),
+          }
+        );
+
+        const { symbols: resolved } = await response.json();
+
+        // Update each element based on capabilities
+        quoteElements.forEach(el => {
+          const sym = el.getAttribute('data-quote-symbol');
+          const displayName = el.getAttribute('data-display-name');
+          const result = resolved.find((r: any) => r.normalized === sym);
+
+          if (result) {
+            // Set capability flags
+            el.setAttribute('data-price-ok', String(result.price_ok));
+            el.setAttribute('data-tv-ok', String(result.tv_ok));
+            el.setAttribute('data-derivs-ok', String(result.derivs_ok));
+            el.setAttribute('data-sym', result.displaySymbol || sym);
+
+            // Only show parentheses if price_ok
+            const nameSpan = el.querySelector('.ticker-name');
+            if (result.price_ok && nameSpan && !el.querySelector('.ticker-symbol')) {
+              const symbolSpan = document.createElement('span');
+              symbolSpan.className = 'ticker-symbol';
+              symbolSpan.textContent = ` (${result.displaySymbol || sym})`;
+              nameSpan.after(symbolSpan);
+            }
+          }
+        });
+
+        // Now initialize quote prices
+        const { initializeInlineQuotes } = await import('./InlineQuote');
+        setTimeout(() => initializeInlineQuotes(), 100);
+      } catch (error) {
+        console.error('Error initializing capability quotes:', error);
+      }
     };
     
     if (tickers.length > 0) {
-      initQuotes();
+      initCapabilityQuotes();
     }
     
     // Style percentage elements based on positive/negative values

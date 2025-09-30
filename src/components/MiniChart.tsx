@@ -4,13 +4,14 @@ interface MiniChartProps {
   symbol: string;
   theme?: string;
   onClick?: () => void;
+  tvOk?: boolean; // Capability flag for TradingView support
 }
 
-export function MiniChart({ symbol, theme, onClick }: MiniChartProps) {
+export function MiniChart({ symbol, theme, onClick, tvOk = true }: MiniChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || !tvOk) return;
 
     // Clear previous widget
     containerRef.current.innerHTML = '';
@@ -58,6 +59,14 @@ export function MiniChart({ symbol, theme, onClick }: MiniChartProps) {
       }
     };
   }, [symbol, theme, onClick]);
+
+  if (!tvOk) {
+    return (
+      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+        <p>Chart not available</p>
+      </div>
+    );
+  }
 
   return <div ref={containerRef} style={{ height: '100%', width: '100%' }} />;
 }

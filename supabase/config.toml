@@ -14,3 +14,12 @@ verify_jwt = false
 
 [functions.symbol-validation]
 verify_jwt = false
+
+[functions.coingecko-sync]
+verify_jwt = false
+
+[functions.exchange-sync]
+verify_jwt = false
+
+[functions.symbol-intelligence]
+verify_jwt = false

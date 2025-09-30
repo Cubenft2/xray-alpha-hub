@@ -35,6 +35,36 @@ export type Database = {
         }
         Relationships: []
       }
+      cg_master: {
+        Row: {
+          cg_id: string
+          created_at: string | null
+          id: string
+          name: string
+          platforms: Json | null
+          symbol: string
+          synced_at: string | null
+        }
+        Insert: {
+          cg_id: string
+          created_at?: string | null
+          id?: string
+          name: string
+          platforms?: Json | null
+          symbol: string
+          synced_at?: string | null
+        }
+        Update: {
+          cg_id?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          platforms?: Json | null
+          symbol?: string
+          synced_at?: string | null
+        }
+        Relationships: []
+      }
       earnings_calendar: {
         Row: {
           category: string | null
@@ -77,6 +107,39 @@ export type Database = {
           social_sentiment?: number | null
           stock_symbol?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      exchange_pairs: {
+        Row: {
+          base_asset: string
+          created_at: string | null
+          exchange: string
+          id: string
+          is_active: boolean | null
+          quote_asset: string
+          symbol: string
+          synced_at: string | null
+        }
+        Insert: {
+          base_asset: string
+          created_at?: string | null
+          exchange: string
+          id?: string
+          is_active?: boolean | null
+          quote_asset: string
+          symbol: string
+          synced_at?: string | null
+        }
+        Update: {
+          base_asset?: string
+          created_at?: string | null
+          exchange?: string
+          id?: string
+          is_active?: boolean | null
+          quote_asset?: string
+          symbol?: string
+          synced_at?: string | null
         }
         Relationships: []
       }
@@ -215,6 +278,60 @@ export type Database = {
           resolved?: boolean | null
           resolved_at?: string | null
           symbol?: string
+        }
+        Relationships: []
+      }
+      pending_ticker_mappings: {
+        Row: {
+          aliases: string[] | null
+          coingecko_id: string | null
+          confidence_score: number | null
+          context: Json | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          normalized_symbol: string
+          polygon_ticker: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string | null
+          symbol: string
+          tradingview_symbol: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          aliases?: string[] | null
+          coingecko_id?: string | null
+          confidence_score?: number | null
+          context?: Json | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          normalized_symbol: string
+          polygon_ticker?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          symbol: string
+          tradingview_symbol?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          aliases?: string[] | null
+          coingecko_id?: string | null
+          confidence_score?: number | null
+          context?: Json | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string
+          normalized_symbol?: string
+          polygon_ticker?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string | null
+          symbol?: string
+          tradingview_symbol?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }

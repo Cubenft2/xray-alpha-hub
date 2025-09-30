@@ -3,8 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface QuoteData {
   symbol: string;
-  price: number;
-  change24h: number;
+  price: number | null;
+  change24h: number | null;
   timestamp: string;
   source: string;
   // SIL capability flags
@@ -12,6 +12,8 @@ interface QuoteData {
   tv_ok?: boolean;
   derivs_ok?: boolean;
   social_ok?: boolean;
+  displayName?: string;
+  displaySymbol?: string;
 }
 
 interface DerivData {
@@ -103,7 +105,8 @@ export function InlineQuote({ symbol, showDerivs = false, className = "" }: Inli
     fetchData();
   }, [symbol, showDerivs]);
 
-  const formatPrice = (price: number): string => {
+  const formatPrice = (price: number | null, priceOk?: boolean): string => {
+    if (!priceOk || price === null) return 'n/a';
     if (price >= 1000) {
       return price.toLocaleString('en-US', { 
         minimumFractionDigits: 0, 
@@ -171,8 +174,9 @@ export function InlineQuote({ symbol, showDerivs = false, className = "" }: Inli
     <span 
       className={`inline-quote ${className}`}
       title={`${formatTimestamp(quoteData.timestamp)} • source: ${quoteData.source}`}
+      data-sym={quoteData.displaySymbol || symbol}
     >
-      ({symbol} ${formatPrice(quoteData.price)} <span className={changeColorClass}>{formatChange(quoteData.change24h)}</span>
+      ({symbol} ${formatPrice(quoteData.price, priceOk)} <span className={changeColorClass}>{formatChange(quoteData.change24h || 0)}</span>
       {showDerivs && derivsOk && derivData && (
         <>
           {derivData.fundingRate !== 0 && (
