@@ -10,6 +10,7 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const coinGeckoApiKey = Deno.env.get('COINGECKO_API_KEY');
+const polygonApiKey = Deno.env.get('POLYGON_API_KEY');
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -156,26 +157,72 @@ async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
   }
 }
 
-// Basic stock data (placeholder - you'd integrate with your preferred stock API)
+// Fetch real stock data from Polygon.io
 async function fetchStockData(symbols: string[]): Promise<QuoteData[]> {
-  // Filter only recognized stock tickers
   const recognizedStocks = symbols.filter(s => stockTickers.has(s));
   
   console.log('Stock symbols requested:', recognizedStocks);
   
   if (recognizedStocks.length === 0) return [];
   
-  // Return placeholder stock data with realistic-looking values
-  const stockData = recognizedStocks.map(symbol => ({
-    symbol,
-    price: symbol === 'MNPR' ? 12.50 : symbol === 'EA' ? 145.30 : Math.random() * 500 + 100,
-    change24h: (Math.random() - 0.5) * 5, // Random change between -2.5% and +2.5%
-    timestamp: new Date().toISOString(),
-    source: 'placeholder'
-  }));
+  if (!polygonApiKey) {
+    console.warn('POLYGON_API_KEY not configured, returning placeholder data');
+    return recognizedStocks.map(symbol => ({
+      symbol,
+      price: symbol === 'MNPR' ? 12.50 : symbol === 'EA' ? 145.30 : Math.random() * 500 + 100,
+      change24h: (Math.random() - 0.5) * 5,
+      timestamp: new Date().toISOString(),
+      source: 'placeholder'
+    }));
+  }
   
-  console.log('Returning placeholder stock data:', stockData);
-  return stockData;
+  const stockQuotes: QuoteData[] = [];
+  
+  // Fetch each stock individually from Polygon
+  for (const symbol of recognizedStocks) {
+    try {
+      // Get snapshot for current price
+      const snapshotUrl = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${symbol}?apiKey=${polygonApiKey}`;
+      
+      console.log(`Fetching ${symbol} from Polygon...`);
+      const response = await fetch(snapshotUrl);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Polygon error for ${symbol}:`, response.status, errorText);
+        continue;
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === 'OK' && data.ticker) {
+        const ticker = data.ticker;
+        const price = ticker.day?.c || ticker.prevDay?.c || 0;
+        const prevClose = ticker.prevDay?.c || price;
+        const change24h = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
+        
+        stockQuotes.push({
+          symbol,
+          price,
+          change24h,
+          timestamp: new Date().toISOString(),
+          source: 'polygon'
+        });
+        
+        console.log(`✅ ${symbol}: $${price} (${change24h.toFixed(2)}%)`);
+      } else {
+        console.warn(`No data available for ${symbol}`);
+      }
+      
+    } catch (error) {
+      console.error(`Error fetching ${symbol}:`, error);
+    }
+  }
+  
+  console.log(`Successfully fetched ${stockQuotes.length}/${recognizedStocks.length} stock quotes`);
+  
+  // Return what we got, even if some failed
+  return stockQuotes;
 }
 
 serve(async (req) => {
