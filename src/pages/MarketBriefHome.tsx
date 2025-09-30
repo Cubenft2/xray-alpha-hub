@@ -191,22 +191,80 @@ export default function MarketBriefHome() {
           return text.replace(/---[\s\S]*?\*\*\[ADMIN\]\s*Symbol Intelligence Audit\*\*[\s\S]*?---/g, '').trim();
         };
 
+        // Lightweight Markdown → HTML to fix headings like "### What's Next" and basic lists
+        const markdownToHtml = (md?: string) => {
+          if (!md) return '';
+          const lines = md.split(/\r?\n/);
+          const out: string[] = [];
+          let i = 0;
+          const esc = (t: string) => t
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+          const flushPara = (buf: string[]) => {
+            if (!buf.length) return;
+            const text = esc(buf.join(' ').trim());
+            if (text) out.push(`<p>${text}</p>`);
+            buf.length = 0;
+          };
+
+          let para: string[] = [];
+          while (i < lines.length) {
+            const line = lines[i];
+            if (!line.trim()) { flushPara(para); i++; continue; }
+
+            // Headings
+            let m;
+            if ((m = line.match(/^###\s+(.+)$/))) { flushPara(para); out.push(`<h3>${esc(m[1])}</h3>`); i++; continue; }
+            if ((m = line.match(/^##\s+(.+)$/)))  { flushPara(para); out.push(`<h2>${esc(m[1])}</h2>`); i++; continue; }
+            if ((m = line.match(/^#\s+(.+)$/)))   { flushPara(para); out.push(`<h1>${esc(m[1])}</h1>`); i++; continue; }
+
+            // Unordered list block
+            if (/^[-*]\s+/.test(line)) {
+              flushPara(para);
+              out.push('<ul>');
+              while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
+                const item = lines[i].replace(/^[-*]\s+/, '');
+                out.push(`<li>${esc(item)}</li>`);
+                i++;
+              }
+              out.push('</ul>');
+              continue;
+            }
+
+            // Ordered list block
+            if (/^\d+\.\s+/.test(line)) {
+              flushPara(para);
+              out.push('<ol>');
+              while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+                const item = lines[i].replace(/^\d+\.\s+/, '');
+                out.push(`<li>${esc(item)}</li>`);
+                i++;
+              }
+              out.push('</ol>');
+              continue;
+            }
+
+            // Regular paragraph line
+            para.push(line);
+            i++;
+          }
+          flushPara(para);
+          return out.join('\n');
+        };
+
         const aiText = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
         const cleanAiText = sanitizeAdminLeak(aiText);
-
-        const articleHtmlFromAI = cleanAiText
-          ? `<p>${cleanAiText
-              .replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-              .replace(/\n\n+/g, '</p><p>')
-              .replace(/\n/g, '<br/>')
-            }</p>`
-          : '';
+        const articleHtmlFromAI = markdownToHtml(cleanAiText);
 
         const cleanArticleHtml = sanitizeAdminLeak(briefData.article_html);
         const displayDate = briefData.published_at || briefData.created_at;
+
+        // If stored article_html still contains markdown (e.g., headings like ###), convert it
+        const containsMarkdown = /(^|\n)#{1,6}\s|\n[-*]\s|\n\d+\.\s/.test(cleanArticleHtml);
+        const processedStoredHtml = containsMarkdown ? markdownToHtml(cleanArticleHtml) : cleanArticleHtml;
 
         const brief: MarketBrief = {
           slug: briefData.slug || '',
