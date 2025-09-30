@@ -73,8 +73,8 @@ serve(async (req) => {
 
     try {
       console.log(`🪙 Fetching CoinGecko market data ${isWeekendBrief ? '(with enhanced weekly metrics)' : ''}...`);
-      // Fetch 100 coins to ensure we have enough data for top 5 gainers and losers even in bullish/bearish markets
-      const coingeckoResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=${isWeekendBrief ? 100 : 100}&page=1&price_change_percentage=24h,7d,30d&x_cg_demo_api_key=${coingeckoApiKey}`);
+      // Fetch 250 coins to ensure we have enough losers even in bullish markets
+      const coingeckoResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d&x_cg_demo_api_key=${coingeckoApiKey}`);
       if (coingeckoResponse.ok) {
         coingeckoData = await coingeckoResponse.json();
         console.log('✅ CoinGecko data fetched successfully:', coingeckoData.length, 'coins');

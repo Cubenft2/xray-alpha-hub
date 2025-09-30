@@ -48,7 +48,7 @@ async function getTickerMapping(symbol: string): Promise<any | null> {
   const normalized = norm(symbol);
   
   try {
-    // Use case-insensitive matching with OR to check symbol, display_symbol, and aliases
+    // Try exact match first (case-insensitive)
     const { data, error } = await supabase
       .from('ticker_mappings')
       .select(`
@@ -58,11 +58,27 @@ async function getTickerMapping(symbol: string): Promise<any | null> {
         derivs_supported,
         social_supported
       `)
-      .or(`symbol.ilike.${normalized},display_symbol.ilike.${normalized},aliases.cs.{${normalized}}`)
+      .or(`symbol.eq.${normalized},display_symbol.eq.${normalized}`)
       .eq('is_active', true)
       .maybeSingle();
     
     if (data) return data;
+    
+    // Check aliases if exact match failed
+    const { data: aliasData } = await supabase
+      .from('ticker_mappings')
+      .select(`
+        *,
+        price_supported,
+        tradingview_supported,
+        derivs_supported,
+        social_supported
+      `)
+      .contains('aliases', [normalized])
+      .eq('is_active', true)
+      .maybeSingle();
+    
+    if (aliasData) return aliasData;
     
     return null;
   } catch (error) {
