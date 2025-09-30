@@ -133,7 +133,7 @@ export const CommunityPromotion: React.FC = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
-      <DialogContent className="max-w-[85vw] sm:max-w-[280px] mx-auto bg-card border border-primary/20 shadow-xl max-h-[80vh] overflow-y-auto overflow-hidden">
+      <DialogContent className="max-w-[75vw] sm:max-w-[240px] mx-auto bg-card border border-primary/20 shadow-xl max-h-[80vh] overflow-y-auto overflow-hidden">
         {/* Animated Background */}
         <div 
           className="absolute inset-0 z-0 opacity-30"
