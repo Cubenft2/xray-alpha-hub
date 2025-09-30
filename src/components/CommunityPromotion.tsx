@@ -180,7 +180,7 @@ export const CommunityPromotion: React.FC = () => {
 
         <div className="space-y-1.5 mt-1.5 flex flex-col items-center">
           {/* Token Info - Condensed */}
-          <div className="w-full text-center p-1.5 rounded border border-primary/30 bg-card/60 backdrop-blur-sm">
+          <div className="text-center p-1.5 px-3 rounded border border-primary/30 bg-card/60 backdrop-blur-sm mx-auto">
             <div className="text-base font-bold text-primary">
               ${CURRENT_PROMOTION.token.symbol}
             </div>
@@ -255,7 +255,7 @@ export const CommunityPromotion: React.FC = () => {
           <div className="grid grid-cols-2 gap-1 pt-1 border-t border-border w-full">
             <Button
               onClick={() => handleDismiss(false)}
-              variant="secondary"
+              variant="outline"
               className="text-[9px] h-6 w-full"
             >
               Close
