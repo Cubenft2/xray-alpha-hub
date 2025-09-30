@@ -184,11 +184,11 @@ export const CommunityPromotion: React.FC = () => {
 
         <div className="space-y-2 mt-2">
           {/* Token Info */}
-          <div className="flex flex-col items-center justify-center p-2 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm">
-            <div className="text-lg font-bold text-primary mb-0.5">
+          <div className="w-full flex flex-col items-center justify-center p-2 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm">
+            <div className="text-lg font-bold text-primary mb-0.5 text-center w-full">
               ${CURRENT_PROMOTION.token.symbol}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs text-muted-foreground text-center w-full">
               {CURRENT_PROMOTION.token.name}
             </div>
           </div>
@@ -272,18 +272,18 @@ export const CommunityPromotion: React.FC = () => {
           </div>
 
           {/* Quick Dismiss */}
-          <div className="flex gap-1.5 pt-2 border-t border-border">
+          <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-border">
             <Button
               onClick={() => handleDismiss(false)}
               variant="secondary"
-              className="text-[10px] h-6 flex-1"
+              className="text-[10px] h-7 w-full"
             >
               Close
             </Button>
             <Button
-              variant="ghost"
               onClick={() => handleDismiss(true)}
-              className="text-[10px] text-muted-foreground hover:text-foreground flex-1"
+              variant="outline"
+              className="text-[10px] h-7 w-full"
             >
               Don't show
             </Button>
