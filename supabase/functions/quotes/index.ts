@@ -314,8 +314,8 @@ serve(async (req) => {
     
     console.log('Returning result with', allQuotes.length, 'total quotes');
     
-    // Cache for 30 seconds to get fresh data quickly after fixes
-    await setCachedData(cacheKey, result, 30);
+    // Cache for 150 seconds (2.5 minutes) to balance freshness and API rate limits
+    await setCachedData(cacheKey, result, 150);
     
     return new Response(
       JSON.stringify(result),
