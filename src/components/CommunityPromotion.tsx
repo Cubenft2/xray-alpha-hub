@@ -149,9 +149,9 @@ export const CommunityPromotion: React.FC = () => {
           {/* Close Button */}
           <button
             onClick={() => handleDismiss(false)}
-            className="absolute right-3 top-3 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            className="absolute right-2 top-2 z-10 rounded-full p-1 bg-background/80 backdrop-blur-sm border border-border hover:bg-destructive hover:border-destructive hover:text-destructive-foreground transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </button>
 
