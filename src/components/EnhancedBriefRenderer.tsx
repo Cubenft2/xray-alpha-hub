@@ -75,6 +75,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       '<span class="font-semibold px-1.5 py-0.5 rounded text-sm percentage-badge" data-change="$1">$1$2%</span>');
 
     // Enhanced ticker detection - looks for "Name (SYMBOL)" patterns
+    // Use data-sym attribute for canonical display_symbol tracking
     const tickerRegex = /([A-Za-z0-9\s&.-]+)\s*\(([A-Z0-9_]{2,12})\)/g;
     const extractedTickers: string[] = [];
     
@@ -83,10 +84,13 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       const displayName = name.trim();
       const upperSymbol = symbol.toUpperCase();
       
-      // Create ticker span that will be updated by InlineQuote system
+      // Create ticker span with data-sym for canonical tracking
+      // InlineQuote will populate with price if price_ok is true
+      // The span will show (SYMBOL ...) until updated by the quote system
       return `${displayName} <span 
         class="ticker-quote-inline font-semibold cursor-pointer hover:opacity-80 transition-opacity" 
-        data-quote-symbol="${upperSymbol}" 
+        data-quote-symbol="${upperSymbol}"
+        data-sym="${upperSymbol}"
         onclick="window.handleTickerClick('${symbol}')"
         style="color: inherit;">
         (${upperSymbol} ...)

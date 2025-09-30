@@ -452,8 +452,9 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
     const uniqueSymbols = [...new Set(symbolsToValidate)];
     console.log('📊 Found', uniqueSymbols.length, 'symbols in content:', uniqueSymbols);
     
-    // Validate symbols and warm cache
+    // Validate symbols and warm cache - build audit data
     let missingSymbols: string[] = [];
+    let auditData: any[] = [];
     
     if (uniqueSymbols.length > 0) {
       try {
@@ -480,6 +481,9 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
             console.warn('⚠️ These symbols will show (n/a) in the published brief');
             console.warn('💡 Add mappings in ticker_mappings table before next brief generation');
           }
+          
+          // Build audit data for admin block
+          auditData = validation.symbols || [];
         }
         
         // Warm cache for all symbols (even missing ones will be cached as missing)
@@ -498,6 +502,39 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
       }
     } else {
       console.log('ℹ️ No ticker symbols found in content');
+    }
+
+    // ============= ADMIN AUDIT BLOCK =============
+    // Build admin audit section with detailed mapping information
+    let adminAuditBlock = '';
+    if (auditData.length > 0) {
+      adminAuditBlock = '\n\n---\n\n**[ADMIN] All Mentioned Assets — Audit**\n\n';
+      adminAuditBlock += 'Symbol | Display | Normalized | Mapping | Price | TV | Derivs | Status\n';
+      adminAuditBlock += '-------|---------|------------|---------|-------|----|----|-------\n';
+      
+      auditData.forEach((asset: any) => {
+        const displaySymbol = asset.display_symbol || asset.symbol;
+        const normalized = asset.normalized_symbol || asset.symbol;
+        const hasMapping = asset.resolved ? '✓' : '✗';
+        const priceOk = asset.price_supported ? '✓' : '✗';
+        const tvOk = asset.tradingview_supported ? '✓' : '✗';
+        const derivsOk = asset.derivs_supported ? '✓' : '✗';
+        const status = asset.resolved 
+          ? (asset.price_supported ? 'OK' : 'NO_PRICE')
+          : 'MISSING';
+        const reason = asset.reason || '';
+        
+        adminAuditBlock += `${asset.symbol} | ${displaySymbol} | ${normalized} | ${hasMapping} | ${priceOk} | ${tvOk} | ${derivsOk} | ${status}${reason ? ' - ' + reason : ''}\n`;
+      });
+      
+      if (missingSymbols.length > 0) {
+        adminAuditBlock += '\n**⚠️ Missing Mappings:**\n';
+        missingSymbols.forEach(sym => {
+          adminAuditBlock += `- ${sym}: Add to ticker_mappings with coingecko_id and aliases\n`;
+        });
+      }
+      
+      adminAuditBlock += '\n---\n';
     }
 
     // Create today's date and slug
@@ -539,8 +576,10 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
           `Comprehensive weekly market analysis covering 7-day performance, macro events, and next week's outlook. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads weekly performance with ${biggestMover.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${biggestMover.price_change_percentage_7d_in_currency?.toFixed(1)}% move.` : 'Mixed weekly performance across markets.'}` :
           `Comprehensive daily market intelligence combining price action, social sentiment, and trend analysis. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads with ${biggestMover.price_change_percentage_24h > 0 ? '+' : ''}${biggestMover.price_change_percentage_24h.toFixed(1)}% move.` : 'Markets showing mixed signals.'}`,
         content_sections: {
-          ai_generated_content: generatedAnalysis,
+          ai_generated_content: generatedAnalysis + adminAuditBlock,
           generation_timestamp: new Date().toISOString(),
+          audit_data: auditData,
+          missing_symbols: missingSymbols,
           model_used: 'gpt-4o-mini',
           data_sources: ['coingecko', 'lunarcrush', 'fear_greed', 'news_feeds', 'trending'],
           market_data: {
