@@ -13,6 +13,7 @@ import { SocialSentimentBoard } from '@/components/SocialSentimentBoard';
 import { StoicQuote } from '@/components/StoicQuote';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
+import { getTickerMapping, isKnownStock, isKnownCrypto } from '@/config/tickerMappings';
 
 interface MarketBrief {
   slug: string;
@@ -54,104 +55,38 @@ export default function MarketBriefHome() {
   const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
 
   // Function to map ticker symbols to TradingView format for charts
+  // Uses centralized configuration to prevent mistakes that waste credits
   const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
-    const upperTicker = ticker.toUpperCase();
-    const mappings: { [key: string]: { symbol: string; displayName: string } } = {
-      'BTC': { symbol: 'BTCUSD', displayName: 'Bitcoin (BTC)' },
-      'BITCOIN': { symbol: 'BTCUSD', displayName: 'Bitcoin (BTC)' },
-      'ETH': { symbol: 'ETHUSD', displayName: 'Ethereum (ETH)' },
-      'ETHEREUM': { symbol: 'ETHUSD', displayName: 'Ethereum (ETH)' },
-      'SOL': { symbol: 'SOLUSD', displayName: 'Solana (SOL)' },
-      'SOLANA': { symbol: 'SOLUSD', displayName: 'Solana (SOL)' },
-      'ADA': { symbol: 'ADAUSD', displayName: 'Cardano (ADA)' },
-      'CARDANO': { symbol: 'ADAUSD', displayName: 'Cardano (ADA)' },
-      'AVAX': { symbol: 'AVAXUSD', displayName: 'Avalanche (AVAX)' },
-      'AVALANCHE': { symbol: 'AVAXUSD', displayName: 'Avalanche (AVAX)' },
-      'DOT': { symbol: 'DOTUSD', displayName: 'Polkadot (DOT)' },
-      'POLKADOT': { symbol: 'DOTUSD', displayName: 'Polkadot (DOT)' },
-      'MATIC': { symbol: 'MATICUSD', displayName: 'Polygon (MATIC)' },
-      'POLYGON': { symbol: 'MATICUSD', displayName: 'Polygon (MATIC)' },
-      'LINK': { symbol: 'LINKUSD', displayName: 'Chainlink (LINK)' },
-      'CHAINLINK': { symbol: 'LINKUSD', displayName: 'Chainlink (LINK)' },
-      'UNI': { symbol: 'UNIUSD', displayName: 'Uniswap (UNI)' },
-      'UNISWAP': { symbol: 'UNIUSD', displayName: 'Uniswap (UNI)' },
-      'XRP': { symbol: 'XRPUSD', displayName: 'XRP (XRP)' },
-      'RIPPLE': { symbol: 'XRPUSD', displayName: 'XRP (XRP)' },
-      'DOGE': { symbol: 'DOGEUSD', displayName: 'Dogecoin (DOGE)' },
-      'DOGECOIN': { symbol: 'DOGEUSD', displayName: 'Dogecoin (DOGE)' },
-      'TRX': { symbol: 'TRXUSD', displayName: 'Tron (TRX)' },
-      'TRON': { symbol: 'TRXUSD', displayName: 'Tron (TRX)' },
-      'TON': { symbol: 'TONUSD', displayName: 'Toncoin (TON)' },
-      'TONCOIN': { symbol: 'TONUSD', displayName: 'Toncoin (TON)' },
-      'SHIB': { symbol: 'SHIBUSD', displayName: 'Shiba Inu (SHIB)' },
-      'SHIBA': { symbol: 'SHIBUSD', displayName: 'Shiba Inu (SHIB)' },
-      'NEAR': { symbol: 'NEARUSD', displayName: 'NEAR Protocol (NEAR)' },
-      'ICP': { symbol: 'ICPUSD', displayName: 'Internet Computer (ICP)' },
-      'APT': { symbol: 'APTUSD', displayName: 'Aptos (APT)' },
-      'APTOS': { symbol: 'APTUSD', displayName: 'Aptos (APT)' },
-      'FIL': { symbol: 'FILUSD', displayName: 'Filecoin (FIL)' },
-      'FILECOIN': { symbol: 'FILUSD', displayName: 'Filecoin (FIL)' },
-      'ARB': { symbol: 'ARBUSD', displayName: 'Arbitrum (ARB)' },
-      'ARBITRUM': { symbol: 'ARBUSD', displayName: 'Arbitrum (ARB)' },
-      'OP': { symbol: 'OPUSD', displayName: 'Optimism (OP)' },
-      'OPTIMISM': { symbol: 'OPUSD', displayName: 'Optimism (OP)' },
-      'HBAR': { symbol: 'HBARUSD', displayName: 'Hedera (HBAR)' },
-      'HEDERA': { symbol: 'HBARUSD', displayName: 'Hedera (HBAR)' },
-      'VET': { symbol: 'VETUSD', displayName: 'VeChain (VET)' },
-      'VECHAIN': { symbol: 'VETUSD', displayName: 'VeChain (VET)' },
-      'MKR': { symbol: 'MKRUSD', displayName: 'Maker (MKR)' },
-      'MAKER': { symbol: 'MKRUSD', displayName: 'Maker (MKR)' },
-      'ATOM': { symbol: 'ATOMUSD', displayName: 'Cosmos (ATOM)' },
-      'COSMOS': { symbol: 'ATOMUSD', displayName: 'Cosmos (ATOM)' },
-      'IMX': { symbol: 'IMXUSD', displayName: 'Immutable X (IMX)' },
-      'IMMUTABLE': { symbol: 'IMXUSD', displayName: 'Immutable X (IMX)' },
-      'RNDR': { symbol: 'RNDRUSD', displayName: 'Render Token (RNDR)' },
-      'RENDER': { symbol: 'RNDRUSD', displayName: 'Render Token (RNDR)' },
-      'STX': { symbol: 'STXUSD', displayName: 'Stacks (STX)' },
-      'STACKS': { symbol: 'STXUSD', displayName: 'Stacks (STX)' },
-      'INJ': { symbol: 'INJUSD', displayName: 'Injective (INJ)' },
-      'INJECTIVE': { symbol: 'INJUSD', displayName: 'Injective (INJ)' },
-      'GRT': { symbol: 'GRTUSD', displayName: 'The Graph (GRT)' },
-      'GRAPH': { symbol: 'GRTUSD', displayName: 'The Graph (GRT)' },
-      'RUNE': { symbol: 'RUNEUSD', displayName: 'THORChain (RUNE)' },
-      'THORCHAIN': { symbol: 'RUNEUSD', displayName: 'THORChain (RUNE)' },
-      'FTM': { symbol: 'FTMUSD', displayName: 'Fantom (FTM)' },
-      'FANTOM': { symbol: 'FTMUSD', displayName: 'Fantom (FTM)' },
-      'ALGO': { symbol: 'ALGOUSD', displayName: 'Algorand (ALGO)' },
-      'ALGORAND': { symbol: 'ALGOUSD', displayName: 'Algorand (ALGO)' },
-      'SAND': { symbol: 'SANDUSD', displayName: 'The Sandbox (SAND)' },
-      'SANDBOX': { symbol: 'SANDUSD', displayName: 'The Sandbox (SAND)' },
-      'MANA': { symbol: 'MANAUSD', displayName: 'Decentraland (MANA)' },
-      'DECENTRALAND': { symbol: 'MANAUSD', displayName: 'Decentraland (MANA)' },
-      'AAVE': { symbol: 'AAVEUSD', displayName: 'Aave (AAVE)' },
-      'EOS': { symbol: 'EOSUSD', displayName: 'EOS (EOS)' },
-      'XTZ': { symbol: 'XTZUSD', displayName: 'Tezos (XTZ)' },
-      'TEZOS': { symbol: 'XTZUSD', displayName: 'Tezos (XTZ)' },
-      'THETA': { symbol: 'THETAUSD', displayName: 'Theta Network (THETA)' },
-      'FLR': { symbol: 'FLRUSD', displayName: 'Flare (FLR)' },
-      'FLARE': { symbol: 'FLRUSD', displayName: 'Flare (FLR)' },
-      'AXS': { symbol: 'AXSUSD', displayName: 'Axie Infinity (AXS)' },
-      'AXIE': { symbol: 'AXSUSD', displayName: 'Axie Infinity (AXS)' },
-      'FLOW': { symbol: 'FLOWUSD', displayName: 'Flow (FLOW)' },
-      'ASTER': { symbol: 'ASTERUSDT', displayName: 'Aster (ASTER)' },
-      'HYPE': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)' },
-      'HYPERLIQUID': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)' },
-      'SUI': { symbol: 'SUIUSD', displayName: 'Sui (SUI)' },
-      'BNB': { symbol: 'BNBUSD', displayName: 'BNB (BNB)' },
-      'WBTC': { symbol: 'WBTCUSD', displayName: 'Wrapped Bitcoin (WBTC)' },
-      'USDE': { symbol: 'USDEUSD', displayName: 'Ethena USDe (USDe)' },
-      // Note: FIGR_HELOC redirects to CoinGecko instead of local chart
-      // Stock/Index mappings
-      'SPX': { symbol: 'SPY', displayName: 'S&P 500 (SPY)' },
-      'S&P 500': { symbol: 'SPY', displayName: 'S&P 500 (SPY)' },
-      'DXY': { symbol: 'DXY', displayName: 'US Dollar Index' },
-      'XAUUSD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' },
-      'GOLD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)' }
-    };
+    const upperTicker = ticker.toUpperCase().trim();
     
-    return mappings[upperTicker] || { 
-      symbol: `${upperTicker}USD`, 
-      displayName: `${ticker} (${ticker.toUpperCase()})` 
+    // Try to get from centralized mappings first
+    const mapping = getTickerMapping(upperTicker);
+    if (mapping) {
+      return {
+        symbol: mapping.symbol,
+        displayName: mapping.displayName
+      };
+    }
+    
+    // If not found, log a warning (this helps prevent future mistakes)
+    console.warn(`⚠️ TICKER NOT FOUND: "${ticker}" - This may cause incorrect chart display. Please add to src/config/tickerMappings.ts`);
+    
+    // Fallback: Try to detect if it's likely a stock or crypto
+    // Most stock tickers are 1-4 letters, crypto can be longer
+    if (upperTicker.length <= 4 && /^[A-Z]+$/.test(upperTicker)) {
+      // Likely a stock - default to NASDAQ (most common for tech/crypto stocks)
+      console.warn(`⚠️ Assuming "${upperTicker}" is NASDAQ stock - verify this is correct!`);
+      return {
+        symbol: `NASDAQ:${upperTicker}`,
+        displayName: `${upperTicker}`
+      };
+    }
+    
+    // Default to crypto format as last resort
+    console.warn(`⚠️ Assuming "${upperTicker}" is crypto - verify this is correct!`);
+    return {
+      symbol: `${upperTicker}USD`,
+      displayName: `${upperTicker}`
     };
   };
 
@@ -533,10 +468,6 @@ export default function MarketBriefHome() {
 
             {/* Article Content */}
             <div className="mb-6">
-              {!brief.article_html?.toLowerCase().includes("let's talk about something") && (
-                <p className="italic text-muted-foreground mb-4 text-lg">Let&apos;s talk about something.</p>
-              )}
-              
               {/* Live Prices Indicator */}
               {pricesLoading && (
                 <div className="mb-2 text-xs text-muted-foreground flex items-center gap-2">

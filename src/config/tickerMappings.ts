@@ -1,0 +1,156 @@
+/**
+ * Centralized Ticker Mappings Configuration
+ * 
+ * IMPORTANT: Keep this file updated to prevent incorrect ticker formatting
+ * which wastes credits and causes incorrect chart displays.
+ */
+
+export interface TickerMapping {
+  symbol: string;
+  displayName: string;
+  type: 'crypto' | 'stock' | 'index' | 'forex';
+}
+
+// Known stock tickers - ALWAYS use EXCHANGE:SYMBOL format
+export const STOCK_TICKERS: Record<string, TickerMapping> = {
+  // Tech Stocks
+  'AAPL': { symbol: 'NASDAQ:AAPL', displayName: 'Apple Inc. (AAPL)', type: 'stock' },
+  'MSFT': { symbol: 'NASDAQ:MSFT', displayName: 'Microsoft (MSFT)', type: 'stock' },
+  'GOOGL': { symbol: 'NASDAQ:GOOGL', displayName: 'Alphabet (GOOGL)', type: 'stock' },
+  'GOOGLE': { symbol: 'NASDAQ:GOOGL', displayName: 'Alphabet (GOOGL)', type: 'stock' },
+  'AMZN': { symbol: 'NASDAQ:AMZN', displayName: 'Amazon (AMZN)', type: 'stock' },
+  'AMAZON': { symbol: 'NASDAQ:AMZN', displayName: 'Amazon (AMZN)', type: 'stock' },
+  'META': { symbol: 'NASDAQ:META', displayName: 'Meta Platforms (META)', type: 'stock' },
+  'FACEBOOK': { symbol: 'NASDAQ:META', displayName: 'Meta Platforms (META)', type: 'stock' },
+  'TSLA': { symbol: 'NASDAQ:TSLA', displayName: 'Tesla (TSLA)', type: 'stock' },
+  'TESLA': { symbol: 'NASDAQ:TSLA', displayName: 'Tesla (TSLA)', type: 'stock' },
+  'NVDA': { symbol: 'NASDAQ:NVDA', displayName: 'NVIDIA (NVDA)', type: 'stock' },
+  'NVIDIA': { symbol: 'NASDAQ:NVDA', displayName: 'NVIDIA (NVDA)', type: 'stock' },
+  'NFLX': { symbol: 'NASDAQ:NFLX', displayName: 'Netflix (NFLX)', type: 'stock' },
+  'NETFLIX': { symbol: 'NASDAQ:NFLX', displayName: 'Netflix (NFLX)', type: 'stock' },
+  'AMD': { symbol: 'NASDAQ:AMD', displayName: 'AMD (AMD)', type: 'stock' },
+  'INTC': { symbol: 'NASDAQ:INTC', displayName: 'Intel (INTC)', type: 'stock' },
+  'INTEL': { symbol: 'NASDAQ:INTC', displayName: 'Intel (INTC)', type: 'stock' },
+  'ADBE': { symbol: 'NASDAQ:ADBE', displayName: 'Adobe (ADBE)', type: 'stock' },
+  'ADOBE': { symbol: 'NASDAQ:ADBE', displayName: 'Adobe (ADBE)', type: 'stock' },
+  'QCOM': { symbol: 'NASDAQ:QCOM', displayName: 'Qualcomm (QCOM)', type: 'stock' },
+  'AVGO': { symbol: 'NASDAQ:AVGO', displayName: 'Broadcom (AVGO)', type: 'stock' },
+  
+  // Crypto/Blockchain Related Stocks
+  'COIN': { symbol: 'NASDAQ:COIN', displayName: 'Coinbase (COIN)', type: 'stock' },
+  'COINBASE': { symbol: 'NASDAQ:COIN', displayName: 'Coinbase (COIN)', type: 'stock' },
+  'MSTR': { symbol: 'NASDAQ:MSTR', displayName: 'MicroStrategy (MSTR)', type: 'stock' },
+  'MICROSTRATEGY': { symbol: 'NASDAQ:MSTR', displayName: 'MicroStrategy (MSTR)', type: 'stock' },
+  'MARA': { symbol: 'NASDAQ:MARA', displayName: 'Marathon Digital (MARA)', type: 'stock' },
+  'RIOT': { symbol: 'NASDAQ:RIOT', displayName: 'Riot Platforms (RIOT)', type: 'stock' },
+  'CLSK': { symbol: 'NASDAQ:CLSK', displayName: 'CleanSpark (CLSK)', type: 'stock' },
+  'HUT': { symbol: 'NASDAQ:HUT', displayName: 'Hut 8 Mining (HUT)', type: 'stock' },
+  'BITF': { symbol: 'NASDAQ:BITF', displayName: 'Bitfarms (BITF)', type: 'stock' },
+  'HOOD': { symbol: 'NASDAQ:HOOD', displayName: 'Robinhood (HOOD)', type: 'stock' },
+  'ROBINHOOD': { symbol: 'NASDAQ:HOOD', displayName: 'Robinhood (HOOD)', type: 'stock' },
+  
+  // NYSE Stocks
+  'CRM': { symbol: 'NYSE:CRM', displayName: 'Salesforce (CRM)', type: 'stock' },
+  'SALESFORCE': { symbol: 'NYSE:CRM', displayName: 'Salesforce (CRM)', type: 'stock' },
+  'ORCL': { symbol: 'NYSE:ORCL', displayName: 'Oracle (ORCL)', type: 'stock' },
+  'ORACLE': { symbol: 'NYSE:ORCL', displayName: 'Oracle (ORCL)', type: 'stock' },
+  'IBM': { symbol: 'NYSE:IBM', displayName: 'IBM (IBM)', type: 'stock' },
+  'SNAP': { symbol: 'NYSE:SNAP', displayName: 'Snap Inc. (SNAP)', type: 'stock' },
+  'SNAPCHAT': { symbol: 'NYSE:SNAP', displayName: 'Snap Inc. (SNAP)', type: 'stock' },
+  'BBAI': { symbol: 'NYSE:BBAI', displayName: 'BigBear.ai (BBAI)', type: 'stock' },
+  
+  // Other Stocks
+  'EA': { symbol: 'NASDAQ:EA', displayName: 'Electronic Arts (EA)', type: 'stock' },
+  'MNPR': { symbol: 'NASDAQ:MNPR', displayName: 'Monopar Therapeutics (MNPR)', type: 'stock' },
+  'MONOPAR': { symbol: 'NASDAQ:MNPR', displayName: 'Monopar Therapeutics (MNPR)', type: 'stock' },
+  'SBUX': { symbol: 'NASDAQ:SBUX', displayName: 'Starbucks (SBUX)', type: 'stock' },
+  'STARBUCKS': { symbol: 'NASDAQ:SBUX', displayName: 'Starbucks (SBUX)', type: 'stock' },
+  'PYPL': { symbol: 'NASDAQ:PYPL', displayName: 'PayPal (PYPL)', type: 'stock' },
+  'PAYPAL': { symbol: 'NASDAQ:PYPL', displayName: 'PayPal (PYPL)', type: 'stock' },
+  'SQ': { symbol: 'NASDAQ:SQ', displayName: 'Block/Square (SQ)', type: 'stock' },
+  'SQUARE': { symbol: 'NASDAQ:SQ', displayName: 'Block/Square (SQ)', type: 'stock' },
+  
+  // ETFs
+  'SPY': { symbol: 'AMEX:SPY', displayName: 'S&P 500 ETF (SPY)', type: 'stock' },
+  'QQQ': { symbol: 'NASDAQ:QQQ', displayName: 'Nasdaq 100 ETF (QQQ)', type: 'stock' },
+};
+
+// Crypto tickers - use exchange:pair or just pair format
+export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
+  'BTC': { symbol: 'COINBASE:BTCUSD', displayName: 'Bitcoin (BTC)', type: 'crypto' },
+  'BITCOIN': { symbol: 'COINBASE:BTCUSD', displayName: 'Bitcoin (BTC)', type: 'crypto' },
+  'ETH': { symbol: 'COINBASE:ETHUSD', displayName: 'Ethereum (ETH)', type: 'crypto' },
+  'ETHEREUM': { symbol: 'COINBASE:ETHUSD', displayName: 'Ethereum (ETH)', type: 'crypto' },
+  'SOL': { symbol: 'COINBASE:SOLUSD', displayName: 'Solana (SOL)', type: 'crypto' },
+  'SOLANA': { symbol: 'COINBASE:SOLUSD', displayName: 'Solana (SOL)', type: 'crypto' },
+  'AVAX': { symbol: 'BINANCE:AVAXUSDT', displayName: 'Avalanche (AVAX)', type: 'crypto' },
+  'AVALANCHE': { symbol: 'BINANCE:AVAXUSDT', displayName: 'Avalanche (AVAX)', type: 'crypto' },
+  'ADA': { symbol: 'BINANCE:ADAUSDT', displayName: 'Cardano (ADA)', type: 'crypto' },
+  'CARDANO': { symbol: 'BINANCE:ADAUSDT', displayName: 'Cardano (ADA)', type: 'crypto' },
+  'XRP': { symbol: 'BINANCE:XRPUSDT', displayName: 'Ripple (XRP)', type: 'crypto' },
+  'RIPPLE': { symbol: 'BINANCE:XRPUSDT', displayName: 'Ripple (XRP)', type: 'crypto' },
+  'DOGE': { symbol: 'BINANCE:DOGEUSDT', displayName: 'Dogecoin (DOGE)', type: 'crypto' },
+  'DOGECOIN': { symbol: 'BINANCE:DOGEUSDT', displayName: 'Dogecoin (DOGE)', type: 'crypto' },
+  'MATIC': { symbol: 'COINBASE:MATICUSD', displayName: 'Polygon (MATIC)', type: 'crypto' },
+  'POLYGON': { symbol: 'COINBASE:MATICUSD', displayName: 'Polygon (MATIC)', type: 'crypto' },
+  'DOT': { symbol: 'BINANCE:DOTUSDT', displayName: 'Polkadot (DOT)', type: 'crypto' },
+  'POLKADOT': { symbol: 'BINANCE:DOTUSDT', displayName: 'Polkadot (DOT)', type: 'crypto' },
+  'LINK': { symbol: 'BINANCE:LINKUSDT', displayName: 'Chainlink (LINK)', type: 'crypto' },
+  'CHAINLINK': { symbol: 'BINANCE:LINKUSDT', displayName: 'Chainlink (LINK)', type: 'crypto' },
+  'UNI': { symbol: 'BINANCE:UNIUSDT', displayName: 'Uniswap (UNI)', type: 'crypto' },
+  'UNISWAP': { symbol: 'BINANCE:UNIUSDT', displayName: 'Uniswap (UNI)', type: 'crypto' },
+  'ATOM': { symbol: 'ATOMUSD', displayName: 'Cosmos (ATOM)', type: 'crypto' },
+  'COSMOS': { symbol: 'ATOMUSD', displayName: 'Cosmos (ATOM)', type: 'crypto' },
+  'HYPE': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)', type: 'crypto' },
+  'HYPERLIQUID': { symbol: 'HYPEUSD', displayName: 'Hyperliquid (HYPE)', type: 'crypto' },
+  'SUI': { symbol: 'SUIUSD', displayName: 'Sui (SUI)', type: 'crypto' },
+  'TRX': { symbol: 'COINBASE:TRXUSD', displayName: 'Tron (TRX)', type: 'crypto' },
+  'TRON': { symbol: 'COINBASE:TRXUSD', displayName: 'Tron (TRX)', type: 'crypto' },
+  'USDT': { symbol: 'BINANCE:USDTUSD', displayName: 'Tether (USDT)', type: 'crypto' },
+  'TETHER': { symbol: 'BINANCE:USDTUSD', displayName: 'Tether (USDT)', type: 'crypto' },
+  'RNDR': { symbol: 'GEMINI:RNDRUSD', displayName: 'Render Token (RNDR)', type: 'crypto' },
+  'RENDER': { symbol: 'GEMINI:RNDRUSD', displayName: 'Render Token (RNDR)', type: 'crypto' },
+  'FLR': { symbol: 'FLRUSD', displayName: 'Flare (FLR)', type: 'crypto' },
+  'FLARE': { symbol: 'FLRUSD', displayName: 'Flare (FLR)', type: 'crypto' },
+};
+
+// Index and Forex tickers
+export const INDEX_FOREX_TICKERS: Record<string, TickerMapping> = {
+  'SPX': { symbol: 'SPY', displayName: 'S&P 500 (SPY)', type: 'index' },
+  'S&P 500': { symbol: 'SPY', displayName: 'S&P 500 (SPY)', type: 'index' },
+  'DXY': { symbol: 'DXY', displayName: 'US Dollar Index', type: 'forex' },
+  'XAUUSD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)', type: 'forex' },
+  'GOLD': { symbol: 'XAUUSD', displayName: 'Gold (XAU/USD)', type: 'forex' },
+};
+
+// Combine all mappings
+export const ALL_TICKER_MAPPINGS: Record<string, TickerMapping> = {
+  ...STOCK_TICKERS,
+  ...CRYPTO_TICKERS,
+  ...INDEX_FOREX_TICKERS,
+};
+
+/**
+ * Get ticker mapping with proper validation
+ * Returns undefined if ticker is not recognized
+ */
+export function getTickerMapping(ticker: string): TickerMapping | undefined {
+  const upperTicker = ticker.toUpperCase().trim();
+  return ALL_TICKER_MAPPINGS[upperTicker];
+}
+
+/**
+ * Check if a ticker is a known stock
+ */
+export function isKnownStock(ticker: string): boolean {
+  const upperTicker = ticker.toUpperCase().trim();
+  return upperTicker in STOCK_TICKERS;
+}
+
+/**
+ * Check if a ticker is a known crypto
+ */
+export function isKnownCrypto(ticker: string): boolean {
+  const upperTicker = ticker.toUpperCase().trim();
+  return upperTicker in CRYPTO_TICKERS;
+}

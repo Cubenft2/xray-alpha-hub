@@ -42,6 +42,16 @@ export default function Markets() {
         'FACEBOOK': 'NASDAQ:META',
         'NFLX': 'NASDAQ:NFLX',
         'NETFLIX': 'NASDAQ:NFLX',
+        'CRM': 'NYSE:CRM',
+        'SALESFORCE': 'NYSE:CRM',
+        'ORCL': 'NYSE:ORCL',
+        'ORACLE': 'NYSE:ORCL',
+        'SNAP': 'NYSE:SNAP',
+        'SBUX': 'NASDAQ:SBUX',
+        'STARBUCKS': 'NASDAQ:SBUX',
+        'EA': 'NASDAQ:EA',
+        'MNPR': 'NASDAQ:MNPR',
+        'MONOPAR': 'NASDAQ:MNPR',
       };
       
       // Check for exact matches first
