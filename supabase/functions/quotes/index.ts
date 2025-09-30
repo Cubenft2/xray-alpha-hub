@@ -10,6 +10,7 @@ const corsHeaders = {
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const coinGeckoApiKey = Deno.env.get('COINGECKO_API_KEY');
+const polygonApiKey = Deno.env.get('POLYGON_API_KEY');
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -156,7 +157,55 @@ async function fetchCoinGeckoData(symbols: string[]): Promise<QuoteData[]> {
   }
 }
 
-// Basic stock data (placeholder - you'd integrate with your preferred stock API)
+// Fetch stock data from Polygon.io
+async function fetchPolygonStockData(symbols: string[]): Promise<QuoteData[]> {
+  if (!polygonApiKey) {
+    console.warn('POLYGON_API_KEY not set, skipping Polygon.io');
+    return [];
+  }
+
+  const quotes: QuoteData[] = [];
+  
+  // Polygon.io API: /v2/aggs/ticker/{ticker}/prev
+  for (const symbol of symbols) {
+    try {
+      // Get previous day's data (includes open, close, change)
+      const url = `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${polygonApiKey}`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error(`Polygon.io error for ${symbol}:`, response.status);
+        continue;
+      }
+      
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        const result = data.results[0];
+        const price = result.c; // Close price
+        const open = result.o; // Open price
+        const change24h = ((price - open) / open) * 100; // Calculate % change
+        
+        quotes.push({
+          symbol,
+          price,
+          change24h,
+          timestamp: new Date().toISOString(),
+          source: 'polygon'
+        });
+        
+        console.log(`✓ Fetched ${symbol}: $${price} (${change24h.toFixed(2)}%)`);
+      }
+    } catch (error) {
+      console.error(`Error fetching ${symbol} from Polygon.io:`, error);
+    }
+  }
+  
+  return quotes;
+}
+
+// Multi-provider stock data fetcher with fallback
 async function fetchStockData(symbols: string[]): Promise<QuoteData[]> {
   // Filter only recognized stock tickers
   const recognizedStocks = symbols.filter(s => stockTickers.has(s));
@@ -165,16 +214,24 @@ async function fetchStockData(symbols: string[]): Promise<QuoteData[]> {
   
   if (recognizedStocks.length === 0) return [];
   
-  // Return placeholder stock data with realistic-looking values
+  // Try Polygon.io first
+  const polygonQuotes = await fetchPolygonStockData(recognizedStocks);
+  
+  if (polygonQuotes.length > 0) {
+    console.log(`✓ Polygon.io returned ${polygonQuotes.length} quotes`);
+    return polygonQuotes;
+  }
+  
+  // Fallback: Return placeholder data if all providers fail
+  console.warn('All stock providers failed, returning placeholder data');
   const stockData = recognizedStocks.map(symbol => ({
     symbol,
     price: symbol === 'MNPR' ? 12.50 : symbol === 'EA' ? 145.30 : Math.random() * 500 + 100,
-    change24h: (Math.random() - 0.5) * 5, // Random change between -2.5% and +2.5%
+    change24h: (Math.random() - 0.5) * 5,
     timestamp: new Date().toISOString(),
     source: 'placeholder'
   }));
   
-  console.log('Returning placeholder stock data:', stockData);
   return stockData;
 }
 
