@@ -45,7 +45,12 @@ const symbolToCoinId: Record<string, string> = {
   'USDT': 'tether',
   'BNB': 'binancecoin',
   'DOGE': 'dogecoin',
-  'ASTER': 'astar'
+  'ASTER': 'astar',
+  'WETH': 'weth',
+  'WBETH': 'wbeth',
+  'WEETH': 'weeth',
+  'FF': 'ff',
+  'FIGR_HELOC': 'figr_heloc'
 };
 
 // Known stock tickers
