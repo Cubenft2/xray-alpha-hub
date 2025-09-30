@@ -155,16 +155,16 @@ export const CommunityPromotion: React.FC = () => {
             <span className="sr-only">Close</span>
           </button>
 
-        <DialogHeader className="text-center space-y-1 sm:space-y-2 pr-8">
-          <div className="flex items-center justify-center">
+        <DialogHeader className="text-center space-y-1 sm:space-y-2 pr-8 flex flex-col items-center">
+          <div className="flex items-center justify-center w-full">
             <Sparkles className="h-4 w-4 text-accent animate-pulse" />
           </div>
           
-          <DialogTitle className="text-base sm:text-lg font-bold xr-gradient-text leading-tight">
+          <DialogTitle className="text-base sm:text-lg font-bold xr-gradient-text leading-tight text-center w-full">
             {CURRENT_PROMOTION.title}
           </DialogTitle>
           
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-1">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-1 w-full">
             <Badge 
               variant="secondary" 
               className="bg-accent/60 text-accent-foreground border-accent/80 xr-glow-accent animate-glow-pulse font-bold text-[10px]"
@@ -182,13 +182,13 @@ export const CommunityPromotion: React.FC = () => {
           </div>
         </DialogHeader>
 
-        <div className="space-y-2 mt-2">
+        <div className="space-y-2 mt-2 flex flex-col items-center">
           {/* Token Info */}
-          <div className="w-full flex flex-col items-center justify-center p-2 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm">
-            <div className="text-lg font-bold text-primary mb-0.5 text-center w-full">
+          <div className="w-full flex flex-col items-center justify-center p-2 rounded-lg border border-primary/30 bg-card/60 backdrop-blur-sm mx-auto">
+            <div className="text-lg font-bold text-primary mb-0.5 text-center">
               ${CURRENT_PROMOTION.token.symbol}
             </div>
-            <div className="text-xs text-muted-foreground text-center w-full">
+            <div className="text-xs text-muted-foreground text-center">
               {CURRENT_PROMOTION.token.name}
             </div>
           </div>
