@@ -120,7 +120,7 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'WBETH': { symbol: 'BINANCE:WBETHUSDT', displayName: 'Wrapped Beacon ETH (WBETH)', type: 'crypto' },
   'ASTR': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar (ASTR)', type: 'crypto' },
   'ASTER': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar (ASTR)', type: 'crypto' },
-  'FF': { symbol: 'BINANCE:USDTUSD', displayName: 'FF (USDT)', type: 'crypto' },
+  'FF': { symbol: 'BINANCE:USDFUSDT', displayName: 'Falcon Finance (FF)', type: 'crypto' },
 };
 
 // Index and Forex tickers

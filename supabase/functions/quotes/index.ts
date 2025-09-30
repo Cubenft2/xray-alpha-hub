@@ -49,7 +49,7 @@ const symbolToCoinId: Record<string, string> = {
   'WETH': 'weth',
   'WBETH': 'wrapped-beacon-eth',
   'WEETH': 'wrapped-eeth',
-  'FF': 'tether'
+  'FF': 'falcon-finance'
 };
 
 // Known stock tickers

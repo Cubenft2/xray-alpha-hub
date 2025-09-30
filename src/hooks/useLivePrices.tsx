@@ -171,7 +171,7 @@ export function useLivePrices(tickers: string[] = []) {
       'WETH': 'weth',
       'WEETH': 'wrapped-eeth',
       'WBETH': 'wrapped-beacon-eth',
-      'FF': 'tether'
+      'FF': 'falcon-finance'
     };
     
     return symbolMap[symbol.toUpperCase()] || symbol.toLowerCase();
@@ -236,7 +236,8 @@ export function useLivePrices(tickers: string[] = []) {
       'ethena-usde': 'USDE',
       'weth': 'WETH',
       'wrapped-eeth': 'WEETH',
-      'wrapped-beacon-eth': 'WBETH'
+      'wrapped-beacon-eth': 'WBETH',
+      'falcon-finance': 'FF'
     };
     
     return idToSymbolMap[coinId] || coinId.toUpperCase();
