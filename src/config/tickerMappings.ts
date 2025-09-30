@@ -112,6 +112,15 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'RENDER': { symbol: 'GEMINI:RNDRUSD', displayName: 'Render Token (RNDR)', type: 'crypto' },
   'FLR': { symbol: 'FLRUSD', displayName: 'Flare (FLR)', type: 'crypto' },
   'FLARE': { symbol: 'FLRUSD', displayName: 'Flare (FLR)', type: 'crypto' },
+
+  // Added mappings to fix missing mini-cards
+  'BNB': { symbol: 'BINANCE:BNBUSDT', displayName: 'BNB (BNB)', type: 'crypto' },
+  'WETH': { symbol: 'COINBASE:ETHUSD', displayName: 'Wrapped ETH (WETH)', type: 'crypto' },
+  'WEETH': { symbol: 'COINBASE:ETHUSD', displayName: 'Wrapped eETH (WEETH)', type: 'crypto' },
+  'WBETH': { symbol: 'BINANCE:WBETHUSDT', displayName: 'Wrapped Beacon ETH (WBETH)', type: 'crypto' },
+  'ASTR': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar (ASTR)', type: 'crypto' },
+  'ASTER': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar (ASTR)', type: 'crypto' },
+  'FF': { symbol: 'BINANCE:USDTUSD', displayName: 'FF (USDT)', type: 'crypto' },
 };
 
 // Index and Forex tickers

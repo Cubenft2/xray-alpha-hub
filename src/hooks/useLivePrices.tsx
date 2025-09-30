@@ -162,11 +162,16 @@ export function useLivePrices(tickers: string[] = []) {
       'AXS': 'axie-infinity',
       'AXIE': 'axie-infinity',
       'FLOW': 'flow',
-      'ASTER': 'aster',
+      'ASTER': 'astar',
+      'ASTR': 'astar',
       'HYPE': 'hyperliquid',
       'HYPERLIQUID': 'hyperliquid',
       'SUI': 'sui',
-      'USDE': 'ethena-usde'
+      'USDE': 'ethena-usde',
+      'WETH': 'weth',
+      'WEETH': 'wrapped-eeth',
+      'WBETH': 'wrapped-beacon-eth',
+      'FF': 'tether'
     };
     
     return symbolMap[symbol.toUpperCase()] || symbol.toLowerCase();
@@ -225,10 +230,13 @@ export function useLivePrices(tickers: string[] = []) {
       'flare-networks': 'FLR',
       'axie-infinity': 'AXS',
       'flow': 'FLOW',
-      'aster': 'ASTER',
+      'astar': 'ASTER',
       'hyperliquid': 'HYPE',
       'sui': 'SUI',
-      'ethena-usde': 'USDE'
+      'ethena-usde': 'USDE',
+      'weth': 'WETH',
+      'wrapped-eeth': 'WEETH',
+      'wrapped-beacon-eth': 'WBETH'
     };
     
     return idToSymbolMap[coinId] || coinId.toUpperCase();
