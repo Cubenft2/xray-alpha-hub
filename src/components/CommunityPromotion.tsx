@@ -146,14 +146,6 @@ export const CommunityPromotion: React.FC = () => {
         
         {/* Content Overlay */}
         <div className="relative z-10">
-          {/* Close Button */}
-          <button
-            onClick={() => handleDismiss(false)}
-            className="absolute right-2 top-2 z-10 rounded-full p-1 bg-background/80 backdrop-blur-sm border border-border hover:bg-destructive hover:border-destructive hover:text-destructive-foreground transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </button>
 
         <DialogHeader className="text-center space-y-0.5 pr-8 flex flex-col items-center">
           <DialogTitle className="text-sm font-bold xr-gradient-text leading-tight text-center w-full">
