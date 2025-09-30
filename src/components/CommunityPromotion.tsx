@@ -163,7 +163,7 @@ export const CommunityPromotion: React.FC = () => {
             <Badge 
               variant="outline"
               style={{ borderColor: CURRENT_PROMOTION.token.chainColor, color: CURRENT_PROMOTION.token.chainColor }}
-              className="xr-xray-glow animate-glow-pulse text-[9px]"
+              className="xr-xray-glow animate-glow-pulse text-[9px] px-3 py-0.5"
             >
               {CURRENT_PROMOTION.token.chain}
             </Badge>
