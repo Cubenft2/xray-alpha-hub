@@ -9,7 +9,7 @@ export const SlidingBanner: React.FC = () => {
 
   useEffect(() => {
     // Check if user has dismissed this banner
-    const dismissedKey = 'sliding_banner_dismissed_gugo';
+    const dismissedKey = 'sliding_banner_dismissed_gugo_v2';
     const wasDismissed = localStorage.getItem(dismissedKey);
     
     if (wasDismissed) {
@@ -17,29 +17,33 @@ export const SlidingBanner: React.FC = () => {
       return;
     }
 
-    // Wait for community promo to be dismissed
+    // If community promo already dismissed, schedule immediately
+    const dismissTime = localStorage.getItem('community_promo_dismissed_time');
+    const isNowDismissed = localStorage.getItem('community_promo_dismissed');
+    if (isNowDismissed && dismissTime) {
+      const timeSinceDismissal = Date.now() - parseInt(dismissTime);
+      const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
+      const timer = setTimeout(() => setIsVisible(true), remainingTime);
+      return () => clearTimeout(timer);
+    }
+
+    // Otherwise wait until it gets dismissed, then schedule
     const checkInterval = setInterval(() => {
-      const isNowDismissed = localStorage.getItem('community_promo_dismissed');
-      const dismissTime = localStorage.getItem('community_promo_dismissed_time');
-      
-      if (isNowDismissed && dismissTime) {
+      const isNowDismissed2 = localStorage.getItem('community_promo_dismissed');
+      const dismissTime2 = localStorage.getItem('community_promo_dismissed_time');
+      if (isNowDismissed2 && dismissTime2) {
         clearInterval(checkInterval);
-        // Show banner 60 seconds after community promo was dismissed
-        const timeSinceDismissal = Date.now() - parseInt(dismissTime);
+        const timeSinceDismissal = Date.now() - parseInt(dismissTime2);
         const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
-        
-        setTimeout(() => {
-          setIsVisible(true);
-        }, remainingTime);
+        setTimeout(() => setIsVisible(true), remainingTime);
       }
     }, 1000);
-    
     return () => clearInterval(checkInterval);
   }, []);
 
   const handleDismiss = () => {
     setIsVisible(false);
-    const dismissedKey = 'sliding_banner_dismissed_gugo';
+    const dismissedKey = 'sliding_banner_dismissed_gugo_v2';
     localStorage.setItem(dismissedKey, 'true');
     setIsDismissed(true);
   };
