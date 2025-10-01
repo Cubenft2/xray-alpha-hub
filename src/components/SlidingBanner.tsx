@@ -10,12 +10,17 @@ export const SlidingBanner: React.FC = () => {
 
   useEffect(() => {
     // Check if user has dismissed this banner
-    const dismissedKey = 'sliding_banner_dismissed_gugo_v2';
-    const wasDismissed = localStorage.getItem(dismissedKey);
+    const dismissedSession = sessionStorage.getItem('sliding_banner_dismissed_session');
+    const legacyDismissed = localStorage.getItem('sliding_banner_dismissed_gugo_v2');
     
-    if (wasDismissed) {
+    if (dismissedSession) {
       setIsDismissed(true);
       return;
+    }
+
+    // Clean up legacy persistent flag so users aren't stuck forever
+    if (legacyDismissed) {
+      localStorage.removeItem('sliding_banner_dismissed_gugo_v2');
     }
 
     // If community promo already dismissed in this session, schedule
@@ -58,8 +63,7 @@ export const SlidingBanner: React.FC = () => {
   const handleDismiss = () => {
     console.log('[SlidingBanner] Close clicked');
     setIsVisible(false);
-    const dismissedKey = 'sliding_banner_dismissed_gugo_v2';
-    localStorage.setItem(dismissedKey, 'true');
+    sessionStorage.setItem('sliding_banner_dismissed_session', 'true');
     setIsDismissed(true);
   };
 
