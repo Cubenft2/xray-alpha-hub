@@ -21,27 +21,35 @@ export const SlidingBanner: React.FC = () => {
     // If community promo already dismissed in this session, schedule
     const dismissTime = localStorage.getItem('community_promo_dismissed_time');
     const isNowDismissed = localStorage.getItem('community_promo_dismissed');
-    if (isNowDismissed && dismissTime) {
-      const dismissedAt = parseInt(dismissTime);
-      if (!Number.isNaN(dismissedAt) && dismissedAt >= pageLoadTimeRef.current) {
-        const timeSinceDismissal = Date.now() - dismissedAt;
-          const remainingTime = Math.max(0, 30000 - timeSinceDismissal);
-        const timer = setTimeout(() => setIsVisible(true), remainingTime);
-        return () => clearTimeout(timer);
+    if (isNowDismissed) {
+      let remainingTime = 30000;
+      if (dismissTime) {
+        const dismissedAt = parseInt(dismissTime);
+        if (!Number.isNaN(dismissedAt)) {
+          const timeSinceDismissal = Date.now() - dismissedAt;
+          remainingTime = Math.max(0, 30000 - timeSinceDismissal);
+        }
       }
+      console.log('[SlidingBanner] Scheduling show after', remainingTime, 'ms (initial)');
+      const timer = setTimeout(() => setIsVisible(true), remainingTime);
+      return () => clearTimeout(timer);
     }
     // Otherwise wait until it gets dismissed this session, then schedule
     const checkInterval = setInterval(() => {
       const isNowDismissed2 = localStorage.getItem('community_promo_dismissed');
       const dismissTime2 = localStorage.getItem('community_promo_dismissed_time');
-      if (isNowDismissed2 && dismissTime2) {
-        const dismissedAt = parseInt(dismissTime2);
-        if (!Number.isNaN(dismissedAt) && dismissedAt >= pageLoadTimeRef.current) {
-          clearInterval(checkInterval);
-          const timeSinceDismissal = Date.now() - dismissedAt;
-          const remainingTime = Math.max(0, 30000 - timeSinceDismissal);
-          setTimeout(() => setIsVisible(true), remainingTime);
+      if (isNowDismissed2) {
+        clearInterval(checkInterval);
+        let remainingTime = 30000;
+        if (dismissTime2) {
+          const dismissedAt = parseInt(dismissTime2);
+          if (!Number.isNaN(dismissedAt)) {
+            const timeSinceDismissal = Date.now() - dismissedAt;
+            remainingTime = Math.max(0, 30000 - timeSinceDismissal);
+          }
         }
+        console.log('[SlidingBanner] Scheduling show after', remainingTime, 'ms (interval)');
+        setTimeout(() => setIsVisible(true), remainingTime);
       }
     }, 1000);
     return () => clearInterval(checkInterval);
