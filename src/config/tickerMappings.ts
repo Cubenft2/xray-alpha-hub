@@ -60,6 +60,9 @@ export const STOCK_TICKERS: Record<string, TickerMapping> = {
   'BBAI': { symbol: 'NYSE:BBAI', displayName: 'BigBear.ai (BBAI)', type: 'stock' },
   'NKE': { symbol: 'NYSE:NKE', displayName: 'Nike (NKE)', type: 'stock' },
   'NIKE': { symbol: 'NYSE:NKE', displayName: 'Nike (NKE)', type: 'stock' },
+  'PFE': { symbol: 'NYSE:PFE', displayName: 'Pfizer (PFE)', type: 'stock' },
+  'PFIZER': { symbol: 'NYSE:PFE', displayName: 'Pfizer (PFE)', type: 'stock' },
+  'LAC': { symbol: 'NYSE:PFE', displayName: 'Pfizer (PFE)', type: 'stock' },
   
   // Other Stocks
   'EA': { symbol: 'NASDAQ:EA', displayName: 'Electronic Arts (EA)', type: 'stock' },
