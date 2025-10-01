@@ -142,6 +142,8 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'PUMP': { symbol: 'CRYPTO:PUMPFUSD', displayName: 'PUMP.FUN (PUMP)', type: 'crypto' },
   'PUMP.FUN': { symbol: 'CRYPTO:PUMPFUSD', displayName: 'PUMP.FUN (PUMP)', type: 'crypto' },
   'PUMPFUN': { symbol: 'CRYPTO:PUMPFUSD', displayName: 'PUMP.FUN (PUMP)', type: 'crypto' },
+  'BDX': { symbol: 'CRYPTO:BDXUSD', displayName: 'Beldex (BDX)', type: 'crypto' },
+  'BELDEX': { symbol: 'CRYPTO:BDXUSD', displayName: 'Beldex (BDX)', type: 'crypto' },
   'UXLINK': { symbol: 'CRYPTO:UXLINKUSD', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
   'UXPL': { symbol: 'CRYPTO:UXLINKUSD', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
   'AVNT': { symbol: 'COINBASE:AVNTUSD', displayName: 'Avanti (AVNT)', type: 'crypto' },
