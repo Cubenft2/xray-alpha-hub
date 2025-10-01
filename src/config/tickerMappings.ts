@@ -139,13 +139,15 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   // Added to resolve admin audit missing mappings
   'ZEC': { symbol: 'BINANCE:ZECUSDT', displayName: 'Zcash (ZEC)', type: 'crypto' },
   'ZCASH': { symbol: 'BINANCE:ZECUSDT', displayName: 'Zcash (ZEC)', type: 'crypto' },
-  'PUMP': { symbol: 'CRYPTO:PUMPUSD', displayName: 'PUMP (PUMP)', type: 'crypto' },
+  'PUMP': { symbol: 'CRYPTO:PUMPFUSD', displayName: 'PUMP.FUN (PUMP)', type: 'crypto' },
+  'PUMP.FUN': { symbol: 'CRYPTO:PUMPFUSD', displayName: 'PUMP.FUN (PUMP)', type: 'crypto' },
+  'PUMPFUN': { symbol: 'CRYPTO:PUMPFUSD', displayName: 'PUMP.FUN (PUMP)', type: 'crypto' },
   'UXLINK': { symbol: 'CRYPTO:UXLINKUSD', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
   'UXPL': { symbol: 'CRYPTO:UXLINKUSD', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
   'AVNT': { symbol: 'COINBASE:AVNTUSD', displayName: 'Avanti (AVNT)', type: 'crypto' },
   'AVANTI': { symbol: 'COINBASE:AVNTUSD', displayName: 'Avanti (AVNT)', type: 'crypto' },
-  'ZBNC': { symbol: 'BINANCE:ZBCUSDT', displayName: 'Zebec Network (ZBC)', type: 'crypto' },
-  'ZEBEC': { symbol: 'BINANCE:ZBCUSDT', displayName: 'Zebec Network (ZBC)', type: 'crypto' },
+  'ZBCN': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
+  'ZEBEC': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
 };
 
 // Index and Forex tickers
