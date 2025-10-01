@@ -48,6 +48,7 @@ export const SlidingBanner: React.FC = () => {
   }, []);
 
   const handleDismiss = () => {
+    console.log('[SlidingBanner] Close clicked');
     setIsVisible(false);
     const dismissedKey = 'sliding_banner_dismissed_gugo_v2';
     localStorage.setItem(dismissedKey, 'true');
@@ -77,10 +78,10 @@ export const SlidingBanner: React.FC = () => {
         }}
       >
         {/* Overlay for better text visibility */}
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+        <div className="absolute inset-0 pointer-events-none bg-black/40 backdrop-blur-[2px]" />
         
         {/* Content */}
-        <div className="relative z-10 h-full flex items-center justify-between px-6">
+        <div className="relative z-10 h-full flex items-center justify-between px-6 pointer-events-auto">
           <div className="flex items-center gap-4">
             <span className="text-2xl font-bold text-white">$GUGO</span>
             <Button
@@ -93,6 +94,7 @@ export const SlidingBanner: React.FC = () => {
 
           {/* Close button */}
           <button
+            type="button"
             onClick={handleDismiss}
             className="ml-4 rounded-full bg-white/20 hover:bg-white/30 p-2 transition-colors"
             aria-label="Close banner"
