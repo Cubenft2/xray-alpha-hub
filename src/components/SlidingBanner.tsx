@@ -25,7 +25,7 @@ export const SlidingBanner: React.FC = () => {
       const dismissedAt = parseInt(dismissTime);
       if (!Number.isNaN(dismissedAt) && dismissedAt >= pageLoadTimeRef.current) {
         const timeSinceDismissal = Date.now() - dismissedAt;
-        const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
+          const remainingTime = Math.max(0, 3000 - timeSinceDismissal);
         const timer = setTimeout(() => setIsVisible(true), remainingTime);
         return () => clearTimeout(timer);
       }
@@ -39,7 +39,7 @@ export const SlidingBanner: React.FC = () => {
         if (!Number.isNaN(dismissedAt) && dismissedAt >= pageLoadTimeRef.current) {
           clearInterval(checkInterval);
           const timeSinceDismissal = Date.now() - dismissedAt;
-          const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
+          const remainingTime = Math.max(0, 3000 - timeSinceDismissal);
           setTimeout(() => setIsVisible(true), remainingTime);
         }
       }
