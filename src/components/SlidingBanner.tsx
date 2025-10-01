@@ -17,43 +17,24 @@ export const SlidingBanner: React.FC = () => {
       return;
     }
 
-    // Check if community promotion is still active (not dismissed permanently)
-    const communityPromoDismissed = localStorage.getItem('community_promo_dismissed');
-    const communityPromoDismissedTime = localStorage.getItem('community_promo_dismissed_time');
-    
-    // If community promo hasn't been dismissed permanently, don't show this banner
-    if (!communityPromoDismissed) {
-      // Wait for community promo to be dismissed
-      const checkInterval = setInterval(() => {
-        const isNowDismissed = localStorage.getItem('community_promo_dismissed');
-        const dismissTime = localStorage.getItem('community_promo_dismissed_time');
+    // Wait for community promo to be dismissed
+    const checkInterval = setInterval(() => {
+      const isNowDismissed = localStorage.getItem('community_promo_dismissed');
+      const dismissTime = localStorage.getItem('community_promo_dismissed_time');
+      
+      if (isNowDismissed && dismissTime) {
+        clearInterval(checkInterval);
+        // Show banner 60 seconds after community promo was dismissed
+        const timeSinceDismissal = Date.now() - parseInt(dismissTime);
+        const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
         
-        if (isNowDismissed && dismissTime) {
-          clearInterval(checkInterval);
-          // Show banner 60 seconds after community promo was dismissed
-          const timeSinceDismissal = Date.now() - parseInt(dismissTime);
-          const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
-          
-          setTimeout(() => {
-            setIsVisible(true);
-          }, remainingTime);
-        }
-      }, 1000);
-      
-      return () => clearInterval(checkInterval);
-    }
+        setTimeout(() => {
+          setIsVisible(true);
+        }, remainingTime);
+      }
+    }, 1000);
     
-    // If community promo was already dismissed, check timing
-    if (communityPromoDismissedTime) {
-      const timeSinceDismissal = Date.now() - parseInt(communityPromoDismissedTime);
-      const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
-      
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, remainingTime);
-      
-      return () => clearTimeout(timer);
-    }
+    return () => clearInterval(checkInterval);
   }, []);
 
   const handleDismiss = () => {

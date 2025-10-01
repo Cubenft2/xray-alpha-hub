@@ -71,12 +71,12 @@ export const CommunityPromotion: React.FC = () => {
       return;
     }
 
-    // Show popup after 60 seconds if not dismissed
+    // Show popup after 20 seconds if not dismissed
     const timer = setTimeout(() => {
       if (!dismissed) {
         setIsOpen(true);
       }
-    }, 60000);
+    }, 20000);
 
     return () => clearTimeout(timer);
   }, [dismissed]);
