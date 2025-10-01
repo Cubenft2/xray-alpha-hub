@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Share, Copy, ExternalLink, TrendingUp, BarChart3, Users, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLivePrices } from '@/hooks/useLivePrices';
+import { useTickerMappings } from '@/hooks/useTickerMappings';
 import { MiniChart } from '@/components/MiniChart';
 import { MarketOverview } from '@/components/MarketOverview';
 import { EnhancedBriefRenderer } from '@/components/EnhancedBriefRenderer';
@@ -13,7 +14,6 @@ import { SocialSentimentBoard } from '@/components/SocialSentimentBoard';
 import { StoicQuote } from '@/components/StoicQuote';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
-import { getTickerMapping, isKnownStock, isKnownCrypto } from '@/config/tickerMappings';
 import { toZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
 
@@ -46,6 +46,9 @@ export default function MarketBriefHome() {
   const { toast } = useToast();
   const { theme } = useTheme();
 
+  // Get ticker mappings from database
+  const { getMapping } = useTickerMappings();
+
   // Get live prices for all tickers (including top 50 cryptos)
   const allTickers = [
     ...extractedTickers, 
@@ -77,21 +80,22 @@ export default function MarketBriefHome() {
   }, []);
 
   // Function to map ticker symbols to TradingView format for charts
-  // Uses centralized configuration to prevent mistakes that waste credits
-  const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
+  // Uses database mappings to ensure correct chart display
+  const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string; tvOk?: boolean } => {
     const upperTicker = ticker.toUpperCase().trim();
     
-    // Try to get from centralized mappings first
-    const mapping = getTickerMapping(upperTicker);
+    // Try to get from database mappings first
+    const mapping = getMapping(upperTicker);
     if (mapping) {
       return {
-        symbol: mapping.symbol,
-        displayName: mapping.displayName
+        symbol: mapping.tradingview_symbol,
+        displayName: mapping.display_name,
+        tvOk: mapping.tradingview_supported !== false
       };
     }
     
-    // If not found, log a warning (this helps prevent future mistakes)
-    console.warn(`⚠️ TICKER NOT FOUND: "${ticker}" - This may cause incorrect chart display. Please add to src/config/tickerMappings.ts`);
+    // If not found, log a warning
+    console.warn(`⚠️ TICKER NOT FOUND: "${ticker}" - This may cause incorrect chart display.`);
     
     // Fallback: Try to detect if it's likely a stock or crypto
     // Most stock tickers are 1-4 letters, crypto can be longer
@@ -100,7 +104,8 @@ export default function MarketBriefHome() {
       console.warn(`⚠️ Assuming "${upperTicker}" is NASDAQ stock - verify this is correct!`);
       return {
         symbol: `NASDAQ:${upperTicker}`,
-        displayName: `${upperTicker}`
+        displayName: `${upperTicker}`,
+        tvOk: false
       };
     }
     
@@ -108,7 +113,8 @@ export default function MarketBriefHome() {
     console.warn(`⚠️ Assuming "${upperTicker}" is crypto - verify this is correct!`);
     return {
       symbol: `${upperTicker}USD`,
-      displayName: `${upperTicker}`
+      displayName: `${upperTicker}`,
+      tvOk: false
     };
   };
 
@@ -697,7 +703,7 @@ export default function MarketBriefHome() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {extractedTickers.slice(0, 12).map((ticker) => {
-                    const { symbol, displayName } = mapTickerToTradingView(ticker);
+                    const { symbol, displayName, tvOk } = mapTickerToTradingView(ticker);
                     const unsupportedSet = new Set(['FIGR_HELOC']);
                     const isUnsupported = unsupportedSet.has(ticker.toUpperCase());
                     return (
@@ -715,13 +721,13 @@ export default function MarketBriefHome() {
                                 className="inline-flex items-center justify-center w-full h-full text-sm text-primary underline"
                               >
                                 View on CoinGecko
-                                <ExternalLink className="w-4 h-4 ml-1" />
-                              </a>
-                            ) : (
-                              <MiniChart symbol={symbol} theme={theme} />
-                            )}
-                          </div>
-                        </CardContent>
+                              <ExternalLink className="w-4 h-4 ml-1" />
+                            </a>
+                          ) : (
+                            <MiniChart symbol={symbol} theme={theme} tvOk={tvOk} />
+                          )}
+                        </div>
+                      </CardContent>
                       </Card>
                     );
                   })}
