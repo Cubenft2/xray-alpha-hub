@@ -144,7 +144,7 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'UXPL': { symbol: 'CRYPTO:UXLINKUSD', displayName: 'UXLINK (UXLINK)', type: 'crypto' },
   'AVNT': { symbol: 'COINBASE:AVNTUSD', displayName: 'Avanti (AVNT)', type: 'crypto' },
   'AVANTI': { symbol: 'COINBASE:AVNTUSD', displayName: 'Avanti (AVNT)', type: 'crypto' },
-  'ZBNC': { symbol: 'CRYPTO:ZBNCUSD', displayName: 'ZBNC (ZBNC)', type: 'crypto' },
+  'ZBNC': { symbol: 'ZBNCUSD', displayName: 'ZBNC (ZBNC)', type: 'crypto' },
 };
 
 // Index and Forex tickers
