@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import PageTransition from "./components/PageTransition";
 import { Layout } from "./components/Layout";
 import { CommunityPromotion } from "./components/CommunityPromotion";
+import { SlidingBanner } from "./components/SlidingBanner";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
 import MarketBrief from "./pages/MarketBrief";
@@ -36,6 +37,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <CommunityPromotion />
+        <SlidingBanner />
         <BrowserRouter>
           <Layout>
             <PageTransition>
