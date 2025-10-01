@@ -56,7 +56,7 @@ export const SlidingBanner: React.FC = () => {
   };
 
   const handleBuyClick = () => {
-    const chartUrl = 'https://www.defined.fi/abs/0xe59a3d6f77e6d0c5daf1da740ab65adc3b674012?quoteToken=token1&cache=faf95';
+    const chartUrl = 'https://runwithgugo.com/market';
     window.open(chartUrl, '_blank', 'noopener,noreferrer');
   };
 
