@@ -83,6 +83,8 @@ export const CommunityPromotion: React.FC = () => {
 
   const handleDismiss = (remember: boolean = false) => {
     setIsOpen(false);
+    // Store dismissal timestamp for coordination with other promotions
+    localStorage.setItem('community_promo_dismissed_time', Date.now().toString());
     if (remember) {
       const dismissedKey = `promotion_dismissed_${CURRENT_PROMOTION.id}`;
       localStorage.setItem(dismissedKey, 'true');
