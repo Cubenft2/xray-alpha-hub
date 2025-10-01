@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import gugoLandscape from '@/assets/gugo-landscape-new.jpeg';
@@ -6,6 +6,7 @@ import gugoLandscape from '@/assets/gugo-landscape-new.jpeg';
 export const SlidingBanner: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const pageLoadTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
     // Check if user has dismissed this banner
@@ -17,25 +18,30 @@ export const SlidingBanner: React.FC = () => {
       return;
     }
 
-    // If community promo already dismissed, schedule immediately
+    // If community promo already dismissed in this session, schedule
     const dismissTime = localStorage.getItem('community_promo_dismissed_time');
     const isNowDismissed = localStorage.getItem('community_promo_dismissed');
     if (isNowDismissed && dismissTime) {
-      const timeSinceDismissal = Date.now() - parseInt(dismissTime);
-      const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
-      const timer = setTimeout(() => setIsVisible(true), remainingTime);
-      return () => clearTimeout(timer);
+      const dismissedAt = parseInt(dismissTime);
+      if (!Number.isNaN(dismissedAt) && dismissedAt >= pageLoadTimeRef.current) {
+        const timeSinceDismissal = Date.now() - dismissedAt;
+        const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
+        const timer = setTimeout(() => setIsVisible(true), remainingTime);
+        return () => clearTimeout(timer);
+      }
     }
-
-    // Otherwise wait until it gets dismissed, then schedule
+    // Otherwise wait until it gets dismissed this session, then schedule
     const checkInterval = setInterval(() => {
       const isNowDismissed2 = localStorage.getItem('community_promo_dismissed');
       const dismissTime2 = localStorage.getItem('community_promo_dismissed_time');
       if (isNowDismissed2 && dismissTime2) {
-        clearInterval(checkInterval);
-        const timeSinceDismissal = Date.now() - parseInt(dismissTime2);
-        const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
-        setTimeout(() => setIsVisible(true), remainingTime);
+        const dismissedAt = parseInt(dismissTime2);
+        if (!Number.isNaN(dismissedAt) && dismissedAt >= pageLoadTimeRef.current) {
+          clearInterval(checkInterval);
+          const timeSinceDismissal = Date.now() - dismissedAt;
+          const remainingTime = Math.max(0, 60000 - timeSinceDismissal);
+          setTimeout(() => setIsVisible(true), remainingTime);
+        }
       }
     }, 1000);
     return () => clearInterval(checkInterval);
