@@ -58,6 +58,8 @@ export const STOCK_TICKERS: Record<string, TickerMapping> = {
   'SNAP': { symbol: 'NYSE:SNAP', displayName: 'Snap Inc. (SNAP)', type: 'stock' },
   'SNAPCHAT': { symbol: 'NYSE:SNAP', displayName: 'Snap Inc. (SNAP)', type: 'stock' },
   'BBAI': { symbol: 'NYSE:BBAI', displayName: 'BigBear.ai (BBAI)', type: 'stock' },
+  'NKE': { symbol: 'NYSE:NKE', displayName: 'Nike (NKE)', type: 'stock' },
+  'NIKE': { symbol: 'NYSE:NKE', displayName: 'Nike (NKE)', type: 'stock' },
   
   // Other Stocks
   'EA': { symbol: 'NASDAQ:EA', displayName: 'Electronic Arts (EA)', type: 'stock' },
