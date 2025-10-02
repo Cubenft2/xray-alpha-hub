@@ -598,7 +598,10 @@ export default function MarketBriefHome() {
               
               <EnhancedBriefRenderer 
                 content={brief.article_html || ''} 
-                enhancedTickers={livePrices}
+                enhancedTickers={{
+                  ...briefData?.content_sections?.enhanced_tickers,
+                  ...livePrices
+                }}
                 onTickersExtracted={handleTickersExtracted}
               />
             </div>
