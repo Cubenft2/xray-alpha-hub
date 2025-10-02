@@ -13,7 +13,7 @@ import { SocialSentimentBoard } from '@/components/SocialSentimentBoard';
 import { StoicQuote } from '@/components/StoicQuote';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
-import { getTickerMapping } from '@/config/tickerMappings';
+import { getTickerMapping, isKnownStock, isKnownCrypto } from '@/config/tickerMappings';
 import { toZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
 
@@ -57,18 +57,6 @@ export default function MarketBriefHome() {
   ];
   const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
 
-  // Determine if market data is actually usable (not just present but empty)
-  const hasMarketData = React.useMemo(() => {
-    const md = briefData?.content_sections?.market_data;
-    return !!(md && (
-      (Number(md.total_market_cap) || 0) > 0 ||
-      (Number(md.total_volume) || 0) > 0 ||
-      (md.top_gainers && md.top_gainers.length > 0) ||
-      (md.top_losers && md.top_losers.length > 0) ||
-      (md.trending_coins && md.trending_coins.length > 0)
-    ));
-  }, [briefData]);
-
   // Fetch quotes timestamp from API
   useEffect(() => {
     const fetchQuotesTimestamp = async () => {
@@ -102,11 +90,6 @@ export default function MarketBriefHome() {
       };
     }
     
-    // Special-case known corrections
-    if (upperTicker === 'SNX') {
-      return { symbol: 'BYBIT:SNXUSDT', displayName: 'Synthetix (SNX)' };
-    }
-    
     // If not found, log a warning (this helps prevent future mistakes)
     console.warn(`⚠️ TICKER NOT FOUND: "${ticker}" - This may cause incorrect chart display. Please add to src/config/tickerMappings.ts`);
     
@@ -137,22 +120,6 @@ export default function MarketBriefHome() {
     setExtractedTickers([...new Set(filteredTickers)]);
   };
 
-
-  // Auto-trigger generation on mount if needed
-  useEffect(() => {
-    const autoGenerate = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('generate') === 'true') {
-        setGenerating(true);
-        try {
-          await generateFreshBrief();
-        } catch (error) {
-          console.error('Auto-generation failed:', error);
-        }
-      }
-    };
-    autoGenerate();
-  }, []);
 
   useEffect(() => {
     const fetchBrief = async () => {
@@ -198,28 +165,11 @@ export default function MarketBriefHome() {
         // Store the raw database data for market widgets
         setBriefData(briefData);
         
-        // If comprehensive market data is missing or empty, DO NOT auto-generate (prevents reload loop)
-        const marketData = (briefData as any)?.content_sections?.market_data;
-        const hasValidMarketData = marketData && (
-          marketData.total_market_cap > 0 || 
-          marketData.total_volume > 0 ||
-          (marketData.top_gainers && marketData.top_gainers.length > 0) ||
-          (marketData.top_losers && marketData.top_losers.length > 0) ||
-          (marketData.trending_coins && marketData.trending_coins.length > 0)
-        );
-        
-        if (!hasValidMarketData && !date) {
-          const COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
-          const lastTs = Number(localStorage.getItem('brief_autogen_ts') || '0');
-          const now = Date.now();
-          if (!lastTs || now - lastTs > COOLDOWN_MS) {
-            console.log('🚀 Market data empty — auto-generating fresh brief (cooldown 10m)…');
-            localStorage.setItem('brief_autogen_ts', String(now));
-            await generateFreshBrief();
-            return; // Wait for reload
-          } else {
-            console.log('⏳ Skipping auto-generate (cooldown active). Showing current brief.');
-          }
+        // If comprehensive market data is missing, auto-generate today's brief (no button)
+        if (!(briefData as any)?.content_sections?.market_data && !date) {
+          console.log('🛠️ Comprehensive data missing — creating fresh brief...');
+          await generateFreshBrief();
+          return; // Wait for reload
         }
         // If an admin audit block accidentally leaked into the article, regenerate a clean brief (no button)
         if (!date) {
@@ -643,13 +593,7 @@ export default function MarketBriefHome() {
               
               <EnhancedBriefRenderer 
                 content={brief.article_html || ''} 
-                enhancedTickers={{
-                  ...(briefData?.content_sections?.enhanced_tickers || {}),
-                  ...Object.fromEntries(
-                    Object.entries(livePrices || {})
-                      .filter(([_, data]: [string, any]) => data?.price !== null)
-                  )
-                }}
+                enhancedTickers={livePrices}
                 onTickersExtracted={handleTickersExtracted}
               />
             </div>
@@ -694,7 +638,7 @@ export default function MarketBriefHome() {
             )}
 
             {/* Market Overview Section */}
-            {hasMarketData ? (
+            {briefData?.content_sections?.market_data ? (
               <div className="border-t border-border pt-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <DollarSign className="w-5 h-5 text-primary" />
@@ -704,14 +648,17 @@ export default function MarketBriefHome() {
               </div>
             ) : (
               <div className="border-t border-border pt-6 mb-6">
-                <Card className="xr-card border-primary/50 bg-primary/5">
-                  <CardContent className="p-8 text-center">
-                    <div className="flex flex-col items-center">
-                      <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-3" />
-                      <h3 className="text-xl font-bold mb-2 xr-gradient-text">Preparing comprehensive market data…</h3>
-                      <p className="text-muted-foreground">
-                        Runs automatically and may take ~10–20 seconds. The page will refresh when ready.
-                      </p>
+                <Card className="xr-card">
+                  <CardContent className="p-6 text-center">
+                    <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Comprehensive Market Data Unavailable</h3>
+                    <p className="text-muted-foreground">
+                      Preparing today's comprehensive brief... This may take 10–20 seconds.
+                    </p>
+                    <div className="mt-4">
+                      <Button size="sm" onClick={generateComprehensiveBrief} disabled={generating}>
+                        {generating ? 'Generating…' : 'Regenerate Now'}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -719,7 +666,7 @@ export default function MarketBriefHome() {
             )}
 
             {/* Top Movers & Trending Section */}
-            {hasMarketData && (
+            {briefData?.content_sections?.market_data && (
               <div className="border-t border-border pt-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <BarChart3 className="w-5 h-5 text-primary" />
@@ -730,7 +677,7 @@ export default function MarketBriefHome() {
             )}
 
             {/* Social Sentiment Section */}
-            {hasMarketData && (
+            {briefData?.content_sections?.market_data && (
               <div className="border-t border-border pt-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Users className="w-5 h-5 text-primary" />
@@ -768,13 +715,13 @@ export default function MarketBriefHome() {
                                 className="inline-flex items-center justify-center w-full h-full text-sm text-primary underline"
                               >
                                 View on CoinGecko
-                              <ExternalLink className="w-4 h-4 ml-1" />
-                            </a>
-                          ) : (
-                            <MiniChart symbol={symbol} theme={theme} />
-                          )}
-                        </div>
-                      </CardContent>
+                                <ExternalLink className="w-4 h-4 ml-1" />
+                              </a>
+                            ) : (
+                              <MiniChart symbol={symbol} theme={theme} />
+                            )}
+                          </div>
+                        </CardContent>
                       </Card>
                     );
                   })}

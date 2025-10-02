@@ -143,18 +143,14 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbmN2Zml1emxpeW9oeHJzaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3Mzk4MjEsImV4cCI6MjA3NDMxNTgyMX0.7cnRatKpHqsylletKVel7WAprIYdpP85AXtXLswMYXQ`
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
             },
             body: JSON.stringify({ symbols }),
           }
         );
 
         const quotesData = await quotesResponse.json();
-        console.log('✅ Quotes response:', quotesData);
-        
-        // If quotes are unavailable/cached with nulls, rely entirely on enhancedTickers prop
-        const hasValidQuotes = quotesData.quotes?.some((q: any) => q.price !== null);
-        console.log(`hasValidQuotes: ${hasValidQuotes}, enhancedTickers available: ${Object.keys(enhancedTickers).length}`);
+        console.log('✅ Quotes fetched:', quotesData);
 
         // Step 3: Update each element with capability-aware rendering
         quoteElements.forEach(el => {
@@ -175,21 +171,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           const existingSymbol = el.querySelector('.ticker-symbol');
           if (existingSymbol) existingSymbol.remove();
 
-          // Prioritize enhancedTickers (stored data), then try live quotes
-          let priceData = null;
-          if (enhancedTickers[sym] && enhancedTickers[sym].price !== null) {
-            priceData = { 
-              price: enhancedTickers[sym].price, 
-              change: enhancedTickers[sym].change_24h 
-            };
-            console.log(`Using stored price for ${sym}: $${priceData.price}`);
-          } else if (quote && quote.price !== null) {
-            priceData = { price: quote.price, change: quote.change24h };
-            console.log(`Using live price for ${sym}: $${priceData.price}`);
-          }
-
-          // Only show parentheses with price if price_ok AND we have price data
-          if (capability.price_ok && priceData && priceData.price !== null) {
+          // Only show parentheses with price if price_ok AND we have a quote
+          if (capability.price_ok && quote && quote.price !== null) {
             const symbolSpan = document.createElement('span');
             symbolSpan.className = 'ticker-symbol font-semibold';
             
@@ -204,18 +187,15 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
               return `${sign}${change.toFixed(2)}%`;
             };
 
-            if (priceData.change !== null && priceData.change !== undefined) {
-              const isPositive = priceData.change >= 0;
-              const changeColor = isPositive ? '#26a269' : '#c01c28';
-              symbolSpan.innerHTML = ` (${capability.displaySymbol || sym} $${formatPrice(priceData.price)} <span style="color: ${changeColor}">${formatChange(priceData.change)}</span>)`;
-            } else {
-              symbolSpan.innerHTML = ` (${capability.displaySymbol || sym} $${formatPrice(priceData.price)})`;
-            }
+            const isPositive = quote.change24h >= 0;
+            const changeColor = isPositive ? '#26a269' : '#c01c28';
+
+            symbolSpan.innerHTML = ` (${capability.displaySymbol || sym} $${formatPrice(quote.price)} <span style="color: ${changeColor}">${formatChange(quote.change24h)}</span>)`;
             nameSpan.after(symbolSpan);
             
-            console.log(`✅ Updated ${sym} with price $${priceData.price}`);
+            console.log(`✅ Updated ${sym} with price $${quote.price}`);
           } else if (capability.price_ok) {
-            // price_ok but no price data - show loading
+            // price_ok but no quote data - show loading
             const symbolSpan = document.createElement('span');
             symbolSpan.className = 'ticker-symbol text-muted-foreground';
             symbolSpan.textContent = ` (${capability.displaySymbol || sym} ...)`;

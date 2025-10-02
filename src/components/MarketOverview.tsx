@@ -17,14 +17,6 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
   }
 
   const data = marketData.content_sections.market_data;
-  
-  // Hide completely if all key metrics are zero/empty
-  const hasData = data.total_market_cap > 0 || data.total_volume > 0 || 
-                  data.fear_greed_index > 0 || data.biggest_mover;
-  
-  if (!hasData) {
-    return null; // Don't render anything if no data
-  }
 
   const handleCryptoNavigation = () => {
     navigate('/crypto');

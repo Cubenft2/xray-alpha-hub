@@ -38,11 +38,6 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
   const gainers: TopMover[] = data.top_gainers || [];
   const losers: TopMover[] = data.top_losers || [];
   const trending: TrendingCoin[] = data.trending_coins || [];
-  
-  // Hide completely if all sections are empty
-  if (gainers.length === 0 && losers.length === 0 && trending.length === 0) {
-    return null;
-  }
 
   const formatPrice = (price: number) => {
     if (price < 0.01) return `$${price.toFixed(6)}`;
