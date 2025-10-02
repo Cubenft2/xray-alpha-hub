@@ -10,13 +10,13 @@ export function GenerateBrief() {
   const [generating, setGenerating] = useState(false);
   const navigate = useNavigate();
 
-  const handleGenerateBrief = async () => {
+  const handleGenerateBrief = async (briefType: 'morning' | 'evening' | 'weekend') => {
     setGenerating(true);
     try {
-      console.log('🚀 Generating market brief with Symbol Intelligence Layer...');
+      console.log(`🚀 Generating ${briefType} brief with Symbol Intelligence Layer...`);
       
       const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
-        body: {}
+        body: { briefType }
       });
       
       if (error) {
@@ -26,7 +26,7 @@ export function GenerateBrief() {
       }
       
       console.log('✅ Brief generated:', data);
-      toast.success('Market brief generated successfully!');
+      toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated successfully!`);
       
       // Navigate to the home page to see the new brief
       setTimeout(() => {
@@ -65,15 +65,39 @@ export function GenerateBrief() {
               <li><strong>Pending Queue:</strong> Low-confidence matches added to pending_ticker_mappings</li>
             </ul>
             
-            <Button 
-              onClick={handleGenerateBrief} 
-              disabled={generating}
-              className="w-full"
-              size="lg"
-            >
-              {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {generating ? 'Generating Brief...' : 'Generate New Market Brief'}
-            </Button>
+            <div className="grid gap-3">
+              <Button 
+                onClick={() => handleGenerateBrief('morning')} 
+                disabled={generating}
+                className="w-full"
+                size="lg"
+              >
+                {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {generating ? 'Generating...' : '🌅 Generate Morning Brief'}
+              </Button>
+              
+              <Button 
+                onClick={() => handleGenerateBrief('evening')} 
+                disabled={generating}
+                variant="secondary"
+                className="w-full"
+                size="lg"
+              >
+                {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {generating ? 'Generating...' : '🌆 Generate Evening Brief'}
+              </Button>
+              
+              <Button 
+                onClick={() => handleGenerateBrief('weekend')} 
+                disabled={generating}
+                variant="outline"
+                className="w-full"
+                size="lg"
+              >
+                {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {generating ? 'Generating...' : '📅 Generate Weekly Recap'}
+              </Button>
+            </div>
             
             <p className="text-xs text-muted-foreground mt-4">
               <strong>Note:</strong> Generation takes 30-60 seconds. You'll be redirected to view the new brief when complete.
