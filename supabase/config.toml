@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.quotes]
 verify_jwt = false
+
+[functions.refresh-brief-data]
+verify_jwt = false

@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function GenerateBrief() {
   const [generating, setGenerating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const navigate = useNavigate();
 
   const handleGenerateBrief = async () => {
@@ -41,6 +42,51 @@ export function GenerateBrief() {
     }
   };
 
+  const handleRefreshData = async () => {
+    setRefreshing(true);
+    try {
+      // Fetch latest brief
+      const { data: briefs, error: fetchError } = await supabase
+        .from('market_briefs')
+        .select('id')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (fetchError || !briefs || briefs.length === 0) {
+        toast.error('No brief found to refresh');
+        return;
+      }
+
+      const briefId = briefs[0].id;
+      
+      console.log('🔄 Refreshing market data for brief:', briefId);
+      
+      const { data, error } = await supabase.functions.invoke('refresh-brief-data', {
+        body: { briefId }
+      });
+      
+      if (error) {
+        console.error('Data refresh error:', error);
+        toast.error('Failed to refresh data');
+        return;
+      }
+      
+      console.log('✅ Data refreshed:', data);
+      toast.success('Market data refreshed successfully!');
+      
+      // Navigate to the home page to see updated brief
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Data refresh error:', error);
+      toast.error('Failed to refresh data');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <div className="container mx-auto p-8">
       <Card>
@@ -65,18 +111,32 @@ export function GenerateBrief() {
               <li><strong>Pending Queue:</strong> Low-confidence matches added to pending_ticker_mappings</li>
             </ul>
             
-            <Button 
-              onClick={handleGenerateBrief} 
-              disabled={generating}
-              className="w-full"
-              size="lg"
-            >
-              {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {generating ? 'Generating Brief...' : 'Generate New Market Brief'}
-            </Button>
+            <div className="grid gap-3">
+              <Button 
+                onClick={handleGenerateBrief} 
+                disabled={generating || refreshing}
+                className="w-full"
+                size="lg"
+              >
+                {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {generating ? 'Generating Brief...' : 'Generate New Market Brief'}
+              </Button>
+              
+              <Button 
+                onClick={handleRefreshData} 
+                disabled={generating || refreshing}
+                variant="outline"
+                className="w-full"
+                size="lg"
+              >
+                {refreshing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {!refreshing && <RefreshCw className="mr-2 h-4 w-4" />}
+                {refreshing ? 'Refreshing Data...' : 'Refresh Latest Brief Data (No AI Cost)'}
+              </Button>
+            </div>
             
             <p className="text-xs text-muted-foreground mt-4">
-              <strong>Note:</strong> Generation takes 30-60 seconds. You'll be redirected to view the new brief when complete.
+              <strong>Note:</strong> "Generate New" creates a full brief with AI analysis. "Refresh Data" updates market/social panels without re-running AI (free).
             </p>
           </div>
         </CardContent>

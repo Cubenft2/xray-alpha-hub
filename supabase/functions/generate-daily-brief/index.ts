@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { fetchWithRetry } from '../_shared/retry-utils.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,6 +40,14 @@ interface LunarCrushAsset {
   fomo_score: number;
 }
 
+interface ProviderStatus {
+  provider: string;
+  success: boolean;
+  attempts: number;
+  error?: string;
+  records?: number;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -53,6 +62,10 @@ serve(async (req) => {
 
     console.log(`🚀 Starting ${isWeekendBrief ? 'comprehensive WEEKLY' : 'comprehensive daily'} market data collection...`, { briefType });
     
+    // Track provider statuses for audit
+    const providerStatuses: ProviderStatus[] = [];
+    const missingSymbols: string[] = [];
+    
     // Add try-catch around API calls to identify which one is failing
     let newsData = { crypto: [], stocks: [] };
     let coingeckoData: CoinGeckoData[] = [];
@@ -65,41 +78,88 @@ serve(async (req) => {
       const newsResponse = await supabase.functions.invoke('news-fetch', { body: { limit: 50 } });
       if (!newsResponse.error) {
         newsData = newsResponse.data || { crypto: [], stocks: [] };
+        providerStatuses.push({
+          provider: 'news_fetch',
+          success: true,
+          attempts: 1,
+          records: (newsData.crypto?.length || 0) + (newsData.stocks?.length || 0)
+        });
         console.log('✅ News data fetched successfully');
+      } else {
+        providerStatuses.push({
+          provider: 'news_fetch',
+          success: false,
+          attempts: 1,
+          error: newsResponse.error.message
+        });
       }
     } catch (err) {
       console.error('❌ News fetch failed:', err);
+      providerStatuses.push({
+        provider: 'news_fetch',
+        success: false,
+        attempts: 1,
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
 
     try {
       console.log(`🪙 Fetching CoinGecko market data ${isWeekendBrief ? '(with enhanced weekly metrics)' : ''}...`);
-      // Fetch 250 coins to ensure we have enough losers even in bullish markets
-      const coingeckoResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d`, {
-        headers: { 'x-cg-pro-api-key': coingeckoApiKey }
-      });
+      // Fetch 250 coins with retry to ensure we have enough losers even in bullish markets
+      const coingeckoResponse = await fetchWithRetry(
+        `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d`,
+        { headers: { 'x-cg-pro-api-key': coingeckoApiKey } },
+        { maxRetries: 3, initialDelayMs: 2000 }
+      );
       if (coingeckoResponse.ok) {
         coingeckoData = await coingeckoResponse.json();
+        providerStatuses.push({
+          provider: 'coingecko',
+          success: true,
+          attempts: 1,
+          records: coingeckoData.length
+        });
         console.log('✅ CoinGecko data fetched successfully:', coingeckoData.length, 'coins');
       } else {
-        console.error('❌ CoinGecko API error:', coingeckoResponse.status, coingeckoResponse.statusText);
+        throw new Error(`CoinGecko API error: ${coingeckoResponse.status} ${coingeckoResponse.statusText}`);
       }
     } catch (err) {
       console.error('❌ CoinGecko fetch failed:', err);
+      providerStatuses.push({
+        provider: 'coingecko',
+        success: false,
+        attempts: 3,
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
 
     try {
       console.log('📈 Fetching trending coins...');
-      const trendingResponse = await fetch(`https://api.coingecko.com/api/v3/search/trending`, {
-        headers: { 'x-cg-pro-api-key': coingeckoApiKey }
-      });
+      const trendingResponse = await fetchWithRetry(
+        `https://api.coingecko.com/api/v3/search/trending`,
+        { headers: { 'x-cg-pro-api-key': coingeckoApiKey } },
+        { maxRetries: 3, initialDelayMs: 2000 }
+      );
       if (trendingResponse.ok) {
         trendingData = await trendingResponse.json();
+        providerStatuses.push({
+          provider: 'coingecko_trending',
+          success: true,
+          attempts: 1,
+          records: trendingData.coins?.length || 0
+        });
         console.log('✅ Trending data fetched successfully');
       } else {
-        console.error('❌ Trending API error:', trendingResponse.status, trendingResponse.statusText);
+        throw new Error(`Trending API error: ${trendingResponse.status}`);
       }
     } catch (err) {
       console.error('❌ Trending fetch failed:', err);
+      providerStatuses.push({
+        provider: 'coingecko_trending',
+        success: false,
+        attempts: 3,
+        error: err instanceof Error ? err.message : 'Unknown error'
+      });
     }
 
     try {
@@ -581,6 +641,33 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
 
     console.log('💾 Storing comprehensive market brief...');
     
+    // === PRE-PUBLISH VALIDATION ===
+    const hasValidMarketOverview = totalMarketCap > 0 && totalVolume > 0;
+    const hasValidMovers = topGainers.length > 0 && topLosers.length > 0;
+    const hasValidSocial = lunarcrushData.data && lunarcrushData.data.length > 0;
+    
+    if (!hasValidMarketOverview) {
+      console.warn('⚠️ WARNING: Market overview data is empty or invalid');
+    }
+    if (!hasValidMovers) {
+      console.warn('⚠️ WARNING: Top movers data is empty');
+    }
+    if (!hasValidSocial) {
+      console.warn('⚠️ WARNING: Social sentiment data is empty');
+    }
+    
+    // Only proceed if at least CoinGecko data is available
+    if (coingeckoData.length === 0) {
+      throw new Error('CRITICAL: Cannot publish brief - no market data available. CoinGecko fetch failed.');
+    }
+    
+    console.log('✅ Pre-publish validation passed:', {
+      marketOverview: hasValidMarketOverview,
+      movers: hasValidMovers,
+      social: hasValidSocial,
+      coins: coingeckoData.length
+    });
+    
     const { data: briefData, error: insertError } = await supabase
       .from('market_briefs')
       .insert({
@@ -752,6 +839,16 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
       throw new Error('Failed to store market brief');
     }
 
+    // Create audit log
+    await supabase
+      .from('market_brief_audits')
+      .insert({
+        brief_id: briefData.id,
+        provider_status: providerStatuses,
+        missing_symbols: missingSymbols,
+        notes: `Generated ${briefType} brief`
+      });
+
     console.log('✅ Comprehensive market brief generated successfully!', {
       id: briefData.id,
       title: briefData.title,
@@ -768,6 +865,10 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
         social_assets: lunarcrushData.data?.length || 0,
         news_articles: (newsData.crypto?.length || 0) + (newsData.stocks?.length || 0),
         fear_greed: `${currentFearGreed.value}/100 (${currentFearGreed.value_classification})`
+      },
+      audit: {
+        providerStatuses,
+        missingSymbols
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
