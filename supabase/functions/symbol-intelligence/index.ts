@@ -31,9 +31,14 @@ interface ValidationResponse {
   cached: boolean;
 }
 
-// Normalize symbol for consistent matching
-function normalize(symbol: string): string {
-  return symbol.toUpperCase().trim().replace(/[^A-Z0-9]/g, '');
+// Use database norm_symbol function for consistent normalization
+async function normalize(supabase: any, symbol: string): Promise<string> {
+  const { data, error } = await supabase.rpc('norm_symbol', { raw_symbol: symbol });
+  if (error) {
+    console.warn('Error normalizing symbol:', error);
+    return symbol.toUpperCase().trim().replace(/[\s\-\.]/g, '_');
+  }
+  return data as string;
 }
 
 // Calculate string similarity (Levenshtein distance ratio)
@@ -108,7 +113,7 @@ Deno.serve(async (req) => {
 
     // Process each symbol
     for (const rawSymbol of symbols) {
-      const normalized = normalize(rawSymbol);
+      const normalized = await normalize(supabase, rawSymbol);
       console.log(`Processing: ${rawSymbol} → ${normalized}`);
 
       // Step 1: Check ticker_mappings (exact match on symbol or aliases)
@@ -117,7 +122,7 @@ Deno.serve(async (req) => {
         .select('*')
         .or(`symbol.eq.${normalized},aliases.cs.{${normalized}}`)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (mapping) {
         console.log(`✓ Found in ticker_mappings: ${mapping.symbol}`);
@@ -135,7 +140,7 @@ Deno.serve(async (req) => {
             .or(`symbol.eq.${mapping.symbol}USDT,symbol.eq.${mapping.symbol}USD`)
             .eq('is_active', true)
             .limit(1)
-            .single();
+            .maybeSingle();
           
           if (exchangePair) {
             tv_ok = true;
@@ -161,6 +166,32 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Check if already pending - just increment seen_count
+      const { data: existingPending } = await supabase
+        .from('pending_ticker_mappings')
+        .select('*')
+        .eq('normalized_symbol', normalized)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (existingPending) {
+        console.log(`📊 Incrementing seen_count for existing pending: ${rawSymbol}`);
+        await supabase
+          .from('pending_ticker_mappings')
+          .update({ 
+            seen_count: (existingPending.seen_count || 0) + 1,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingPending.id);
+        
+        missing.push({
+          symbol: rawSymbol,
+          normalized,
+          reason: `Already in pending queue (seen ${(existingPending.seen_count || 0) + 1} times)`,
+        });
+        continue;
+      }
+
       // Step 2: Check cg_master (exact symbol match, then fuzzy name match)
       const { data: cgExact } = await supabase
         .from('cg_master')
@@ -171,11 +202,22 @@ Deno.serve(async (req) => {
 
       let bestMatch = null;
       let bestConfidence = 0.0;
+      let matchType = 'no_match';
 
       if (cgExact && cgExact.length > 0) {
         // Exact symbol match
         bestMatch = cgExact[0];
-        bestConfidence = cgExact.length === 1 ? 1.0 : 0.85;
+        matchType = 'exact_symbol';
+        
+        // Calculate confidence using database function
+        const { data: conf } = await supabase.rpc('calculate_confidence', {
+          p_match_type: matchType,
+          p_name_similarity: 0,
+          p_has_alias: false,
+          p_tv_validated: false
+        });
+        bestConfidence = conf || 0.70;
+        
         console.log(`  ✓ Found exact symbol in cg_master: ${bestMatch.cg_id} (${bestMatch.name})`);
       } else {
         // Fuzzy name match
@@ -186,41 +228,54 @@ Deno.serve(async (req) => {
 
         if (cgAll) {
           for (const coin of cgAll) {
-            const nameSim = similarity(normalized, normalize(coin.name));
+            const nameSim = similarity(rawSymbol.toLowerCase(), coin.name.toLowerCase());
             if (nameSim > bestConfidence) {
               bestConfidence = nameSim;
               bestMatch = coin;
             }
           }
-        }
-
-        if (bestMatch) {
-          console.log(`  ~ Fuzzy match: ${bestMatch.cg_id} (${bestMatch.name}) confidence=${bestConfidence.toFixed(2)}`);
+          
+          if (bestMatch && bestConfidence >= 0.75) {
+            matchType = 'fuzzy_name';
+            // Calculate confidence
+            const { data: conf } = await supabase.rpc('calculate_confidence', {
+              p_match_type: matchType,
+              p_name_similarity: bestConfidence,
+              p_has_alias: false,
+              p_tv_validated: false
+            });
+            bestConfidence = conf || bestConfidence;
+            
+            console.log(`  ~ Fuzzy match: ${bestMatch.cg_id} (${bestMatch.name}) confidence=${bestConfidence.toFixed(2)}`);
+          }
         }
       }
 
       if (bestMatch && bestConfidence >= 0.5) {
         // Check if we should auto-insert into ticker_mappings
-        if (bestConfidence >= 0.9) {
+        if (bestConfidence >= 0.9 && matchType === 'exact_symbol') {
           // High confidence - auto-insert
           const newMapping = {
             symbol: normalized,
-            display_name: `${bestMatch.name} (${normalized})`,
+            display_name: bestMatch.name,
             type: 'crypto',
             coingecko_id: bestMatch.cg_id,
-            tradingview_symbol: null,
+            tradingview_symbol: `CRYPTO:${normalized}USDT`,
             price_supported: true,
             tradingview_supported: false,
             derivs_supported: false,
             social_supported: false,
+            aliases: rawSymbol !== normalized ? [rawSymbol] : [],
             is_active: true,
           };
 
-          const { error: insertError } = await supabase
+          const { data: inserted, error: insertError } = await supabase
             .from('ticker_mappings')
-            .insert(newMapping);
+            .insert(newMapping)
+            .select()
+            .single();
 
-          if (!insertError) {
+          if (!insertError && inserted) {
             console.log(`  ✓ Auto-inserted into ticker_mappings with confidence ${bestConfidence.toFixed(2)}`);
             results.push({
               symbol: rawSymbol,
@@ -237,49 +292,59 @@ Deno.serve(async (req) => {
             });
             continue;
           }
-        } else {
-          // Lower confidence - add to pending
-          const { error: pendingError } = await supabase
-            .from('pending_ticker_mappings')
-            .insert({
-              symbol: rawSymbol,
-              normalized_symbol: normalized,
-              display_name: `${bestMatch.name} (${normalized})`,
-              coingecko_id: bestMatch.cg_id,
-              confidence_score: bestConfidence,
-              status: 'pending',
-              context: {
-                cg_name: bestMatch.name,
-                cg_symbol: bestMatch.symbol,
-                match_type: 'fuzzy_name',
-              },
-            });
-
-          if (!pendingError) {
-            console.log(`  → Added to pending_ticker_mappings with confidence ${bestConfidence.toFixed(2)}`);
-          }
-
-          missing.push({
-            symbol: rawSymbol,
-            normalized,
-            reason: `Low confidence match (${(bestConfidence * 100).toFixed(0)}%) - added to pending queue`,
-          });
-          continue;
         }
+        
+        // Lower confidence or failed insert - add to pending with upsert
+        console.log(`  → Adding to pending_ticker_mappings with confidence ${bestConfidence.toFixed(2)}`);
+        await supabase
+          .from('pending_ticker_mappings')
+          .upsert({
+            symbol: rawSymbol,
+            normalized_symbol: normalized,
+            display_name: bestMatch.name,
+            coingecko_id: bestMatch.cg_id,
+            confidence_score: bestConfidence,
+            match_type: matchType,
+            status: 'pending',
+            seen_count: 1,
+            context: {
+              cg_name: bestMatch.name,
+              cg_symbol: bestMatch.symbol,
+              match_type: matchType,
+              added_at: new Date().toISOString(),
+            },
+          }, {
+            onConflict: 'normalized_symbol',
+            ignoreDuplicates: false,
+          });
+
+        missing.push({
+          symbol: rawSymbol,
+          normalized,
+          reason: `Match found (${(bestConfidence * 100).toFixed(0)}%) - added to pending queue`,
+        });
+        continue;
       }
 
-      // Step 3: Not found anywhere
+      // Step 3: Not found anywhere - add to pending
       console.log(`  ✗ Not found: ${rawSymbol}`);
       
-      // Log to pending_ticker_mappings
       await supabase
         .from('pending_ticker_mappings')
-        .insert({
+        .upsert({
           symbol: rawSymbol,
           normalized_symbol: normalized,
           confidence_score: 0.0,
+          match_type: 'no_match',
           status: 'pending',
-          context: { match_type: 'none' },
+          seen_count: 1,
+          context: { 
+            match_type: 'none',
+            added_at: new Date().toISOString(),
+          },
+        }, {
+          onConflict: 'normalized_symbol',
+          ignoreDuplicates: false,
         });
 
       missing.push({

@@ -17,7 +17,11 @@ interface PendingMapping {
   polygon_ticker: string | null;
   aliases: string[] | null;
   confidence_score: number;
+  match_type: string | null;
   status: string;
+  seen_count: number;
+  auto_approved: boolean | null;
+  validation_notes: string | null;
   context: any;
   created_at: string;
 }
@@ -27,18 +31,32 @@ export function PendingTickerMappings() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<PendingMapping>>({});
+  
+  // Filters
+  const [minConfidence, setMinConfidence] = useState<number>(0);
+  const [matchTypeFilter, setMatchTypeFilter] = useState<string>('all');
+  const [minSeenCount, setMinSeenCount] = useState<number>(0);
 
   useEffect(() => {
     fetchPending();
-  }, []);
+  }, [minConfidence, matchTypeFilter, minSeenCount]);
 
   const fetchPending = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('pending_ticker_mappings')
         .select('*')
         .eq('status', 'pending')
+        .gte('confidence_score', minConfidence)
+        .gte('seen_count', minSeenCount);
+
+      if (matchTypeFilter !== 'all') {
+        query = query.eq('match_type', matchTypeFilter);
+      }
+
+      const { data, error } = await query
+        .order('seen_count', { ascending: false })
         .order('confidence_score', { ascending: false })
         .order('created_at', { ascending: false });
 
@@ -47,6 +65,26 @@ export function PendingTickerMappings() {
     } catch (error) {
       console.error('Error fetching pending mappings:', error);
       toast.error('Failed to load pending mappings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    if (!confirm('Auto-approve all high-confidence exact matches?')) return;
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('auto_approve_pending_mappings');
+
+      if (error) throw error;
+
+      const result = data[0];
+      toast.success(`Approved ${result.approved_count} mappings, rejected ${result.rejected_count}`);
+      fetchPending();
+    } catch (error: any) {
+      console.error('Error bulk approving:', error);
+      toast.error(error.message || 'Failed to bulk approve');
     } finally {
       setLoading(false);
     }
@@ -143,13 +181,82 @@ export function PendingTickerMappings() {
   }
 
   return (
-    <div className="container mx-auto p-8">
+    <div className="container mx-auto p-8 space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold">Pending Ticker Mappings</h1>
+          <p className="text-sm text-muted-foreground">{pending.length} pending mappings</p>
+        </div>
+        <div className="flex gap-2">
+          <Button onClick={handleApproveAll} disabled={loading}>
+            Approve All Exact Matches
+          </Button>
+          <Button onClick={fetchPending} variant="outline" disabled={loading}>
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Pending Ticker Mappings</CardTitle>
-          <CardDescription>
-            Review and approve ticker mappings that need manual verification
-          </CardDescription>
+          <CardTitle className="text-lg">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label>Min Confidence</Label>
+              <Input
+                type="number"
+                min="0"
+                max="1"
+                step="0.1"
+                value={minConfidence}
+                onChange={(e) => setMinConfidence(parseFloat(e.target.value) || 0)}
+              />
+            </div>
+            <div>
+              <Label>Match Type</Label>
+              <select
+                className="w-full border rounded px-3 py-2"
+                value={matchTypeFilter}
+                onChange={(e) => setMatchTypeFilter(e.target.value)}
+              >
+                <option value="all">All</option>
+                <option value="exact_symbol">Exact Symbol</option>
+                <option value="fuzzy_name">Fuzzy Name</option>
+                <option value="no_match">No Match</option>
+              </select>
+            </div>
+            <div>
+              <Label>Min Seen Count</Label>
+              <Input
+                type="number"
+                min="0"
+                value={minSeenCount}
+                onChange={(e) => setMinSeenCount(parseInt(e.target.value) || 0)}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button 
+                onClick={() => { 
+                  setMinConfidence(0); 
+                  setMatchTypeFilter('all'); 
+                  setMinSeenCount(0); 
+                }} 
+                variant="outline"
+              >
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pending list */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Review Queue</CardTitle>
         </CardHeader>
         <CardContent>
           {pending.length === 0 ? (
@@ -202,14 +309,22 @@ export function PendingTickerMappings() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <div>
-                            <h3 className="font-semibold text-lg">{mapping.symbol}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-lg">{mapping.symbol}</h3>
+                              <Badge variant={mapping.confidence_score >= 0.9 ? 'default' : mapping.confidence_score >= 0.7 ? 'secondary' : 'destructive'}>
+                                {(mapping.confidence_score * 100).toFixed(0)}% confidence
+                              </Badge>
+                              {mapping.match_type && (
+                                <Badge variant="outline">{mapping.match_type}</Badge>
+                              )}
+                              {mapping.seen_count > 1 && (
+                                <Badge className="bg-blue-600">Seen {mapping.seen_count}x</Badge>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground">
-                              Normalized: {mapping.normalized_symbol}
+                              Normalized: <span className="font-mono">{mapping.normalized_symbol}</span>
                             </p>
                           </div>
-                          <Badge variant={mapping.confidence_score >= 0.9 ? 'default' : 'secondary'}>
-                            {(mapping.confidence_score * 100).toFixed(0)}% confidence
-                          </Badge>
                         </div>
                         
                         {mapping.display_name && (
