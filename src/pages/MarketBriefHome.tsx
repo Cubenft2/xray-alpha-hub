@@ -126,6 +126,22 @@ export default function MarketBriefHome() {
   };
 
 
+  // Auto-trigger generation on mount if needed
+  useEffect(() => {
+    const autoGenerate = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('generate') === 'true') {
+        setGenerating(true);
+        try {
+          await generateFreshBrief();
+        } catch (error) {
+          console.error('Auto-generation failed:', error);
+        }
+      }
+    };
+    autoGenerate();
+  }, []);
+
   useEffect(() => {
     const fetchBrief = async () => {
       try {
@@ -181,8 +197,9 @@ export default function MarketBriefHome() {
         );
         
         if (!hasValidMarketData && !date) {
-          console.log('ℹ️ Market data empty — showing article with sections hidden. Use Regenerate if needed.');
-          // No return here; continue to render existing brief to avoid stuck loading state
+          console.log('🚀 Market data empty — auto-generating fresh brief with LunarCrush...');
+          await generateFreshBrief();
+          return; // Wait for reload
         }
         // If an admin audit block accidentally leaked into the article, regenerate a clean brief (no button)
         if (!date) {
