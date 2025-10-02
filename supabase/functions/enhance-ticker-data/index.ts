@@ -96,7 +96,13 @@ serve(async (req) => {
             try {
               // Search for the coin first to get its ID
               const searchResponse = await fetch(
-                `https://api.coingecko.com/api/v3/search?query=${ticker.symbol}&x_cg_demo_api_key=${coingeckoApiKey}`
+                `https://api.coingecko.com/api/v3/search?query=${ticker.symbol}`,
+                {
+                  headers: {
+                    'x-cg-pro-api-key': coingeckoApiKey,
+                    'accept': 'application/json'
+                  }
+                }
               );
               
               if (searchResponse.ok) {
@@ -108,7 +114,13 @@ serve(async (req) => {
                 if (coin) {
                   // Get market data using coin ID
                   const marketResponse = await fetch(
-                    `https://api.coingecko.com/api/v3/simple/price?ids=${coin.id}&vs_currencies=usd&include_24hr_change=true&x_cg_demo_api_key=${coingeckoApiKey}`
+                    `https://api.coingecko.com/api/v3/simple/price?ids=${coin.id}&vs_currencies=usd&include_24hr_change=true`,
+                    {
+                      headers: {
+                        'x-cg-pro-api-key': coingeckoApiKey,
+                        'accept': 'application/json'
+                      }
+                    }
                   );
                   
                   if (marketResponse.ok) {
@@ -165,7 +177,13 @@ serve(async (req) => {
           
           try {
             const fallbackResponse = await fetch(
-              `https://api.coingecko.com/api/v3/simple/price?ids=${fallbackIds}&vs_currencies=usd&include_24hr_change=true&x_cg_demo_api_key=${coingeckoApiKey}`
+              `https://api.coingecko.com/api/v3/simple/price?ids=${fallbackIds}&vs_currencies=usd&include_24hr_change=true`,
+              {
+                headers: {
+                  'x-cg-pro-api-key': coingeckoApiKey,
+                  'accept': 'application/json'
+                }
+              }
             );
             
             if (fallbackResponse.ok) {
