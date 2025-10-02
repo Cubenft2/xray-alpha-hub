@@ -64,7 +64,7 @@ serve(async (req) => {
     
     // Track provider statuses for audit
     const providerStatuses: ProviderStatus[] = [];
-    const missingSymbols: string[] = [];
+    let missingSymbols: string[] = [];
     
     // Add try-catch around API calls to identify which one is failing
     let newsData = { crypto: [], stocks: [] };
@@ -519,7 +519,6 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
     console.log('📊 Found', uniqueSymbols.length, 'symbols in content:', uniqueSymbols);
     
     // Validate symbols and warm cache - build audit data
-    let missingSymbols: string[] = [];
     let auditData: any[] = [];
     
     if (uniqueSymbols.length > 0) {
