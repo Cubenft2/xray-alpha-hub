@@ -667,17 +667,42 @@ export default function MarketBriefHome() {
               </div>
             ) : (
               <div className="border-t border-border pt-6 mb-6">
-                <Card className="xr-card">
-                  <CardContent className="p-6 text-center">
-                    <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Comprehensive Market Data Unavailable</h3>
-                    <p className="text-muted-foreground">
-                      Preparing today's comprehensive brief... This may take 10–20 seconds.
+                <Card className="xr-card border-primary/50 bg-primary/5">
+                  <CardContent className="p-8 text-center">
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-primary/10 blur-2xl rounded-full"></div>
+                      <DollarSign className="w-16 h-16 text-primary mx-auto mb-4 relative animate-pulse" />
+                    </div>
+                    <h3 className="text-xl font-bold mb-3 xr-gradient-text">Ready to Generate Full Market Data</h3>
+                    <p className="text-muted-foreground mb-2">
+                      Click below to generate today's comprehensive brief with:
                     </p>
-                    <div className="mt-4">
-                      <Button size="sm" onClick={generateComprehensiveBrief} disabled={generating}>
-                        {generating ? 'Generating…' : 'Regenerate Now'}
+                    <ul className="text-sm text-muted-foreground mb-6 inline-block text-left">
+                      <li>✓ Live market cap & volume data</li>
+                      <li>✓ Top gainers & losers analysis</li>
+                      <li>✓ Social sentiment from LunarCrush</li>
+                      <li>✓ Fear & Greed Index</li>
+                    </ul>
+                    <div className="flex flex-col gap-3 items-center">
+                      <Button 
+                        size="lg" 
+                        onClick={generateComprehensiveBrief} 
+                        disabled={generating}
+                        className="btn-hero text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all"
+                      >
+                        {generating ? (
+                          <>
+                            <div className="w-5 h-5 mr-2 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            Generating Brief...
+                          </>
+                        ) : (
+                          <>
+                            <TrendingUp className="w-5 h-5 mr-2" />
+                            Generate Full Brief Now
+                          </>
+                        )}
                       </Button>
+                      <p className="text-xs text-muted-foreground">Takes 10–20 seconds • Page will reload when complete</p>
                     </div>
                   </CardContent>
                 </Card>
