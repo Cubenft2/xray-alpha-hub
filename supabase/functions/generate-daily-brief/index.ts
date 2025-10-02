@@ -76,6 +76,27 @@ serve(async (req) => {
       console.error('❌ News fetch failed:', err);
     }
 
+    // Fetch global market data for accurate totals
+    let globalMarketData: any = null;
+    try {
+      console.log('🌍 Fetching CoinGecko global market data...');
+      const globalResponse = await fetch(`https://api.coingecko.com/api/v3/global`, {
+        headers: {
+          'x-cg-pro-api-key': coingeckoApiKey,
+          'accept': 'application/json'
+        }
+      });
+      if (globalResponse.ok) {
+        const globalJson = await globalResponse.json();
+        globalMarketData = globalJson.data;
+        console.log('✅ Global market data fetched successfully');
+      } else {
+        console.error('❌ CoinGecko global API error:', globalResponse.status, globalResponse.statusText);
+      }
+    } catch (err) {
+      console.error('❌ Global market data fetch failed:', err);
+    }
+
     try {
       console.log(`🪙 Fetching CoinGecko market data ${isWeekendBrief ? '(with enhanced weekly metrics)' : ''}...`);
       // Fetch 250 coins to ensure we have enough losers even in bullish markets
@@ -383,9 +404,17 @@ serve(async (req) => {
     const yesterdayFearGreed = fearGreedArray[1] || currentFearGreed;
     const fearGreedTrend = currentFearGreed.value - yesterdayFearGreed.value;
 
-    // Get total market cap and volume
-    const totalMarketCap = coingeckoData.reduce((sum, coin) => sum + (coin.market_cap || 0), 0);
-    const totalVolume = coingeckoData.reduce((sum, coin) => sum + (coin.total_volume || 0), 0);
+    // Get total market cap and volume from global data or fallback to sum
+    const totalMarketCap = globalMarketData?.total_market_cap?.usd || 
+      coingeckoData.reduce((sum, coin) => sum + (coin.market_cap || 0), 0);
+    const totalVolume = globalMarketData?.total_volume?.usd || 
+      coingeckoData.reduce((sum, coin) => sum + (coin.total_volume || 0), 0);
+    
+    console.log('💰 Market totals:', {
+      marketCap: `$${(totalMarketCap / 1e12).toFixed(2)}T`,
+      volume: `$${(totalVolume / 1e9).toFixed(2)}B`,
+      source: globalMarketData ? 'global API' : 'coin sum'
+    });
 
     // Stoic quotes rotation
     const stoicQuotes = [
