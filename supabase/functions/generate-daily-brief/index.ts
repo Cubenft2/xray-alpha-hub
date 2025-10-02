@@ -58,6 +58,26 @@ serve(async (req) => {
     const briefType = requestBody.briefType || requestBody.session || 'premarket';
     const isWeekendBrief = briefType === 'weekend';
     
+    // Verify all required environment variables
+    const requiredEnvVars = {
+      SUPABASE_URL: supabaseUrl,
+      SUPABASE_SERVICE_ROLE_KEY: supabaseServiceKey ? '✓ SET' : '✗ MISSING',
+      OPENAI_API_KEY: openaiApiKey ? '✓ SET' : '✗ MISSING',
+      COINGECKO_API_KEY: coingeckoApiKey ? '✓ SET' : '✗ MISSING',
+      LUNARCRUSH_API_KEY: lunarcrushApiKey ? '✓ SET' : '✗ MISSING'
+    };
+    
+    console.log('🔐 Environment variables check:', requiredEnvVars);
+    
+    // Check for missing required keys
+    const missingKeys = Object.entries(requiredEnvVars)
+      .filter(([_, value]) => value === '✗ MISSING')
+      .map(([key, _]) => key);
+    
+    if (missingKeys.length > 0) {
+      throw new Error(`Missing required environment variables: ${missingKeys.join(', ')}`);
+    }
+    
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log(`🚀 Starting ${isWeekendBrief ? 'comprehensive WEEKLY' : 'comprehensive daily'} market data collection...`, { briefType });
@@ -105,12 +125,15 @@ serve(async (req) => {
 
     try {
       console.log(`🪙 Fetching CoinGecko market data ${isWeekendBrief ? '(with enhanced weekly metrics)' : ''}...`);
+      console.log('🔑 Using API key:', coingeckoApiKey ? `${coingeckoApiKey.substring(0, 8)}...` : 'MISSING');
+      
       // Fetch 250 coins with retry to ensure we have enough losers even in bullish markets
       const coingeckoResponse = await fetchWithRetry(
         `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d`,
         { headers: { 'x-cg-pro-api-key': coingeckoApiKey } },
         { maxRetries: 3, initialDelayMs: 2000 }
       );
+      
       if (coingeckoResponse.ok) {
         coingeckoData = await coingeckoResponse.json();
         providerStatuses.push({
@@ -121,7 +144,10 @@ serve(async (req) => {
         });
         console.log('✅ CoinGecko data fetched successfully:', coingeckoData.length, 'coins');
       } else {
-        throw new Error(`CoinGecko API error: ${coingeckoResponse.status} ${coingeckoResponse.statusText}`);
+        const errorBody = await coingeckoResponse.text().catch(() => 'Unable to read response body');
+        const errorMsg = `CoinGecko API error: ${coingeckoResponse.status} ${coingeckoResponse.statusText} - ${errorBody}`;
+        console.error('❌ CoinGecko response details:', errorMsg);
+        throw new Error(errorMsg);
       }
     } catch (err) {
       console.error('❌ CoinGecko fetch failed:', err);
@@ -936,10 +962,18 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
       error_type: error instanceof Error ? error.name : 'UnknownError',
       success: false,
       timestamp: new Date().toISOString(),
+      environment_check: {
+        SUPABASE_URL: supabaseUrl ? '✓' : '✗',
+        SUPABASE_SERVICE_ROLE_KEY: supabaseServiceKey ? '✓' : '✗',
+        OPENAI_API_KEY: openaiApiKey ? '✓' : '✗',
+        COINGECKO_API_KEY: coingeckoApiKey ? '✓' : '✗',
+        LUNARCRUSH_API_KEY: lunarcrushApiKey ? '✓' : '✗'
+      },
+      provider_statuses: typeof providerStatuses !== 'undefined' ? providerStatuses : [],
       debug_info: {
         function: 'generate-daily-brief',
-        step: 'unknown',
-        message: 'Check edge function logs for detailed error information'
+        message: 'Check edge function logs for detailed error information',
+        hint: 'If CoinGecko returns 400, verify API key is valid and has correct permissions'
       }
     }), {
       status: 500,
