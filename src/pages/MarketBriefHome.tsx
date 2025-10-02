@@ -57,6 +57,18 @@ export default function MarketBriefHome() {
   ];
   const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
 
+  // Determine if market data is actually usable (not just present but empty)
+  const hasMarketData = React.useMemo(() => {
+    const md = briefData?.content_sections?.market_data;
+    return !!(md && (
+      (Number(md.total_market_cap) || 0) > 0 ||
+      (Number(md.total_volume) || 0) > 0 ||
+      (md.top_gainers && md.top_gainers.length > 0) ||
+      (md.top_losers && md.top_losers.length > 0) ||
+      (md.trending_coins && md.trending_coins.length > 0)
+    ));
+  }, [briefData]);
+
   // Fetch quotes timestamp from API
   useEffect(() => {
     const fetchQuotesTimestamp = async () => {
@@ -682,7 +694,7 @@ export default function MarketBriefHome() {
             )}
 
             {/* Market Overview Section */}
-            {briefData?.content_sections?.market_data ? (
+            {hasMarketData ? (
               <div className="border-t border-border pt-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <DollarSign className="w-5 h-5 text-primary" />
@@ -735,7 +747,7 @@ export default function MarketBriefHome() {
             )}
 
             {/* Top Movers & Trending Section */}
-            {briefData?.content_sections?.market_data && (
+            {hasMarketData && (
               <div className="border-t border-border pt-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <BarChart3 className="w-5 h-5 text-primary" />
@@ -746,7 +758,7 @@ export default function MarketBriefHome() {
             )}
 
             {/* Social Sentiment Section */}
-            {briefData?.content_sections?.market_data && (
+            {hasMarketData && (
               <div className="border-t border-border pt-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Users className="w-5 h-5 text-primary" />
