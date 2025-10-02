@@ -153,7 +153,7 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'AVANTI': { symbol: 'COINBASE:AVNTUSD', displayName: 'Avanti (AVNT)', type: 'crypto' },
   'ZBCN': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
   'ZEBEC': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
-  'MYX': { symbol: 'BINANCE:MYXUSDT', displayName: 'MYX (MYX)', type: 'crypto' },
+  'MYX': { symbol: 'MYXUSD', displayName: 'MYX (MYX)', type: 'crypto' },
 };
 
 // Index and Forex tickers
