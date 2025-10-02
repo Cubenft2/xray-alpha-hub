@@ -197,9 +197,17 @@ export default function MarketBriefHome() {
         );
         
         if (!hasValidMarketData && !date) {
-          console.log('🚀 Market data empty — auto-generating fresh brief with LunarCrush...');
-          await generateFreshBrief();
-          return; // Wait for reload
+          const COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes
+          const lastTs = Number(localStorage.getItem('brief_autogen_ts') || '0');
+          const now = Date.now();
+          if (!lastTs || now - lastTs > COOLDOWN_MS) {
+            console.log('🚀 Market data empty — auto-generating fresh brief (cooldown 10m)…');
+            localStorage.setItem('brief_autogen_ts', String(now));
+            await generateFreshBrief();
+            return; // Wait for reload
+          } else {
+            console.log('⏳ Skipping auto-generate (cooldown active). Showing current brief.');
+          }
         }
         // If an admin audit block accidentally leaked into the article, regenerate a clean brief (no button)
         if (!date) {
