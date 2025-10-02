@@ -51,6 +51,37 @@ export function useLivePrices(tickers: string[] = []) {
         }
       }
 
+      // Fallback: fetch missing symbols directly from CoinGecko (simple/price)
+      const missingSymbols = symbols.filter((s) => !transformedPrices[s.toUpperCase()]);
+      if (missingSymbols.length > 0) {
+        try {
+          const ids = [...new Set(missingSymbols.map((s) => mapSymbolToCoinId(s)))].filter(Boolean).join(',');
+          if (ids.length > 0) {
+            const resp = await fetch(
+              `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids)}&vs_currencies=usd&include_24hr_change=true`
+            );
+            if (resp.ok) {
+              const cg: Record<string, { usd?: number; usd_24h_change?: number }> = await resp.json();
+              for (const [coinId, v] of Object.entries(cg)) {
+                const sym = mapCoinIdToSymbol(coinId);
+                if (!transformedPrices[sym] && typeof v.usd === 'number') {
+                  transformedPrices[sym] = {
+                    price: v.usd,
+                    change_24h: typeof v.usd_24h_change === 'number' ? v.usd_24h_change : 0,
+                    symbol: sym,
+                    name: sym,
+                  };
+                }
+              }
+            } else {
+              console.warn('CoinGecko fallback non-200:', resp.status);
+            }
+          }
+        } catch (e) {
+          console.warn('CoinGecko fallback failed:', e);
+        }
+      }
+
       setPrices((prev) => ({
         ...prev,
         ...transformedPrices,
@@ -161,10 +192,14 @@ export function useLivePrices(tickers: string[] = []) {
       'WETH': 'weth',
       'WEETH': 'wrapped-eeth',
       'WBETH': 'wrapped-beacon-eth',
-      'FF': 'falcon-finance'
-    };
-    
-    return symbolMap[symbol.toUpperCase()] || symbol.toLowerCase();
+      'FF': 'falcon-finance',
+      'ADX': 'adex',
+      'ERG': 'ergo',
+      'ERGO': 'ergo',
+      'ZEC': 'zcash'
+      };
+      
+      return symbolMap[symbol.toUpperCase()] || symbol.toLowerCase();
   };
 
   // Map coin IDs back to ticker symbols
@@ -227,7 +262,10 @@ export function useLivePrices(tickers: string[] = []) {
       'weth': 'WETH',
       'wrapped-eeth': 'WEETH',
       'wrapped-beacon-eth': 'WBETH',
-      'falcon-finance': 'FF'
+      'falcon-finance': 'FF',
+      'adex': 'ADX',
+      'ergo': 'ERG',
+      'zcash': 'ZEC'
     };
     
     return idToSymbolMap[coinId] || coinId.toUpperCase();
