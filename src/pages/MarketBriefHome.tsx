@@ -170,7 +170,7 @@ export default function MarketBriefHome() {
         // Store the raw database data for market widgets
         setBriefData(briefData);
         
-        // If comprehensive market data is missing or empty, auto-generate today's brief (no button)
+        // If comprehensive market data is missing or empty, DO NOT auto-generate (prevents reload loop)
         const marketData = (briefData as any)?.content_sections?.market_data;
         const hasValidMarketData = marketData && (
           marketData.total_market_cap > 0 || 
@@ -181,9 +181,8 @@ export default function MarketBriefHome() {
         );
         
         if (!hasValidMarketData && !date) {
-          console.log('🛠️ Market data missing or empty — creating fresh brief...');
-          await generateFreshBrief();
-          return; // Wait for reload
+          console.log('ℹ️ Market data empty — showing article with sections hidden. Use Regenerate if needed.');
+          // No return here; continue to render existing brief to avoid stuck loading state
         }
         // If an admin audit block accidentally leaked into the article, regenerate a clean brief (no button)
         if (!date) {
