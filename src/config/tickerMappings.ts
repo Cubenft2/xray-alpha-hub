@@ -154,6 +154,7 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'ZBCN': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
   'ZEBEC': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
   'MYX': { symbol: 'MYXUSD', displayName: 'MYX (MYX)', type: 'crypto' },
+  'DEXE': { symbol: 'DEXEUSD', displayName: 'DeXe (DEXE)', type: 'crypto' },
 };
 
 // Index and Forex tickers
