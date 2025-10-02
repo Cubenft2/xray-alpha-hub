@@ -185,6 +185,33 @@ export type Database = {
         }
         Relationships: []
       }
+      market_brief_audits: {
+        Row: {
+          brief_id: string | null
+          created_at: string
+          id: string
+          missing_symbols: string[]
+          notes: string | null
+          provider_status: Json
+        }
+        Insert: {
+          brief_id?: string | null
+          created_at?: string
+          id?: string
+          missing_symbols?: string[]
+          notes?: string | null
+          provider_status?: Json
+        }
+        Update: {
+          brief_id?: string | null
+          created_at?: string
+          id?: string
+          missing_symbols?: string[]
+          notes?: string | null
+          provider_status?: Json
+        }
+        Relationships: []
+      }
       market_briefs: {
         Row: {
           brief_type: string
