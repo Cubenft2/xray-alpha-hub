@@ -171,8 +171,19 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           const existingSymbol = el.querySelector('.ticker-symbol');
           if (existingSymbol) existingSymbol.remove();
 
-          // Only show parentheses with price if price_ok AND we have a quote
-          if (capability.price_ok && quote && quote.price !== null) {
+          // Try live quote first, then fallback to enhancedTickers prop
+          let priceData = null;
+          if (quote && quote.price !== null) {
+            priceData = { price: quote.price, change: quote.change24h };
+          } else if (enhancedTickers[sym]) {
+            priceData = { 
+              price: enhancedTickers[sym].price, 
+              change: enhancedTickers[sym].change_24h 
+            };
+          }
+
+          // Only show parentheses with price if price_ok AND we have price data
+          if (capability.price_ok && priceData && priceData.price !== null) {
             const symbolSpan = document.createElement('span');
             symbolSpan.className = 'ticker-symbol font-semibold';
             
@@ -187,15 +198,18 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
               return `${sign}${change.toFixed(2)}%`;
             };
 
-            const isPositive = quote.change24h >= 0;
-            const changeColor = isPositive ? '#26a269' : '#c01c28';
-
-            symbolSpan.innerHTML = ` (${capability.displaySymbol || sym} $${formatPrice(quote.price)} <span style="color: ${changeColor}">${formatChange(quote.change24h)}</span>)`;
+            if (priceData.change !== null && priceData.change !== undefined) {
+              const isPositive = priceData.change >= 0;
+              const changeColor = isPositive ? '#26a269' : '#c01c28';
+              symbolSpan.innerHTML = ` (${capability.displaySymbol || sym} $${formatPrice(priceData.price)} <span style="color: ${changeColor}">${formatChange(priceData.change)}</span>)`;
+            } else {
+              symbolSpan.innerHTML = ` (${capability.displaySymbol || sym} $${formatPrice(priceData.price)})`;
+            }
             nameSpan.after(symbolSpan);
             
-            console.log(`✅ Updated ${sym} with price $${quote.price}`);
+            console.log(`✅ Updated ${sym} with price $${priceData.price}`);
           } else if (capability.price_ok) {
-            // price_ok but no quote data - show loading
+            // price_ok but no price data - show loading
             const symbolSpan = document.createElement('span');
             symbolSpan.className = 'ticker-symbol text-muted-foreground';
             symbolSpan.textContent = ` (${capability.displaySymbol || sym} ...)`;

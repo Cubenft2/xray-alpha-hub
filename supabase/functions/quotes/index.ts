@@ -223,9 +223,9 @@ async function fetchCoinGeckoPrice(coinId: string, symbol: string, mapping?: any
   }
   
   try {
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`;
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&x_cg_demo_api_key=${coinGeckoApiKey}`;
     console.log(`📡 Fetching CoinGecko price for ${symbol} (${coinId})...`);
-    const response = await fetch(url, { headers: { 'x-cg-pro-api-key': coinGeckoApiKey } });
+    const response = await fetch(url);
     
     if (!response.ok) {
       console.error(`❌ CoinGecko API error for ${coinId}:`, response.status, response.statusText);

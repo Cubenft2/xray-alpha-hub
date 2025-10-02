@@ -13,7 +13,7 @@ import { SocialSentimentBoard } from '@/components/SocialSentimentBoard';
 import { StoicQuote } from '@/components/StoicQuote';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
-import { getTickerMapping, isKnownStock, isKnownCrypto } from '@/config/tickerMappings';
+import { getTickerMapping } from '@/config/tickerMappings';
 import { toZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
 
@@ -90,6 +90,11 @@ export default function MarketBriefHome() {
       };
     }
     
+    // Special-case known corrections
+    if (upperTicker === 'SNX') {
+      return { symbol: 'BYBIT:SNXUSDT', displayName: 'Synthetix (SNX)' };
+    }
+    
     // If not found, log a warning (this helps prevent future mistakes)
     console.warn(`⚠️ TICKER NOT FOUND: "${ticker}" - This may cause incorrect chart display. Please add to src/config/tickerMappings.ts`);
     
@@ -127,33 +132,50 @@ export default function MarketBriefHome() {
         setLoading(true);
         console.log('🐕 XRay: Fetching market brief...', date ? `for date: ${date}` : 'latest');
         
-        // FORCE REGENERATE NOW if no date param
-        if (!date) {
-          console.log('🔄 Force regenerating fresh brief with updated CoinGecko API...');
-          await generateFreshBrief();
-          return;
-        }
-        
         let briefData;
         
-        // If we have a date parameter, fetch that specific brief
-        console.log('🐕 XRay: Fetching specific date:', date);
-        const { data, error } = await supabase
-          .from('market_briefs')
-          .select('slug, title, executive_summary, content_sections, featured_assets, social_data, market_data, stoic_quote, sentiment_score, published_at, created_at')
-          .eq('slug', date)
-          .single();
-        
-        if (error || !data) {
-          console.error('🐕 XRay: Brief fetch failed:', error);
-          throw new Error(`Brief for ${date} not found`);
+        if (date) {
+          // If we have a date parameter, fetch that specific brief
+          console.log('🐕 XRay: Fetching specific date:', date);
+          // @ts-ignore - TypeScript type inference issue with Supabase types
+          const { data, error } = await supabase
+            .from('market_briefs')
+            .select('slug, title, executive_summary, content_sections, featured_assets, social_data, market_data, stoic_quote, sentiment_score, published_at, created_at')
+            .eq('slug', date)
+            .single();
+          
+          if (error || !data) {
+            console.error('🐕 XRay: Brief fetch failed:', error);
+            throw new Error(`Brief for ${date} not found`);
+          }
+          briefData = data;
+        } else {
+          // Otherwise fetch the latest brief
+          const { data, error } = await supabase
+            .from('market_briefs')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          
+          if (error || !data) {
+            console.error('🐕 XRay: Brief fetch failed:', error);
+            throw new Error('No market briefs available');
+          }
+          briefData = data;
         }
-        briefData = data;
         
         console.log('🐕 XRay: Brief loaded successfully!', briefData);
         
         // Store the raw database data for market widgets
         setBriefData(briefData);
+        
+        // If comprehensive market data is missing, auto-generate today's brief (no button)
+        if (!(briefData as any)?.content_sections?.market_data && !date) {
+          console.log('🛠️ Comprehensive data missing — creating fresh brief...');
+          await generateFreshBrief();
+          return; // Wait for reload
+        }
         // If an admin audit block accidentally leaked into the article, regenerate a clean brief (no button)
         if (!date) {
           const aiTextRaw = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
@@ -576,7 +598,10 @@ export default function MarketBriefHome() {
               
               <EnhancedBriefRenderer 
                 content={brief.article_html || ''} 
-                enhancedTickers={livePrices}
+                enhancedTickers={{
+                  ...briefData?.content_sections?.enhanced_tickers,
+                  ...livePrices
+                }}
                 onTickersExtracted={handleTickersExtracted}
               />
             </div>
@@ -698,13 +723,13 @@ export default function MarketBriefHome() {
                                 className="inline-flex items-center justify-center w-full h-full text-sm text-primary underline"
                               >
                                 View on CoinGecko
-                                <ExternalLink className="w-4 h-4 ml-1" />
-                              </a>
-                            ) : (
-                              <MiniChart symbol={symbol} theme={theme} />
-                            )}
-                          </div>
-                        </CardContent>
+                              <ExternalLink className="w-4 h-4 ml-1" />
+                            </a>
+                          ) : (
+                            <MiniChart symbol={symbol} theme={theme} />
+                          )}
+                        </div>
+                      </CardContent>
                       </Card>
                     );
                   })}
