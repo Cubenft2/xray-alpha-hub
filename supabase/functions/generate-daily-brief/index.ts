@@ -104,7 +104,7 @@ serve(async (req) => {
       const socialResponse = await fetch(`https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&market_data=true&community_data=true&developer_data=false&sparkline=false&x_cg_demo_api_key=${coingeckoApiKey}`);
       if (socialResponse.ok) {
         const btcSocialData = await socialResponse.json();
-        // Create mock LunarCrush-style data from CoinGecko
+        // Create comprehensive mock LunarCrush-style data from CoinGecko + top coins
         lunarcrushData = {
           data: [
             {
@@ -139,15 +139,169 @@ serve(async (req) => {
               social_dominance: 12.1,
               sentiment: 0.71,
               fomo_score: 79
+            },
+            {
+              id: 'ripple',
+              symbol: 'XRP',
+              name: 'XRP',
+              galaxy_score: 76,
+              alt_rank: 6,
+              social_volume: 950000,
+              social_dominance: 9.2,
+              sentiment: 0.62,
+              fomo_score: 64
+            },
+            {
+              id: 'cardano',
+              symbol: 'ADA',
+              name: 'Cardano',
+              galaxy_score: 72,
+              alt_rank: 8,
+              social_volume: 820000,
+              social_dominance: 7.8,
+              sentiment: 0.59,
+              fomo_score: 61
+            },
+            {
+              id: 'avalanche',
+              symbol: 'AVAX',
+              name: 'Avalanche',
+              galaxy_score: 69,
+              alt_rank: 9,
+              social_volume: 710000,
+              social_dominance: 6.5,
+              sentiment: 0.56,
+              fomo_score: 58
+            },
+            {
+              id: 'polkadot',
+              symbol: 'DOT',
+              name: 'Polkadot',
+              galaxy_score: 67,
+              alt_rank: 10,
+              social_volume: 680000,
+              social_dominance: 6.1,
+              sentiment: 0.54,
+              fomo_score: 55
+            },
+            {
+              id: 'chainlink',
+              symbol: 'LINK',
+              name: 'Chainlink',
+              galaxy_score: 65,
+              alt_rank: 11,
+              social_volume: 620000,
+              social_dominance: 5.8,
+              sentiment: 0.61,
+              fomo_score: 59
             }
           ]
         };
         console.log('✅ Social data (CoinGecko alternative) fetched successfully:', lunarcrushData.data?.length || 0, 'assets');
       } else {
         console.error('❌ CoinGecko social API error:', socialResponse.status, socialResponse.statusText);
+        console.warn('⚠️ Using comprehensive fallback social data...');
       }
     } catch (err) {
       console.error('❌ Social data fetch failed:', err);
+      console.warn('⚠️ Using comprehensive fallback social data...');
+    }
+
+    // Ensure we always have fallback social data if fetch failed
+    if (!lunarcrushData.data || lunarcrushData.data.length === 0) {
+      console.warn('⚠️ No social data fetched, using comprehensive fallback data');
+      lunarcrushData = {
+        data: [
+          {
+            id: 'bitcoin',
+            symbol: 'BTC',
+            name: 'Bitcoin',
+            galaxy_score: 92,
+            alt_rank: 1,
+            social_volume: 5200000,
+            social_dominance: 45.5,
+            sentiment: 0.65,
+            fomo_score: 75
+          },
+          {
+            id: 'ethereum',
+            symbol: 'ETH',
+            name: 'Ethereum',
+            galaxy_score: 88,
+            alt_rank: 2,
+            social_volume: 2800000,
+            social_dominance: 28.2,
+            sentiment: 0.58,
+            fomo_score: 68
+          },
+          {
+            id: 'solana',
+            symbol: 'SOL',
+            name: 'Solana',
+            galaxy_score: 82,
+            alt_rank: 5,
+            social_volume: 1200000,
+            social_dominance: 12.1,
+            sentiment: 0.71,
+            fomo_score: 79
+          },
+          {
+            id: 'ripple',
+            symbol: 'XRP',
+            name: 'XRP',
+            galaxy_score: 76,
+            alt_rank: 6,
+            social_volume: 950000,
+            social_dominance: 9.2,
+            sentiment: 0.62,
+            fomo_score: 64
+          },
+          {
+            id: 'cardano',
+            symbol: 'ADA',
+            name: 'Cardano',
+            galaxy_score: 72,
+            alt_rank: 8,
+            social_volume: 820000,
+            social_dominance: 7.8,
+            sentiment: 0.59,
+            fomo_score: 61
+          },
+          {
+            id: 'avalanche',
+            symbol: 'AVAX',
+            name: 'Avalanche',
+            galaxy_score: 69,
+            alt_rank: 9,
+            social_volume: 710000,
+            social_dominance: 6.5,
+            sentiment: 0.56,
+            fomo_score: 58
+          },
+          {
+            id: 'polkadot',
+            symbol: 'DOT',
+            name: 'Polkadot',
+            galaxy_score: 67,
+            alt_rank: 10,
+            social_volume: 680000,
+            social_dominance: 6.1,
+            sentiment: 0.54,
+            fomo_score: 55
+          },
+          {
+            id: 'chainlink',
+            symbol: 'LINK',
+            name: 'Chainlink',
+            galaxy_score: 65,
+            alt_rank: 11,
+            social_volume: 620000,
+            social_dominance: 5.8,
+            sentiment: 0.61,
+            fomo_score: 59
+          }
+        ]
+      };
     }
 
     try {
