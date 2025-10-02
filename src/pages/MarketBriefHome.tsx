@@ -599,8 +599,11 @@ export default function MarketBriefHome() {
               <EnhancedBriefRenderer 
                 content={brief.article_html || ''} 
                 enhancedTickers={{
-                  ...briefData?.content_sections?.enhanced_tickers,
-                  ...livePrices
+                  ...(briefData?.content_sections?.enhanced_tickers || {}),
+                  ...Object.fromEntries(
+                    Object.entries(livePrices || {})
+                      .filter(([_, data]: [string, any]) => data?.price !== null)
+                  )
                 }}
                 onTickersExtracted={handleTickersExtracted}
               />

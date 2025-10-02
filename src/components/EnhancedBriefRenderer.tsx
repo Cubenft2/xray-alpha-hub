@@ -143,14 +143,18 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
+              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbmN2Zml1emxpeW9oeHJzaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3Mzk4MjEsImV4cCI6MjA3NDMxNTgyMX0.7cnRatKpHqsylletKVel7WAprIYdpP85AXtXLswMYXQ`
             },
             body: JSON.stringify({ symbols }),
           }
         );
 
         const quotesData = await quotesResponse.json();
-        console.log('✅ Quotes fetched:', quotesData);
+        console.log('✅ Quotes response:', quotesData);
+        
+        // If quotes are unavailable/cached with nulls, rely entirely on enhancedTickers prop
+        const hasValidQuotes = quotesData.quotes?.some((q: any) => q.price !== null);
+        console.log(`hasValidQuotes: ${hasValidQuotes}, enhancedTickers available: ${Object.keys(enhancedTickers).length}`);
 
         // Step 3: Update each element with capability-aware rendering
         quoteElements.forEach(el => {
@@ -171,15 +175,17 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           const existingSymbol = el.querySelector('.ticker-symbol');
           if (existingSymbol) existingSymbol.remove();
 
-          // Try live quote first, then fallback to enhancedTickers prop
+          // Prioritize enhancedTickers (stored data), then try live quotes
           let priceData = null;
-          if (quote && quote.price !== null) {
-            priceData = { price: quote.price, change: quote.change24h };
-          } else if (enhancedTickers[sym]) {
+          if (enhancedTickers[sym] && enhancedTickers[sym].price !== null) {
             priceData = { 
               price: enhancedTickers[sym].price, 
               change: enhancedTickers[sym].change_24h 
             };
+            console.log(`Using stored price for ${sym}: $${priceData.price}`);
+          } else if (quote && quote.price !== null) {
+            priceData = { price: quote.price, change: quote.change24h };
+            console.log(`Using live price for ${sym}: $${priceData.price}`);
           }
 
           // Only show parentheses with price if price_ok AND we have price data
