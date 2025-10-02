@@ -311,54 +311,66 @@ export type Database = {
       pending_ticker_mappings: {
         Row: {
           aliases: string[] | null
+          auto_approved: boolean | null
           coingecko_id: string | null
           confidence_score: number | null
           context: Json | null
           created_at: string | null
           display_name: string | null
           id: string
+          match_type: string | null
           normalized_symbol: string
           polygon_ticker: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          seen_count: number | null
           status: string | null
           symbol: string
           tradingview_symbol: string | null
           updated_at: string | null
+          validation_notes: string | null
         }
         Insert: {
           aliases?: string[] | null
+          auto_approved?: boolean | null
           coingecko_id?: string | null
           confidence_score?: number | null
           context?: Json | null
           created_at?: string | null
           display_name?: string | null
           id?: string
+          match_type?: string | null
           normalized_symbol: string
           polygon_ticker?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          seen_count?: number | null
           status?: string | null
           symbol: string
           tradingview_symbol?: string | null
           updated_at?: string | null
+          validation_notes?: string | null
         }
         Update: {
           aliases?: string[] | null
+          auto_approved?: boolean | null
           coingecko_id?: string | null
           confidence_score?: number | null
           context?: Json | null
           created_at?: string | null
           display_name?: string | null
           id?: string
+          match_type?: string | null
           normalized_symbol?: string
           polygon_ticker?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          seen_count?: number | null
           status?: string | null
           symbol?: string
           tradingview_symbol?: string | null
           updated_at?: string | null
+          validation_notes?: string | null
         }
         Relationships: []
       }
@@ -493,9 +505,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_approve_pending_mappings: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          approved_count: number
+          rejected_count: number
+        }[]
+      }
+      calculate_confidence: {
+        Args: {
+          p_has_alias?: boolean
+          p_match_type: string
+          p_name_similarity?: number
+          p_tv_validated?: boolean
+        }
+        Returns: number
+      }
       cleanup_expired_cache: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      norm_symbol: {
+        Args: { raw_symbol: string }
+        Returns: string
       }
     }
     Enums: {
