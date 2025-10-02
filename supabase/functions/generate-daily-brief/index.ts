@@ -46,8 +46,13 @@ serve(async (req) => {
 
   try {
     const requestBody = await req.json().catch(() => ({}));
-    const briefType = requestBody.briefType || 'premarket';
+    const briefType = requestBody.briefType || 'morning';
     const isWeekendBrief = briefType === 'weekend';
+    const briefTitle = isWeekendBrief 
+      ? 'Weekly Market Recap' 
+      : briefType === 'morning' 
+        ? 'Morning Brief' 
+        : 'Evening Brief';
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -341,6 +346,18 @@ serve(async (req) => {
       fearGreedDays: fearGreedArray.length
     });
 
+    // Validation: Check if critical data is missing
+    if (!btcData || coingeckoData.length < 50) {
+      console.error('❌ Critical market data missing. Skipping brief generation.');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Insufficient market data', 
+          message: 'Cannot generate brief without sufficient market data. Previous brief remains active.' 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 }
+      );
+    }
+
     // Analyze market movements and find key insights
     const btcData = coingeckoData.find(coin => coin.symbol === 'btc');
     const ethData = coingeckoData.find(coin => coin.symbol === 'eth');
@@ -385,8 +402,34 @@ serve(async (req) => {
     ];
     const randomQuote = stoicQuotes[Math.floor(Math.random() * stoicQuotes.length)];
 
+    // Fetch live prices for all mentioned assets using quotes function
+    const allSymbols = [
+      'BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'LINK',
+      ...topGainers.map(c => c.symbol.toUpperCase()),
+      ...topLosers.map(c => c.symbol.toUpperCase()),
+      ...(trendingData.coins?.slice(0, 5).map((c: any) => c.item?.symbol?.toUpperCase()) || []),
+      'NVDA', 'AMD', 'TSLA', 'AAPL', 'MSFT' // Key tech stocks
+    ].filter((v, i, a) => a.indexOf(v) === i); // Deduplicate
+
+    console.log('📊 Fetching live prices for', allSymbols.length, 'symbols...');
+    let priceSnapshot: any = {};
+    try {
+      const quotesResponse = await supabase.functions.invoke('quotes', {
+        body: { symbols: allSymbols }
+      });
+      if (!quotesResponse.error && quotesResponse.data?.quotes) {
+        priceSnapshot = quotesResponse.data.quotes.reduce((acc: any, q: any) => {
+          acc[q.symbol] = q;
+          return acc;
+        }, {});
+        console.log('✅ Price snapshot captured:', Object.keys(priceSnapshot).length, 'symbols');
+      }
+    } catch (err) {
+      console.error('❌ Failed to fetch price snapshot:', err);
+    }
+
     // Enhanced AI prompt with comprehensive market strategy - different for weekend vs daily
-    const marketAnalysisPrompt = isWeekendBrief ? 
+    const marketAnalysisPrompt = isWeekendBrief ?
     // WEEKEND COMPREHENSIVE ANALYSIS PROMPT
     `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive WEEKLY market recap - this is your signature Sunday evening brief that covers the whole week and sets up the upcoming one. This should be longer, richer, and more entertaining than your daily briefs. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
 
@@ -754,7 +797,7 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
             month: 'long', 
             day: 'numeric' 
           })}` :
-          `${briefType === 'postmarket' ? 'Postmarket' : 'Premarket'} Market Brief - ${today.toLocaleDateString('en-US', { 
+          `${briefType === 'evening' ? 'Evening' : 'Morning'} Brief - ${today.toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'long', 
             day: 'numeric' 
@@ -927,7 +970,18 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
       sentiment_score: briefData.sentiment_score
     });
 
-    return new Response(JSON.stringify({ 
+    // Warm caches in background (fire and forget)
+    (async () => {
+      try {
+        console.log('🔥 Warming caches with', allSymbols.length, 'symbols...');
+        await supabase.functions.invoke('quotes', { body: { symbols: allSymbols } });
+        console.log('✅ Caches warmed successfully');
+      } catch (err) {
+        console.error('⚠️ Cache warming failed (non-critical):', err);
+      }
+    })().catch(() => {}); // Catch but don't block
+
+    return new Response(JSON.stringify({
       success: true, 
       brief: briefData,
       message: 'Comprehensive daily market brief generated with full data integration',
