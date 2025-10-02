@@ -55,7 +55,7 @@ serve(async (req) => {
 
   try {
     const requestBody = await req.json().catch(() => ({}));
-    const briefType = requestBody.briefType || 'premarket';
+    const briefType = requestBody.briefType || requestBody.session || 'premarket';
     const isWeekendBrief = briefType === 'weekend';
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -848,6 +848,54 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
         missing_symbols: missingSymbols,
         notes: `Generated ${briefType} brief`
       });
+
+    console.log('📊 Updating feed index...');
+    
+    // Update feed_index: set latest slug and prepend to items (keep 50)
+    const { data: currentIndex } = await supabase
+      .from('feed_index')
+      .select('items')
+      .limit(1)
+      .single();
+    
+    const currentItems = currentIndex?.items || [];
+    const newItems = [briefData.slug, ...currentItems.filter((s: string) => s !== briefData.slug)].slice(0, 50);
+    
+    await supabase
+      .from('feed_index')
+      .update({
+        latest: briefData.slug,
+        items: newItems,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', (await supabase.from('feed_index').select('id').limit(1).single()).data?.id);
+    
+    console.log('✅ Feed index updated:', { latest: briefData.slug, itemCount: newItems.length });
+
+    // Warm cache for quotes and derivs
+    console.log('🔥 Warming cache for quotes and derivs...');
+    const allSymbols = briefData.featured_assets || [];
+    
+    if (allSymbols.length > 0) {
+      try {
+        const symbolsParam = allSymbols.join(',');
+        
+        // Warm quotes cache (TTL 120-180s)
+        const quotesWarmup = supabase.functions.invoke('quotes', {
+          body: { symbols: allSymbols }
+        }).catch((err: any) => console.warn('⚠️ Quotes cache warm failed:', err));
+        
+        // Warm derivs cache (TTL 300s)
+        const derivsWarmup = supabase.functions.invoke('derivs', {
+          body: { symbols: allSymbols }
+        }).catch((err: any) => console.warn('⚠️ Derivs cache warm failed:', err));
+        
+        await Promise.allSettled([quotesWarmup, derivsWarmup]);
+        console.log('✅ Cache warmed for', allSymbols.length, 'symbols');
+      } catch (err) {
+        console.warn('⚠️ Cache warming partially failed, continuing:', err);
+      }
+    }
 
     console.log('✅ Comprehensive market brief generated successfully!', {
       id: briefData.id,
