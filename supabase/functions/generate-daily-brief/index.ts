@@ -74,7 +74,9 @@ serve(async (req) => {
     try {
       console.log(`🪙 Fetching CoinGecko market data ${isWeekendBrief ? '(with enhanced weekly metrics)' : ''}...`);
       // Fetch 250 coins to ensure we have enough losers even in bullish markets
-      const coingeckoResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d&x_cg_demo_api_key=${coingeckoApiKey}`);
+      const coingeckoResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d`, {
+        headers: { 'x-cg-pro-api-key': coingeckoApiKey }
+      });
       if (coingeckoResponse.ok) {
         coingeckoData = await coingeckoResponse.json();
         console.log('✅ CoinGecko data fetched successfully:', coingeckoData.length, 'coins');
@@ -87,7 +89,9 @@ serve(async (req) => {
 
     try {
       console.log('📈 Fetching trending coins...');
-      const trendingResponse = await fetch(`https://api.coingecko.com/api/v3/search/trending?x_cg_demo_api_key=${coingeckoApiKey}`);
+      const trendingResponse = await fetch(`https://api.coingecko.com/api/v3/search/trending`, {
+        headers: { 'x-cg-pro-api-key': coingeckoApiKey }
+      });
       if (trendingResponse.ok) {
         trendingData = await trendingResponse.json();
         console.log('✅ Trending data fetched successfully');
@@ -101,7 +105,9 @@ serve(async (req) => {
     try {
       console.log('🌙 Fetching CoinGecko social data (LunarCrush alternative)...');
       // Use CoinGecko's social data since LunarCrush is failing
-      const socialResponse = await fetch(`https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&market_data=true&community_data=true&developer_data=false&sparkline=false&x_cg_demo_api_key=${coingeckoApiKey}`);
+      const socialResponse = await fetch(`https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&market_data=true&community_data=true&developer_data=false&sparkline=false`, {
+        headers: { 'x-cg-pro-api-key': coingeckoApiKey }
+      });
       if (socialResponse.ok) {
         const btcSocialData = await socialResponse.json();
         // Create mock LunarCrush-style data from CoinGecko
