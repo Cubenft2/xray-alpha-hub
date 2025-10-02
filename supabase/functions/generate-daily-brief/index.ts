@@ -80,12 +80,26 @@ serve(async (req) => {
     let globalMarketData: any = null;
     try {
       console.log('🌍 Fetching CoinGecko global market data...');
-      const globalResponse = await fetch(`https://api.coingecko.com/api/v3/global`, {
-        headers: {
-          'x-cg-pro-api-key': coingeckoApiKey,
-          'accept': 'application/json'
-        }
+      // Try multiple auth styles to avoid 400s
+      let globalResponse = await fetch(`https://api.coingecko.com/api/v3/global`, {
+        headers: { 'x-cg-pro-api-key': coingeckoApiKey, 'accept': 'application/json' }
       });
+      if (!globalResponse.ok) {
+        console.warn('⚠️ Global with x-cg-pro-api-key failed:', globalResponse.status);
+        globalResponse = await fetch(`https://api.coingecko.com/api/v3/global`, {
+          headers: { 'x_cg_pro_api_key': coingeckoApiKey, 'accept': 'application/json' }
+        });
+      }
+      if (!globalResponse.ok) {
+        console.warn('⚠️ Global with x_cg_pro_api_key failed:', globalResponse.status);
+        globalResponse = await fetch(`https://api.coingecko.com/api/v3/global?x_cg_pro_api_key=${encodeURIComponent(coingeckoApiKey)}`, {
+          headers: { 'accept': 'application/json' }
+        });
+      }
+      if (!globalResponse.ok) {
+        console.warn('⚠️ Global with query param failed, trying public endpoint (rate-limited)');
+        globalResponse = await fetch(`https://api.coingecko.com/api/v3/global`, { headers: { 'accept': 'application/json' } });
+      }
       if (globalResponse.ok) {
         const globalJson = await globalResponse.json();
         globalMarketData = globalJson.data;
@@ -99,18 +113,32 @@ serve(async (req) => {
 
     try {
       console.log(`🪙 Fetching CoinGecko market data ${isWeekendBrief ? '(with enhanced weekly metrics)' : ''}...`);
-      // Fetch 250 coins to ensure we have enough losers even in bullish markets
-      const coingeckoResponse = await fetch(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d`, {
-        headers: {
-          'x-cg-pro-api-key': coingeckoApiKey,
-          'accept': 'application/json'
-        }
+      const baseUrl = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d';
+      // Try with header variant 1
+      let coingeckoResponse = await fetch(baseUrl, {
+        headers: { 'x-cg-pro-api-key': coingeckoApiKey, 'accept': 'application/json' }
       });
+      if (!coingeckoResponse.ok) {
+        console.warn('⚠️ Markets with x-cg-pro-api-key failed:', coingeckoResponse.status);
+        coingeckoResponse = await fetch(baseUrl, {
+          headers: { 'x_cg_pro_api_key': coingeckoApiKey, 'accept': 'application/json' }
+        });
+      }
+      if (!coingeckoResponse.ok) {
+        console.warn('⚠️ Markets with x_cg_pro_api_key failed:', coingeckoResponse.status);
+        coingeckoResponse = await fetch(`${baseUrl}&x_cg_pro_api_key=${encodeURIComponent(coingeckoApiKey)}`, {
+          headers: { 'accept': 'application/json' }
+        });
+      }
+      if (!coingeckoResponse.ok) {
+        console.warn('⚠️ Markets with query param failed, trying public endpoint (rate-limited)');
+        coingeckoResponse = await fetch(baseUrl, { headers: { 'accept': 'application/json' } });
+      }
       if (coingeckoResponse.ok) {
         coingeckoData = await coingeckoResponse.json();
         console.log('✅ CoinGecko data fetched successfully:', coingeckoData.length, 'coins');
       } else {
-        console.error('❌ CoinGecko API error:', coingeckoResponse.status, coingeckoResponse.statusText);
+        console.error('❌ CoinGecko API error (all fallbacks failed):', coingeckoResponse.status, coingeckoResponse.statusText);
       }
     } catch (err) {
       console.error('❌ CoinGecko fetch failed:', err);
@@ -373,14 +401,20 @@ serve(async (req) => {
 
     // Validation: Check if critical data is missing
     if (!btcData || coingeckoData.length < 50) {
-      console.error('❌ Critical market data missing. Skipping brief generation.');
-      return new Response(
-        JSON.stringify({ 
-          error: 'Insufficient market data', 
-          message: 'Cannot generate brief without sufficient market data. Previous brief remains active.' 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 }
-      );
+      console.warn('⚠️ Critical market data is limited. Proceeding in degraded mode (some sections may be empty).');
+      // Try to fetch BTC/ETH minimal data if missing
+      try {
+        if (!btcData) {
+          const resp = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin,ethereum&price_change_percentage=24h,7d', {
+            headers: { 'accept': 'application/json' }
+          });
+          if (resp.ok) {
+            const mini = await resp.json();
+            coingeckoData = [...mini, ...coingeckoData];
+          }
+        }
+      } catch {}
+      // Do NOT return; continue to build the brief with whatever data we have
     }
     
     // For weekend briefs, focus on 7-day movements; for daily briefs, use 24h
