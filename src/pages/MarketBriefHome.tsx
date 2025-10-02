@@ -170,9 +170,18 @@ export default function MarketBriefHome() {
         // Store the raw database data for market widgets
         setBriefData(briefData);
         
-        // If comprehensive market data is missing, auto-generate today's brief (no button)
-        if (!(briefData as any)?.content_sections?.market_data && !date) {
-          console.log('🛠️ Comprehensive data missing — creating fresh brief...');
+        // If comprehensive market data is missing or empty, auto-generate today's brief (no button)
+        const marketData = (briefData as any)?.content_sections?.market_data;
+        const hasValidMarketData = marketData && (
+          marketData.total_market_cap > 0 || 
+          marketData.total_volume > 0 ||
+          (marketData.top_gainers && marketData.top_gainers.length > 0) ||
+          (marketData.top_losers && marketData.top_losers.length > 0) ||
+          (marketData.trending_coins && marketData.trending_coins.length > 0)
+        );
+        
+        if (!hasValidMarketData && !date) {
+          console.log('🛠️ Market data missing or empty — creating fresh brief...');
           await generateFreshBrief();
           return; // Wait for reload
         }
