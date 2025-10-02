@@ -127,6 +127,13 @@ export default function MarketBriefHome() {
         setLoading(true);
         console.log('🐕 XRay: Fetching market brief...', date ? `for date: ${date}` : 'latest');
         
+        // FORCE REGENERATE NOW - Skip loading old data
+        if (!date) {
+          console.log('🔄 Force regenerating fresh brief with updated CoinGecko API...');
+          await generateFreshBrief();
+          return;
+        }
+        
         let briefData;
         
         if (date) {
@@ -144,33 +151,12 @@ export default function MarketBriefHome() {
             throw new Error(`Brief for ${date} not found`);
           }
           briefData = data;
-        } else {
-          // Otherwise fetch the latest brief
-          const { data, error } = await supabase
-            .from('market_briefs')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-          
-          if (error || !data) {
-            console.error('🐕 XRay: Brief fetch failed:', error);
-            throw new Error('No market briefs available');
-          }
-          briefData = data;
         }
         
         console.log('🐕 XRay: Brief loaded successfully!', briefData);
         
         // Store the raw database data for market widgets
         setBriefData(briefData);
-        
-        // If comprehensive market data is missing, auto-generate today's brief (no button)
-        if (!(briefData as any)?.content_sections?.market_data && !date) {
-          console.log('🛠️ Comprehensive data missing — creating fresh brief...');
-          await generateFreshBrief();
-          return; // Wait for reload
-        }
         // If an admin audit block accidentally leaked into the article, regenerate a clean brief (no button)
         if (!date) {
           const aiTextRaw = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
