@@ -127,7 +127,7 @@ export default function MarketBriefHome() {
         setLoading(true);
         console.log('🐕 XRay: Fetching market brief...', date ? `for date: ${date}` : 'latest');
         
-        // FORCE REGENERATE NOW - Skip loading old data
+        // FORCE REGENERATE NOW if no date param
         if (!date) {
           console.log('🔄 Force regenerating fresh brief with updated CoinGecko API...');
           await generateFreshBrief();
@@ -136,22 +136,19 @@ export default function MarketBriefHome() {
         
         let briefData;
         
-        if (date) {
-          // If we have a date parameter, fetch that specific brief
-          console.log('🐕 XRay: Fetching specific date:', date);
-          // @ts-ignore - TypeScript type inference issue with Supabase types
-          const { data, error } = await supabase
-            .from('market_briefs')
-            .select('slug, title, executive_summary, content_sections, featured_assets, social_data, market_data, stoic_quote, sentiment_score, published_at, created_at')
-            .eq('slug', date)
-            .single();
-          
-          if (error || !data) {
-            console.error('🐕 XRay: Brief fetch failed:', error);
-            throw new Error(`Brief for ${date} not found`);
-          }
-          briefData = data;
+        // If we have a date parameter, fetch that specific brief
+        console.log('🐕 XRay: Fetching specific date:', date);
+        const { data, error } = await supabase
+          .from('market_briefs')
+          .select('slug, title, executive_summary, content_sections, featured_assets, social_data, market_data, stoic_quote, sentiment_score, published_at, created_at')
+          .eq('slug', date)
+          .single();
+        
+        if (error || !data) {
+          console.error('🐕 XRay: Brief fetch failed:', error);
+          throw new Error(`Brief for ${date} not found`);
         }
+        briefData = data;
         
         console.log('🐕 XRay: Brief loaded successfully!', briefData);
         
