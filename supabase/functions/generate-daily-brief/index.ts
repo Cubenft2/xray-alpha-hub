@@ -346,6 +346,10 @@ serve(async (req) => {
       fearGreedDays: fearGreedArray.length
     });
 
+    // Analyze market movements and find key insights
+    const btcData = coingeckoData.find(coin => coin.symbol === 'btc');
+    const ethData = coingeckoData.find(coin => coin.symbol === 'eth');
+
     // Validation: Check if critical data is missing
     if (!btcData || coingeckoData.length < 50) {
       console.error('❌ Critical market data missing. Skipping brief generation.');
@@ -357,10 +361,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 }
       );
     }
-
-    // Analyze market movements and find key insights
-    const btcData = coingeckoData.find(coin => coin.symbol === 'btc');
-    const ethData = coingeckoData.find(coin => coin.symbol === 'eth');
     
     // For weekend briefs, focus on 7-day movements; for daily briefs, use 24h
     const changeField = isWeekendBrief ? 'price_change_percentage_7d_in_currency' : 'price_change_percentage_24h';
