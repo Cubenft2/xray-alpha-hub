@@ -30,6 +30,11 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
   }
 
   const socialAssets: SocialAsset[] = marketData.content_sections.market_data.social_sentiment;
+  
+  // Hide if no social assets
+  if (!socialAssets || socialAssets.length === 0) {
+    return null;
+  }
 
   const handleTokenClick = (symbol: string) => {
     // Navigate to crypto page with the token symbol

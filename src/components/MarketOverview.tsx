@@ -18,18 +18,12 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
 
   const data = marketData.content_sections.market_data;
   
-  // Hide if all key metrics are zero/empty
+  // Hide completely if all key metrics are zero/empty
   const hasData = data.total_market_cap > 0 || data.total_volume > 0 || 
                   data.fear_greed_index > 0 || data.biggest_mover;
   
   if (!hasData) {
-    return (
-      <Card className="xr-card">
-        <CardContent className="p-6 text-center">
-          <p className="text-muted-foreground">Market overview data temporarily unavailable</p>
-        </CardContent>
-      </Card>
-    );
+    return null; // Don't render anything if no data
   }
 
   const handleCryptoNavigation = () => {
