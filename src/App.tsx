@@ -36,8 +36,8 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <CommunityPromotion />
-        <SlidingBanner />
+        {/* <CommunityPromotion /> */}
+        {/* <SlidingBanner /> */}
         <BrowserRouter>
           <Layout>
             <PageTransition>
