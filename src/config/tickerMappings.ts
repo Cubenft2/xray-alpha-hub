@@ -155,6 +155,12 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'ZEBEC': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
   'MYX': { symbol: 'MYXUSD', displayName: 'MYX (MYX)', type: 'crypto' },
   'DEXE': { symbol: 'DEXEUSD', displayName: 'DeXe (DEXE)', type: 'crypto' },
+  // Trending coins fixes
+  'CAKE': { symbol: 'BINANCE:CAKEUSDT', displayName: 'PancakeSwap (CAKE)', type: 'crypto' },
+  'ADX': { symbol: 'BINANCE:ADXUSDT', displayName: 'Ambire AdEx (ADX)', type: 'crypto' },
+  'ADRENA': { symbol: 'BINANCE:ADXUSDT', displayName: 'Ambire AdEx (ADX)', type: 'crypto' },
+  'ERG': { symbol: 'KUCOIN:ERGUSDT', displayName: 'Ergo (ERG)', type: 'crypto' },
+  'OVPP': { symbol: 'CRYPTO:OVPPUSD', displayName: 'OpenVPP (OVPP)', type: 'crypto' },
 };
 
 // Index and Forex tickers
