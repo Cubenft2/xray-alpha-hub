@@ -74,7 +74,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     enhancedText = enhancedText.replace(/([+-]?)([0-9]+\.?[0-9]*)%/g, 
       '<span class="percentage-badge" data-sign="$1" data-value="$2">$1$2%</span>');
 
-    // DOM-based ticker wrapping to prevent color bleed
+    // DOM-based ticker wrapping - link only ticker symbol inside parentheses
     const extractedTickers: string[] = [];
     const parser = new DOMParser();
     const tempDoc = parser.parseFromString(`<div>${enhancedText}</div>`, 'text/html');
@@ -110,27 +110,43 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             const beforeText = text.substring(0, index);
             const afterText = text.substring(index + match.length);
             
-            // Create asset wrapper
-            const assetSpan = document.createElement('span');
-            assetSpan.className = 'asset';
-            assetSpan.setAttribute('data-quote-symbol', symbol);
-            assetSpan.setAttribute('data-sym', symbol);
-            assetSpan.setAttribute('data-display-name', name);
-            assetSpan.setAttribute('onclick', `window.handleTickerClick('${symbol}')`);
+            // Create structure: "Name (SYMBOL)" where only SYMBOL is clickable
+            // Name stays as plain text
+            const nameText = document.createTextNode(name + ' ');
             
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'asset-name';
-            nameSpan.textContent = name;
-            assetSpan.appendChild(nameSpan);
+            // Parentheses wrapper
+            const parenWrapper = document.createElement('span');
+            parenWrapper.className = 'ticker-parentheses';
+            parenWrapper.setAttribute('data-quote-symbol', symbol);
+            parenWrapper.setAttribute('data-sym', symbol);
+            
+            // Opening paren
+            const openParen = document.createTextNode('(');
+            
+            // Clickable ticker symbol
+            const tickerLink = document.createElement('span');
+            tickerLink.className = 'ticker-link';
+            tickerLink.setAttribute('data-ticker', symbol);
+            tickerLink.setAttribute('onclick', `window.handleTickerClick('${symbol}')`);
+            tickerLink.style.cursor = 'pointer';
+            tickerLink.textContent = symbol;
+            
+            // Closing paren (will be populated with price/change later)
+            const closeParen = document.createTextNode(')');
+            
+            parenWrapper.appendChild(openParen);
+            parenWrapper.appendChild(tickerLink);
+            parenWrapper.appendChild(closeParen);
             
             const parent = node.parentNode;
             if (parent) {
-              // Split and replace
+              // Insert in order: beforeText, name, parenWrapper, afterText
               if (afterText) {
                 const afterNode = document.createTextNode(afterText);
                 parent.insertBefore(afterNode, node.nextSibling);
               }
-              parent.insertBefore(assetSpan, node.nextSibling);
+              parent.insertBefore(parenWrapper, node.nextSibling);
+              parent.insertBefore(nameText, node.nextSibling);
               node.textContent = beforeText;
             }
           });
@@ -138,8 +154,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         const element = node as HTMLElement;
         
-        // Skip if it's a blacklisted tag or already an asset
-        if (skipTags.has(element.tagName) || element.classList.contains('asset')) {
+        // Skip if it's a blacklisted tag or already processed
+        if (skipTags.has(element.tagName) || element.classList.contains('ticker-parentheses')) {
           return;
         }
         
@@ -150,29 +166,6 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     };
     
     walkTextNodes(container);
-
-    // Special-case anchors whose entire text is a token: Name (SYMBOL)
-    const anchorTokenRegex = /^\s*([A-Za-z0-9\s&.-]+?)\s+\(([A-Z0-9_]{2,12})\)\s*$/i;
-    const anchors = Array.from(container.querySelectorAll('a')) as HTMLAnchorElement[];
-    anchors.forEach((a) => {
-      if ((a as HTMLElement).classList.contains('asset')) return;
-      const txt = (a.textContent || '').trim();
-      const m = txt.match(anchorTokenRegex);
-      if (!m) return;
-      const name = m[1].trim();
-      const symbol = m[2].toUpperCase();
-      extractedTickers.push(symbol);
-      (a as HTMLElement).classList.add('asset');
-      (a as HTMLElement).setAttribute('data-quote-symbol', symbol);
-      (a as HTMLElement).setAttribute('data-sym', symbol);
-      (a as HTMLElement).setAttribute('data-display-name', name);
-      // Replace anchor contents with scoped spans
-      a.textContent = '';
-      const nameSpan = tempDoc.createElement('span');
-      nameSpan.className = 'asset-name';
-      nameSpan.textContent = name;
-      a.appendChild(nameSpan);
-    });
     
     enhancedText = container.innerHTML;
 
@@ -194,7 +187,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     
     // Initialize capability-aware inline quotes
     const initCapabilityQuotes = async () => {
-      const quoteElements = document.querySelectorAll('[data-quote-symbol]');
+      const quoteElements = document.querySelectorAll('.ticker-parentheses[data-quote-symbol]');
       if (quoteElements.length === 0) return;
 
       const symbols = Array.from(quoteElements).map(
@@ -233,7 +226,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         const quotesData = await quotesResponse.json();
         console.log('✅ Quotes fetched:', quotesData);
 
-        // Step 3: Update each element with capability-aware rendering
+        // Step 3: Update each parentheses wrapper with price data
         quoteElements.forEach(el => {
           const sym = el.getAttribute('data-quote-symbol');
           const capability = resolved.find((r: any) => r.normalized === sym);
@@ -245,12 +238,12 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           el.setAttribute('data-price-ok', String(capability.price_ok));
           el.setAttribute('data-tv-ok', String(capability.tv_ok));
 
-          const nameSpan = el.querySelector('.asset-name, .ticker-name');
-          if (!nameSpan) return;
-
-          // Remove any existing ticker-symbol span
-          const existingSymbol = el.querySelector('.ticker-symbol');
-          if (existingSymbol) existingSymbol.remove();
+          const tickerLink = el.querySelector('.ticker-link');
+          const closeParen = Array.from(el.childNodes).find(
+            node => node.nodeType === Node.TEXT_NODE && node.textContent === ')'
+          );
+          
+          if (!tickerLink || !closeParen) return;
 
           // Try live quote first, then fallback to enhancedTickers prop
           let priceData = null;
@@ -263,11 +256,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             };
           }
 
-          // Only show parentheses with price if price_ok AND we have price data
+          // Only show price if price_ok AND we have price data
           if (capability.price_ok && priceData && priceData.price !== null) {
-            const symbolSpan = document.createElement('span');
-            symbolSpan.className = 'ticker-symbol';
-            
             const formatPrice = (price: number) => {
               if (price >= 1000) return price.toLocaleString('en-US', { maximumFractionDigits: 0 });
               if (price >= 1) return price.toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -279,24 +269,28 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
               return `${sign}${change.toFixed(2)}%`;
             };
 
+            // Build price display: " $price +change%"
+            let priceHTML = ` <span class="price">$${formatPrice(priceData.price)}</span>`;
+            
             if (priceData.change !== null && priceData.change !== undefined) {
               const isPositive = priceData.change >= 0;
               const changeClass = isPositive ? 'percent positive' : 'percent negative';
-              symbolSpan.innerHTML = ` (<span class="ticker-badge">${capability.displaySymbol || sym}</span> <span class="price">$${formatPrice(priceData.price)}</span> <span class="${changeClass}">${formatChange(priceData.change)}</span>)`;
-            } else {
-              symbolSpan.innerHTML = ` (<span class="ticker-badge">${capability.displaySymbol || sym}</span> <span class="price">$${formatPrice(priceData.price)}</span>)`;
+              priceHTML += ` <span class="${changeClass}">${formatChange(priceData.change)}</span>`;
             }
-            nameSpan.after(symbolSpan);
+
+            // Insert price data before closing paren
+            const priceSpan = document.createElement('span');
+            priceSpan.innerHTML = priceHTML;
+            el.insertBefore(priceSpan, closeParen);
             
             console.log(`✅ Updated ${sym} with price $${priceData.price}`);
           } else if (capability.price_ok) {
             // price_ok but no price data - show loading
-            const symbolSpan = document.createElement('span');
-            symbolSpan.className = 'ticker-symbol text-muted-foreground';
-            symbolSpan.textContent = ` (${capability.displaySymbol || sym} ...)`;
-            nameSpan.after(symbolSpan);
+            const loadingSpan = document.createElement('span');
+            loadingSpan.className = 'text-muted-foreground';
+            loadingSpan.textContent = ' ...';
+            el.insertBefore(loadingSpan, closeParen);
           }
-          // If !price_ok, don't show parentheses at all
         });
       } catch (error) {
         console.error('Error initializing capability quotes:', error);
@@ -345,50 +339,40 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           font-family: var(--font-pixel);
         }
         
-        /* Asset container - no color, display inline */
-        .asset {
+        /* Ticker parentheses wrapper */
+        .ticker-parentheses {
           display: inline;
-          cursor: pointer;
+          white-space: nowrap;
           color: inherit;
         }
         
-        /* Asset names - bright cyan/teal (ONLY this span gets colored) */
-        .asset-name {
-          color: #00e5ff !important;
-          font-weight: 600;
-          transition: opacity 0.2s;
+        /* Ticker link - only the symbol inside parentheses is clickable */
+        .ticker-link {
+          display: inline;
+          color: #00e5ff;
+          font-weight: 700;
+          text-decoration: none;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border-bottom: 1px solid transparent;
         }
-        .asset:hover .asset-name {
+        
+        .ticker-link:hover {
+          opacity: 0.8;
+          border-bottom-color: #00e5ff;
+        }
+        
+        /* Prevent color bleed to regular links */
+        .enhanced-brief a {
+          color: hsl(var(--foreground));
+          text-decoration: underline;
+        }
+        
+        .enhanced-brief a:hover {
           opacity: 0.8;
         }
         
-        /* Critical: Prevent color bleed to links and parent text */
-        .asset { color: inherit; }
-        .enhanced-brief a { color: hsl(var(--foreground)) !important; text-decoration: underline; }
-        .enhanced-brief a:hover { opacity: 0.8; }
-        /* Ensure tokens inside links keep accent color without affecting the link itself */
-        .enhanced-brief a .asset-name { color: #00e5ff !important; }
-        
-        /* Ticker badges - pill style */
-        .ticker-badge {
-          display: inline-block;
-          padding: 2px 8px;
-          border-radius: 6px;
-          background: #1e293b;
-          border: 1px solid #334155;
-          color: #f8fafc;
-          font-weight: 600;
-          font-size: 0.875rem;
-          margin: 0 2px;
-        }
-        
-        /* Ticker symbol wrapper (parentheses content) */
-        .ticker-symbol {
-          display: inline;
-          white-space: nowrap;
-        }
-        
-        /* Price badges - bold white */
+        /* Price display - bold white */
         .price-badge,
         .price {
           color: #f8fafc;
@@ -396,42 +380,27 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           font-size: 0.95rem;
         }
         
-        /* Percentage badges - auto-colored by sign */
+        /* Percentage display - color coded by positive/negative */
         .percent {
           font-weight: 700;
           font-size: 0.95rem;
         }
         .percent.positive {
-          color: #22c55e;
+          color: #22c55e !important;
         }
         .percent.negative {
-          color: #ef4444;
+          color: #ef4444 !important;
         }
         .percent.neutral {
           color: #94a3b8;
         }
         
-        /* Legacy ticker styles */
-        .ticker-link:hover, .ticker-link-enhanced:hover {
-          transform: translateY(-1px);
-          box-shadow: var(--glow-primary);
-        }
-        .ticker-link-enhanced {
-          font-family: var(--font-mono);
-          font-weight: 600;
-        }
-        .ticker-link {
-          font-family: var(--font-pixel);
-          font-weight: 700;
-        }
-        
-        /* Mobile enhancements */
+        /* Mobile responsive adjustments */
         @media (max-width: 640px) {
-          .ticker-badge,
-          .price-badge,
+          .ticker-link,
           .price,
           .percent {
-            font-size: 0.9375rem;
+            font-size: 0.9rem;
           }
         }
       `}</style>
