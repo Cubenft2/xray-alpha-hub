@@ -40,14 +40,39 @@ export function WatchlistManager() {
   const addToWatchlist = () => {
     if (!newSymbol.trim()) return;
     
-    const symbol = newSymbol.toUpperCase().trim();
-    const isStock = symbol.includes(':') || symbol.match(/^[A-Z]{1,5}$/);
+    const raw = newSymbol.toUpperCase().trim();
+    const isExplicitExchange = raw.includes(':');
+
+    // Prefer centralized mappings for cryptos
+    let resolvedSymbol = raw;
+    let itemType: 'crypto' | 'stock' = 'stock';
+
+    if (isExplicitExchange) {
+      resolvedSymbol = raw;
+      itemType = raw.startsWith('NASDAQ:') || raw.startsWith('NYSE:') || raw.startsWith('AMEX:') ? 'stock' : 'crypto';
+    } else {
+      const mapping = awaitResolveMapping(raw);
+      if (mapping) {
+        resolvedSymbol = mapping.symbol;
+        itemType = mapping.type === 'stock' ? 'stock' : 'crypto';
+      } else {
+        // Fallback heuristics
+        if (/^[A-Z]{1,5}$/.test(raw)) {
+          // Default to crypto pair on Binance if unknown (best-effort)
+          resolvedSymbol = `BINANCE:${raw}USDT`;
+          itemType = 'crypto';
+        } else {
+          resolvedSymbol = raw;
+          itemType = 'crypto';
+        }
+      }
+    }
     
     const newItem: WatchlistItem = {
       id: Date.now().toString(),
-      symbol: isStock ? symbol : `BINANCE:${symbol}USDT`,
-      name: symbol,
-      type: isStock ? 'stock' : 'crypto'
+      symbol: resolvedSymbol,
+      name: raw,
+      type: itemType
     };
 
     if (!watchlist.find(item => item.symbol === newItem.symbol)) {
@@ -56,6 +81,17 @@ export function WatchlistManager() {
     
     setNewSymbol('');
   };
+
+  // Helper to sync resolve from config without blocking UI
+  function awaitResolveMapping(sym: string) {
+    try {
+      const { getTickerMapping } = require('@/config/tickerMappings');
+      return getTickerMapping(sym);
+    } catch (e) {
+      console.warn('Mapping module not ready', e);
+      return undefined;
+    }
+  }
 
   const removeFromWatchlist = (id: string) => {
     saveWatchlist(watchlist.filter(item => item.id !== id));

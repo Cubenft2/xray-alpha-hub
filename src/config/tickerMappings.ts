@@ -155,12 +155,12 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'ZEBEC': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
   'MYX': { symbol: 'MYXUSD', displayName: 'MYX (MYX)', type: 'crypto' },
   'DEXE': { symbol: 'DEXEUSD', displayName: 'DeXe (DEXE)', type: 'crypto' },
-  // Trending coins fixes
-  'CAKE': { symbol: 'BINANCE:CAKEUSDT', displayName: 'PancakeSwap (CAKE)', type: 'crypto' },
-  'ADX': { symbol: 'BINANCE:ADXUSDT', displayName: 'Ambire AdEx (ADX)', type: 'crypto' },
-  'ADRENA': { symbol: 'BINANCE:ADXUSDT', displayName: 'Ambire AdEx (ADX)', type: 'crypto' },
-  'ERG': { symbol: 'KUCOIN:ERGUSDT', displayName: 'Ergo (ERG)', type: 'crypto' },
-  'OVPP': { symbol: 'CRYPTO:OVPPUSD', displayName: 'OpenVPP (OVPP)', type: 'crypto' },
+  // Mini chart fixes for requested assets
+  'AIC': { symbol: 'MEXC:AICUSDT', displayName: 'AI Companions (AIC)', type: 'crypto' },
+  'AICUSDT': { symbol: 'MEXC:AICUSDT', displayName: 'AI Companions (AIC)', type: 'crypto' },
+  'APEPE': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
+  'APEPEUSDT': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
+  'APEPEUSD': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
 };
 
 // Index and Forex tickers
