@@ -134,23 +134,26 @@ export default function MarketBriefHome() {
         
         let briefData;
         
-        if (date) {
-          // If we have a date parameter, fetch that specific brief
-          console.log('🐕 XRay: Fetching specific date:', date);
+        const param = date?.trim();
+        const isPlaceholder = !param || param === ':date' || param.toLowerCase() === 'date';
+        
+        if (param && !isPlaceholder) {
+          // If we have a valid date/slug parameter, fetch that specific brief
+          console.log('🐕 XRay: Fetching specific date:', param);
           // @ts-ignore - TypeScript type inference issue with Supabase types
           const { data, error } = await supabase
             .from('market_briefs')
             .select('slug, title, executive_summary, content_sections, featured_assets, social_data, market_data, stoic_quote, sentiment_score, published_at, created_at')
-            .eq('slug', date)
+            .eq('slug', param)
             .single();
           
           if (error || !data) {
             console.error('🐕 XRay: Brief fetch failed:', error);
-            throw new Error(`Brief for ${date} not found`);
+            throw new Error(`Brief for ${param} not found`);
           }
           briefData = data;
         } else {
-          // Otherwise fetch the latest brief
+          // Fallback: fetch the latest brief when the route param is a placeholder or missing
           const { data, error } = await supabase
             .from('market_briefs')
             .select('*')
