@@ -66,13 +66,13 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       .replace(/\n\n+/g, '</p><p class="mb-6 leading-relaxed text-foreground/90">')
       .replace(/\n/g, '<br/>');
 
-    // Style prices (e.g., $50,000, $1.25, $0.00045)
+    // Style prices (e.g., $50,000, $1.25, $0.00045) - bold white
     enhancedText = enhancedText.replace(/\$([0-9,]+(?:\.[0-9]+)?)/g, 
-      '<span class="font-semibold text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded text-sm">$$$1</span>');
+      '<span class="price-badge">$$$1</span>');
 
-    // Style percentages (e.g., +5.2%, -3.1%)
+    // Style percentages (e.g., +5.2%, -3.1%) - will be colored by sign
     enhancedText = enhancedText.replace(/([+-]?)([0-9]+\.?[0-9]*)%/g, 
-      '<span class="font-semibold px-1.5 py-0.5 rounded text-sm percentage-badge" data-change="$1">$1$2%</span>');
+      '<span class="percentage-badge" data-sign="$1" data-value="$2">$1$2%</span>');
 
     // Enhanced ticker detection - looks for "Name (SYMBOL)" patterns
     // Parentheses will only be shown if price_ok via capability check
@@ -91,7 +91,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         data-sym="${upperSymbol}"
         data-display-name="${displayName}"
         onclick="window.handleTickerClick('${symbol}')">
-        <span class="ticker-name font-semibold cursor-pointer hover:opacity-80 transition-opacity" style="color: inherit;">${displayName}</span>
+        <span class="ticker-name asset-name">${displayName}</span>
       </span>`;
     });
 
@@ -185,7 +185,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           // Only show parentheses with price if price_ok AND we have price data
           if (capability.price_ok && priceData && priceData.price !== null) {
             const symbolSpan = document.createElement('span');
-            symbolSpan.className = 'ticker-symbol font-semibold';
+            symbolSpan.className = 'ticker-symbol';
             
             const formatPrice = (price: number) => {
               if (price >= 1000) return price.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -200,10 +200,10 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
 
             if (priceData.change !== null && priceData.change !== undefined) {
               const isPositive = priceData.change >= 0;
-              const changeColor = isPositive ? '#26a269' : '#c01c28';
-              symbolSpan.innerHTML = ` (${capability.displaySymbol || sym} $${formatPrice(priceData.price)} <span style="color: ${changeColor}">${formatChange(priceData.change)}</span>)`;
+              const changeClass = isPositive ? 'percent positive' : 'percent negative';
+              symbolSpan.innerHTML = ` (<span class="ticker-badge">${capability.displaySymbol || sym}</span> <span class="price">$${formatPrice(priceData.price)}</span> <span class="${changeClass}">${formatChange(priceData.change)}</span>)`;
             } else {
-              symbolSpan.innerHTML = ` (${capability.displaySymbol || sym} $${formatPrice(priceData.price)})`;
+              symbolSpan.innerHTML = ` (<span class="ticker-badge">${capability.displaySymbol || sym}</span> <span class="price">$${formatPrice(priceData.price)}</span>)`;
             }
             nameSpan.after(symbolSpan);
             
@@ -227,13 +227,17 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     }
     
     // Style percentage elements based on positive/negative values
-    const percentageElements = document.querySelectorAll('.percentage-badge[data-change]');
+    const percentageElements = document.querySelectorAll('.percentage-badge[data-sign]');
     percentageElements.forEach(el => {
-      const change = el.getAttribute('data-change');
-      if (change === '+' || (change !== '-' && !change?.startsWith('-'))) {
-        el.classList.add('text-green-400', 'bg-green-400/10');
+      const sign = el.getAttribute('data-sign');
+      const value = parseFloat(el.getAttribute('data-value') || '0');
+      
+      if (value === 0) {
+        el.classList.add('percent', 'neutral');
+      } else if (sign === '-') {
+        el.classList.add('percent', 'negative');
       } else {
-        el.classList.add('text-red-400', 'bg-red-400/10');
+        el.classList.add('percent', 'positive');
       }
     });
 
@@ -259,6 +263,55 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           font-weight: 700;
           font-family: var(--font-pixel);
         }
+        
+        /* Asset names - bright cyan/teal */
+        .asset-name {
+          color: #00e5ff;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+        .asset-name:hover {
+          opacity: 0.8;
+        }
+        
+        /* Ticker badges - pill style */
+        .ticker-badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 6px;
+          background: #1e293b;
+          border: 1px solid #334155;
+          color: #f8fafc;
+          font-weight: 600;
+          font-size: 0.875rem;
+          margin: 0 2px;
+        }
+        
+        /* Price badges - bold white */
+        .price-badge,
+        .price {
+          color: #f8fafc;
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+        
+        /* Percentage badges - auto-colored by sign */
+        .percent {
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+        .percent.positive {
+          color: #22c55e;
+        }
+        .percent.negative {
+          color: #ef4444;
+        }
+        .percent.neutral {
+          color: #94a3b8;
+        }
+        
+        /* Legacy ticker styles */
         .ticker-link:hover, .ticker-link-enhanced:hover {
           transform: translateY(-1px);
           box-shadow: var(--glow-primary);
@@ -270,6 +323,16 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         .ticker-link {
           font-family: var(--font-pixel);
           font-weight: 700;
+        }
+        
+        /* Mobile enhancements */
+        @media (max-width: 640px) {
+          .ticker-badge,
+          .price-badge,
+          .price,
+          .percent {
+            font-size: 0.9375rem;
+          }
         }
       `}</style>
       <div dangerouslySetInnerHTML={{ __html: processedContent }} />

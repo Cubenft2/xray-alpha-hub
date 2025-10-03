@@ -139,7 +139,7 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
                 {data.biggest_mover ? (
                   <>
                     <div className="space-y-1">
-                      <p className="text-lg font-bold text-foreground">
+                      <p className="text-lg font-bold text-[#00e5ff]">
                         {data.biggest_mover.name}
                       </p>
                       <div className="flex items-center gap-2">
@@ -147,9 +147,9 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
                           <Badge 
                             variant="outline" 
                             className={`${data.biggest_mover.change_24h > 0 
-                              ? 'text-green-500 border-green-500/20 bg-green-500/10' 
-                              : 'text-red-500 border-red-500/20 bg-red-500/10'
-                            } font-semibold text-xs`}
+                              ? 'text-[#22c55e] border-[#22c55e]/20 bg-[#22c55e]/10' 
+                              : 'text-[#ef4444] border-[#ef4444]/20 bg-[#ef4444]/10'
+                            } font-bold text-xs`}
                           >
                             {data.biggest_mover.change_24h > 0 ? '+' : ''}
                             {data.biggest_mover.change_24h.toFixed(2)}%

@@ -33,13 +33,13 @@ export function TopMoversTable({ gainers, losers }: TopMoversTableProps) {
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-muted-foreground w-4">{index + 1}</span>
                   <div>
-                    <div className="font-medium">{coin.name}</div>
+                    <div className="font-semibold text-[#00e5ff]">{coin.name}</div>
                     <div className="text-sm text-muted-foreground">{coin.symbol.toUpperCase()}</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-medium">${coin.price?.toFixed(4)}</div>
-                  <Badge variant="outline" className="text-green-500 border-green-500/20 bg-green-500/10">
+                  <div className="font-bold text-[#f8fafc]">${coin.price?.toFixed(4)}</div>
+                  <Badge variant="outline" className="text-[#22c55e] border-[#22c55e]/20 bg-[#22c55e]/10 font-bold">
                     +{coin.change_24h?.toFixed(2)}%
                   </Badge>
                 </div>
@@ -66,13 +66,13 @@ export function TopMoversTable({ gainers, losers }: TopMoversTableProps) {
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-muted-foreground w-4">{index + 1}</span>
                   <div>
-                    <div className="font-medium">{coin.name}</div>
+                    <div className="font-semibold text-[#00e5ff]">{coin.name}</div>
                     <div className="text-sm text-muted-foreground">{coin.symbol.toUpperCase()}</div>
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-medium">${coin.price?.toFixed(4)}</div>
-                  <Badge variant="outline" className="text-red-500 border-red-500/20 bg-red-500/10">
+                  <div className="font-bold text-[#f8fafc]">${coin.price?.toFixed(4)}</div>
+                  <Badge variant="outline" className="text-[#ef4444] border-[#ef4444]/20 bg-[#ef4444]/10 font-bold">
                     {coin.change_24h?.toFixed(2)}%
                   </Badge>
                 </div>
