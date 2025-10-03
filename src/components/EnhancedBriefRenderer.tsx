@@ -74,26 +74,84 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     enhancedText = enhancedText.replace(/([+-]?)([0-9]+\.?[0-9]*)%/g, 
       '<span class="percentage-badge" data-sign="$1" data-value="$2">$1$2%</span>');
 
-    // Enhanced ticker detection - looks for "Name (SYMBOL)" patterns with word boundaries
-    // Parentheses will only be shown if price_ok via capability check
-    const tickerRegex = /\b([A-Za-z0-9\s&.-]+?)\s+\(([A-Z0-9_]{2,12})\)/g;
+    // DOM-based ticker wrapping to prevent color bleed
     const extractedTickers: string[] = [];
+    const parser = new DOMParser();
+    const tempDoc = parser.parseFromString(`<div>${enhancedText}</div>`, 'text/html');
+    const container = tempDoc.body.firstChild as HTMLElement;
     
-    enhancedText = enhancedText.replace(tickerRegex, (match, name, symbol) => {
-      extractedTickers.push(symbol.toUpperCase());
-      const displayName = name.trim();
-      const upperSymbol = symbol.toUpperCase();
-      
-      // Create asset wrapper - only the inner spans get colored
-      return `<span 
-        class="asset"
-        data-quote-symbol="${upperSymbol}"
-        data-sym="${upperSymbol}"
-        data-display-name="${displayName}"
-        onclick="window.handleTickerClick('${symbol}')">
-        <span class="asset-name">${displayName}</span>
-      </span>`;
-    });
+    // Skip these elements and their descendants
+    const skipTags = new Set(['A', 'CODE', 'PRE', 'SCRIPT', 'STYLE', 'BUTTON', 'INPUT']);
+    
+    // Pattern: Name (SYMBOL) with word boundaries
+    const tickerRegex = /\b([A-Za-z0-9\s&.-]+?)\s+\(([A-Z0-9_]{2,12})\)(?=[^\w]|$)/gi;
+    
+    const walkTextNodes = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent || '';
+        const matches: Array<{ match: string; name: string; symbol: string; index: number }> = [];
+        
+        let match;
+        tickerRegex.lastIndex = 0;
+        while ((match = tickerRegex.exec(text)) !== null) {
+          matches.push({
+            match: match[0],
+            name: match[1].trim(),
+            symbol: match[2].toUpperCase(),
+            index: match.index
+          });
+        }
+        
+        if (matches.length > 0) {
+          // Process matches in reverse order to maintain indices
+          matches.reverse().forEach(({ match, name, symbol, index }) => {
+            extractedTickers.push(symbol);
+            
+            const beforeText = text.substring(0, index);
+            const afterText = text.substring(index + match.length);
+            
+            // Create asset wrapper
+            const assetSpan = document.createElement('span');
+            assetSpan.className = 'asset';
+            assetSpan.setAttribute('data-quote-symbol', symbol);
+            assetSpan.setAttribute('data-sym', symbol);
+            assetSpan.setAttribute('data-display-name', name);
+            assetSpan.setAttribute('onclick', `window.handleTickerClick('${symbol}')`);
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'asset-name';
+            nameSpan.textContent = name;
+            assetSpan.appendChild(nameSpan);
+            
+            const parent = node.parentNode;
+            if (parent) {
+              // Split and replace
+              if (afterText) {
+                const afterNode = document.createTextNode(afterText);
+                parent.insertBefore(afterNode, node.nextSibling);
+              }
+              parent.insertBefore(assetSpan, node.nextSibling);
+              node.textContent = beforeText;
+            }
+          });
+        }
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const element = node as HTMLElement;
+        
+        // Skip if it's a blacklisted tag or already an asset
+        if (skipTags.has(element.tagName) || element.classList.contains('asset')) {
+          return;
+        }
+        
+        // Process children
+        const children = Array.from(node.childNodes);
+        children.forEach(child => walkTextNodes(child));
+      }
+    };
+    
+    walkTextNodes(container);
+    
+    enhancedText = container.innerHTML;
 
     return { html: enhancedText, tickers: extractedTickers };
   };
@@ -264,15 +322,16 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           font-family: var(--font-pixel);
         }
         
-        /* Asset container - no color applied */
+        /* Asset container - no color, display inline */
         .asset {
           display: inline;
           cursor: pointer;
+          color: inherit;
         }
         
-        /* Asset names - bright cyan/teal (scoped to exact token) */
+        /* Asset names - bright cyan/teal (ONLY this span gets colored) */
         .asset-name {
-          color: #00e5ff;
+          color: #00e5ff !important;
           font-weight: 600;
           transition: opacity 0.2s;
         }
@@ -280,11 +339,18 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           opacity: 0.8;
         }
         
-        /* Prevent color bleed to nested anchors */
-        .asset a,
+        /* Critical: Prevent color bleed to links and parent text */
+        a .asset,
         a .asset-name {
-          color: inherit;
-          text-decoration: underline dotted;
+          color: inherit !important;
+          text-decoration: none;
+        }
+        .enhanced-brief a {
+          color: var(--foreground);
+          text-decoration: underline;
+        }
+        .enhanced-brief a:hover {
+          opacity: 0.8;
         }
         
         /* Ticker badges - pill style */
