@@ -110,11 +110,18 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             const beforeText = text.substring(0, index);
             const afterText = text.substring(index + match.length);
             
-            // Create structure: "Name (SYMBOL)" where only SYMBOL is clickable
-            // Name stays as plain text
-            const nameText = document.createTextNode(name + ' ');
+            // Create structure: Name (SYMBOL) $price (+change%)
+            // Each component gets its own span with specific class
             
-            // Parentheses wrapper
+            // Name span
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'sym-name';
+            nameSpan.textContent = name;
+            
+            // Space between name and ticker
+            const spaceText = document.createTextNode(' ');
+            
+            // Parentheses wrapper for ticker and price data
             const parenWrapper = document.createElement('span');
             parenWrapper.className = 'ticker-parentheses';
             parenWrapper.setAttribute('data-quote-symbol', symbol);
@@ -123,9 +130,9 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             // Opening paren
             const openParen = document.createTextNode('(');
             
-            // Clickable ticker symbol
+            // Clickable ticker symbol with its own span
             const tickerLink = document.createElement('span');
-            tickerLink.className = 'ticker-link';
+            tickerLink.className = 'sym-ticker';
             tickerLink.setAttribute('data-ticker', symbol);
             tickerLink.setAttribute('onclick', `window.handleTickerClick('${symbol}')`);
             tickerLink.style.cursor = 'pointer';
@@ -140,13 +147,14 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             
             const parent = node.parentNode;
             if (parent) {
-              // Insert in order: beforeText, name, parenWrapper, afterText
+              // Insert in order: beforeText, nameSpan, space, parenWrapper, afterText
               if (afterText) {
                 const afterNode = document.createTextNode(afterText);
                 parent.insertBefore(afterNode, node.nextSibling);
               }
               parent.insertBefore(parenWrapper, node.nextSibling);
-              parent.insertBefore(nameText, node.nextSibling);
+              parent.insertBefore(spaceText, node.nextSibling);
+              parent.insertBefore(nameSpan, node.nextSibling);
               node.textContent = beforeText;
             }
           });
@@ -238,7 +246,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           el.setAttribute('data-price-ok', String(capability.price_ok));
           el.setAttribute('data-tv-ok', String(capability.tv_ok));
 
-          const tickerLink = el.querySelector('.ticker-link');
+          const tickerLink = el.querySelector('.sym-ticker');
           const closeParen = Array.from(el.childNodes).find(
             node => node.nodeType === Node.TEXT_NODE && node.textContent === ')'
           );
@@ -269,19 +277,23 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
               return `${sign}${change.toFixed(2)}%`;
             };
 
-            // Build price display: " $price +change%"
-            let priceHTML = ` <span class="price">$${formatPrice(priceData.price)}</span>`;
+            // Create separate spans for price and change
+            const priceSpan = document.createElement('span');
+            priceSpan.className = 'sym-price';
+            priceSpan.textContent = ` $${formatPrice(priceData.price)}`;
+            
+            // Insert price before closing paren
+            el.insertBefore(priceSpan, closeParen);
             
             if (priceData.change !== null && priceData.change !== undefined) {
               const isPositive = priceData.change >= 0;
-              const changeClass = isPositive ? 'percent positive' : 'percent negative';
-              priceHTML += ` <span class="${changeClass}">${formatChange(priceData.change)}</span>`;
+              const changeSpan = document.createElement('span');
+              changeSpan.className = isPositive ? 'sym-change positive' : 'sym-change negative';
+              changeSpan.textContent = ` ${formatChange(priceData.change)}`;
+              
+              // Insert change before closing paren
+              el.insertBefore(changeSpan, closeParen);
             }
-
-            // Insert price data before closing paren
-            const priceSpan = document.createElement('span');
-            priceSpan.innerHTML = priceHTML;
-            el.insertBefore(priceSpan, closeParen);
             
             console.log(`✅ Updated ${sym} with price $${priceData.price}`);
           } else if (capability.price_ok) {
@@ -339,17 +351,25 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           font-family: var(--font-pixel);
         }
         
+        /* Asset mention components - each with its own styling */
+        
+        /* Token/Asset Name - plain text, inherits color */
+        .sym-name {
+          display: inline;
+          color: hsl(var(--foreground));
+          font-weight: 500;
+        }
+        
         /* Ticker parentheses wrapper */
         .ticker-parentheses {
           display: inline;
           white-space: nowrap;
-          color: inherit;
         }
         
-        /* Ticker link - only the symbol inside parentheses is clickable */
-        .ticker-link {
+        /* Ticker Symbol - clickable, accent color */
+        .sym-ticker {
           display: inline;
-          color: #00e5ff;
+          color: hsl(var(--primary));
           font-weight: 700;
           text-decoration: none;
           cursor: pointer;
@@ -357,9 +377,54 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           border-bottom: 1px solid transparent;
         }
         
-        .ticker-link:hover {
+        .sym-ticker:hover {
           opacity: 0.8;
-          border-bottom-color: #00e5ff;
+          border-bottom-color: hsl(var(--primary));
+        }
+        
+        /* Price - neutral accent color */
+        .sym-price {
+          display: inline;
+          color: hsl(var(--muted-foreground));
+          font-weight: 600;
+          font-size: 0.95rem;
+        }
+        
+        /* Percentage Change - color coded by sign */
+        .sym-change {
+          display: inline;
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+        
+        .sym-change.positive {
+          color: hsl(var(--success));
+        }
+        
+        .sym-change.negative {
+          color: hsl(var(--destructive));
+        }
+        
+        /* Standalone price badges (not in ticker context) */
+        .price-badge {
+          color: hsl(var(--muted-foreground));
+          font-weight: 600;
+          font-size: 0.95rem;
+        }
+        
+        /* Standalone percentage badges */
+        .percent {
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+        .percent.positive {
+          color: hsl(var(--success));
+        }
+        .percent.negative {
+          color: hsl(var(--destructive));
+        }
+        .percent.neutral {
+          color: hsl(var(--muted-foreground));
         }
         
         /* Prevent color bleed to regular links */
@@ -372,33 +437,12 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           opacity: 0.8;
         }
         
-        /* Price display - bold white */
-        .price-badge,
-        .price {
-          color: #f8fafc;
-          font-weight: 700;
-          font-size: 0.95rem;
-        }
-        
-        /* Percentage display - color coded by positive/negative */
-        .percent {
-          font-weight: 700;
-          font-size: 0.95rem;
-        }
-        .percent.positive {
-          color: #22c55e !important;
-        }
-        .percent.negative {
-          color: #ef4444 !important;
-        }
-        .percent.neutral {
-          color: #94a3b8;
-        }
-        
         /* Mobile responsive adjustments */
         @media (max-width: 640px) {
-          .ticker-link,
-          .price,
+          .sym-ticker,
+          .sym-price,
+          .sym-change,
+          .price-badge,
           .percent {
             font-size: 0.9rem;
           }
