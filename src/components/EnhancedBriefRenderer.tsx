@@ -70,6 +70,12 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     enhancedText = enhancedText.replace(/\$([0-9,]+(?:\.[0-9]+)?)/g, 
       '<span class="price-badge">$$$1</span>');
 
+    // Style signed dollar deltas (e.g., +$120, -$45.50) - color coded
+    enhancedText = enhancedText.replace(/([+-])\$([0-9,]+(?:\.[0-9]+)?)/g, (match, sign, amt) => {
+      const cls = sign === '-' ? 'negative' : 'positive';
+      return `<span class="delta ${cls}">${sign}$$${amt}</span>`;
+    });
+
     // Style percentages (e.g., +5.2%, -3.1%) - will be colored by sign
     enhancedText = enhancedText.replace(/([+-]?)([0-9]+\.?[0-9]*)%/g, 
       '<span class="percentage-badge" data-sign="$1" data-value="$2">$1$2%</span>');
@@ -124,11 +130,11 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             const openParen = document.createTextNode('(');
             
             // Clickable ticker symbol
-            const tickerLink = document.createElement('span');
+            const tickerLink = document.createElement('a');
             tickerLink.className = 'ticker-link';
+            tickerLink.setAttribute('href', 'javascript:void(0)');
             tickerLink.setAttribute('data-ticker', symbol);
             tickerLink.setAttribute('onclick', `window.handleTickerClick('${symbol}')`);
-            tickerLink.style.cursor = 'pointer';
             tickerLink.textContent = symbol;
             
             // Closing paren (will be populated with price/change later)
@@ -166,6 +172,129 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     };
     
     walkTextNodes(container);
+
+    // Transform anchors that wrap "Name (SYMBOL)" into plain name + linked ticker only
+    const anchorTokenRegex = /^\s*([A-Za-z0-9\s&.-]+?)\s+\(([A-Z0-9_]{2,12})\)\s*$/i;
+    const anchorParenRegex = /^\s*\(([A-Z0-9_]{2,12})\)\s*$/i;
+    const anchors = Array.from(container.querySelectorAll('a')) as HTMLAnchorElement[];
+    anchors.forEach((a) => {
+      const txt = (a.textContent || '').trim();
+
+      // Case: full "Name (SYMBOL)"
+      const m = txt.match(anchorTokenRegex);
+      if (m) {
+        const name = m[1].trim();
+        const symbol = m[2].toUpperCase();
+        extractedTickers.push(symbol);
+
+        const frag = tempDoc.createDocumentFragment();
+        frag.append(tempDoc.createTextNode(name + ' '));
+
+        const parenWrapper = tempDoc.createElement('span');
+        parenWrapper.className = 'ticker-parentheses';
+        parenWrapper.setAttribute('data-quote-symbol', symbol);
+        parenWrapper.setAttribute('data-sym', symbol);
+        parenWrapper.append('(');
+
+        const link = tempDoc.createElement('a');
+        link.className = 'ticker-link';
+        link.setAttribute('href', 'javascript:void(0)');
+        link.setAttribute('data-ticker', symbol);
+        link.setAttribute('onclick', `window.handleTickerClick('${symbol}')`);
+        link.textContent = symbol;
+        parenWrapper.appendChild(link);
+        parenWrapper.append(')');
+
+        frag.appendChild(parenWrapper);
+        a.replaceWith(frag);
+        return;
+      }
+
+      // Case: anchor is exactly "(SYMBOL)"
+      const m2 = txt.match(anchorParenRegex);
+      if (m2) {
+        const symbol = m2[1].toUpperCase();
+        extractedTickers.push(symbol);
+        const parenWrapper = tempDoc.createElement('span');
+        parenWrapper.className = 'ticker-parentheses';
+        parenWrapper.setAttribute('data-quote-symbol', symbol);
+        parenWrapper.setAttribute('data-sym', symbol);
+        parenWrapper.append('(');
+        const link = tempDoc.createElement('a');
+        link.className = 'ticker-link';
+        link.setAttribute('href', 'javascript:void(0)');
+        link.setAttribute('data-ticker', symbol);
+        link.setAttribute('onclick', `window.handleTickerClick('${symbol}')`);
+        link.textContent = symbol;
+        parenWrapper.appendChild(link);
+        parenWrapper.append(')');
+        a.replaceWith(parenWrapper);
+      }
+    });
+
+    // Wrap bare parenthetical tickers in plain text nodes: "(SYMBOL)"
+    const wrapBareParenTickers = () => {
+      const parenRegex = /\(([A-Z0-9_]{2,12})\)/g;
+      const nodes: Text[] = [];
+
+      const collect = (node: Node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const parent = (node.parentElement as HTMLElement) || null;
+          if (!parent) return;
+          if (skipTags.has(parent.tagName) || parent.closest('.ticker-parentheses')) return;
+          if (parenRegex.test(node.textContent || '')) {
+            parenRegex.lastIndex = 0;
+            nodes.push(node as Text);
+          }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement;
+          if (skipTags.has(el.tagName) || el.classList.contains('ticker-parentheses')) return;
+          Array.from(el.childNodes).forEach(collect);
+        }
+      };
+
+      collect(container);
+
+      nodes.forEach((node) => {
+        const text = node.textContent || '';
+        let lastIndex = 0;
+        let m;
+        let changed = false;
+        const frag = tempDoc.createDocumentFragment();
+        parenRegex.lastIndex = 0;
+        while ((m = parenRegex.exec(text)) !== null) {
+          changed = true;
+          const before = text.slice(lastIndex, m.index);
+          if (before) frag.append(tempDoc.createTextNode(before));
+          const symbol = m[1].toUpperCase();
+          extractedTickers.push(symbol);
+
+          const parenWrapper = tempDoc.createElement('span');
+          parenWrapper.className = 'ticker-parentheses';
+          parenWrapper.setAttribute('data-quote-symbol', symbol);
+          parenWrapper.setAttribute('data-sym', symbol);
+          parenWrapper.append('(');
+          const link = tempDoc.createElement('a');
+          link.className = 'ticker-link';
+          link.setAttribute('href', 'javascript:void(0)');
+          link.setAttribute('data-ticker', symbol);
+          link.setAttribute('onclick', `window.handleTickerClick('${symbol}')`);
+          link.textContent = symbol;
+          parenWrapper.appendChild(link);
+          parenWrapper.append(')');
+
+          frag.appendChild(parenWrapper);
+          lastIndex = m.index + m[0].length;
+        }
+        if (changed) {
+          const after = text.slice(lastIndex);
+          if (after) frag.append(tempDoc.createTextNode(after));
+          node.replaceWith(frag);
+        }
+      });
+    };
+
+    wrapBareParenTickers();
     
     enhancedText = container.innerHTML;
 
@@ -394,6 +523,14 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         .percent.neutral {
           color: #94a3b8;
         }
+        
+        /* Dollar delta display - color coded by positive/negative */
+        .delta {
+          font-weight: 700;
+          font-size: 0.95rem;
+        }
+        .delta.positive { color: #22c55e !important; }
+        .delta.negative { color: #ef4444 !important; }
         
         /* Mobile responsive adjustments */
         @media (max-width: 640px) {
