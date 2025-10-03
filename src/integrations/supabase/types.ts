@@ -268,6 +268,7 @@ export type Database = {
           slug: string
           social_data: Json | null
           stoic_quote: string | null
+          stoic_quote_author: string | null
           title: string
           updated_at: string
           view_count: number | null
@@ -286,6 +287,7 @@ export type Database = {
           slug: string
           social_data?: Json | null
           stoic_quote?: string | null
+          stoic_quote_author?: string | null
           title: string
           updated_at?: string
           view_count?: number | null
@@ -304,6 +306,7 @@ export type Database = {
           slug?: string
           social_data?: Json | null
           stoic_quote?: string | null
+          stoic_quote_author?: string | null
           title?: string
           updated_at?: string
           view_count?: number | null

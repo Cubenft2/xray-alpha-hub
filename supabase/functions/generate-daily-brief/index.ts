@@ -463,6 +463,7 @@ serve(async (req) => {
         .from('cache_kv')
         .select('v')
         .eq('k', 'custom_quote_override')
+        .gt('expires_at', new Date().toISOString())
         .maybeSingle();
       
       if (customOverride && customOverride.v) {
@@ -1140,7 +1141,8 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
         is_published: true,
         published_at: new Date().toISOString(),
         stoic_quote: randomQuote,
-        sentiment_score: lunarcrushData.data?.length ? 
+        stoic_quote_author: selectedAuthor,
+        sentiment_score: lunarcrushData.data?.length ?
           lunarcrushData.data.reduce((sum, asset) => sum + (asset.sentiment || 0), 0) / lunarcrushData.data.length : 
           0.0
       })

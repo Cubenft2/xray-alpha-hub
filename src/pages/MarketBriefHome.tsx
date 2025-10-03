@@ -609,7 +609,10 @@ export default function MarketBriefHome() {
             {/* Stoic Quote */}
             {briefData?.stoic_quote && (
               <div className="mb-6">
-                <StoicQuote quote={briefData.stoic_quote} />
+                <StoicQuote 
+                  quote={briefData.stoic_quote} 
+                  author={briefData.stoic_quote_author}
+                />
               </div>
             )}
 
