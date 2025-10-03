@@ -150,6 +150,29 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     };
     
     walkTextNodes(container);
+
+    // Special-case anchors whose entire text is a token: Name (SYMBOL)
+    const anchorTokenRegex = /^\s*([A-Za-z0-9\s&.-]+?)\s+\(([A-Z0-9_]{2,12})\)\s*$/i;
+    const anchors = Array.from(container.querySelectorAll('a')) as HTMLAnchorElement[];
+    anchors.forEach((a) => {
+      if ((a as HTMLElement).classList.contains('asset')) return;
+      const txt = (a.textContent || '').trim();
+      const m = txt.match(anchorTokenRegex);
+      if (!m) return;
+      const name = m[1].trim();
+      const symbol = m[2].toUpperCase();
+      extractedTickers.push(symbol);
+      (a as HTMLElement).classList.add('asset');
+      (a as HTMLElement).setAttribute('data-quote-symbol', symbol);
+      (a as HTMLElement).setAttribute('data-sym', symbol);
+      (a as HTMLElement).setAttribute('data-display-name', name);
+      // Replace anchor contents with scoped spans
+      a.textContent = '';
+      const nameSpan = tempDoc.createElement('span');
+      nameSpan.className = 'asset-name';
+      nameSpan.textContent = name;
+      a.appendChild(nameSpan);
+    });
     
     enhancedText = container.innerHTML;
 
@@ -341,7 +364,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         
         /* Critical: Prevent color bleed to links and parent text */
         .asset { color: inherit; }
-        .enhanced-brief a { color: var(--foreground); text-decoration: underline; }
+        .enhanced-brief a { color: hsl(var(--foreground)) !important; text-decoration: underline; }
         .enhanced-brief a:hover { opacity: 0.8; }
         /* Ensure tokens inside links keep accent color without affecting the link itself */
         .enhanced-brief a .asset-name { color: #00e5ff !important; }
