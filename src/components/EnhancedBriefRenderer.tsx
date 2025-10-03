@@ -44,13 +44,25 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   }, [navigate]);
 
   const processContent = (text: string) => {
-    // Normalize any pre-existing HTML tags in the source to plain newlines first
+    // Normalize any pre-existing HTML tags in the source to plain newlines/markdown first
     const normalized = text
       .replace(/<\/p>\s*<p>/gi, '\n\n')
       .replace(/<\/?p>/gi, '')
       .replace(/<br\s*\/?>(\n)?/gi, '\n')
       .replace(/&lt;<\/p>&gt;\s*&lt;<p>&gt;/gi, '\n\n')
       .replace(/&lt;br\s*\/?&gt;/gi, '\n')
+      // Convert heading tags to markdown BEFORE HTML escaping
+      .replace(/<\/?h1[^>]*>/gi, '###H1###')
+      .replace(/<\/?h2[^>]*>/gi, '###H2###')
+      .replace(/<\/?h3[^>]*>/gi, '###H3###')
+      .replace(/<\/?h4[^>]*>/gi, '###H4###')
+      .replace(/<\/?h5[^>]*>/gi, '###H5###')
+      .replace(/<\/?h6[^>]*>/gi, '###H6###')
+      // Convert list tags to markdown
+      .replace(/<\/?ul[^>]*>/gi, '\n')
+      .replace(/<\/?ol[^>]*>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '• ')
+      .replace(/<\/li>/gi, '\n')
       // Clean up any existing <strong> tags that might be in the content
       .replace(/<\/?strong>/gi, '**');
 
@@ -62,6 +74,13 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       .replace(/>/g, '&gt;')
       // Convert markdown-style bold to HTML
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>')
+      // Convert markdown headings to styled spans
+      .replace(/###H1###(.*?)###H1###/g, '<span class="heading-1">$1</span>')
+      .replace(/###H2###(.*?)###H2###/g, '<span class="heading-2">$1</span>')
+      .replace(/###H3###(.*?)###H3###/g, '<span class="heading-3">$1</span>')
+      .replace(/###H4###(.*?)###H4###/g, '<span class="heading-4">$1</span>')
+      .replace(/###H5###(.*?)###H5###/g, '<span class="heading-5">$1</span>')
+      .replace(/###H6###(.*?)###H6###/g, '<span class="heading-6">$1</span>')
       .replace(/\n\n\n+/g, '</p></div><div class="section-break my-8"><hr class="border-border/30" /></div><div class="space-y-6"><p class="mb-6 leading-relaxed text-foreground/90">')
       .replace(/\n\n+/g, '</p><p class="mb-6 leading-relaxed text-foreground/90">')
       .replace(/\n/g, '<br/>');
@@ -437,6 +456,61 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           opacity: 0.8;
         }
         
+        /* Heading styles */
+        .heading-1 {
+          display: block;
+          font-size: 1.875rem;
+          font-weight: 700;
+          margin: 1.5rem 0 1rem 0;
+          line-height: 1.2;
+          color: hsl(var(--foreground));
+        }
+        
+        .heading-2 {
+          display: block;
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin: 1.25rem 0 0.875rem 0;
+          line-height: 1.3;
+          color: hsl(var(--foreground));
+        }
+        
+        .heading-3 {
+          display: block;
+          font-size: 1.25rem;
+          font-weight: 700;
+          margin: 1rem 0 0.75rem 0;
+          line-height: 1.4;
+          color: hsl(var(--foreground));
+        }
+        
+        .heading-4 {
+          display: block;
+          font-size: 1.125rem;
+          font-weight: 600;
+          margin: 0.875rem 0 0.625rem 0;
+          line-height: 1.4;
+          color: hsl(var(--foreground));
+        }
+        
+        .heading-5 {
+          display: block;
+          font-size: 1rem;
+          font-weight: 600;
+          margin: 0.75rem 0 0.5rem 0;
+          line-height: 1.5;
+          color: hsl(var(--foreground));
+        }
+        
+        .heading-6 {
+          display: block;
+          font-size: 0.875rem;
+          font-weight: 600;
+          margin: 0.625rem 0 0.5rem 0;
+          line-height: 1.5;
+          color: hsl(var(--muted-foreground));
+        }
+        
         /* Mobile responsive adjustments */
         @media (max-width: 640px) {
           .sym-ticker,
@@ -445,6 +519,22 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           .price-badge,
           .percent {
             font-size: 0.9rem;
+          }
+          
+          .heading-1 {
+            font-size: 1.5rem;
+          }
+          
+          .heading-2 {
+            font-size: 1.25rem;
+          }
+          
+          .heading-3 {
+            font-size: 1.125rem;
+          }
+          
+          .heading-4, .heading-5 {
+            font-size: 1rem;
           }
         }
       `}</style>
