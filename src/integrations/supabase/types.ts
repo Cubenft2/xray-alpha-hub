@@ -65,6 +65,47 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_quotes: {
+        Row: {
+          author: string
+          brief_id: string | null
+          brief_type: string
+          created_at: string
+          id: string
+          quote_text: string
+          source: string
+          used_date: string
+        }
+        Insert: {
+          author: string
+          brief_id?: string | null
+          brief_type: string
+          created_at?: string
+          id?: string
+          quote_text: string
+          source: string
+          used_date: string
+        }
+        Update: {
+          author?: string
+          brief_id?: string | null
+          brief_type?: string
+          created_at?: string
+          id?: string
+          quote_text?: string
+          source?: string
+          used_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_quotes_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "market_briefs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       earnings_calendar: {
         Row: {
           category: string | null
@@ -458,6 +499,39 @@ export type Database = {
           synced_at?: string | null
           ticker?: string
           type?: string | null
+        }
+        Relationships: []
+      }
+      quote_library: {
+        Row: {
+          author: string
+          category: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          quote_text: string
+          times_used: number
+        }
+        Insert: {
+          author: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          quote_text: string
+          times_used?: number
+        }
+        Update: {
+          author?: string
+          category?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          quote_text?: string
+          times_used?: number
         }
         Relationships: []
       }
