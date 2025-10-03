@@ -222,7 +222,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           el.setAttribute('data-price-ok', String(capability.price_ok));
           el.setAttribute('data-tv-ok', String(capability.tv_ok));
 
-          const nameSpan = el.querySelector('.ticker-name');
+          const nameSpan = el.querySelector('.asset-name, .ticker-name');
           if (!nameSpan) return;
 
           // Remove any existing ticker-symbol span
@@ -340,18 +340,11 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         }
         
         /* Critical: Prevent color bleed to links and parent text */
-        a .asset,
-        a .asset-name {
-          color: inherit !important;
-          text-decoration: none;
-        }
-        .enhanced-brief a {
-          color: var(--foreground);
-          text-decoration: underline;
-        }
-        .enhanced-brief a:hover {
-          opacity: 0.8;
-        }
+        .asset { color: inherit; }
+        .enhanced-brief a { color: var(--foreground); text-decoration: underline; }
+        .enhanced-brief a:hover { opacity: 0.8; }
+        /* Ensure tokens inside links keep accent color without affecting the link itself */
+        .enhanced-brief a .asset-name { color: #00e5ff !important; }
         
         /* Ticker badges - pill style */
         .ticker-badge {
