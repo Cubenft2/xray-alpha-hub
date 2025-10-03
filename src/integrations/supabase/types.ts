@@ -374,6 +374,93 @@ export type Database = {
         }
         Relationships: []
       }
+      poly_fx_pairs: {
+        Row: {
+          active: boolean | null
+          base_currency: string
+          created_at: string | null
+          id: string
+          name: string
+          quote_currency: string
+          synced_at: string | null
+          ticker: string
+        }
+        Insert: {
+          active?: boolean | null
+          base_currency: string
+          created_at?: string | null
+          id?: string
+          name: string
+          quote_currency: string
+          synced_at?: string | null
+          ticker: string
+        }
+        Update: {
+          active?: boolean | null
+          base_currency?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          quote_currency?: string
+          synced_at?: string | null
+          ticker?: string
+        }
+        Relationships: []
+      }
+      poly_tickers: {
+        Row: {
+          active: boolean | null
+          base_currency_name: string | null
+          base_currency_symbol: string | null
+          created_at: string | null
+          currency_name: string | null
+          delisted_utc: string | null
+          id: string
+          last_updated_utc: string | null
+          locale: string | null
+          market: string
+          name: string
+          primary_exchange: string | null
+          synced_at: string | null
+          ticker: string
+          type: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          base_currency_name?: string | null
+          base_currency_symbol?: string | null
+          created_at?: string | null
+          currency_name?: string | null
+          delisted_utc?: string | null
+          id?: string
+          last_updated_utc?: string | null
+          locale?: string | null
+          market: string
+          name: string
+          primary_exchange?: string | null
+          synced_at?: string | null
+          ticker: string
+          type?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          base_currency_name?: string | null
+          base_currency_symbol?: string | null
+          created_at?: string | null
+          currency_name?: string | null
+          delisted_utc?: string | null
+          id?: string
+          last_updated_utc?: string | null
+          locale?: string | null
+          market?: string
+          name?: string
+          primary_exchange?: string | null
+          synced_at?: string | null
+          ticker?: string
+          type?: string | null
+        }
+        Relationships: []
+      }
       social_sentiment: {
         Row: {
           asset_name: string

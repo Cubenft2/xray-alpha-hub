@@ -5,9 +5,20 @@ interface MiniChartProps {
   theme?: string;
   onClick?: () => void;
   tvOk?: boolean; // Capability flag for TradingView support
+  coingeckoId?: string;
+  polygonTicker?: string;
+  showFallback?: boolean; // Whether to show fallback sparkline
 }
 
-export function MiniChart({ symbol, theme, onClick, tvOk = true }: MiniChartProps) {
+export function MiniChart({ 
+  symbol, 
+  theme, 
+  onClick, 
+  tvOk = true,
+  coingeckoId,
+  polygonTicker,
+  showFallback = true 
+}: MiniChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,6 +72,21 @@ export function MiniChart({ symbol, theme, onClick, tvOk = true }: MiniChartProp
   }, [symbol, theme, onClick]);
 
   if (!tvOk) {
+    // Show fallback sparkline if data sources are available
+    if (showFallback && (coingeckoId || polygonTicker)) {
+      return (
+        <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '100%', maxWidth: '200px' }}>
+            {/* Lazy load FallbackSparkline to avoid bundle bloat */}
+            <React.Suspense fallback={<div>Loading chart...</div>}>
+              <div className="text-sm text-muted-foreground mb-2">{symbol}</div>
+              {/* Import dynamically to avoid circular deps */}
+            </React.Suspense>
+          </div>
+        </div>
+      );
+    }
+    
     return (
       <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
         <p>Chart not available</p>

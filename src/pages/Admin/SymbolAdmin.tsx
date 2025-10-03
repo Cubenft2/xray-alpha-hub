@@ -11,6 +11,7 @@ export function SymbolAdmin() {
   const [syncing, setSyncing] = useState({
     coingecko: false,
     exchange: false,
+    polygon: false,
   });
 
   const handleCoinGeckoSync = async () => {
@@ -47,6 +48,24 @@ export function SymbolAdmin() {
     }
   };
 
+  const handlePolygonSync = async () => {
+    setSyncing({ ...syncing, polygon: true });
+    try {
+      const { data, error } = await supabase.functions.invoke('polygon-sync');
+      
+      if (error) throw error;
+      
+      toast.success(
+        `Polygon sync complete! Synced ${data.synced} tickers (${data.fx_pairs} FX pairs)`
+      );
+    } catch (error) {
+      console.error('Polygon sync error:', error);
+      toast.error('Failed to sync Polygon data');
+    } finally {
+      setSyncing({ ...syncing, polygon: false });
+    }
+  };
+
   return (
     <div className="container mx-auto p-8">
       <h1 className="text-3xl font-bold mb-8">Symbol Intelligence Admin</h1>
@@ -58,7 +77,7 @@ export function SymbolAdmin() {
         </TabsList>
 
         <TabsContent value="sync">
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-3">
             <Card>
               <CardHeader>
                 <CardTitle>CoinGecko Master Sync</CardTitle>
@@ -102,6 +121,28 @@ export function SymbolAdmin() {
                 </p>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Polygon Market Sync</CardTitle>
+                <CardDescription>
+                  Sync stocks, ETFs, crypto, and FX pairs from Polygon.io
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  onClick={handlePolygonSync} 
+                  disabled={syncing.polygon}
+                  className="w-full"
+                >
+                  {syncing.polygon && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {syncing.polygon ? 'Syncing...' : 'Sync Polygon'}
+                </Button>
+                <p className="text-sm text-muted-foreground mt-4">
+                  Fetches reference data for stocks, crypto, FX, and ETFs from Polygon.io API with real-time capabilities.
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           <Card className="mt-6">
@@ -136,6 +177,31 @@ SELECT cron.schedule(
   SELECT net.http_post(
     url:='https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/exchange-sync',
     headers:='{"Authorization": "Bearer YOUR_SERVICE_ROLE_KEY"}'::jsonb
+  );
+  $$
+);
+
+-- Run Polygon sync nightly at 3 AM
+SELECT cron.schedule(
+  'polygon-nightly-sync',
+  '0 3 * * *',
+  $$
+  SELECT net.http_post(
+    url:='https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/polygon-sync',
+    headers:='{"Authorization": "Bearer YOUR_SERVICE_ROLE_KEY"}'::jsonb
+  );
+  $$
+);
+
+-- Run Polygon hourly sync for FX and crypto
+SELECT cron.schedule(
+  'polygon-hourly-fx-crypto',
+  '0 * * * *',
+  $$
+  SELECT net.http_post(
+    url:='https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/polygon-sync',
+    headers:='{"Authorization": "Bearer YOUR_SERVICE_ROLE_KEY"}'::jsonb,
+    body:='{"markets": ["crypto", "fx"]}'::jsonb
   );
   $$
 );`}

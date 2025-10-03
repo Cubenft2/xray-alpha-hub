@@ -192,7 +192,53 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Step 2: Check cg_master (exact symbol match, then fuzzy name match)
+      // Step 2: Check poly_tickers (stocks, FX, crypto from Polygon)
+      const { data: polyExact } = await supabase
+        .from('poly_tickers')
+        .select('*')
+        .ilike('ticker', `%${normalized}%`)
+        .eq('active', true)
+        .limit(5);
+
+      if (polyExact && polyExact.length > 0) {
+        const polyMatch = polyExact[0];
+        console.log(`  ✓ Found in poly_tickers: ${polyMatch.ticker} (${polyMatch.name})`);
+        
+        // Add to pending with Polygon info
+        await supabase
+          .from('pending_ticker_mappings')
+          .upsert({
+            symbol: rawSymbol,
+            normalized_symbol: normalized,
+            display_name: polyMatch.name,
+            polygon_ticker: polyMatch.ticker,
+            tradingview_symbol: polyMatch.market === 'stocks' ? polyMatch.ticker : 
+                              polyMatch.market === 'crypto' ? `CRYPTO:${normalized}USDT` :
+                              polyMatch.market === 'fx' ? `FX:${normalized}` : undefined,
+            confidence_score: 0.85,
+            match_type: 'polygon_exact',
+            status: 'pending',
+            seen_count: 1,
+            context: {
+              polygon_ticker: polyMatch.ticker,
+              polygon_market: polyMatch.market,
+              polygon_type: polyMatch.type,
+              added_at: new Date().toISOString(),
+            },
+          }, {
+            onConflict: 'normalized_symbol',
+            ignoreDuplicates: false,
+          });
+
+        missing.push({
+          symbol: rawSymbol,
+          normalized,
+          reason: `Polygon match found (85%) - added to pending queue`,
+        });
+        continue;
+      }
+
+      // Step 3: Check cg_master (exact symbol match, then fuzzy name match)
       const { data: cgExact } = await supabase
         .from('cg_master')
         .select('*')
@@ -326,7 +372,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Step 3: Not found anywhere - add to pending
+      // Step 4: Not found anywhere - add to pending
       console.log(`  ✗ Not found: ${rawSymbol}`);
       
       await supabase

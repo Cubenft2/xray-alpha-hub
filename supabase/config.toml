@@ -24,5 +24,8 @@ verify_jwt = false
 [functions.symbol-intelligence]
 verify_jwt = false
 
+[functions.polygon-sync]
+verify_jwt = false
+
 [functions.quotes]
 verify_jwt = false
