@@ -44,18 +44,13 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   }, [navigate]);
 
   const processContent = (text: string) => {
-    // Normalize any pre-existing HTML tags in the source - convert to markdown-style
+    // Normalize any pre-existing HTML tags in the source to plain newlines first
     const normalized = text
       .replace(/<\/p>\s*<p>/gi, '\n\n')
       .replace(/<\/?p>/gi, '')
       .replace(/<br\s*\/?>(\n)?/gi, '\n')
       .replace(/&lt;<\/p>&gt;\s*&lt;<p>&gt;/gi, '\n\n')
       .replace(/&lt;br\s*\/?&gt;/gi, '\n')
-      // Convert heading tags to markdown-style (will be converted to HTML later)
-      .replace(/<h1>(.*?)<\/h1>/gi, '\n\n## $1\n\n')
-      .replace(/<h2>(.*?)<\/h2>/gi, '\n\n## $1\n\n')
-      .replace(/<h3>(.*?)<\/h3>/gi, '\n\n## $1\n\n')
-      .replace(/<h4>(.*?)<\/h4>/gi, '\n\n## $1\n\n')
       // Clean up any existing <strong> tags that might be in the content
       .replace(/<\/?strong>/gi, '**');
 
@@ -65,8 +60,6 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     enhancedText = enhancedText.replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      // Convert markdown-style headings to HTML (after escaping, so they render properly)
-      .replace(/##\s+(.*?)(?=\n|$)/g, '<span class="heading-3">$1</span>')
       // Convert markdown-style bold to HTML
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>')
       .replace(/\n\n\n+/g, '</p></div><div class="section-break my-8"><hr class="border-border/30" /></div><div class="space-y-6"><p class="mb-6 leading-relaxed text-foreground/90">')
@@ -444,43 +437,6 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           opacity: 0.8;
         }
         
-        /* Heading styles */
-        .heading-1 {
-          display: block;
-          font-size: 2rem;
-          font-weight: 700;
-          color: hsl(var(--foreground));
-          margin: 1.5rem 0 1rem 0;
-          line-height: 1.2;
-        }
-        
-        .heading-2 {
-          display: block;
-          font-size: 1.75rem;
-          font-weight: 700;
-          color: hsl(var(--foreground));
-          margin: 1.25rem 0 0.875rem 0;
-          line-height: 1.3;
-        }
-        
-        .heading-3 {
-          display: block;
-          font-size: 1.5rem;
-          font-weight: 700;
-          color: hsl(var(--foreground));
-          margin: 1rem 0 0.75rem 0;
-          line-height: 1.4;
-        }
-        
-        .heading-4 {
-          display: block;
-          font-size: 1.25rem;
-          font-weight: 600;
-          color: hsl(var(--foreground));
-          margin: 0.875rem 0 0.625rem 0;
-          line-height: 1.4;
-        }
-        
         /* Mobile responsive adjustments */
         @media (max-width: 640px) {
           .sym-ticker,
@@ -489,22 +445,6 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           .price-badge,
           .percent {
             font-size: 0.9rem;
-          }
-          
-          .heading-1 {
-            font-size: 1.5rem;
-          }
-          
-          .heading-2 {
-            font-size: 1.35rem;
-          }
-          
-          .heading-3 {
-            font-size: 1.25rem;
-          }
-          
-          .heading-4 {
-            font-size: 1.1rem;
           }
         }
       `}</style>
