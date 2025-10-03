@@ -8,12 +8,25 @@ import { useNavigate } from 'react-router-dom';
 
 export function GenerateBrief() {
   const [generating, setGenerating] = useState(false);
+  const [customQuote, setCustomQuote] = useState('');
+  const [customAuthor, setCustomAuthor] = useState('');
+  const [useCustomQuote, setUseCustomQuote] = useState(false);
   const navigate = useNavigate();
 
   const handleGenerateBrief = async (briefType: 'morning' | 'evening' | 'weekend') => {
     setGenerating(true);
     try {
       console.log(`🚀 Generating ${briefType} brief with Symbol Intelligence Layer...`);
+      
+      // Store custom quote if provided
+      if (useCustomQuote && customQuote && customAuthor) {
+        await supabase.from('cache_kv').upsert({
+          k: 'custom_quote_override',
+          v: { quote: customQuote, author: customAuthor },
+          expires_at: new Date(Date.now() + 3600000).toISOString() // 1 hour
+        });
+        console.log('✅ Custom quote override set');
+      }
       
       const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
         body: { briefType }
@@ -27,6 +40,13 @@ export function GenerateBrief() {
       
       console.log('✅ Brief generated:', data);
       toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated successfully!`);
+      
+      // Clear custom quote after use
+      if (useCustomQuote) {
+        setCustomQuote('');
+        setCustomAuthor('');
+        setUseCustomQuote(false);
+      }
       
       // Navigate to the home page to see the new brief
       setTimeout(() => {
@@ -64,6 +84,45 @@ export function GenerateBrief() {
               <li><strong>Auto-Insert:</strong> High-confidence matches (≥0.9) added automatically</li>
               <li><strong>Pending Queue:</strong> Low-confidence matches added to pending_ticker_mappings</li>
             </ul>
+            
+            <div className="space-y-4 mt-6 p-4 border border-border rounded-lg bg-muted/20">
+              <h3 className="font-semibold text-sm">Custom Quote Override (Optional)</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Quote Text (max 200 characters)</label>
+                  <textarea
+                    value={customQuote}
+                    onChange={(e) => setCustomQuote(e.target.value)}
+                    placeholder="Enter a custom quote for the next brief..."
+                    maxLength={200}
+                    className="w-full p-2 border border-input rounded-md bg-background text-sm min-h-[80px]"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">{customQuote.length}/200 characters</p>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Author Name</label>
+                  <input
+                    type="text"
+                    value={customAuthor}
+                    onChange={(e) => setCustomAuthor(e.target.value)}
+                    placeholder="Author name..."
+                    className="w-full p-2 border border-input rounded-md bg-background text-sm"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="useCustomQuote"
+                    checked={useCustomQuote}
+                    onChange={(e) => setUseCustomQuote(e.target.checked)}
+                    className="rounded border-input"
+                  />
+                  <label htmlFor="useCustomQuote" className="text-sm cursor-pointer">
+                    Use custom quote for next brief
+                  </label>
+                </div>
+              </div>
+            </div>
             
             <div className="grid gap-3">
               <Button 

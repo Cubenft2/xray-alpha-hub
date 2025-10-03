@@ -457,6 +457,30 @@ serve(async (req) => {
     
     console.log('📖 Fetching Daily Wisdom quote...');
     
+    // Step 0: Check for custom quote override
+    try {
+      const { data: customOverride } = await supabase
+        .from('cache_kv')
+        .select('v')
+        .eq('k', 'custom_quote_override')
+        .maybeSingle();
+      
+      if (customOverride && customOverride.v) {
+        const override = customOverride.v as { quote: string; author: string };
+        if (override.quote && override.author) {
+          selectedQuote = override.quote;
+          selectedAuthor = override.author;
+          quoteSource = 'manual_override';
+          console.log('✅ Using custom quote override:', selectedAuthor);
+          
+          // Delete the override after use (one-time use)
+          await supabase.from('cache_kv').delete().eq('k', 'custom_quote_override');
+        }
+      }
+    } catch (error) {
+      console.log('⚠️ Failed to check custom quote override:', error);
+    }
+    
     // Helper function to check quote quality
     const isValidQuote = (text: string): boolean => {
       // Check length
@@ -474,10 +498,11 @@ serve(async (req) => {
       return true;
     };
     
-    // Step 1: Try API Ninjas
-    try {
-      const apiNinjasKey = Deno.env.get('API_NINJAS_KEY');
-      if (apiNinjasKey) {
+    // Step 1: Try API Ninjas (only if no custom override)
+    if (!selectedQuote) {
+      try {
+        const apiNinjasKey = Deno.env.get('API_NINJAS_KEY');
+        if (apiNinjasKey) {
         const response = await fetch('https://api.api-ninjas.com/v1/quotes?category=inspirational', {
           headers: { 'X-Api-Key': apiNinjasKey }
         });
@@ -497,9 +522,10 @@ serve(async (req) => {
             }
           }
         }
+        }
+      } catch (error) {
+        console.log('⚠️ API Ninjas fetch failed:', error);
       }
-    } catch (error) {
-      console.log('⚠️ API Ninjas fetch failed:', error);
     }
     
     // Step 2: Fallback to quote library if API failed
