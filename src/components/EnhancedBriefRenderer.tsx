@@ -74,9 +74,9 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     enhancedText = enhancedText.replace(/([+-]?)([0-9]+\.?[0-9]*)%/g, 
       '<span class="percentage-badge" data-sign="$1" data-value="$2">$1$2%</span>');
 
-    // Enhanced ticker detection - looks for "Name (SYMBOL)" patterns
+    // Enhanced ticker detection - looks for "Name (SYMBOL)" patterns with word boundaries
     // Parentheses will only be shown if price_ok via capability check
-    const tickerRegex = /([A-Za-z0-9\s&.-]+)\s*\(([A-Z0-9_]{2,12})\)/g;
+    const tickerRegex = /\b([A-Za-z0-9\s&.-]+?)\s+\(([A-Z0-9_]{2,12})\)/g;
     const extractedTickers: string[] = [];
     
     enhancedText = enhancedText.replace(tickerRegex, (match, name, symbol) => {
@@ -84,14 +84,14 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       const displayName = name.trim();
       const upperSymbol = symbol.toUpperCase();
       
-      // Create ticker span - parentheses added conditionally by capability check
+      // Create asset wrapper - only the inner spans get colored
       return `<span 
-        class="ticker-mention"
+        class="asset"
         data-quote-symbol="${upperSymbol}"
         data-sym="${upperSymbol}"
         data-display-name="${displayName}"
         onclick="window.handleTickerClick('${symbol}')">
-        <span class="ticker-name asset-name">${displayName}</span>
+        <span class="asset-name">${displayName}</span>
       </span>`;
     });
 
@@ -264,15 +264,27 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           font-family: var(--font-pixel);
         }
         
-        /* Asset names - bright cyan/teal */
+        /* Asset container - no color applied */
+        .asset {
+          display: inline;
+          cursor: pointer;
+        }
+        
+        /* Asset names - bright cyan/teal (scoped to exact token) */
         .asset-name {
           color: #00e5ff;
           font-weight: 600;
-          cursor: pointer;
           transition: opacity 0.2s;
         }
-        .asset-name:hover {
+        .asset:hover .asset-name {
           opacity: 0.8;
+        }
+        
+        /* Prevent color bleed to nested anchors */
+        .asset a,
+        a .asset-name {
+          color: inherit;
+          text-decoration: underline dotted;
         }
         
         /* Ticker badges - pill style */
@@ -286,6 +298,12 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           font-weight: 600;
           font-size: 0.875rem;
           margin: 0 2px;
+        }
+        
+        /* Ticker symbol wrapper (parentheses content) */
+        .ticker-symbol {
+          display: inline;
+          white-space: nowrap;
         }
         
         /* Price badges - bold white */
