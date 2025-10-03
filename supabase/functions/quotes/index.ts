@@ -303,10 +303,9 @@ async function fetchPolygonPrice(ticker: string, symbol: string, mapping?: any):
 // Main quote fetching with resolution pipeline
 async function fetchQuotesWithResolution(symbols: string[]): Promise<{
   quotes: QuoteData[];
-  missing: string[];
 }> {
   const quotes: QuoteData[] = [];
-  const missing: string[] = [];
+  const missingInternal: string[] = [];
   
   // Resolve all symbols and fetch quotes
   for (const symbol of symbols) {
@@ -314,7 +313,7 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
     
     if (!resolution.resolved) {
       console.warn(`❌ Symbol not resolved: ${symbol}`);
-      missing.push(symbol);
+      missingInternal.push(symbol);
       quotes.push({
         symbol,
         price: null,
@@ -358,11 +357,11 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
         derivs_ok: resolution.mapping.derivs_supported === true,
         social_ok: resolution.mapping.social_supported === true,
       });
-      missing.push(symbol);
+      missingInternal.push(symbol);
     } else if (!quote) {
       // Completely missing mapping
       console.error(`❌ No quote retrieved for ${symbol}`);
-      missing.push(symbol);
+      missingInternal.push(symbol);
       quotes.push({
         symbol,
         price: null,
@@ -375,7 +374,12 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
     }
   }
   
-  return { quotes, missing };
+  // Log missing symbols internally but don't expose to client
+  if (missingInternal.length > 0) {
+    console.warn('Missing mappings for:', missingInternal);
+  }
+  
+  return { quotes };
 }
 
 const TTL_MS = 150000; // 150 seconds cache
@@ -435,17 +439,12 @@ serve(async (req) => {
     console.log('Fetching fresh quotes for:', uniqueSymbols);
     
     // Fetch with resolution pipeline
-    const { quotes, missing } = await fetchQuotesWithResolution(uniqueSymbols);
+    const { quotes } = await fetchQuotesWithResolution(uniqueSymbols);
     
-    if (missing.length > 0) {
-      console.warn('Missing mappings for:', missing);
-    }
-    
-    console.log(`Successfully fetched ${quotes.length} quotes (${missing.length} missing)`);
+    console.log(`Successfully fetched ${quotes.length} quotes`);
     
     const response = {
       quotes,
-      missing,
       ts: new Date().toISOString(),
       cached: false
     };
