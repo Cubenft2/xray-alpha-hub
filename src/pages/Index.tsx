@@ -6,12 +6,14 @@ import { CryptoScreener } from '@/components/CryptoScreener';
 import { CryptoHeatmap } from '@/components/CryptoHeatmap';
 import { NewsSection } from '@/components/NewsSection';
 import { FinancialDisclaimer } from '@/components/FinancialDisclaimer';
+import { useTickerMappings } from '@/hooks/useTickerMappings';
 
 const Index = () => {
   const [searchParams] = useSearchParams();
   const [chartSymbol, setChartSymbol] = useState<string>('BINANCE:BTCUSDT');
   const [searchTerm, setSearchTerm] = useState('');
   const { setSearchHandler } = useLayoutSearch();
+  const { getMapping, isLoading } = useTickerMappings();
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
@@ -21,107 +23,113 @@ const Index = () => {
       const upperTerm = term.toUpperCase();
       let newSymbol = '';
       
-      // Map common crypto symbols to TradingView format
-      const cryptoMappings: { [key: string]: string } = {
-        'BTC': 'BINANCE:BTCUSDT',
-        'BITCOIN': 'BINANCE:BTCUSDT',
-        'ETH': 'BINANCE:ETHUSDT',
-        'ETHEREUM': 'BINANCE:ETHUSDT',
-        'BNB': 'BINANCE:BNBUSDT',
-        'BINANCE': 'BINANCE:BNBUSDT',
-        'SOL': 'BINANCE:SOLUSDT',
-        'SOLANA': 'BINANCE:SOLUSDT',
-        'XRP': 'BINANCE:XRPUSDT',
-        'RIPPLE': 'BINANCE:XRPUSDT',
-        'ADA': 'BINANCE:ADAUSDT',
-        'CARDANO': 'BINANCE:ADAUSDT',
-        'AVAX': 'BINANCE:AVAXUSDT',
-        'AVALANCHE': 'BINANCE:AVAXUSDT',
-        'DOGE': 'BINANCE:DOGEUSDT',
-        'DOGECOIN': 'BINANCE:DOGEUSDT',
-        'TRX': 'BINANCE:TRXUSDT',
-        'TRON': 'BINANCE:TRXUSDT',
-        'TON': 'BINANCE:TONUSDT',
-        'TONCOIN': 'BINANCE:TONUSDT',
-        'LINK': 'BINANCE:LINKUSDT',
-        'CHAINLINK': 'BINANCE:LINKUSDT',
-        'SHIB': 'BINANCE:SHIBUSDT',
-        'SHIBA': 'BINANCE:SHIBUSDT',
-        'DOT': 'BINANCE:DOTUSDT',
-        'POLKADOT': 'BINANCE:DOTUSDT',
-        'MATIC': 'BINANCE:MATICUSDT',
-        'POLYGON': 'BINANCE:MATICUSDT',
-        'UNI': 'BINANCE:UNIUSDT',
-        'UNISWAP': 'BINANCE:UNIUSDT',
-        'LTC': 'BINANCE:LTCUSDT',
-        'LITECOIN': 'BINANCE:LTCUSDT',
-        'BCH': 'BINANCE:BCHUSDT',
-        'NEAR': 'BINANCE:NEARUSDT',
-        'ICP': 'BINANCE:ICPUSDT',
-        'APT': 'BINANCE:APTUSDT',
-        'APTOS': 'BINANCE:APTUSDT',
-        'FIL': 'BINANCE:FILUSDT',
-        'FILECOIN': 'BINANCE:FILUSDT',
-        'ARB': 'BINANCE:ARBUSDT',
-        'ARBITRUM': 'BINANCE:ARBUSDT',
-        'OP': 'BINANCE:OPUSDT',
-        'OPTIMISM': 'BINANCE:OPUSDT',
-        'HBAR': 'BINANCE:HBARUSDT',
-        'HEDERA': 'BINANCE:HBARUSDT',
-        'VET': 'BINANCE:VETUSDT',
-        'VECHAIN': 'BINANCE:VETUSDT',
-        'MKR': 'BINANCE:MKRUSDT',
-        'MAKER': 'BINANCE:MKRUSDT',
-        'ATOM': 'BINANCE:ATOMUSDT',
-        'COSMOS': 'BINANCE:ATOMUSDT',
-        'IMX': 'BINANCE:IMXUSDT',
-        'IMMUTABLE': 'BINANCE:IMXUSDT',
-        'RNDR': 'GEMINI:RNDRUSD',
-        'RENDER': 'GEMINI:RNDRUSD',
-        'STX': 'BINANCE:STXUSDT',
-        'STACKS': 'BINANCE:STXUSDT',
-        'INJ': 'BINANCE:INJUSDT',
-        'INJECTIVE': 'BINANCE:INJUSDT',
-        'GRT': 'BINANCE:GRTUSDT',
-        'GRAPH': 'BINANCE:GRTUSDT',
-        'RUNE': 'BINANCE:RUNEUSDT',
-        'THORCHAIN': 'BINANCE:RUNEUSDT',
-        'FTM': 'BINANCE:FTMUSDT',
-        'FANTOM': 'BINANCE:FTMUSDT',
-        'ALGO': 'BINANCE:ALGOUSDT',
-        'ALGORAND': 'BINANCE:ALGOUSDT',
-        'SAND': 'BINANCE:SANDUSDT',
-        'SANDBOX': 'BINANCE:SANDUSDT',
-        'MANA': 'BINANCE:MANAUSDT',
-        'DECENTRALAND': 'BINANCE:MANAUSDT',
-        'AAVE': 'BINANCE:AAVEUSDT',
-        'EOS': 'BINANCE:EOSUSDT',
-        'XTZ': 'BINANCE:XTZUSDT',
-        'TEZOS': 'BINANCE:XTZUSDT',
-        'THETA': 'BINANCE:THETAUSDT',
-        'FLR': 'BINANCE:FLRUSDT',
-        'FLARE': 'BINANCE:FLRUSDT',
-        'AXS': 'BINANCE:AXSUSDT',
-        'AXIE': 'BINANCE:AXSUSDT',
-        'FLOW': 'BINANCE:FLOWUSDT',
-        'SUI': 'BINANCE:SUIUSDT',
-        'HYPE': 'BINANCE:HYPEUSDT',
-        'HYPERLIQUID': 'BINANCE:HYPEUSDT',
-      };
-      
-      // Check for exact matches first
-      if (cryptoMappings[upperTerm]) {
-        newSymbol = cryptoMappings[upperTerm];
+      // 1. Check database first for exact mapping
+      const dbMapping = getMapping(upperTerm);
+      if (dbMapping?.tradingview_symbol) {
+        newSymbol = dbMapping.tradingview_symbol;
       } else {
-        // Try to find partial matches
-        const matchedKey = Object.keys(cryptoMappings).find(key => 
-          key.startsWith(upperTerm) || key.includes(upperTerm)
-        );
-        if (matchedKey) {
-          newSymbol = cryptoMappings[matchedKey];
+        // 2. Fall back to hardcoded common mappings for performance
+        const cryptoMappings: { [key: string]: string } = {
+          'BTC': 'BINANCE:BTCUSDT',
+          'BITCOIN': 'BINANCE:BTCUSDT',
+          'ETH': 'BINANCE:ETHUSDT',
+          'ETHEREUM': 'BINANCE:ETHUSDT',
+          'BNB': 'BINANCE:BNBUSDT',
+          'BINANCE': 'BINANCE:BNBUSDT',
+          'SOL': 'BINANCE:SOLUSDT',
+          'SOLANA': 'BINANCE:SOLUSDT',
+          'XRP': 'BINANCE:XRPUSDT',
+          'RIPPLE': 'BINANCE:XRPUSDT',
+          'ADA': 'BINANCE:ADAUSDT',
+          'CARDANO': 'BINANCE:ADAUSDT',
+          'AVAX': 'BINANCE:AVAXUSDT',
+          'AVALANCHE': 'BINANCE:AVAXUSDT',
+          'DOGE': 'BINANCE:DOGEUSDT',
+          'DOGECOIN': 'BINANCE:DOGEUSDT',
+          'TRX': 'BINANCE:TRXUSDT',
+          'TRON': 'BINANCE:TRXUSDT',
+          'TON': 'BINANCE:TONUSDT',
+          'TONCOIN': 'BINANCE:TONUSDT',
+          'LINK': 'BINANCE:LINKUSDT',
+          'CHAINLINK': 'BINANCE:LINKUSDT',
+          'SHIB': 'BINANCE:SHIBUSDT',
+          'SHIBA': 'BINANCE:SHIBUSDT',
+          'DOT': 'BINANCE:DOTUSDT',
+          'POLKADOT': 'BINANCE:DOTUSDT',
+          'MATIC': 'BINANCE:MATICUSDT',
+          'POLYGON': 'BINANCE:MATICUSDT',
+          'UNI': 'BINANCE:UNIUSDT',
+          'UNISWAP': 'BINANCE:UNIUSDT',
+          'LTC': 'BINANCE:LTCUSDT',
+          'LITECOIN': 'BINANCE:LTCUSDT',
+          'BCH': 'BINANCE:BCHUSDT',
+          'NEAR': 'BINANCE:NEARUSDT',
+          'ICP': 'BINANCE:ICPUSDT',
+          'APT': 'BINANCE:APTUSDT',
+          'APTOS': 'BINANCE:APTUSDT',
+          'FIL': 'BINANCE:FILUSDT',
+          'FILECOIN': 'BINANCE:FILUSDT',
+          'ARB': 'BINANCE:ARBUSDT',
+          'ARBITRUM': 'BINANCE:ARBUSDT',
+          'OP': 'BINANCE:OPUSDT',
+          'OPTIMISM': 'BINANCE:OPUSDT',
+          'HBAR': 'BINANCE:HBARUSDT',
+          'HEDERA': 'BINANCE:HBARUSDT',
+          'VET': 'BINANCE:VETUSDT',
+          'VECHAIN': 'BINANCE:VETUSDT',
+          'MKR': 'BINANCE:MKRUSDT',
+          'MAKER': 'BINANCE:MKRUSDT',
+          'ATOM': 'BINANCE:ATOMUSDT',
+          'COSMOS': 'BINANCE:ATOMUSDT',
+          'IMX': 'BINANCE:IMXUSDT',
+          'IMMUTABLE': 'BINANCE:IMXUSDT',
+          'RNDR': 'GEMINI:RNDRUSD',
+          'RENDER': 'GEMINI:RNDRUSD',
+          'STX': 'BINANCE:STXUSDT',
+          'STACKS': 'BINANCE:STXUSDT',
+          'INJ': 'BINANCE:INJUSDT',
+          'INJECTIVE': 'BINANCE:INJUSDT',
+          'GRT': 'BINANCE:GRTUSDT',
+          'GRAPH': 'BINANCE:GRTUSDT',
+          'RUNE': 'BINANCE:RUNEUSDT',
+          'THORCHAIN': 'BINANCE:RUNEUSDT',
+          'FTM': 'BINANCE:FTMUSDT',
+          'FANTOM': 'BINANCE:FTMUSDT',
+          'ALGO': 'BINANCE:ALGOUSDT',
+          'ALGORAND': 'BINANCE:ALGOUSDT',
+          'SAND': 'BINANCE:SANDUSDT',
+          'SANDBOX': 'BINANCE:SANDUSDT',
+          'MANA': 'BINANCE:MANAUSDT',
+          'DECENTRALAND': 'BINANCE:MANAUSDT',
+          'AAVE': 'BINANCE:AAVEUSDT',
+          'EOS': 'BINANCE:EOSUSDT',
+          'XTZ': 'BINANCE:XTZUSDT',
+          'TEZOS': 'BINANCE:XTZUSDT',
+          'THETA': 'BINANCE:THETAUSDT',
+          'FLR': 'BINANCE:FLRUSDT',
+          'FLARE': 'BINANCE:FLRUSDT',
+          'AXS': 'BINANCE:AXSUSDT',
+          'AXIE': 'BINANCE:AXSUSDT',
+          'FLOW': 'BINANCE:FLOWUSDT',
+          'SUI': 'BINANCE:SUIUSDT',
+          'HYPE': 'BINANCE:HYPEUSDT',
+          'HYPERLIQUID': 'BINANCE:HYPEUSDT',
+        };
+        
+        // Check for exact matches in hardcoded list
+        if (cryptoMappings[upperTerm]) {
+          newSymbol = cryptoMappings[upperTerm];
         } else {
-          // Default format for unknown symbols
-          newSymbol = `BINANCE:${upperTerm}USDT`;
+          // Try to find partial matches
+          const matchedKey = Object.keys(cryptoMappings).find(key => 
+            key.startsWith(upperTerm) || key.includes(upperTerm)
+          );
+          if (matchedKey) {
+            newSymbol = cryptoMappings[matchedKey];
+          } else {
+            // 3. Last resort: default to Binance format
+            newSymbol = `BINANCE:${upperTerm}USDT`;
+          }
         }
       }
       
@@ -133,112 +141,120 @@ const Index = () => {
 
   useEffect(() => {
     const symbolFromUrl = searchParams.get('symbol');
-    if (symbolFromUrl) {
+    if (symbolFromUrl && !isLoading) {
       // Convert symbol to TradingView format
       const upperSymbol = symbolFromUrl.toUpperCase();
-      const cryptoMappings: { [key: string]: string } = {
-        'BTC': 'BINANCE:BTCUSDT',
-        'BITCOIN': 'BINANCE:BTCUSDT',
-        'ETH': 'BINANCE:ETHUSDT',
-        'ETHEREUM': 'BINANCE:ETHUSDT',
-        'BNB': 'BINANCE:BNBUSDT',
-        'BINANCE': 'BINANCE:BNBUSDT',
-        'SOL': 'BINANCE:SOLUSDT',
-        'SOLANA': 'BINANCE:SOLUSDT',
-        'XRP': 'BINANCE:XRPUSDT',
-        'RIPPLE': 'BINANCE:XRPUSDT',
-        'ADA': 'BINANCE:ADAUSDT',
-        'CARDANO': 'BINANCE:ADAUSDT',
-        'AVAX': 'BINANCE:AVAXUSDT',
-        'AVALANCHE': 'BINANCE:AVAXUSDT',
-        'DOGE': 'BINANCE:DOGEUSDT',
-        'DOGECOIN': 'BINANCE:DOGEUSDT',
-        'TRX': 'BINANCE:TRXUSDT',
-        'TRON': 'BINANCE:TRXUSDT',
-        'TON': 'BINANCE:TONUSDT',
-        'TONCOIN': 'BINANCE:TONUSDT',
-        'LINK': 'BINANCE:LINKUSDT',
-        'CHAINLINK': 'BINANCE:LINKUSDT',
-        'SHIB': 'BINANCE:SHIBUSDT',
-        'SHIBA': 'BINANCE:SHIBUSDT',
-        'DOT': 'BINANCE:DOTUSDT',
-        'POLKADOT': 'BINANCE:DOTUSDT',
-        'MATIC': 'BINANCE:MATICUSDT',
-        'POLYGON': 'BINANCE:MATICUSDT',
-        'UNI': 'BINANCE:UNIUSDT',
-        'UNISWAP': 'BINANCE:UNIUSDT',
-        'LTC': 'BINANCE:LTCUSDT',
-        'LITECOIN': 'BINANCE:LTCUSDT',
-        'BCH': 'BINANCE:BCHUSDT',
-        'NEAR': 'BINANCE:NEARUSDT',
-        'ICP': 'BINANCE:ICPUSDT',
-        'APT': 'BINANCE:APTUSDT',
-        'APTOS': 'BINANCE:APTUSDT',
-        'FIL': 'BINANCE:FILUSDT',
-        'FILECOIN': 'BINANCE:FILUSDT',
-        'ARB': 'BINANCE:ARBUSDT',
-        'ARBITRUM': 'BINANCE:ARBUSDT',
-        'OP': 'BINANCE:OPUSDT',
-        'OPTIMISM': 'BINANCE:OPUSDT',
-        'HBAR': 'BINANCE:HBARUSDT',
-        'HEDERA': 'BINANCE:HBARUSDT',
-        'VET': 'BINANCE:VETUSDT',
-        'VECHAIN': 'BINANCE:VETUSDT',
-        'MKR': 'BINANCE:MKRUSDT',
-        'MAKER': 'BINANCE:MKRUSDT',
-        'ATOM': 'BINANCE:ATOMUSDT',
-        'COSMOS': 'BINANCE:ATOMUSDT',
-        'IMX': 'BINANCE:IMXUSDT',
-        'IMMUTABLE': 'BINANCE:IMXUSDT',
-        'RNDR': 'GEMINI:RNDRUSD',
-        'RENDER': 'GEMINI:RNDRUSD',
-        'STX': 'BINANCE:STXUSDT',
-        'STACKS': 'BINANCE:STXUSDT',
-        'INJ': 'BINANCE:INJUSDT',
-        'INJECTIVE': 'BINANCE:INJUSDT',
-        'GRT': 'BINANCE:GRTUSDT',
-        'GRAPH': 'BINANCE:GRTUSDT',
-        'RUNE': 'BINANCE:RUNEUSDT',
-        'THORCHAIN': 'BINANCE:RUNEUSDT',
-        'FTM': 'BINANCE:FTMUSDT',
-        'FANTOM': 'BINANCE:FTMUSDT',
-        'ALGO': 'BINANCE:ALGOUSDT',
-        'ALGORAND': 'BINANCE:ALGOUSDT',
-        'SAND': 'BINANCE:SANDUSDT',
-        'SANDBOX': 'BINANCE:SANDUSDT',
-        'MANA': 'BINANCE:MANAUSDT',
-        'DECENTRALAND': 'BINANCE:MANAUSDT',
-        'AAVE': 'BINANCE:AAVEUSDT',
-        'EOS': 'BINANCE:EOSUSDT',
-        'XTZ': 'BINANCE:XTZUSDT',
-        'TEZOS': 'BINANCE:XTZUSDT',
-        'THETA': 'BINANCE:THETAUSDT',
-        'FLR': 'BINANCE:FLRUSDT',
-        'FLARE': 'BINANCE:FLRUSDT',
-        'AXS': 'BINANCE:AXSUSDT',
-        'AXIE': 'BINANCE:AXSUSDT',
-        'FLOW': 'BINANCE:FLOWUSDT',
-        'SUI': 'BINANCE:SUIUSDT',
-        'HYPE': 'BINANCE:HYPEUSDT',
-        'HYPERLIQUID': 'BINANCE:HYPEUSDT',
-      };
-      
       let newSymbol = '';
-      if (cryptoMappings[upperSymbol]) {
-        newSymbol = cryptoMappings[upperSymbol];
+      
+      // 1. Check database first for exact mapping
+      const dbMapping = getMapping(upperSymbol);
+      if (dbMapping?.tradingview_symbol) {
+        newSymbol = dbMapping.tradingview_symbol;
       } else {
-        // Check if it's already in TradingView format
-        if (symbolFromUrl.includes(':')) {
-          newSymbol = symbolFromUrl;
+        // 2. Fall back to hardcoded common mappings
+        const cryptoMappings: { [key: string]: string } = {
+          'BTC': 'BINANCE:BTCUSDT',
+          'BITCOIN': 'BINANCE:BTCUSDT',
+          'ETH': 'BINANCE:ETHUSDT',
+          'ETHEREUM': 'BINANCE:ETHUSDT',
+          'BNB': 'BINANCE:BNBUSDT',
+          'BINANCE': 'BINANCE:BNBUSDT',
+          'SOL': 'BINANCE:SOLUSDT',
+          'SOLANA': 'BINANCE:SOLUSDT',
+          'XRP': 'BINANCE:XRPUSDT',
+          'RIPPLE': 'BINANCE:XRPUSDT',
+          'ADA': 'BINANCE:ADAUSDT',
+          'CARDANO': 'BINANCE:ADAUSDT',
+          'AVAX': 'BINANCE:AVAXUSDT',
+          'AVALANCHE': 'BINANCE:AVAXUSDT',
+          'DOGE': 'BINANCE:DOGEUSDT',
+          'DOGECOIN': 'BINANCE:DOGEUSDT',
+          'TRX': 'BINANCE:TRXUSDT',
+          'TRON': 'BINANCE:TRXUSDT',
+          'TON': 'BINANCE:TONUSDT',
+          'TONCOIN': 'BINANCE:TONUSDT',
+          'LINK': 'BINANCE:LINKUSDT',
+          'CHAINLINK': 'BINANCE:LINKUSDT',
+          'SHIB': 'BINANCE:SHIBUSDT',
+          'SHIBA': 'BINANCE:SHIBUSDT',
+          'DOT': 'BINANCE:DOTUSDT',
+          'POLKADOT': 'BINANCE:DOTUSDT',
+          'MATIC': 'BINANCE:MATICUSDT',
+          'POLYGON': 'BINANCE:MATICUSDT',
+          'UNI': 'BINANCE:UNIUSDT',
+          'UNISWAP': 'BINANCE:UNIUSDT',
+          'LTC': 'BINANCE:LTCUSDT',
+          'LITECOIN': 'BINANCE:LTCUSDT',
+          'BCH': 'BINANCE:BCHUSDT',
+          'NEAR': 'BINANCE:NEARUSDT',
+          'ICP': 'BINANCE:ICPUSDT',
+          'APT': 'BINANCE:APTUSDT',
+          'APTOS': 'BINANCE:APTUSDT',
+          'FIL': 'BINANCE:FILUSDT',
+          'FILECOIN': 'BINANCE:FILUSDT',
+          'ARB': 'BINANCE:ARBUSDT',
+          'ARBITRUM': 'BINANCE:ARBUSDT',
+          'OP': 'BINANCE:OPUSDT',
+          'OPTIMISM': 'BINANCE:OPUSDT',
+          'HBAR': 'BINANCE:HBARUSDT',
+          'HEDERA': 'BINANCE:HBARUSDT',
+          'VET': 'BINANCE:VETUSDT',
+          'VECHAIN': 'BINANCE:VETUSDT',
+          'MKR': 'BINANCE:MKRUSDT',
+          'MAKER': 'BINANCE:MKRUSDT',
+          'ATOM': 'BINANCE:ATOMUSDT',
+          'COSMOS': 'BINANCE:ATOMUSDT',
+          'IMX': 'BINANCE:IMXUSDT',
+          'IMMUTABLE': 'BINANCE:IMXUSDT',
+          'RNDR': 'GEMINI:RNDRUSD',
+          'RENDER': 'GEMINI:RNDRUSD',
+          'STX': 'BINANCE:STXUSDT',
+          'STACKS': 'BINANCE:STXUSDT',
+          'INJ': 'BINANCE:INJUSDT',
+          'INJECTIVE': 'BINANCE:INJUSDT',
+          'GRT': 'BINANCE:GRTUSDT',
+          'GRAPH': 'BINANCE:GRTUSDT',
+          'RUNE': 'BINANCE:RUNEUSDT',
+          'THORCHAIN': 'BINANCE:RUNEUSDT',
+          'FTM': 'BINANCE:FTMUSDT',
+          'FANTOM': 'BINANCE:FTMUSDT',
+          'ALGO': 'BINANCE:ALGOUSDT',
+          'ALGORAND': 'BINANCE:ALGOUSDT',
+          'SAND': 'BINANCE:SANDUSDT',
+          'SANDBOX': 'BINANCE:SANDUSDT',
+          'MANA': 'BINANCE:MANAUSDT',
+          'DECENTRALAND': 'BINANCE:MANAUSDT',
+          'AAVE': 'BINANCE:AAVEUSDT',
+          'EOS': 'BINANCE:EOSUSDT',
+          'XTZ': 'BINANCE:XTZUSDT',
+          'TEZOS': 'BINANCE:XTZUSDT',
+          'THETA': 'BINANCE:THETAUSDT',
+          'FLR': 'BINANCE:FLRUSDT',
+          'FLARE': 'BINANCE:FLRUSDT',
+          'AXS': 'BINANCE:AXSUSDT',
+          'AXIE': 'BINANCE:AXSUSDT',
+          'FLOW': 'BINANCE:FLOWUSDT',
+          'SUI': 'BINANCE:SUIUSDT',
+          'HYPE': 'BINANCE:HYPEUSDT',
+          'HYPERLIQUID': 'BINANCE:HYPEUSDT',
+        };
+        
+        if (cryptoMappings[upperSymbol]) {
+          newSymbol = cryptoMappings[upperSymbol];
         } else {
-          // Default format for unknown symbols
-          newSymbol = `BINANCE:${upperSymbol}USDT`;
+          // Check if it's already in TradingView format
+          if (symbolFromUrl.includes(':')) {
+            newSymbol = symbolFromUrl;
+          } else {
+            // 3. Last resort: default to Binance format
+            newSymbol = `BINANCE:${upperSymbol}USDT`;
+          }
         }
       }
       
       setChartSymbol(newSymbol);
     }
-  }, [searchParams]);
+  }, [searchParams, getMapping, isLoading]);
 
   useEffect(() => {
     // Register search handler with layout
