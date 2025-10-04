@@ -50,7 +50,7 @@ export function SymbolAdmin() {
         : `Bybit: ${data.results.bybit.synced}`;
       
       toast.success(
-        `Exchange sync complete!\n${binanceLabel}${binanceUSLabel} | Coinbase: ${data.results.coinbase.synced}\n${bybitLabel} | MEXC: ${data.results.mexc.synced} | Gate.io: ${data.results.gateio.synced}`
+        `Exchange sync complete!\n${binanceLabel}${binanceUSLabel} | Coinbase: ${data.results.coinbase.synced}\n${bybitLabel} | MEXC: ${data.results.mexc.synced} | Gate.io: ${data.results.gateio.synced}\nKraken: ${data.results.kraken.synced} | KuCoin: ${data.results.kucoin.synced} | OKX: ${data.results.okx.synced}\nBitget: ${data.results.bitget.synced} | HTX: ${data.results.htx.synced}`
       );
     } catch (error) {
       console.error('Exchange sync error:', error);
@@ -116,7 +116,7 @@ export function SymbolAdmin() {
               <CardHeader>
                 <CardTitle>Exchange Universe Sync</CardTitle>
                 <CardDescription>
-                  Sync trading pairs from Binance, Coinbase, Bybit, MEXC, and Gate.io
+                  Sync trading pairs from 11 exchanges: Binance, Coinbase, Bybit, MEXC, Gate.io, Kraken, KuCoin, OKX, Bitget, and HTX
                 </CardDescription>
               </CardHeader>
               <CardContent>

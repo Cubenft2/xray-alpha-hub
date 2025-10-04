@@ -40,6 +40,42 @@ interface GateIOPair {
   trade_status: string;
 }
 
+interface KrakenPair {
+  altname: string;
+  wsname: string;
+  base: string;
+  quote: string;
+  status: string;
+}
+
+interface KuCoinSymbol {
+  symbol: string;
+  baseCurrency: string;
+  quoteCurrency: string;
+  enableTrading: boolean;
+}
+
+interface OKXInstrument {
+  instId: string;
+  baseCcy: string;
+  quoteCcy: string;
+  state: string;
+}
+
+interface BitgetProduct {
+  symbol: string;
+  baseCoin: string;
+  quoteCoin: string;
+  status: string;
+}
+
+interface HTXSymbol {
+  symbol: string;
+  'base-currency': string;
+  'quote-currency': string;
+  state: string;
+}
+
 interface CoinGeckoTicker {
   base: string;
   target: string;
@@ -121,6 +157,11 @@ Deno.serve(async (req) => {
       bybit: { synced: 0, active: 0, fallback: false },
       mexc: { synced: 0, active: 0 },
       gateio: { synced: 0, active: 0 },
+      kraken: { synced: 0, active: 0 },
+      kucoin: { synced: 0, active: 0 },
+      okx: { synced: 0, active: 0 },
+      bitget: { synced: 0, active: 0 },
+      htx: { synced: 0, active: 0 },
     };
 
     // Sync Binance
@@ -438,6 +479,201 @@ Deno.serve(async (req) => {
       }
     } catch (error) {
       console.error('Error syncing Gate.io:', error);
+    }
+
+    // Sync Kraken
+    try {
+      const krakenResponse = await fetch('https://api.kraken.com/0/public/AssetPairs');
+      if (krakenResponse.ok) {
+        const krakenData = await krakenResponse.json();
+        const pairs = krakenData?.result || {};
+        
+        const krakenRecords = Object.entries(pairs).map(([key, p]: [string, any]) => ({
+          exchange: 'kraken',
+          symbol: p.wsname || p.altname || key,
+          base_asset: p.base,
+          quote_asset: p.quote,
+          is_active: p.status === 'online',
+          synced_at: new Date().toISOString(),
+        }));
+
+        const batchSize = 500;
+        for (let i = 0; i < krakenRecords.length; i += batchSize) {
+          const batch = krakenRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            console.error('Error upserting Kraken batch:', error);
+          }
+        }
+
+        results.kraken.synced = krakenRecords.length;
+        results.kraken.active = krakenRecords.filter(r => r.is_active).length;
+        console.log(`Kraken: ${results.kraken.synced} pairs, ${results.kraken.active} active`);
+      }
+    } catch (error) {
+      console.error('Error syncing Kraken:', error);
+    }
+
+    // Sync KuCoin
+    try {
+      const kucoinResponse = await fetch('https://api.kucoin.com/api/v1/symbols');
+      if (kucoinResponse.ok) {
+        const kucoinData = await kucoinResponse.json();
+        const symbols: KuCoinSymbol[] = kucoinData?.data || [];
+        
+        const kucoinRecords = symbols.map(s => ({
+          exchange: 'kucoin',
+          symbol: s.symbol,
+          base_asset: s.baseCurrency,
+          quote_asset: s.quoteCurrency,
+          is_active: s.enableTrading,
+          synced_at: new Date().toISOString(),
+        }));
+
+        const batchSize = 500;
+        for (let i = 0; i < kucoinRecords.length; i += batchSize) {
+          const batch = kucoinRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            console.error('Error upserting KuCoin batch:', error);
+          }
+        }
+
+        results.kucoin.synced = kucoinRecords.length;
+        results.kucoin.active = kucoinRecords.filter(r => r.is_active).length;
+        console.log(`KuCoin: ${results.kucoin.synced} pairs, ${results.kucoin.active} active`);
+      }
+    } catch (error) {
+      console.error('Error syncing KuCoin:', error);
+    }
+
+    // Sync OKX
+    try {
+      const okxResponse = await fetch('https://www.okx.com/api/v5/public/instruments?instType=SPOT');
+      if (okxResponse.ok) {
+        const okxData = await okxResponse.json();
+        const instruments: OKXInstrument[] = okxData?.data || [];
+        
+        const okxRecords = instruments.map(i => ({
+          exchange: 'okx',
+          symbol: i.instId,
+          base_asset: i.baseCcy,
+          quote_asset: i.quoteCcy,
+          is_active: i.state === 'live',
+          synced_at: new Date().toISOString(),
+        }));
+
+        const batchSize = 500;
+        for (let i = 0; i < okxRecords.length; i += batchSize) {
+          const batch = okxRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            console.error('Error upserting OKX batch:', error);
+          }
+        }
+
+        results.okx.synced = okxRecords.length;
+        results.okx.active = okxRecords.filter(r => r.is_active).length;
+        console.log(`OKX: ${results.okx.synced} pairs, ${results.okx.active} active`);
+      }
+    } catch (error) {
+      console.error('Error syncing OKX:', error);
+    }
+
+    // Sync Bitget
+    try {
+      const bitgetResponse = await fetch('https://api.bitget.com/api/spot/v1/public/products');
+      if (bitgetResponse.ok) {
+        const bitgetData = await bitgetResponse.json();
+        const products: BitgetProduct[] = bitgetData?.data || [];
+        
+        const bitgetRecords = products.map(p => ({
+          exchange: 'bitget',
+          symbol: p.symbol,
+          base_asset: p.baseCoin,
+          quote_asset: p.quoteCoin,
+          is_active: p.status === 'online',
+          synced_at: new Date().toISOString(),
+        }));
+
+        const batchSize = 500;
+        for (let i = 0; i < bitgetRecords.length; i += batchSize) {
+          const batch = bitgetRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            console.error('Error upserting Bitget batch:', error);
+          }
+        }
+
+        results.bitget.synced = bitgetRecords.length;
+        results.bitget.active = bitgetRecords.filter(r => r.is_active).length;
+        console.log(`Bitget: ${results.bitget.synced} pairs, ${results.bitget.active} active`);
+      }
+    } catch (error) {
+      console.error('Error syncing Bitget:', error);
+    }
+
+    // Sync HTX (Huobi)
+    try {
+      const htxResponse = await fetch('https://api.huobi.pro/v1/common/symbols');
+      if (htxResponse.ok) {
+        const htxData = await htxResponse.json();
+        const symbols: HTXSymbol[] = htxData?.data || [];
+        
+        const htxRecords = symbols.map(s => ({
+          exchange: 'htx',
+          symbol: s.symbol,
+          base_asset: s['base-currency'],
+          quote_asset: s['quote-currency'],
+          is_active: s.state === 'online',
+          synced_at: new Date().toISOString(),
+        }));
+
+        const batchSize = 500;
+        for (let i = 0; i < htxRecords.length; i += batchSize) {
+          const batch = htxRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            console.error('Error upserting HTX batch:', error);
+          }
+        }
+
+        results.htx.synced = htxRecords.length;
+        results.htx.active = htxRecords.filter(r => r.is_active).length;
+        console.log(`HTX: ${results.htx.synced} pairs, ${results.htx.active} active`);
+      }
+    } catch (error) {
+      console.error('Error syncing HTX:', error);
     }
 
     return new Response(
