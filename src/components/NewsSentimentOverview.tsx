@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { TrendingUp, TrendingDown, Minus, Download, Share2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { useToast } from '@/hooks/use-toast';
 
 interface SentimentData {
   positive: number;
@@ -20,9 +23,81 @@ export function NewsSentimentOverview({
   topTickers = [], 
   topKeywords = [] 
 }: NewsSentimentOverviewProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
   if (!sentimentBreakdown || sentimentBreakdown.total === 0) {
     return null;
   }
+
+  const handleExportImage = async () => {
+    if (!cardRef.current) return;
+
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        logging: false,
+      });
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `news-sentiment-${new Date().toISOString().split('T')[0]}.png`;
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+          
+          toast({
+            title: "Image downloaded!",
+            description: "News sentiment card saved as PNG",
+          });
+        }
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: "Could not export the card as image",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleShare = async () => {
+    if (!cardRef.current) return;
+
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: null,
+        scale: 2,
+        logging: false,
+      });
+
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          const file = new File([blob], 'news-sentiment.png', { type: 'image/png' });
+          
+          if (navigator.share && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'News Sentiment Analysis',
+              text: 'Check out this market sentiment analysis!',
+            });
+          } else {
+            // Fallback to download
+            handleExportImage();
+          }
+        }
+      });
+    } catch (error) {
+      toast({
+        title: "Share failed",
+        description: "Could not share the card",
+        variant: "destructive",
+      });
+    }
+  };
 
   const positivePercent = (sentimentBreakdown.positive / sentimentBreakdown.total) * 100;
   const negativePercent = (sentimentBreakdown.negative / sentimentBreakdown.total) * 100;
@@ -39,12 +114,34 @@ export function NewsSentimentOverview({
   const mood = getMarketMood();
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden" ref={cardRef}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          📰 News Sentiment Analysis
-          <span className="text-sm text-muted-foreground">({sentimentBreakdown.total} articles)</span>
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            📰 News Sentiment Analysis
+            <span className="text-sm text-muted-foreground">({sentimentBreakdown.total} articles)</span>
+          </CardTitle>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportImage}
+              className="gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Download
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShare}
+              className="gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              Share
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Market Mood Indicator */}
