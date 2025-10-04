@@ -284,10 +284,10 @@ export function useLivePrices(tickers: string[] = []) {
     // Initial fetch
     fetchPrices(symbols);
 
-    // Set up polling every 60 seconds for live updates
+    // Set up polling every 2 minutes for live updates
     intervalRef.current = setInterval(() => {
       fetchPrices(symbols);
-    }, 60000);
+    }, 120000);
 
     return () => {
       if (intervalRef.current) {

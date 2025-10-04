@@ -103,10 +103,10 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                   </div>
 
                   <div className="col-span-4 text-right flex flex-col items-end justify-center">
-                    <div className="font-semibold text-sm text-foreground">{formatPrice(coin.price)}</div>
+                    <div className="font-semibold text-sm text-foreground min-w-[80px] transition-all duration-300">{formatPrice(coin.price)}</div>
                     <Badge
                       variant="outline"
-                      className="text-green-500 border-green-500/20 bg-green-500/10 font-semibold text-xs"
+                      className="text-green-500 border-green-500/20 bg-green-500/10 font-semibold text-xs min-w-[60px] justify-center transition-all duration-300"
                     >
                       +{coin.change_24h?.toFixed(2)}%
                     </Badge>
@@ -165,10 +165,10 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                   </div>
 
                   <div className="col-span-4 text-right flex flex-col items-end justify-center">
-                    <div className="font-semibold text-sm text-foreground">{formatPrice(coin.price)}</div>
+                    <div className="font-semibold text-sm text-foreground min-w-[80px] transition-all duration-300">{formatPrice(coin.price)}</div>
                     <Badge
                       variant="outline"
-                      className="text-red-500 border-red-500/20 bg-red-500/10 font-semibold text-xs"
+                      className="text-red-500 border-red-500/20 bg-red-500/10 font-semibold text-xs min-w-[60px] justify-center transition-all duration-300"
                     >
                       {coin.change_24h?.toFixed(2)}%
                     </Badge>
@@ -236,20 +236,20 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                     <div className="col-span-4 text-right flex flex-col items-end justify-center">
                       {typeof price === 'number' ? (
                         <>
-                          <div className="font-semibold text-sm text-foreground">{formatPrice(price)}</div>
+                          <div className="font-semibold text-sm text-foreground min-w-[80px] transition-all duration-300">{formatPrice(price)}</div>
                           <Badge
                             variant="outline"
-                            className={`${(change ?? 0) >= 0 ? 'text-green-500 border-green-500/20 bg-green-500/10' : 'text-red-500 border-red-500/20 bg-red-500/10'} font-semibold text-xs`}
+                            className={`${(change ?? 0) >= 0 ? 'text-green-500 border-green-500/20 bg-green-500/10' : 'text-red-500 border-red-500/20 bg-red-500/10'} font-semibold text-xs min-w-[60px] justify-center transition-all duration-300`}
                           >
                             {(change ?? 0) >= 0 ? '+' : ''}{(change ?? 0).toFixed(2)}%
                           </Badge>
                         </>
                       ) : (
                         <>
-                          <div className="font-semibold text-sm text-muted-foreground mb-1">—</div>
+                          <div className="font-semibold text-sm text-muted-foreground mb-1 min-w-[80px]">—</div>
                           <Badge
                             variant="outline"
-                            className="text-muted-foreground border-muted-foreground/20 bg-muted/10 font-semibold text-xs"
+                            className="text-muted-foreground border-muted-foreground/20 bg-muted/10 font-semibold text-xs min-w-[60px] justify-center"
                           >
                             Trending
                           </Badge>
