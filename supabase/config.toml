@@ -1,8 +1,5 @@
 project_id = "odncvfiuzliyohxrsigc"
 
-[functions.polygon-ticker-stream]
-verify_jwt = false
-
 [functions.exchange-data-aggregator]
 verify_jwt = false
 

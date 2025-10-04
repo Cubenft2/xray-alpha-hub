@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useCallback, useMemo } from
 import { useLocation } from 'react-router-dom';
 import { XRHeader } from './XRHeader';
 import { XRTicker } from './XRTicker';
-import { PolygonTickerTape } from './PolygonTickerTape';
 import { XRFooter } from './XRFooter';
 
 interface LayoutContextType {
@@ -46,9 +45,9 @@ export const Layout = ({ children }: LayoutProps) => {
         
         {/* Persistent Tickers - never unmount */}
         <div className="space-y-0">
-          {/* Desktop and Medium: Polygon crypto/forex + TradingView stocks */}
+          {/* Desktop and Medium: Both tickers */}
           <div className="hidden sm:block">
-            <PolygonTickerTape />
+            <XRTicker type="crypto" />
           </div>
           <div className="hidden sm:block">
             <XRTicker type="stocks" />
@@ -58,7 +57,7 @@ export const Layout = ({ children }: LayoutProps) => {
             {location.pathname === '/markets' ? (
               <XRTicker type="stocks" />
             ) : (
-              <PolygonTickerTape />
+              <XRTicker type="crypto" />
             )}
           </div>
         </div>
