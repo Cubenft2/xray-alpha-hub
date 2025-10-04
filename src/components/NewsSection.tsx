@@ -197,10 +197,10 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     const isBlockedSite = (() => {
       try {
         const host = new URL(item.url).hostname.replace('www.', '').toLowerCase();
-        return host.endsWith('cryptonews.com');
+        return host.endsWith('cryptonews.com') || host.endsWith('fool.com');
       } catch {
         const src = (item.source || '').toLowerCase();
-        return src.includes('cryptonews.com');
+        return src.includes('cryptonews.com') || src.includes('fool.com');
       }
     })();
     const getSentimentColor = () => {
