@@ -103,7 +103,7 @@ export function WatchlistManager() {
 
   const handleChartClick = (item: WatchlistItem) => {
     if (item.type === 'crypto') {
-      navigate(`/?symbol=${encodeURIComponent(item.symbol)}`);
+      navigate(`/crypto?symbol=${encodeURIComponent(item.symbol)}`);
     } else {
       navigate(`/markets?symbol=${encodeURIComponent(item.symbol)}`);
     }
