@@ -185,6 +185,8 @@ export function useLivePrices(tickers: string[] = []) {
       'FLOW': 'flow',
       'ASTER': 'aster-2',
       'ASTR': 'astar',
+      'OKB': 'okb',
+      'HASH': 'hashflow',
       'HYPE': 'hyperliquid',
       'HYPERLIQUID': 'hyperliquid',
       'SUI': 'sui',
@@ -197,7 +199,7 @@ export function useLivePrices(tickers: string[] = []) {
       'ERG': 'ergo',
       'ERGO': 'ergo',
       'ZEC': 'zcash'
-      };
+    };
       
       return symbolMap[symbol.toUpperCase()] || symbol.toLowerCase();
   };
@@ -256,6 +258,9 @@ export function useLivePrices(tickers: string[] = []) {
       'axie-infinity': 'AXS',
       'flow': 'FLOW',
       'astar': 'ASTER',
+      'aster-2': 'ASTER',
+      'okb': 'OKB',
+      'hashflow': 'HASH',
       'hyperliquid': 'HYPE',
       'sui': 'SUI',
       'ethena-usde': 'USDE',
