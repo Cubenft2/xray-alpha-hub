@@ -23,9 +23,11 @@ const TickerCard = memo(({ display, price, change24h }: TickerCardProps) => {
   return (
     <div className="ticker-card flex items-center gap-2 px-4 py-2 bg-card/50 backdrop-blur-sm rounded-lg border border-border/50 whitespace-nowrap min-w-[180px]">
       <span className="font-bold text-foreground">{display}</span>
-      <span className="text-muted-foreground tabular-nums font-mono">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+      <span className="text-muted-foreground tabular-nums font-mono">
+        {price > 0 ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+      </span>
       <span className={`text-sm font-medium tabular-nums ${changeColor}`}>
-        {isPositive ? '▲' : '▼'} {Math.abs(change24h).toFixed(2)}%
+        {price > 0 ? `${isPositive ? '▲' : '▼'} ${Math.abs(change24h).toFixed(2)}%` : '—'}
       </span>
     </div>
   );
@@ -41,21 +43,18 @@ export function PolygonTickerTape() {
   
   const { prices, loading: isLoading } = useLivePrices(symbols);
 
-  // Convert prices to ticker format
-  const tickers: TickerItem[] = symbols
-    .map(symbol => {
-      const priceData = prices[symbol];
-      if (!priceData?.price) return null;
-      
-      return {
-        ticker: symbol,
-        display: symbol,
-        price: priceData.price,
-        change24h: priceData.change_24h || 0,
-        updated_at: new Date().toISOString()
-      };
-    })
-    .filter((t): t is TickerItem => t !== null);
+  // Convert prices to ticker format - show all symbols with placeholders for missing prices
+  const tickers: TickerItem[] = symbols.map(symbol => {
+    const priceData = prices[symbol];
+    
+    return {
+      ticker: symbol,
+      display: symbol,
+      price: priceData?.price || 0,
+      change24h: priceData?.change_24h || 0,
+      updated_at: new Date().toISOString()
+    };
+  });
 
   const { containerRef, trackRef } = useMarquee({ 
     pxPerSecond: 80, 

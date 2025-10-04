@@ -215,51 +215,76 @@ async function resolveSymbol(symbol: string): Promise<{
   return { resolved: false };
 }
 
-// Fetch from CoinGecko
-async function fetchCoinGeckoPrice(coinId: string, symbol: string, mapping?: any): Promise<QuoteData | null> {
+// Batch fetch from CoinGecko - handles up to 100 IDs per request
+async function fetchCoinGeckoPricesBatch(
+  requests: Array<{ coinId: string; symbol: string; mapping?: any }>
+): Promise<Map<string, QuoteData>> {
+  const results = new Map<string, QuoteData>();
+  
   if (!coinGeckoApiKey) {
     console.warn('CoinGecko API key not configured');
-    return null;
+    return results;
   }
   
-  try {
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`;
-    console.log(`📡 Fetching CoinGecko price for ${symbol} (${coinId})...`);
-    const response = await fetch(url, {
-      headers: {
-        'x-cg-pro-api-key': coinGeckoApiKey,
-        'accept': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error(`❌ CoinGecko API error for ${coinId}:`, response.status, response.statusText);
-      return null;
-    }
-    
-    const data = await response.json();
-    if (data[coinId]) {
-      console.log(`✅ Got CoinGecko price for ${symbol}: $${data[coinId].usd}`);
-      return {
-        symbol,
-        price: data[coinId].usd,
-        change24h: data[coinId].usd_24h_change || 0,
-        timestamp: new Date().toISOString(),
-        source: 'coingecko',
-        // SIL capability flags from mapping
-        price_ok: mapping?.price_supported !== false,
-        tv_ok: mapping?.tradingview_supported !== false,
-        derivs_ok: mapping?.derivs_supported === true,
-        social_ok: mapping?.social_supported === true,
-      };
-    }
-    
-    console.warn(`⚠️ No data in CoinGecko response for ${coinId}`);
-    return null;
-  } catch (error) {
-    console.error(`❌ Error fetching ${coinId} from CoinGecko:`, error);
-    return null;
+  if (requests.length === 0) return results;
+  
+  // Batch in groups of 100 (CoinGecko limit)
+  const BATCH_SIZE = 100;
+  const batches: typeof requests[] = [];
+  
+  for (let i = 0; i < requests.length; i += BATCH_SIZE) {
+    batches.push(requests.slice(i, i + BATCH_SIZE));
   }
+  
+  console.log(`📡 Batching ${requests.length} CoinGecko requests into ${batches.length} API call(s)`);
+  
+  for (const batch of batches) {
+    const coinIds = batch.map(r => r.coinId).join(',');
+    
+    try {
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds}&vs_currencies=usd&include_24hr_change=true`;
+      console.log(`📡 Fetching batch of ${batch.length} coins from CoinGecko...`);
+      
+      const response = await fetch(url, {
+        headers: {
+          'x-cg-pro-api-key': coinGeckoApiKey,
+          'accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        console.error(`❌ CoinGecko batch API error:`, response.status, response.statusText);
+        continue;
+      }
+      
+      const data = await response.json();
+      
+      // Map results back to symbols
+      for (const req of batch) {
+        const priceData = data[req.coinId];
+        if (priceData) {
+          results.set(req.symbol, {
+            symbol: req.symbol,
+            price: priceData.usd,
+            change24h: priceData.usd_24h_change || 0,
+            timestamp: new Date().toISOString(),
+            source: 'coingecko',
+            price_ok: req.mapping?.price_supported !== false,
+            tv_ok: req.mapping?.tradingview_supported !== false,
+            derivs_ok: req.mapping?.derivs_supported === true,
+            social_ok: req.mapping?.social_supported === true,
+          });
+        }
+      }
+      
+      console.log(`✅ Got ${results.size} prices from CoinGecko batch`);
+      
+    } catch (error) {
+      console.error(`❌ Error fetching CoinGecko batch:`, error);
+    }
+  }
+  
+  return results;
 }
 
 // Fetch from Polygon
@@ -300,17 +325,27 @@ async function fetchPolygonPrice(ticker: string, symbol: string, mapping?: any):
   }
 }
 
-// Main quote fetching with resolution pipeline
+// Main quote fetching with resolution pipeline - now with batching
 async function fetchQuotesWithResolution(symbols: string[]): Promise<{
   quotes: QuoteData[];
 }> {
   const quotes: QuoteData[] = [];
   const missingInternal: string[] = [];
   
-  // Resolve all symbols and fetch quotes
+  // Step 1: Resolve all symbols upfront
+  const resolutions = new Map<string, Awaited<ReturnType<typeof resolveSymbol>>>();
+  
+  console.log(`🔍 Resolving ${symbols.length} symbols...`);
   for (const symbol of symbols) {
     const resolution = await resolveSymbol(symbol);
-    
+    resolutions.set(symbol, resolution);
+  }
+  
+  // Step 2: Batch CoinGecko requests
+  const coinGeckoRequests: Array<{ coinId: string; symbol: string; mapping?: any }> = [];
+  const polygonRequests: Array<{ ticker: string; symbol: string; mapping?: any }> = [];
+  
+  for (const [symbol, resolution] of resolutions.entries()) {
     if (!resolution.resolved) {
       console.warn(`❌ Symbol not resolved: ${symbol}`);
       missingInternal.push(symbol);
@@ -324,42 +359,71 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
       continue;
     }
     
-    console.log(`✅ Resolved ${symbol}:`, {
-      coinGeckoId: resolution.coinGeckoId,
-      polygonTicker: resolution.polygonTicker,
-      hasMapping: !!resolution.mapping
-    });
-    
-    let quote: QuoteData | null = null;
-    
-    // Try CoinGecko first if we have an ID
     if (resolution.coinGeckoId) {
-      quote = await fetchCoinGeckoPrice(resolution.coinGeckoId, symbol, resolution.mapping);
+      coinGeckoRequests.push({
+        coinId: resolution.coinGeckoId,
+        symbol,
+        mapping: resolution.mapping
+      });
+    } else if (resolution.polygonTicker) {
+      polygonRequests.push({
+        ticker: resolution.polygonTicker,
+        symbol,
+        mapping: resolution.mapping
+      });
+    }
+  }
+  
+  // Step 3: Execute batched CoinGecko fetch
+  const coinGeckoResults = await fetchCoinGeckoPricesBatch(coinGeckoRequests);
+  
+  // Step 4: Execute Polygon requests (these can't be batched easily)
+  const polygonResults = new Map<string, QuoteData>();
+  if (polygonRequests.length > 0) {
+    console.log(`📡 Fetching ${polygonRequests.length} Polygon prices...`);
+    for (const req of polygonRequests) {
+      const result = await fetchPolygonPrice(req.ticker, req.symbol, req.mapping);
+      if (result) {
+        polygonResults.set(req.symbol, result);
+      }
+    }
+  }
+  
+  // Step 5: Combine results
+  for (const symbol of symbols) {
+    // Skip already processed missing symbols
+    if (quotes.some(q => q.symbol === symbol)) continue;
+    
+    const resolution = resolutions.get(symbol);
+    if (!resolution?.resolved) continue;
+    
+    // Check CoinGecko results first
+    let quote = coinGeckoResults.get(symbol);
+    
+    // Fallback to Polygon
+    if (!quote) {
+      quote = polygonResults.get(symbol);
     }
     
-    // Try Polygon if CoinGecko failed and we have a ticker
-    if (!quote && resolution.polygonTicker) {
-      quote = await fetchPolygonPrice(resolution.polygonTicker, symbol, resolution.mapping);
-    }
-    
-    // If still no quote but we have a mapping, mark as mapped but unavailable
-    if (!quote && resolution.mapping) {
-      console.warn(`⚠️ Symbol ${symbol} is mapped but price unavailable from all sources`);
+    if (quote) {
+      quotes.push(quote);
+    } else if (resolution.mapping) {
+      // Mapped but no price available
+      console.warn(`⚠️ Symbol ${symbol} is mapped but price unavailable`);
       quotes.push({
         symbol,
         price: null,
         change24h: 0,
         timestamp: new Date().toISOString(),
         source: 'unavailable',
-        // Include capability flags even though price is unavailable
         price_ok: resolution.mapping.price_supported !== false,
         tv_ok: resolution.mapping.tradingview_supported !== false,
         derivs_ok: resolution.mapping.derivs_supported === true,
         social_ok: resolution.mapping.social_supported === true,
       });
       missingInternal.push(symbol);
-    } else if (!quote) {
-      // Completely missing mapping
+    } else {
+      // No mapping and no quote
       console.error(`❌ No quote retrieved for ${symbol}`);
       missingInternal.push(symbol);
       quotes.push({
@@ -369,15 +433,14 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
         timestamp: new Date().toISOString(),
         source: 'missing'
       });
-    } else {
-      quotes.push(quote);
     }
   }
   
-  // Log missing symbols internally but don't expose to client
   if (missingInternal.length > 0) {
-    console.warn('Missing mappings for:', missingInternal);
+    console.warn('Missing prices for:', missingInternal);
   }
+  
+  console.log(`✅ Returning ${quotes.length} quotes (${quotes.filter(q => q.price !== null).length} with prices)`);
   
   return { quotes };
 }
