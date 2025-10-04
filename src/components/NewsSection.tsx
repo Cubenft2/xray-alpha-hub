@@ -209,18 +209,19 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       return '⚪';
     };
     
+    // Derive a small favicon for the source and keep visuals subtle
+    const hostname = (() => {
+      try { return new URL(item.url).hostname.replace('www.', ''); } catch { return item.source; }
+    })();
+    const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+    
     return (
       <div className={`border border-border rounded-lg overflow-hidden hover-glow-news cursor-pointer transition-all duration-500 ${
         isNew ? 'animate-slide-in-top bg-primary/5 border-primary/30' : ''
       }`}>
         {item.imageUrl && (
-          <div className="w-full h-32 overflow-hidden bg-muted">
-            <img 
-              src={item.imageUrl} 
-              alt={item.title}
-              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
-            />
+          <div className="hidden">
+            <img src={item.imageUrl} alt={item.title} loading="lazy" />
           </div>
         )}
         <div className="p-4">
@@ -259,10 +260,11 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           )}
           
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] text-muted-foreground/40">{item.source}</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <img src={faviconUrl} alt={`${item.source} logo`} className="w-4 h-4 rounded-sm opacity-70" loading="lazy" />
+              <span className="text-[10px] text-muted-foreground/40">{hostname}</span>
               {item.author && (
-                <span className="text-[10px] text-muted-foreground/40">by {item.author}</span>
+                <span className="text-[10px] text-muted-foreground/40">• {item.author}</span>
               )}
               {isBlockedSite && (
                 <span className="inline-flex items-center px-1 py-0.5 rounded text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
