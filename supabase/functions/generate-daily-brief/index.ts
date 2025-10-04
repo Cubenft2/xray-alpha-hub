@@ -71,6 +71,59 @@ serve(async (req) => {
       if (!newsResponse.error) {
         newsData = newsResponse.data || { crypto: [], stocks: [] };
         console.log('✅ News data fetched successfully');
+        
+        // Analyze Polygon.io news sentiment and trending topics
+        const polygonNews = [
+          ...(newsData.crypto?.filter((n: any) => n.sourceType === 'polygon') || []),
+          ...(newsData.stocks?.filter((n: any) => n.sourceType === 'polygon') || [])
+        ];
+        
+        const sentimentBreakdown = {
+          positive: polygonNews.filter((n: any) => n.sentiment === 'positive').length,
+          negative: polygonNews.filter((n: any) => n.sentiment === 'negative').length,
+          neutral: polygonNews.filter((n: any) => n.sentiment === 'neutral').length,
+          total: polygonNews.length
+        };
+        
+        // Extract most mentioned tickers from Polygon.io news
+        const tickerMentions = new Map<string, number>();
+        polygonNews.forEach((article: any) => {
+          if (article.tickers && Array.isArray(article.tickers)) {
+            article.tickers.forEach((ticker: string) => {
+              tickerMentions.set(ticker, (tickerMentions.get(ticker) || 0) + 1);
+            });
+          }
+        });
+        const topTickers = Array.from(tickerMentions.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([ticker, count]) => `${ticker} (${count} articles)`);
+        
+        // Extract trending keywords/themes
+        const keywordMentions = new Map<string, number>();
+        polygonNews.forEach((article: any) => {
+          if (article.keywords && Array.isArray(article.keywords)) {
+            article.keywords.forEach((keyword: string) => {
+              keywordMentions.set(keyword, (keywordMentions.get(keyword) || 0) + 1);
+            });
+          }
+        });
+        const topKeywords = Array.from(keywordMentions.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 15)
+          .map(([keyword, count]) => `${keyword} (${count})`);
+        
+        console.log(`📊 Polygon.io Analysis: ${sentimentBreakdown.total} articles`);
+        console.log(`   Sentiment: ${sentimentBreakdown.positive} positive, ${sentimentBreakdown.negative} negative, ${sentimentBreakdown.neutral} neutral`);
+        console.log(`🎯 Top Tickers: ${topTickers.slice(0, 5).join(', ')}`);
+        console.log(`🏷️ Top Themes: ${topKeywords.slice(0, 5).join(', ')}`);
+        
+        // Store for use in prompt
+        (newsData as any).polygonAnalysis = {
+          sentimentBreakdown,
+          topTickers,
+          topKeywords
+        };
       }
     } catch (err) {
       console.error('❌ News fetch failed:', err);
@@ -671,6 +724,21 @@ ${lunarcrushData.data?.slice(0, 6).map(asset =>
 Major Crypto Developments: ${newsData.crypto?.slice(0, 5).map((item: any) => item.title).join(' | ') || 'No major crypto news this week'}
 Macro & Traditional Markets: ${newsData.stocks?.slice(0, 5).map((item: any) => item.title).join(' | ') || 'No major macro news this week'}
 
+${(newsData as any).polygonAnalysis ? `
+📰 **PROFESSIONAL NEWS SENTIMENT ANALYSIS - WEEKLY (Polygon.io):**
+- Articles Analyzed This Week: ${(newsData as any).polygonAnalysis.sentimentBreakdown.total}
+- Weekly Sentiment Breakdown: ${(newsData as any).polygonAnalysis.sentimentBreakdown.positive} Positive (${((newsData as any).polygonAnalysis.sentimentBreakdown.positive / (newsData as any).polygonAnalysis.sentimentBreakdown.total * 100).toFixed(0)}%), ${(newsData as any).polygonAnalysis.sentimentBreakdown.negative} Negative (${((newsData as any).polygonAnalysis.sentimentBreakdown.negative / (newsData as any).polygonAnalysis.sentimentBreakdown.total * 100).toFixed(0)}%), ${(newsData as any).polygonAnalysis.sentimentBreakdown.neutral} Neutral (${((newsData as any).polygonAnalysis.sentimentBreakdown.neutral / (newsData as any).polygonAnalysis.sentimentBreakdown.total * 100).toFixed(0)}%)
+- Most Covered Assets: ${(newsData as any).polygonAnalysis.topTickers.slice(0, 8).join(', ')}
+- Dominant Themes This Week: ${(newsData as any).polygonAnalysis.topKeywords.slice(0, 10).join(', ')}
+
+**USE THIS WEEKLY SENTIMENT DATA TO:**
+- Track how market mood evolved through the week (did sentiment shift dramatically?)
+- Highlight assets that dominated headlines (heavy coverage = major story)
+- Identify emerging themes that gained traction over 7 days
+- Connect sentiment patterns to weekly price performance
+- Note if news sentiment diverges from price action (bearish news but prices up = opportunity or trap?)
+` : ''}
+
 **WEEKEND BRIEF STYLE REQUIREMENTS:**
 - This is your premium weekly content - make it comprehensive and entertaining
 - Include macro context: Fed policy, inflation data, traditional market correlations
@@ -746,6 +814,20 @@ ${lunarcrushData.data?.slice(0, 6).map(asset =>
 **News Context:**
 Crypto Headlines: ${newsData.crypto?.slice(0, 3).map((item: any) => item.title).join(' | ') || 'No major crypto news'}
 Stock Headlines: ${newsData.stocks?.slice(0, 3).map((item: any) => item.title).join(' | ') || 'No major stock news'}
+
+${(newsData as any).polygonAnalysis ? `
+📰 **PROFESSIONAL NEWS SENTIMENT ANALYSIS (Polygon.io):**
+- Articles Analyzed: ${(newsData as any).polygonAnalysis.sentimentBreakdown.total}
+- Sentiment Breakdown: ${(newsData as any).polygonAnalysis.sentimentBreakdown.positive} Positive (${((newsData as any).polygonAnalysis.sentimentBreakdown.positive / (newsData as any).polygonAnalysis.sentimentBreakdown.total * 100).toFixed(0)}%), ${(newsData as any).polygonAnalysis.sentimentBreakdown.negative} Negative (${((newsData as any).polygonAnalysis.sentimentBreakdown.negative / (newsData as any).polygonAnalysis.sentimentBreakdown.total * 100).toFixed(0)}%), ${(newsData as any).polygonAnalysis.sentimentBreakdown.neutral} Neutral (${((newsData as any).polygonAnalysis.sentimentBreakdown.neutral / (newsData as any).polygonAnalysis.sentimentBreakdown.total * 100).toFixed(0)}%)
+- Most Mentioned Assets: ${(newsData as any).polygonAnalysis.topTickers.slice(0, 8).join(', ')}
+- Trending Themes: ${(newsData as any).polygonAnalysis.topKeywords.slice(0, 10).join(', ')}
+
+**USE THIS SENTIMENT DATA TO:**
+- Contextualize market mood (e.g., if 70%+ negative, note the cautious atmosphere)
+- Highlight assets with heavy news coverage (multiple article mentions = significant story)
+- Identify emerging narratives from trending keywords
+- Connect sentiment shifts to price action
+` : ''}
 
 **STYLE REQUIREMENTS:**
 - Keep it conversational and engaging - like talking to a smart friend over coffee
@@ -1107,6 +1189,7 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
             })) || []
           },
           enhanced_tickers: enhancedTickerData,
+          polygon_analysis: (newsData as any).polygonAnalysis || null,
           data_points: {
             crypto_articles: newsData.crypto?.length || 0,
             stock_articles: newsData.stocks?.length || 0,

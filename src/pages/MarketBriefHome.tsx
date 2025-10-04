@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getTickerMapping } from '@/config/tickerMappings';
 import { toZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
+import { NewsSentimentOverview } from '@/components/NewsSentimentOverview';
 
 interface MarketBrief {
   slug: string;
@@ -698,6 +699,17 @@ export default function MarketBriefHome() {
                   <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
                 </div>
                 <SocialSentimentBoard marketData={briefData} />
+              </div>
+            )}
+            
+            {/* News Sentiment Overview Section */}
+            {briefData?.content_sections?.polygon_analysis && (
+              <div className="border-t border-border pt-6 mb-6">
+                <NewsSentimentOverview 
+                  sentimentBreakdown={briefData.content_sections.polygon_analysis.sentimentBreakdown}
+                  topTickers={briefData.content_sections.polygon_analysis.topTickers}
+                  topKeywords={briefData.content_sections.polygon_analysis.topKeywords}
+                />
               </div>
             )}
 

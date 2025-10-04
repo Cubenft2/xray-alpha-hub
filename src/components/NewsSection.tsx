@@ -13,6 +13,13 @@ interface NewsItem {
   publishedAt: string;
   source: string;
   sourceType?: string;
+  // Enhanced Polygon.io metadata
+  sentiment?: 'positive' | 'negative' | 'neutral';
+  sentimentReasoning?: string;
+  tickers?: string[];
+  keywords?: string[];
+  imageUrl?: string;
+  author?: string;
 }
 
 interface NewsSectionProps {
@@ -188,33 +195,82 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
 
   const NewsCard = ({ item, isNew = false }: { item: NewsItem; isNew?: boolean }) => {
     const isBlockedSite = item.source.includes('cryptonews.com') || item.url.includes('cryptonews.com');
+    const getSentimentColor = () => {
+      if (!item.sentiment) return '';
+      if (item.sentiment === 'positive') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+      if (item.sentiment === 'negative') return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+    };
+    
+    const getSentimentIcon = () => {
+      if (!item.sentiment) return null;
+      if (item.sentiment === 'positive') return '🟢';
+      if (item.sentiment === 'negative') return '🔴';
+      return '⚪';
+    };
     
     return (
-      <div className={`border border-border rounded-lg p-4 hover-glow-news cursor-pointer transition-all duration-500 ${
+      <div className={`border border-border rounded-lg overflow-hidden hover-glow-news cursor-pointer transition-all duration-500 ${
         isNew ? 'animate-slide-in-top bg-primary/5 border-primary/30' : ''
       }`}>
-        <div className="flex items-start justify-between mb-2">
-          {isNew && (
-            <div className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-primary text-primary-foreground mr-2">
-              NEW
+        {item.imageUrl && (
+          <div className="w-full h-32 overflow-hidden bg-muted">
+            <img 
+              src={item.imageUrl} 
+              alt={item.title}
+              className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          </div>
+        )}
+        <div className="p-4">
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex items-start gap-2 flex-1">
+              {isNew && (
+                <div className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-primary text-primary-foreground whitespace-nowrap">
+                  NEW
+                </div>
+              )}
+              {item.sentiment && (
+                <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${getSentimentColor()} whitespace-nowrap`}
+                     title={item.sentimentReasoning || `${item.sentiment} sentiment`}>
+                  {getSentimentIcon()} {item.sentiment}
+                </div>
+              )}
+            </div>
+            <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
+              {formatTime(item.publishedAt)}
+            </span>
+          </div>
+          <h3 className="font-medium text-sm line-clamp-2 mb-2">{item.title}</h3>
+          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
+          
+          {item.tickers && item.tickers.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {item.tickers.slice(0, 5).map((ticker, idx) => (
+                <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary/10 text-primary">
+                  ${ticker}
+                </span>
+              ))}
+              {item.tickers.length > 5 && (
+                <span className="text-xs text-muted-foreground">+{item.tickers.length - 5} more</span>
+              )}
             </div>
           )}
-          <h3 className="font-medium text-sm line-clamp-2 flex-1">{item.title}</h3>
-          <span className="text-xs text-muted-foreground ml-2 whitespace-nowrap">
-            {formatTime(item.publishedAt)}
-          </span>
-        </div>
-        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{item.description}</p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground font-medium">{item.source}</span>
-            {isBlockedSite && (
-              <span className="inline-flex items-center px-1 py-0.5 rounded text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
-                🔒 Copy Link
-              </span>
-            )}
-          </div>
-        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={(e) => {
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground font-medium">{item.source}</span>
+              {item.author && (
+                <span className="text-xs text-muted-foreground">by {item.author}</span>
+              )}
+              {isBlockedSite && (
+                <span className="inline-flex items-center px-1 py-0.5 rounded text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
+                  🔒 Copy Link
+                </span>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={(e) => {
           if (item.url && item.url !== '#') {
             e.preventDefault();
             e.stopPropagation();
@@ -259,9 +315,10 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
               }
             }
           }
-        }}>
-          Read More
-        </Button>
+            }}>
+              Read More
+            </Button>
+          </div>
         </div>
       </div>
     );

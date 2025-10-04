@@ -8,6 +8,13 @@ interface NewsItem {
   publishedAt: string; // ISO
   source: string;
   sourceType?: string; // "polygon" or "rss"
+  // Enhanced Polygon.io metadata
+  sentiment?: 'positive' | 'negative' | 'neutral';
+  sentimentReasoning?: string;
+  tickers?: string[];
+  keywords?: string[];
+  imageUrl?: string;
+  author?: string;
 }
 
 const CORS_HEADERS = {
@@ -110,7 +117,14 @@ async function fetchPolygonNews(apiKey: string): Promise<NewsItem[]> {
       url: item.article_url || "",
       publishedAt: item.published_utc || new Date().toISOString(),
       source: item.publisher?.name || "Polygon.io",
-      sourceType: "polygon"
+      sourceType: "polygon",
+      // Enhanced metadata from Polygon.io
+      sentiment: item.insights?.[0]?.sentiment || undefined,
+      sentimentReasoning: item.insights?.[0]?.sentiment_reasoning || undefined,
+      tickers: item.tickers || [],
+      keywords: item.keywords || [],
+      imageUrl: item.image_url || undefined,
+      author: item.author || undefined
     })).filter((item: NewsItem) => item.url);
   } catch (error) {
     console.error('Error fetching Polygon news:', error);
