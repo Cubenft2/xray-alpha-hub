@@ -38,6 +38,24 @@ export function PolygonTickerTape() {
   const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
+    // Start the edge function (it will keep running)
+    const startEdgeFunction = async () => {
+      try {
+        const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbmN2Zml1emxpeW9oeHJzaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3Mzk4MjEsImV4cCI6MjA3NDMxNTgyMX0.7cnRatKpHqsylletKVel7WAprIYdpP85AXtXLswMYXQ";
+        await fetch('https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/polygon-ticker-stream', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${ANON_KEY}`
+          }
+        });
+        console.log('✅ Polygon ticker stream started');
+      } catch (error) {
+        console.error('❌ Failed to start polygon ticker stream:', error);
+      }
+    };
+
+    startEdgeFunction();
+
     // Fetch initial snapshot
     const fetchInitialPrices = async () => {
       const { data, error } = await supabase
@@ -54,7 +72,8 @@ export function PolygonTickerTape() {
       setIsLoading(false);
     };
 
-    fetchInitialPrices();
+    // Wait a bit for edge function to populate data
+    setTimeout(fetchInitialPrices, 2000);
 
     // Subscribe to real-time updates
     const channel = supabase
