@@ -797,6 +797,16 @@ const { theme } = useTheme();
                   </Card>
                 )}
 
+                {/* ASTER */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">ASTER</div>
+                    <div className="h-36">
+                      <MiniChart symbol={mapTickerToTradingView('ASTER').symbol} theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Add S&P 500 for market context */}
                 <Card className="h-48">
                   <CardContent className="p-3">
