@@ -40,6 +40,66 @@ interface GateIOPair {
   trade_status: string;
 }
 
+interface CoinGeckoTicker {
+  base: string;
+  target: string;
+  market?: { name?: string };
+}
+
+// Helper: fetch with timeout and retry
+async function fetchWithTimeout(url: string, timeoutMs = 8000, retries = 1): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      if (attempt === retries) throw error;
+      console.log(`Retry ${attempt + 1} for ${url}`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+  throw new Error('Fetch failed after retries');
+}
+
+// Helper: fetch CoinGecko tickers with pagination
+async function fetchCoinGeckoTickers(exchangeId: string, cgApiKey?: string): Promise<any[]> {
+  const allTickers: any[] = [];
+  let page = 1;
+  const baseUrl = cgApiKey 
+    ? `https://pro-api.coingecko.com/api/v3/exchanges/${exchangeId}/tickers`
+    : `https://api.coingecko.com/api/v3/exchanges/${exchangeId}/tickers`;
+  
+  while (true) {
+    const url = `${baseUrl}?page=${page}`;
+    const headers = cgApiKey ? { 'x-cg-pro-api-key': cgApiKey } : {};
+    const response = await fetchWithTimeout(url);
+    
+    if (!response.ok) {
+      console.error(`CoinGecko API error for ${exchangeId} page ${page}: ${response.status}`);
+      break;
+    }
+    
+    const data = await response.json();
+    const tickers = data.tickers || [];
+    
+    if (tickers.length === 0) break;
+    
+    allTickers.push(...tickers);
+    page++;
+    
+    // Rate limit protection
+    await new Promise(resolve => setTimeout(resolve, cgApiKey ? 100 : 1000));
+    
+    // Safety: max 10 pages
+    if (page > 10) break;
+  }
+  
+  return allTickers;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -52,10 +112,13 @@ Deno.serve(async (req) => {
 
     console.log('Starting exchange sync...');
 
+    const cgApiKey = Deno.env.get('COINGECKO_API_KEY');
+
     const results = {
-      binance: { synced: 0, active: 0 },
+      binance: { synced: 0, active: 0, fallback: false },
+      binance_us: { synced: 0, active: 0 },
       coinbase: { synced: 0, active: 0 },
-      bybit: { synced: 0, active: 0 },
+      bybit: { synced: 0, active: 0, fallback: false },
       mexc: { synced: 0, active: 0 },
       gateio: { synced: 0, active: 0 },
     };
@@ -64,24 +127,37 @@ Deno.serve(async (req) => {
     try {
       const startTime = Date.now();
       console.log('🔄 Fetching Binance data...');
-      const binanceResponse = await fetch('https://api.binance.com/api/v3/exchangeInfo');
+      
+      let binanceResponse = await fetchWithTimeout('https://api.binance.com/api/v3/exchangeInfo');
+      let exchangeName = 'binance';
+      let usedFallback = false;
+      
       console.log(`📊 Binance API responded: ${binanceResponse.status} ${binanceResponse.statusText} (${Date.now() - startTime}ms)`);
       
-      if (binanceResponse.ok) {
-        const binanceData = await binanceResponse.json();
-        const symbols: BinanceSymbol[] = binanceData.symbols || [];
-        console.log(`✅ Binance: Found ${symbols.length} symbols`);
+      // If geo-blocked (451/403), try Binance.US
+      if (!binanceResponse.ok && (binanceResponse.status === 451 || binanceResponse.status === 403)) {
+        console.log('⚠️ Binance.com blocked, trying Binance.US...');
+        binanceResponse = await fetchWithTimeout('https://api.binance.us/api/v3/exchangeInfo');
+        exchangeName = 'binance_us';
+        console.log(`📊 Binance.US API responded: ${binanceResponse.status} ${binanceResponse.statusText}`);
+      }
+      
+      // If both failed, try CoinGecko fallback
+      if (!binanceResponse.ok) {
+        console.log('⚠️ Direct API failed, using CoinGecko fallback for Binance...');
+        usedFallback = true;
+        const tickers = await fetchCoinGeckoTickers('binance', cgApiKey);
+        console.log(`✅ CoinGecko: Found ${tickers.length} Binance tickers`);
         
-        const binanceRecords = symbols.map(s => ({
+        const binanceRecords = tickers.map((t: CoinGeckoTicker) => ({
           exchange: 'binance',
-          symbol: s.symbol,
-          base_asset: s.baseAsset,
-          quote_asset: s.quoteAsset,
-          is_active: s.status === 'TRADING',
+          symbol: `${t.base}${t.target}`,
+          base_asset: t.base,
+          quote_asset: t.target,
+          is_active: true,
           synced_at: new Date().toISOString(),
         }));
-
-        // Batch upsert
+        
         const batchSize = 500;
         let successfulBatches = 0;
         for (let i = 0; i < binanceRecords.length; i += batchSize) {
@@ -94,24 +170,58 @@ Deno.serve(async (req) => {
             });
           
           if (error) {
-            console.error(`❌ Error upserting Binance batch ${i}-${i+batchSize}:`, {
-              message: error.message,
-              details: error.details,
-              hint: error.hint,
-              code: error.code
+            console.error(`❌ Error upserting Binance CG batch ${i}-${i+batchSize}:`, error.message);
+          } else {
+            successfulBatches++;
+          }
+        }
+        
+        results.binance.synced = binanceRecords.length;
+        results.binance.active = binanceRecords.length;
+        results.binance.fallback = true;
+        console.log(`✅ Binance (CoinGecko fallback) complete: ${results.binance.synced} pairs, ${successfulBatches} batches (${Date.now() - startTime}ms)`);
+      } else {
+        // Direct API success
+        const binanceData = await binanceResponse.json();
+        const symbols: BinanceSymbol[] = binanceData.symbols || [];
+        console.log(`✅ ${exchangeName}: Found ${symbols.length} symbols`);
+        
+        const binanceRecords = symbols.map(s => ({
+          exchange: exchangeName,
+          symbol: s.symbol,
+          base_asset: s.baseAsset,
+          quote_asset: s.quoteAsset,
+          is_active: s.status === 'TRADING',
+          synced_at: new Date().toISOString(),
+        }));
+
+        const batchSize = 500;
+        let successfulBatches = 0;
+        for (let i = 0; i < binanceRecords.length; i += batchSize) {
+          const batch = binanceRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
             });
+          
+          if (error) {
+            console.error(`❌ Error upserting ${exchangeName} batch ${i}-${i+batchSize}:`, error.message);
           } else {
             successfulBatches++;
           }
         }
 
-        results.binance.synced = binanceRecords.length;
-        results.binance.active = binanceRecords.filter(r => r.is_active).length;
-        console.log(`✅ Binance complete: ${results.binance.synced} pairs, ${results.binance.active} active, ${successfulBatches} batches (${Date.now() - startTime}ms)`);
-      } else {
-        console.error(`❌ Binance API error: ${binanceResponse.status} ${binanceResponse.statusText}`);
-        const errorText = await binanceResponse.text();
-        console.error('Response body:', errorText);
+        if (exchangeName === 'binance_us') {
+          results.binance_us.synced = binanceRecords.length;
+          results.binance_us.active = binanceRecords.filter(r => r.is_active).length;
+          console.log(`✅ Binance.US complete: ${results.binance_us.synced} pairs, ${results.binance_us.active} active, ${successfulBatches} batches (${Date.now() - startTime}ms)`);
+        } else {
+          results.binance.synced = binanceRecords.length;
+          results.binance.active = binanceRecords.filter(r => r.is_active).length;
+          console.log(`✅ Binance complete: ${results.binance.synced} pairs, ${results.binance.active} active, ${successfulBatches} batches (${Date.now() - startTime}ms)`);
+        }
       }
     } catch (error) {
       console.error('❌ Error syncing Binance:', {
@@ -164,10 +274,48 @@ Deno.serve(async (req) => {
     try {
       const startTime = Date.now();
       console.log('🔄 Fetching Bybit data...');
-      const bybitResponse = await fetch('https://api.bybit.com/v5/market/instruments-info?category=spot');
+      
+      let bybitResponse = await fetchWithTimeout('https://api.bybit.com/v5/market/instruments-info?category=spot');
       console.log(`📊 Bybit API responded: ${bybitResponse.status} ${bybitResponse.statusText} (${Date.now() - startTime}ms)`);
       
-      if (bybitResponse.ok) {
+      if (!bybitResponse.ok && bybitResponse.status === 403) {
+        console.log('⚠️ Bybit.com blocked, using CoinGecko fallback...');
+        results.bybit.fallback = true;
+        
+        const tickers = await fetchCoinGeckoTickers('bybit_spot', cgApiKey);
+        console.log(`✅ CoinGecko: Found ${tickers.length} Bybit tickers`);
+        
+        const bybitRecords = tickers.map((t: CoinGeckoTicker) => ({
+          exchange: 'bybit',
+          symbol: `${t.base}${t.target}`,
+          base_asset: t.base,
+          quote_asset: t.target,
+          is_active: true,
+          synced_at: new Date().toISOString(),
+        }));
+        
+        const batchSize = 500;
+        let successfulBatches = 0;
+        for (let i = 0; i < bybitRecords.length; i += batchSize) {
+          const batch = bybitRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            console.error(`❌ Error upserting Bybit CG batch ${i}-${i+batchSize}:`, error.message);
+          } else {
+            successfulBatches++;
+          }
+        }
+        
+        results.bybit.synced = bybitRecords.length;
+        results.bybit.active = bybitRecords.length;
+        console.log(`✅ Bybit (CoinGecko fallback) complete: ${results.bybit.synced} pairs, ${successfulBatches} batches (${Date.now() - startTime}ms)`);
+      } else if (bybitResponse.ok) {
         const bybitData = await bybitResponse.json();
         const symbols: BybitSymbol[] = bybitData?.result?.list || [];
         console.log(`✅ Bybit: Found ${symbols.length} symbols`);
@@ -193,12 +341,7 @@ Deno.serve(async (req) => {
             });
           
           if (error) {
-            console.error(`❌ Error upserting Bybit batch ${i}-${i+batchSize}:`, {
-              message: error.message,
-              details: error.details,
-              hint: error.hint,
-              code: error.code
-            });
+            console.error(`❌ Error upserting Bybit batch ${i}-${i+batchSize}:`, error.message);
           } else {
             successfulBatches++;
           }
@@ -232,7 +375,7 @@ Deno.serve(async (req) => {
           symbol: s.symbol,
           base_asset: s.baseAsset,
           quote_asset: s.quoteAsset,
-          is_active: s.status === 'ENABLED',
+          is_active: ['ENABLED', 'TRADING'].includes(s.status?.toUpperCase()),
           synced_at: new Date().toISOString(),
         }));
 

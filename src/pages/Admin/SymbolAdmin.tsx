@@ -37,8 +37,20 @@ export function SymbolAdmin() {
       
       if (error) throw error;
       
+      const binanceLabel = data.results.binance.fallback 
+        ? `Binance: ${data.results.binance.synced} (CG fallback)` 
+        : `Binance: ${data.results.binance.synced}`;
+      
+      const binanceUSLabel = data.results.binance_us?.synced > 0 
+        ? ` | Binance.US: ${data.results.binance_us.synced}` 
+        : '';
+      
+      const bybitLabel = data.results.bybit.fallback 
+        ? `Bybit: ${data.results.bybit.synced} (CG fallback)` 
+        : `Bybit: ${data.results.bybit.synced}`;
+      
       toast.success(
-        `Exchange sync complete!\nBinance: ${data.results.binance.synced} | Coinbase: ${data.results.coinbase.synced}\nBybit: ${data.results.bybit.synced} | MEXC: ${data.results.mexc.synced} | Gate.io: ${data.results.gateio.synced}`
+        `Exchange sync complete!\n${binanceLabel}${binanceUSLabel} | Coinbase: ${data.results.coinbase.synced}\n${bybitLabel} | MEXC: ${data.results.mexc.synced} | Gate.io: ${data.results.gateio.synced}`
       );
     } catch (error) {
       console.error('Exchange sync error:', error);
@@ -118,6 +130,9 @@ export function SymbolAdmin() {
                 </Button>
                 <p className="text-sm text-muted-foreground mt-4">
                   This will fetch the list of active trading pairs from major exchanges to validate TradingView support.
+                </p>
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  Note: Some exchanges are geo-restricted in the US. Fallbacks to CoinGecko or regional APIs (e.g., Binance.US) are applied automatically.
                 </p>
               </CardContent>
             </Card>
