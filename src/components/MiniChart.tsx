@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, lazy, Suspense } from 'react';
+
+const FallbackSparkline = lazy(() => import('./FallbackSparkline').then(module => ({ default: module.FallbackSparkline })));
 
 interface MiniChartProps {
   symbol: string;
@@ -75,21 +77,23 @@ export function MiniChart({
     // Show fallback sparkline if data sources are available
     if (showFallback && (coingeckoId || polygonTicker)) {
       return (
-        <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ width: '100%', maxWidth: '200px' }}>
-            {/* Lazy load FallbackSparkline to avoid bundle bloat */}
-            <React.Suspense fallback={<div>Loading chart...</div>}>
-              <div className="text-sm text-muted-foreground mb-2">{symbol}</div>
-              {/* Import dynamically to avoid circular deps */}
-            </React.Suspense>
-          </div>
+        <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
+          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading chart...</div>}>
+            <FallbackSparkline 
+              symbol={symbol}
+              coingeckoId={coingeckoId}
+              polygonTicker={polygonTicker}
+              timespan="7D"
+              className="w-full"
+            />
+          </Suspense>
         </div>
       );
     }
     
     return (
       <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
-        <p>Chart not available</p>
+        <p className="text-sm text-muted-foreground">Chart not available</p>
       </div>
     );
   }
