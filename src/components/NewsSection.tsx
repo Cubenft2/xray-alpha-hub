@@ -260,9 +260,9 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-muted-foreground font-medium">{item.source}</span>
+              <span className="text-[11px] text-muted-foreground/60">{item.source}</span>
               {item.author && (
-                <span className="text-xs text-muted-foreground">by {item.author}</span>
+                <span className="text-[11px] text-muted-foreground/60">by {item.author}</span>
               )}
               {isBlockedSite && (
                 <span className="inline-flex items-center px-1 py-0.5 rounded text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400">
