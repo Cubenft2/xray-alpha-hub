@@ -38,7 +38,7 @@ export function SymbolAdmin() {
       if (error) throw error;
       
       toast.success(
-        `Exchange sync complete! Binance: ${data.results.binance.synced}, Coinbase: ${data.results.coinbase.synced}`
+        `Exchange sync complete!\nBinance: ${data.results.binance.synced} | Coinbase: ${data.results.coinbase.synced}\nBybit: ${data.results.bybit.synced} | MEXC: ${data.results.mexc.synced} | Gate.io: ${data.results.gateio.synced}`
       );
     } catch (error) {
       console.error('Exchange sync error:', error);
@@ -104,7 +104,7 @@ export function SymbolAdmin() {
               <CardHeader>
                 <CardTitle>Exchange Universe Sync</CardTitle>
                 <CardDescription>
-                  Sync trading pairs from Binance and Coinbase
+                  Sync trading pairs from Binance, Coinbase, Bybit, MEXC, and Gate.io
                 </CardDescription>
               </CardHeader>
               <CardContent>
