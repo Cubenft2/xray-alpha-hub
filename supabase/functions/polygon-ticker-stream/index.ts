@@ -18,12 +18,8 @@ let isLeader = false;
 let isInitialized = false;
 
 interface TickerConfig {
-  ticker: string;
+  symbol: string;
   display: string;
-  type: 'crypto' | 'fx';
-  precision: number;
-  enabled: boolean;
-  position: number;
 }
 
 interface PriceData {
@@ -31,18 +27,6 @@ interface PriceData {
   display: string;
   price: number;
   change24h: number;
-  timestamp: number;
-}
-
-interface PolygonAggregate {
-  ev: string;
-  pair: string;
-  c: number;
-  o: number;
-  h: number;
-  l: number;
-  v: number;
-  s: number;
 }
 
 // Price state
@@ -50,13 +34,13 @@ const priceState = new Map<string, PriceData>();
 let lastDatabaseWrite = 0;
 const DATABASE_WRITE_INTERVAL = 250;
 
-// Polygon WebSocket connections
+// Polygon WebSocket connection (single connection for all cryptos)
 let cryptoWs: WebSocket | null = null;
-let forexWs: WebSocket | null = null;
 
 // Reconnection state
 let reconnectAttempts = 0;
-const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
+const MAX_RECONNECT_ATTEMPTS = 10;
+let reconnectTimer: number | null = null;
 
 // Ticker configuration
 let tickerConfig: TickerConfig[] = [];
@@ -155,7 +139,7 @@ async function updatePriceInDB(priceData: PriceData) {
         display: priceData.display,
         price: priceData.price,
         change24h: priceData.change24h,
-        updated_at: new Date(priceData.timestamp).toISOString()
+        updated_at: new Date().toISOString()
       }, {
         onConflict: 'ticker'
       });
@@ -170,12 +154,14 @@ function throttledDatabaseUpdate(priceData: PriceData) {
   const now = Date.now();
   const existing = priceState.get(priceData.ticker);
   
+  // Skip if price changed less than 0.01%
   if (existing && Math.abs((priceData.price - existing.price) / existing.price) < 0.0001) {
     return;
   }
   
   priceState.set(priceData.ticker, priceData);
   
+  // Throttle database writes
   if (now - lastDatabaseWrite < DATABASE_WRITE_INTERVAL) {
     return;
   }
@@ -184,214 +170,213 @@ function throttledDatabaseUpdate(priceData: PriceData) {
   updatePriceInDB(priceData);
 }
 
-// Load ticker configuration from database
-async function loadTickerConfig(): Promise<TickerConfig[]> {
-  console.log('Loading ticker configuration from database...');
-  const { data, error } = await supabase
-    .from('site_settings')
-    .select('setting_value')
-    .eq('setting_key', 'ticker_list')
-    .single();
+// ============================================
+// LOAD TICKER CONFIGURATION FROM SETTINGS
+// ============================================
 
-  if (error) {
-    console.error('Error loading ticker config:', error);
+async function loadTickerConfig(): Promise<TickerConfig[]> {
+  try {
+    console.log('📥 Loading ticker configuration from site_settings...');
+    
+    const { data: settings, error } = await supabase
+      .from('site_settings')
+      .select('setting_value')
+      .eq('setting_key', 'ticker_list')
+      .single();
+    
+    if (error || !settings) {
+      console.warn('⚠️ Failed to load ticker config, using fallback:', error);
+      return [
+        { symbol: 'X:BTCUSD', display: 'BTC' },
+        { symbol: 'X:ETHUSD', display: 'ETH' },
+        { symbol: 'X:SOLUSD', display: 'SOL' }
+      ];
+    }
+    
+    const cryptoTickers = (settings.setting_value as any).crypto || [];
+    const tickers = cryptoTickers.map((symbol: string) => ({
+      symbol,
+      display: symbol.replace('X:', '').replace('USD', '')
+    }));
+    
+    console.log(`✅ Loaded ${tickers.length} crypto tickers from site_settings`);
+    return tickers;
+  } catch (err) {
+    console.error('❌ Error loading ticker config:', err);
     return [];
   }
-
-  const tickers = (data?.setting_value as TickerConfig[]) || [];
-  const enabledTickers = tickers.filter(t => t.enabled);
-  console.log(`Loaded ${enabledTickers.length} enabled tickers:`, enabledTickers.map(t => t.ticker));
-  return enabledTickers;
 }
 
-// Fetch initial 24h prices from Polygon REST API
-async function fetchInitialPrices(tickers: TickerConfig[]): Promise<void> {
-  console.log('Fetching initial prices via REST...');
+// ============================================
+// FETCH INITIAL 24HR PRICES FROM POLYGON REST API
+// ============================================
+
+async function fetchInitialPrices(tickers: TickerConfig[]) {
+  console.log(`🔄 Fetching initial prices for ${tickers.length} tickers...`);
   
-  for (const ticker of tickers) {
-    try {
-      if (ticker.type === 'crypto') {
-        const symbol = ticker.ticker.replace('X:', '').replace('USD', '-USD');
-        const url = `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`;
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dateStr = yesterday.toISOString().split('T')[0];
+  
+  // Batch process to avoid rate limits
+  const batchSize = 10;
+  for (let i = 0; i < tickers.length; i += batchSize) {
+    const batch = tickers.slice(i, i + batchSize);
+    
+    await Promise.all(batch.map(async (ticker) => {
+      try {
+        const endpoint = `https://api.polygon.io/v2/aggs/ticker/${ticker.symbol}/range/1/day/${dateStr}/${dateStr}?apiKey=${POLYGON_API_KEY}`;
         
-        const response = await fetch(url);
+        const response = await fetch(endpoint);
         const data = await response.json();
         
-        if (data.results?.[0]) {
+        if (data.results && data.results.length > 0) {
           const result = data.results[0];
-          const prevClose = result.c;
-          const currentPrice = result.c;
-          const change24h = prevClose > 0 ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
+          const change = ((result.c - result.o) / result.o) * 100;
           
           const priceData = {
-            ticker: ticker.ticker,
+            ticker: ticker.symbol,
             display: ticker.display,
-            price: currentPrice,
-            change24h,
-            timestamp: Date.now()
+            price: result.c,
+            change24h: change
           };
           
-          priceState.set(ticker.ticker, priceData);
+          priceState.set(ticker.symbol, priceData);
           await updatePriceInDB(priceData);
-        }
-      } else if (ticker.type === 'fx') {
-        const pair = ticker.ticker.replace('C:', '');
-        const from = pair.slice(0, 3);
-        const to = pair.slice(3, 6);
-        const url = `https://api.polygon.io/v1/last/currencies/${from}/${to}?apiKey=${POLYGON_API_KEY}`;
-        
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (data.last?.bid) {
-          const priceData = {
-            ticker: ticker.ticker,
-            display: ticker.display,
-            price: data.last.bid,
-            change24h: 0,
-            timestamp: Date.now()
-          };
           
-          priceState.set(ticker.ticker, priceData);
-          await updatePriceInDB(priceData);
+          console.log(`✅ ${ticker.display}: $${result.c.toFixed(2)} (${change.toFixed(2)}%)`);
         }
+      } catch (err) {
+        console.error(`❌ Failed to fetch initial price for ${ticker.symbol}:`, err);
       }
-    } catch (error) {
-      console.error(`Error fetching initial price for ${ticker.ticker}:`, error);
+    }));
+    
+    // Small delay between batches
+    if (i + batchSize < tickers.length) {
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
   
-  console.log(`Initialized ${priceState.size} prices`);
+  console.log(`✅ Initial price fetch completed (${priceState.size} prices loaded)`);
 }
 
-// Connect to Polygon WebSocket
-async function connectPolygonWebSocket(type: 'crypto' | 'fx', tickers: string[]) {
-  if (tickers.length === 0) return;
+// ============================================
+// WEBSOCKET CONNECTION (SINGLE CONNECTION FOR ALL CRYPTOS)
+// ============================================
+
+function connectPolygonWebSocket(tickers: string[]) {
+  const wsUrl = 'wss://socket.polygon.io/crypto';
   
-  const wsUrl = type === 'crypto' 
-    ? 'wss://socket.polygon.io/crypto'
-    : 'wss://socket.polygon.io/forex';
+  console.log(`🔌 Connecting to Polygon WebSocket with ${tickers.length} crypto tickers...`);
   
-  console.log(`Connecting to Polygon ${type} WebSocket...`);
-  const ws = new WebSocket(wsUrl);
+  cryptoWs = new WebSocket(wsUrl);
   
-  ws.onopen = () => {
-    console.log(`Polygon ${type} WebSocket connected`);
+  cryptoWs.onopen = () => {
+    console.log(`✅ Crypto WebSocket connected`);
     reconnectAttempts = 0;
     
-    ws.send(JSON.stringify({
-      action: 'auth',
-      params: POLYGON_API_KEY
-    }));
+    // Authenticate
+    cryptoWs?.send(JSON.stringify({ action: 'auth', params: POLYGON_API_KEY }));
     
-    const subscriptionParams = tickers.map(t => `XA.${t}`).join(',');
-    ws.send(JSON.stringify({
-      action: 'subscribe',
-      params: subscriptionParams
-    }));
+    // Subscribe to all crypto tickers in batches (Polygon has limits per subscription message)
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < tickers.length; i += BATCH_SIZE) {
+      const batch = tickers.slice(i, i + BATCH_SIZE);
+      const subscriptionParams = batch.map(t => `XA.${t}`).join(',');
+      
+      console.log(`📡 Subscribing to batch ${Math.floor(i / BATCH_SIZE) + 1} (${batch.length} tickers)...`);
+      cryptoWs?.send(JSON.stringify({
+        action: 'subscribe',
+        params: subscriptionParams
+      }));
+    }
     
-    console.log(`Subscribed to ${type} tickers:`, subscriptionParams);
+    console.log(`✅ Subscribed to ${tickers.length} crypto pairs`);
   };
   
-  ws.onmessage = (event) => {
+  cryptoWs.onmessage = (event) => {
     try {
       const messages = JSON.parse(event.data);
       
       if (!Array.isArray(messages)) return;
       
-      for (const msg of messages) {
-        if (msg.ev === 'XA') {
-          const agg = msg as PolygonAggregate;
-          const ticker = agg.pair;
+      messages.forEach((msg: any) => {
+        if (msg.ev === 'XA') { // Aggregate message for crypto
+          const symbol = msg.pair;
+          const price = msg.c;
           
-          const config = tickerConfig.find(t => t.ticker === ticker);
-          if (!config) continue;
+          const config = tickerConfig.find(t => t.symbol === symbol);
+          if (!config) return;
           
-          const existing = priceState.get(ticker);
+          // Calculate 24h change from stored state
+          const existing = priceState.get(symbol);
           const change24h = existing?.change24h || 0;
           
           throttledDatabaseUpdate({
-            ticker,
+            ticker: symbol,
             display: config.display,
-            price: agg.c,
-            change24h,
-            timestamp: agg.s
+            price,
+            change24h
           });
+        } else if (msg.ev === 'status') {
+          console.log(`📊 WebSocket status:`, msg.message);
         }
-        
-        if (msg.ev === 'status') {
-          console.log(`Polygon ${type} status:`, msg.message);
-        }
-      }
-    } catch (error) {
-      console.error(`Error processing ${type} message:`, error);
+      });
+    } catch (err) {
+      console.error('❌ Error processing WebSocket message:', err);
     }
   };
   
-  ws.onerror = (error) => {
-    console.error(`Polygon ${type} WebSocket error:`, error);
+  cryptoWs.onerror = (error) => {
+    console.error('❌ Crypto WebSocket error:', error);
   };
   
-  ws.onclose = () => {
-    console.log(`Polygon ${type} WebSocket closed`);
+  cryptoWs.onclose = () => {
+    console.log('🔌 Crypto WebSocket closed');
+    cryptoWs = null;
     
-    if (type === 'crypto') {
-      cryptoWs = null;
+    // Implement exponential backoff
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+      reconnectAttempts++;
+      
+      console.log(`📡 Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+      
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => {
+        connectPolygonWebSocket(tickers);
+      }, delay);
     } else {
-      forexWs = null;
+      console.error('❌ Max reconnection attempts reached');
     }
-    
-    const delay = RECONNECT_DELAYS[Math.min(reconnectAttempts, RECONNECT_DELAYS.length - 1)];
-    reconnectAttempts++;
-    
-    console.log(`Reconnecting ${type} in ${delay}ms (attempt ${reconnectAttempts})...`);
-    
-    setTimeout(() => {
-      connectPolygonWebSocket(type, tickers);
-    }, delay);
   };
-  
-  if (type === 'crypto') {
-    cryptoWs = ws;
-  } else {
-    forexWs = ws;
-  }
 }
 
-// Initialize Polygon connections
-async function initializePolygonConnections() {
-  if (!isLeader) {
-    console.log('⏸️ Not leader, skipping Polygon connection');
-    return;
-  }
+// ============================================
+// INITIALIZE POLYGON CONNECTIONS
+// ============================================
 
-  tickerConfig = await loadTickerConfig();
-  
-  if (tickerConfig.length === 0) {
-    console.log('No enabled tickers found');
-    return;
+async function initializePolygonConnections() {
+  try {
+    tickerConfig = await loadTickerConfig();
+    if (tickerConfig.length === 0) {
+      console.error('❌ No tickers to stream');
+      return;
+    }
+    
+    console.log(`🚀 Initializing Polygon stream for ${tickerConfig.length} crypto tickers`);
+    
+    // Fetch initial 24hr prices
+    await fetchInitialPrices(tickerConfig);
+    
+    // Connect single WebSocket for all crypto tickers
+    const tickerSymbols = tickerConfig.map(t => t.symbol);
+    connectPolygonWebSocket(tickerSymbols);
+    
+    console.log(`✅ Polygon streaming initialized for ${tickerConfig.length} tickers`);
+  } catch (err) {
+    console.error('❌ Failed to initialize Polygon connections:', err);
   }
-  
-  await fetchInitialPrices(tickerConfig);
-  
-  const cryptoTickers = tickerConfig
-    .filter(t => t.type === 'crypto')
-    .map(t => t.ticker);
-  
-  const forexTickers = tickerConfig
-    .filter(t => t.type === 'fx')
-    .map(t => t.ticker);
-  
-  if (cryptoTickers.length > 0) {
-    await connectPolygonWebSocket('crypto', cryptoTickers);
-  }
-  
-  if (forexTickers.length > 0) {
-    await connectPolygonWebSocket('fx', forexTickers);
-  }
-  
-  // Start heartbeat
-  setInterval(() => sendHeartbeat(), 10000);
 }
 
 // ============================================
@@ -422,6 +407,9 @@ async function initialize() {
   }
   
   await initializePolygonConnections();
+  
+  // Start heartbeat
+  setInterval(() => sendHeartbeat(), 10000);
 }
 
 // ============================================
@@ -441,16 +429,13 @@ Deno.serve(async (req) => {
   }
   
   return new Response(JSON.stringify({
-    status: 'ok',
+    status: 'streaming',
     instance_id: INSTANCE_ID,
     is_leader: isLeader,
-    initialized: isInitialized,
-    tickers: tickerConfig.length,
-    prices: priceState.size,
-    connections: {
-      crypto: cryptoWs?.readyState === WebSocket.OPEN,
-      forex: forexWs?.readyState === WebSocket.OPEN
-    }
+    tickers_configured: tickerConfig.length,
+    prices_loaded: priceState.size,
+    websocket_connected: cryptoWs?.readyState === WebSocket.OPEN,
+    reconnect_attempts: reconnectAttempts
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
