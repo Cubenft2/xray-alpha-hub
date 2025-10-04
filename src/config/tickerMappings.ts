@@ -157,7 +157,8 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'AVANTI': { symbol: 'COINBASE:AVNTUSD', displayName: 'Avanti (AVNT)', type: 'crypto' },
   'ZBCN': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
   'ZEBEC': { symbol: 'CRYPTO:ZBCNUSD', displayName: 'Zebec Network (ZBCN)', type: 'crypto' },
-  'MYX': { symbol: 'MYXUSD', displayName: 'MYX (MYX)', type: 'crypto' },
+  'MYX': { symbol: 'CRYPTO:MYXUSD', displayName: 'MYX (MYX)', type: 'crypto' },
+  'MYXUSDT': { symbol: 'MEXC:MYXUSDT', displayName: 'MYX (USDT)', type: 'crypto' },
   'DEXE': { symbol: 'DEXEUSD', displayName: 'DeXe (DEXE)', type: 'crypto' },
   // Mini chart fixes for requested assets
   'AIC': { symbol: 'MEXC:AICUSDT', displayName: 'AI Companions (AIC)', type: 'crypto' },
