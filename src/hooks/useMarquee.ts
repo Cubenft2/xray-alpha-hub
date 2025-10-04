@@ -22,11 +22,21 @@ export function useMarquee({ pxPerSecond = 50, pause = false }: UseMarqueeOption
     const track = trackRef.current;
     if (!track) return;
 
-    // Measure the width of the first group
+    // Measure the width of the first group including gap
     const measureWidth = () => {
       const firstGroup = track.firstElementChild as HTMLElement;
       if (firstGroup) {
-        widthRef.current = firstGroup.offsetWidth;
+        const cs = getComputedStyle(track);
+        const gap = parseFloat(cs.columnGap || cs.gap || '0') || 0;
+        const newWidth = firstGroup.offsetWidth + gap;
+        
+        if (newWidth > 0 && newWidth !== widthRef.current) {
+          // Preserve animation progress when width changes
+          const prev = widthRef.current || newWidth;
+          const progress = prev > 0 ? offsetRef.current / prev : 0;
+          widthRef.current = newWidth;
+          offsetRef.current = progress * newWidth;
+        }
       }
     };
 
@@ -55,7 +65,7 @@ export function useMarquee({ pxPerSecond = 50, pause = false }: UseMarqueeOption
           }
 
           if (track) {
-            track.style.transform = `translateX(-${offsetRef.current}px)`;
+            track.style.transform = `translate3d(-${offsetRef.current}px, 0, 0)`;
           }
         }
         lastTimeRef.current = currentTime;

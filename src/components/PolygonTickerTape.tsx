@@ -21,10 +21,10 @@ const TickerCard = memo(({ display, price, change24h }: TickerCardProps) => {
   const changeColor = isPositive ? 'text-green-500' : 'text-red-500';
   
   return (
-    <div className="ticker-card flex items-center gap-2 px-4 py-2 bg-card/50 backdrop-blur-sm rounded-lg border border-border/50 whitespace-nowrap">
+    <div className="ticker-card flex items-center gap-2 px-4 py-2 bg-card/50 backdrop-blur-sm rounded-lg border border-border/50 whitespace-nowrap min-w-[180px]">
       <span className="font-bold text-foreground">{display}</span>
-      <span className="text-muted-foreground">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-      <span className={`text-sm font-medium ${changeColor}`}>
+      <span className="text-muted-foreground tabular-nums font-mono">${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+      <span className={`text-sm font-medium tabular-nums ${changeColor}`}>
         {isPositive ? '▲' : '▼'} {Math.abs(change24h).toFixed(2)}%
       </span>
     </div>
