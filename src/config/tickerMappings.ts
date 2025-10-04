@@ -126,7 +126,7 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'ASTR': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar (ASTR)', type: 'crypto' },
   'ASTER': { symbol: 'MEXC:ASTERUSDT', displayName: 'Aster (ASTER)', type: 'crypto' },
   'ASTAR': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar Network (ASTAR)', type: 'crypto' },
-  'OKB': { symbol: 'BINANCE:OKBUSDT', displayName: 'OKX Token (OKB)', type: 'crypto' },
+  'OKB': { symbol: 'OKX:OKBUSDT', displayName: 'OKX Token (OKB)', type: 'crypto' },
   'IMX': { symbol: 'BINANCE:IMXUSDT', displayName: 'Immutable X (IMX)', type: 'crypto' },
   'HASH': { symbol: 'BINANCE:HASHUSDT', displayName: 'Hashflow (HASH)', type: 'crypto' },
   'FF': { symbol: 'BINANCE:FFUSDT', displayName: 'Falcon Finance (FF)', type: 'crypto' },
