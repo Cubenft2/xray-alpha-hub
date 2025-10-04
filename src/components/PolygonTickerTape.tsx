@@ -2,6 +2,7 @@ import React, { useState, useEffect, memo } from 'react';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 import { useMarquee } from '@/hooks/useMarquee';
+import { useLivePrices } from '@/hooks/useLivePrices';
 
 interface TickerItem {
   ticker: string;
@@ -33,85 +34,28 @@ const TickerCard = memo(({ display, price, change24h }: TickerCardProps) => {
 TickerCard.displayName = 'TickerCard';
 
 export function PolygonTickerTape() {
-  const [tickers, setTickers] = useState<TickerItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { theme } = useTheme();
   const [isPaused, setIsPaused] = useState(false);
+  
+  // Popular crypto symbols to display
+  const symbols = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'AVAX', 'DOGE', 'MATIC', 'DOT', 'UNI', 'LINK', 'ATOM', 'LTC', 'BCH'];
+  
+  const { prices, loading: isLoading } = useLivePrices(symbols);
 
-  useEffect(() => {
-    // Start the edge function (it will keep running)
-    const startEdgeFunction = async () => {
-      try {
-        const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbmN2Zml1emxpeW9oeHJzaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3Mzk4MjEsImV4cCI6MjA3NDMxNTgyMX0.7cnRatKpHqsylletKVel7WAprIYdpP85AXtXLswMYXQ";
-        await fetch('https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/polygon-ticker-stream', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${ANON_KEY}`
-          }
-        });
-        console.log('✅ Polygon ticker stream started');
-      } catch (error) {
-        console.error('❌ Failed to start polygon ticker stream:', error);
-      }
-    };
-
-    startEdgeFunction();
-
-    // Fetch initial snapshot
-    const fetchInitialPrices = async () => {
-      const { data, error } = await supabase
-        .from('live_prices')
-        .select('*')
-        .order('ticker', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching initial prices:', error);
-        return;
-      }
-
-      setTickers(data || []);
-      setIsLoading(false);
-    };
-
-    // Wait a bit for edge function to populate data
-    setTimeout(fetchInitialPrices, 2000);
-
-    // Subscribe to real-time updates
-    const channel = supabase
-      .channel('live-prices-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'live_prices'
-        },
-        (payload) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const newPrice = payload.new as TickerItem;
-            
-            setTickers(prev => {
-              const existingIndex = prev.findIndex(t => t.ticker === newPrice.ticker);
-              
-              if (existingIndex >= 0) {
-                const updated = [...prev];
-                updated[existingIndex] = newPrice;
-                return updated;
-              } else {
-                return [...prev, newPrice].sort((a, b) => a.ticker.localeCompare(b.ticker));
-              }
-            });
-          } else if (payload.eventType === 'DELETE') {
-            setTickers(prev => prev.filter(t => t.ticker !== payload.old.ticker));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  // Convert prices to ticker format
+  const tickers: TickerItem[] = symbols
+    .map(symbol => {
+      const priceData = prices[symbol];
+      if (!priceData?.price) return null;
+      
+      return {
+        ticker: symbol,
+        display: symbol,
+        price: priceData.price,
+        change24h: priceData.change_24h || 0,
+        updated_at: new Date().toISOString()
+      };
+    })
+    .filter((t): t is TickerItem => t !== null);
 
   const { containerRef, trackRef } = useMarquee({ 
     pxPerSecond: 80, 
