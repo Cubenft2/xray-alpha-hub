@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, X, TrendingUp, ExternalLink } from 'lucide-react';
 import { MiniChart } from './MiniChart';
+import { useTickerMappings } from '@/hooks/useTickerMappings';
 
 interface WatchlistItem {
   id: string;
@@ -20,6 +21,7 @@ export function WatchlistManager() {
   const [newSymbol, setNewSymbol] = useState('');
   const navigate = useNavigate();
   const { theme } = useTheme();
+  const { getMapping, isLoading } = useTickerMappings();
 
   useEffect(() => {
     const stored = localStorage.getItem('xr_watchlist');
@@ -43,27 +45,38 @@ export function WatchlistManager() {
     const raw = newSymbol.toUpperCase().trim();
     const isExplicitExchange = raw.includes(':');
 
-    // Prefer centralized mappings for cryptos
     let resolvedSymbol = raw;
     let itemType: 'crypto' | 'stock' = 'stock';
+    let displayName = raw;
 
     if (isExplicitExchange) {
+      // Explicit exchange prefix
       resolvedSymbol = raw;
       itemType = raw.startsWith('NASDAQ:') || raw.startsWith('NYSE:') || raw.startsWith('AMEX:') ? 'stock' : 'crypto';
+      displayName = raw.split(':')[1] || raw;
     } else {
-      const mapping = awaitResolveMapping(raw);
+      // Check database mapping first
+      const mapping = getMapping(raw);
       if (mapping) {
-        resolvedSymbol = mapping.symbol;
+        resolvedSymbol = mapping.tradingview_symbol;
         itemType = mapping.type === 'stock' ? 'stock' : 'crypto';
+        displayName = mapping.display_name || raw;
       } else {
-        // Fallback heuristics
-        if (/^[A-Z]{1,5}$/.test(raw)) {
-          // Default to crypto pair on Binance if unknown (best-effort)
+        // Fallback heuristics for unmapped symbols
+        const commonCryptos = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'MATIC', 'DOT', 'AVAX', 'LINK'];
+        
+        if (commonCryptos.includes(raw)) {
+          // Known crypto without mapping
           resolvedSymbol = `BINANCE:${raw}USDT`;
           itemType = 'crypto';
-        } else {
+        } else if (/^[A-Z]{1,5}$/.test(raw)) {
+          // Short symbol - default to stock (most stock tickers are 1-5 chars)
           resolvedSymbol = raw;
-          itemType = 'crypto';
+          itemType = 'stock';
+        } else {
+          // Unknown format - default to stock
+          resolvedSymbol = raw;
+          itemType = 'stock';
         }
       }
     }
@@ -71,7 +84,7 @@ export function WatchlistManager() {
     const newItem: WatchlistItem = {
       id: Date.now().toString(),
       symbol: resolvedSymbol,
-      name: raw,
+      name: displayName,
       type: itemType
     };
 
@@ -81,17 +94,6 @@ export function WatchlistManager() {
     
     setNewSymbol('');
   };
-
-  // Helper to sync resolve from config without blocking UI
-  function awaitResolveMapping(sym: string) {
-    try {
-      const { getTickerMapping } = require('@/config/tickerMappings');
-      return getTickerMapping(sym);
-    } catch (e) {
-      console.warn('Mapping module not ready', e);
-      return undefined;
-    }
-  }
 
   const removeFromWatchlist = (id: string) => {
     saveWatchlist(watchlist.filter(item => item.id !== id));
