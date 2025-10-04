@@ -133,7 +133,7 @@ export function PolygonTickerTape() {
         className="ticker-tape-scroll flex gap-4 py-3"
         style={{ 
           animationPlayState: isPaused ? 'paused' : 'running',
-          animation: 'scroll-left 12s linear infinite',
+          animation: 'scroll-left 6s linear infinite',
           willChange: 'transform'
         }}
         onMouseEnter={() => setIsPaused(true)}
