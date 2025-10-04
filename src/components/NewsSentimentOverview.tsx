@@ -94,39 +94,67 @@ export function NewsSentimentOverview({
         if (!blob) return;
 
         const file = new File([blob], 'xraycrypto-sentiment.png', { type: 'image/png' });
+        const shareText = 'News Sentiment Analysis by @XRaycryptox';
 
-        // Try native share with the image file
+        // 1) Native Share with image file
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
           try {
             await navigator.share({
               files: [file],
               title: 'News Sentiment Analysis - XRayCrypto',
-              text: 'News Sentiment Analysis by @XRaycryptox',
+              text: shareText,
             });
-            toast({
-              title: 'Shared successfully!',
-              description: 'Sentiment card image shared.',
-            });
+            toast({ title: 'Shared successfully!', description: 'Sentiment card image shared.' });
             return;
           } catch (shareError) {
-            if ((shareError as Error).name === 'AbortError') {
-              return; // User cancelled
-            }
+            if ((shareError as Error).name === 'AbortError') return; // user cancelled
           }
         }
 
-        // Fallback: Download the image if sharing isn't supported
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.download = `xraycrypto-sentiment-${new Date().toISOString().split('T')[0]}.png`;
-        link.href = url;
-        link.click();
-        URL.revokeObjectURL(url);
+        // 2) Try copying image to clipboard for easy paste
+        let copied = false;
+        try {
+          const ClipboardItemCtor = (window as any).ClipboardItem || (window as any).webkitClipboardItem || ClipboardItem;
+          if (ClipboardItemCtor && navigator.clipboard && (navigator.clipboard as any).write) {
+            await (navigator.clipboard as any).write([
+              new ClipboardItemCtor({ [blob.type]: blob })
+            ]);
+            copied = true;
+          }
+        } catch {}
 
+        // 3) If generic share exists, open with text only (no link)
+        if (navigator.share) {
+          try {
+            await navigator.share({
+              title: 'News Sentiment Analysis - XRayCrypto',
+              text: copied ? `${shareText} — image copied, just paste!` : shareText,
+            });
+            toast({
+              title: copied ? 'Share opened (image on clipboard)' : 'Share opened',
+              description: copied ? 'Paste the image in the app.' : 'You can attach the image manually.',
+            });
+            return;
+          } catch {}
+        }
+
+        // 4) Desktop fallback: Open X (Twitter) compose without link
+        const intent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(copied ? `${shareText} — image copied, just paste!` : shareText)}`;
+        window.open(intent, '_blank', 'noopener,noreferrer');
         toast({
-          title: 'Image downloaded!',
-          description: 'Share not supported - image saved to share manually.',
+          title: 'Opened X compose',
+          description: copied ? 'Press Ctrl/Cmd+V to paste the image.' : 'Attach the image manually if needed.',
         });
+
+        // 5) Last resort: Download the image so it can be shared
+        if (!copied) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.download = `xraycrypto-sentiment-${new Date().toISOString().split('T')[0]}.png`;
+          link.href = url;
+          link.click();
+          URL.revokeObjectURL(url);
+        }
       });
     } catch (error) {
       setIsExporting(false);
