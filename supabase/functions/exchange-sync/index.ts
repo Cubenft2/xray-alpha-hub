@@ -62,10 +62,15 @@ Deno.serve(async (req) => {
 
     // Sync Binance
     try {
+      const startTime = Date.now();
+      console.log('🔄 Fetching Binance data...');
       const binanceResponse = await fetch('https://api.binance.com/api/v3/exchangeInfo');
+      console.log(`📊 Binance API responded: ${binanceResponse.status} ${binanceResponse.statusText} (${Date.now() - startTime}ms)`);
+      
       if (binanceResponse.ok) {
         const binanceData = await binanceResponse.json();
         const symbols: BinanceSymbol[] = binanceData.symbols || [];
+        console.log(`✅ Binance: Found ${symbols.length} symbols`);
         
         const binanceRecords = symbols.map(s => ({
           exchange: 'binance',
@@ -78,6 +83,7 @@ Deno.serve(async (req) => {
 
         // Batch upsert
         const batchSize = 500;
+        let successfulBatches = 0;
         for (let i = 0; i < binanceRecords.length; i += batchSize) {
           const batch = binanceRecords.slice(i, i + batchSize);
           const { error } = await supabase
@@ -88,16 +94,31 @@ Deno.serve(async (req) => {
             });
           
           if (error) {
-            console.error('Error upserting Binance batch:', error);
+            console.error(`❌ Error upserting Binance batch ${i}-${i+batchSize}:`, {
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code
+            });
+          } else {
+            successfulBatches++;
           }
         }
 
         results.binance.synced = binanceRecords.length;
         results.binance.active = binanceRecords.filter(r => r.is_active).length;
-        console.log(`Binance: ${results.binance.synced} pairs, ${results.binance.active} active`);
+        console.log(`✅ Binance complete: ${results.binance.synced} pairs, ${results.binance.active} active, ${successfulBatches} batches (${Date.now() - startTime}ms)`);
+      } else {
+        console.error(`❌ Binance API error: ${binanceResponse.status} ${binanceResponse.statusText}`);
+        const errorText = await binanceResponse.text();
+        console.error('Response body:', errorText);
       }
     } catch (error) {
-      console.error('Error syncing Binance:', error);
+      console.error('❌ Error syncing Binance:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
     }
 
     // Sync Coinbase (optional)
@@ -141,10 +162,15 @@ Deno.serve(async (req) => {
 
     // Sync Bybit
     try {
+      const startTime = Date.now();
+      console.log('🔄 Fetching Bybit data...');
       const bybitResponse = await fetch('https://api.bybit.com/v5/market/instruments-info?category=spot');
+      console.log(`📊 Bybit API responded: ${bybitResponse.status} ${bybitResponse.statusText} (${Date.now() - startTime}ms)`);
+      
       if (bybitResponse.ok) {
         const bybitData = await bybitResponse.json();
         const symbols: BybitSymbol[] = bybitData?.result?.list || [];
+        console.log(`✅ Bybit: Found ${symbols.length} symbols`);
         
         const bybitRecords = symbols.map(s => ({
           exchange: 'bybit',
@@ -156,6 +182,7 @@ Deno.serve(async (req) => {
         }));
 
         const batchSize = 500;
+        let successfulBatches = 0;
         for (let i = 0; i < bybitRecords.length; i += batchSize) {
           const batch = bybitRecords.slice(i, i + batchSize);
           const { error } = await supabase
@@ -166,16 +193,31 @@ Deno.serve(async (req) => {
             });
           
           if (error) {
-            console.error('Error upserting Bybit batch:', error);
+            console.error(`❌ Error upserting Bybit batch ${i}-${i+batchSize}:`, {
+              message: error.message,
+              details: error.details,
+              hint: error.hint,
+              code: error.code
+            });
+          } else {
+            successfulBatches++;
           }
         }
 
         results.bybit.synced = bybitRecords.length;
         results.bybit.active = bybitRecords.filter(r => r.is_active).length;
-        console.log(`Bybit: ${results.bybit.synced} pairs, ${results.bybit.active} active`);
+        console.log(`✅ Bybit complete: ${results.bybit.synced} pairs, ${results.bybit.active} active, ${successfulBatches} batches (${Date.now() - startTime}ms)`);
+      } else {
+        console.error(`❌ Bybit API error: ${bybitResponse.status} ${bybitResponse.statusText}`);
+        const errorText = await bybitResponse.text();
+        console.error('Response body:', errorText);
       }
     } catch (error) {
-      console.error('Error syncing Bybit:', error);
+      console.error('❌ Error syncing Bybit:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
     }
 
     // Sync MEXC
