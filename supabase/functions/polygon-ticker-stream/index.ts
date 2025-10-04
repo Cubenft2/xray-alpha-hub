@@ -6,6 +6,10 @@ const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY')!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// Leader election
+const INSTANCE_ID = crypto.randomUUID();
+let isLeader = false;
+
 interface TickerConfig {
   ticker: string;
   display: string;
@@ -34,15 +38,10 @@ interface PolygonAggregate {
   s: number;
 }
 
-// Connected browser clients
-const clients = new Set<WebSocket>();
-
 // Price state
 const priceState = new Map<string, PriceData>();
-
-// Last broadcast time for throttling
-let lastBroadcast = 0;
-const BROADCAST_INTERVAL = 250; // 4 updates per second
+let lastDatabaseWrite = 0;
+const DATABASE_WRITE_INTERVAL = 250;
 
 // Polygon WebSocket connections
 let cryptoWs: WebSocket | null = null;
@@ -54,6 +53,129 @@ const RECONNECT_DELAYS = [1000, 2000, 5000, 10000, 30000];
 
 // Ticker configuration
 let tickerConfig: TickerConfig[] = [];
+
+// ============================================
+// LEADER ELECTION
+// ============================================
+
+async function tryBecomeLeader(): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('price_sync_leader')
+      .upsert({
+        id: 'singleton',
+        instance_id: INSTANCE_ID,
+        heartbeat_at: new Date().toISOString()
+      }, {
+        onConflict: 'id'
+      });
+
+    if (error) {
+      console.error('❌ Leader election error:', error);
+      return false;
+    }
+
+    // Check if we're the current leader
+    const { data: current } = await supabase
+      .from('price_sync_leader')
+      .select('instance_id')
+      .eq('id', 'singleton')
+      .single();
+
+    const amLeader = current?.instance_id === INSTANCE_ID;
+    
+    if (amLeader) {
+      console.log(`✅ Elected as leader: ${INSTANCE_ID}`);
+    } else {
+      console.log(`⏸️ Standby mode (leader: ${current?.instance_id})`);
+    }
+    
+    return amLeader;
+  } catch (error) {
+    console.error('❌ Leader election failed:', error);
+    return false;
+  }
+}
+
+async function sendHeartbeat() {
+  if (!isLeader) return;
+  
+  try {
+    await supabase
+      .from('price_sync_leader')
+      .update({ heartbeat_at: new Date().toISOString() })
+      .eq('instance_id', INSTANCE_ID);
+  } catch (error) {
+    console.error('❌ Heartbeat failed:', error);
+  }
+}
+
+async function checkLeaderHealth(): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from('price_sync_leader')
+      .select('heartbeat_at')
+      .eq('id', 'singleton')
+      .single();
+
+    if (!data) return true;
+
+    const heartbeatAge = Date.now() - new Date(data.heartbeat_at).getTime();
+    const isStale = heartbeatAge > 30000;
+
+    if (isStale) {
+      console.log(`⚠️ Leader heartbeat stale (${heartbeatAge}ms), attempting takeover`);
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('❌ Health check failed:', error);
+    return true;
+  }
+}
+
+// ============================================
+// DATABASE FUNCTIONS
+// ============================================
+
+async function updatePriceInDB(priceData: PriceData) {
+  try {
+    await supabase
+      .from('live_prices')
+      .upsert({
+        ticker: priceData.ticker,
+        display: priceData.display,
+        price: priceData.price,
+        change24h: priceData.change24h,
+        updated_at: new Date(priceData.timestamp).toISOString()
+      }, {
+        onConflict: 'ticker'
+      });
+  } catch (error) {
+    console.error('❌ Database write failed:', error);
+  }
+}
+
+function throttledDatabaseUpdate(priceData: PriceData) {
+  if (!isLeader) return;
+  
+  const now = Date.now();
+  const existing = priceState.get(priceData.ticker);
+  
+  if (existing && Math.abs((priceData.price - existing.price) / existing.price) < 0.0001) {
+    return;
+  }
+  
+  priceState.set(priceData.ticker, priceData);
+  
+  if (now - lastDatabaseWrite < DATABASE_WRITE_INTERVAL) {
+    return;
+  }
+  
+  lastDatabaseWrite = now;
+  updatePriceInDB(priceData);
+}
 
 // Load ticker configuration from database
 async function loadTickerConfig(): Promise<TickerConfig[]> {
@@ -82,7 +204,6 @@ async function fetchInitialPrices(tickers: TickerConfig[]): Promise<void> {
   for (const ticker of tickers) {
     try {
       if (ticker.type === 'crypto') {
-        // Extract symbol (X:BTCUSD -> BTC-USD)
         const symbol = ticker.ticker.replace('X:', '').replace('USD', '-USD');
         const url = `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`;
         
@@ -95,16 +216,18 @@ async function fetchInitialPrices(tickers: TickerConfig[]): Promise<void> {
           const currentPrice = result.c;
           const change24h = prevClose > 0 ? ((currentPrice - prevClose) / prevClose) * 100 : 0;
           
-          priceState.set(ticker.ticker, {
+          const priceData = {
             ticker: ticker.ticker,
             display: ticker.display,
             price: currentPrice,
             change24h,
             timestamp: Date.now()
-          });
+          };
+          
+          priceState.set(ticker.ticker, priceData);
+          await updatePriceInDB(priceData);
         }
       } else if (ticker.type === 'fx') {
-        // Extract forex pair (C:EURUSD -> EUR/USD)
         const pair = ticker.ticker.replace('C:', '');
         const from = pair.slice(0, 3);
         const to = pair.slice(3, 6);
@@ -114,13 +237,16 @@ async function fetchInitialPrices(tickers: TickerConfig[]): Promise<void> {
         const data = await response.json();
         
         if (data.last?.bid) {
-          priceState.set(ticker.ticker, {
+          const priceData = {
             ticker: ticker.ticker,
             display: ticker.display,
             price: data.last.bid,
             change24h: 0,
             timestamp: Date.now()
-          });
+          };
+          
+          priceState.set(ticker.ticker, priceData);
+          await updatePriceInDB(priceData);
         }
       }
     } catch (error) {
@@ -129,57 +255,6 @@ async function fetchInitialPrices(tickers: TickerConfig[]): Promise<void> {
   }
   
   console.log(`Initialized ${priceState.size} prices`);
-}
-
-// Broadcast to all connected clients
-function broadcastToClients(message: any) {
-  const messageStr = JSON.stringify(message);
-  const deadClients: WebSocket[] = [];
-  
-  for (const client of clients) {
-    try {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(messageStr);
-      } else {
-        deadClients.push(client);
-      }
-    } catch (error) {
-      console.error('Error broadcasting to client:', error);
-      deadClients.push(client);
-    }
-  }
-  
-  // Clean up dead connections
-  for (const client of deadClients) {
-    clients.delete(client);
-  }
-}
-
-// Throttled price broadcast
-function throttledBroadcast(priceData: PriceData) {
-  const now = Date.now();
-  
-  // Update state immediately
-  const existing = priceState.get(priceData.ticker);
-  
-  // Skip if price hasn't changed by at least 0.01%
-  if (existing && Math.abs((priceData.price - existing.price) / existing.price) < 0.0001) {
-    return;
-  }
-  
-  priceState.set(priceData.ticker, priceData);
-  
-  // Throttle broadcasts
-  if (now - lastBroadcast < BROADCAST_INTERVAL) {
-    return;
-  }
-  
-  lastBroadcast = now;
-  
-  broadcastToClients({
-    type: 'price_update',
-    data: priceData
-  });
 }
 
 // Connect to Polygon WebSocket
@@ -197,13 +272,11 @@ async function connectPolygonWebSocket(type: 'crypto' | 'fx', tickers: string[])
     console.log(`Polygon ${type} WebSocket connected`);
     reconnectAttempts = 0;
     
-    // Authenticate
     ws.send(JSON.stringify({
       action: 'auth',
       params: POLYGON_API_KEY
     }));
     
-    // Subscribe to second aggregates (XA.*)
     const subscriptionParams = tickers.map(t => `XA.${t}`).join(',');
     ws.send(JSON.stringify({
       action: 'subscribe',
@@ -211,12 +284,6 @@ async function connectPolygonWebSocket(type: 'crypto' | 'fx', tickers: string[])
     }));
     
     console.log(`Subscribed to ${type} tickers:`, subscriptionParams);
-    
-    broadcastToClients({
-      type: 'status',
-      status: 'connected',
-      message: `Connected to Polygon ${type} stream`
-    });
   };
   
   ws.onmessage = (event) => {
@@ -226,20 +293,17 @@ async function connectPolygonWebSocket(type: 'crypto' | 'fx', tickers: string[])
       if (!Array.isArray(messages)) return;
       
       for (const msg of messages) {
-        // Handle aggregate bars (second-level)
         if (msg.ev === 'XA') {
           const agg = msg as PolygonAggregate;
           const ticker = agg.pair;
           
-          // Find ticker config for display name
           const config = tickerConfig.find(t => t.ticker === ticker);
           if (!config) continue;
           
-          // Calculate 24h change (use existing or 0)
           const existing = priceState.get(ticker);
           const change24h = existing?.change24h || 0;
           
-          throttledBroadcast({
+          throttledDatabaseUpdate({
             ticker,
             display: config.display,
             price: agg.c,
@@ -248,7 +312,6 @@ async function connectPolygonWebSocket(type: 'crypto' | 'fx', tickers: string[])
           });
         }
         
-        // Handle status messages
         if (msg.ev === 'status') {
           console.log(`Polygon ${type} status:`, msg.message);
         }
@@ -260,11 +323,6 @@ async function connectPolygonWebSocket(type: 'crypto' | 'fx', tickers: string[])
   
   ws.onerror = (error) => {
     console.error(`Polygon ${type} WebSocket error:`, error);
-    broadcastToClients({
-      type: 'status',
-      status: 'error',
-      message: `Polygon ${type} connection error`
-    });
   };
   
   ws.onclose = () => {
@@ -276,17 +334,10 @@ async function connectPolygonWebSocket(type: 'crypto' | 'fx', tickers: string[])
       forexWs = null;
     }
     
-    // Attempt reconnection with exponential backoff
     const delay = RECONNECT_DELAYS[Math.min(reconnectAttempts, RECONNECT_DELAYS.length - 1)];
     reconnectAttempts++;
     
     console.log(`Reconnecting ${type} in ${delay}ms (attempt ${reconnectAttempts})...`);
-    
-    broadcastToClients({
-      type: 'status',
-      status: 'reconnecting',
-      message: `Reconnecting to Polygon ${type}... (${reconnectAttempts})`
-    });
     
     setTimeout(() => {
       connectPolygonWebSocket(type, tickers);
@@ -302,6 +353,11 @@ async function connectPolygonWebSocket(type: 'crypto' | 'fx', tickers: string[])
 
 // Initialize Polygon connections
 async function initializePolygonConnections() {
+  if (!isLeader) {
+    console.log('⏸️ Not leader, skipping Polygon connection');
+    return;
+  }
+
   tickerConfig = await loadTickerConfig();
   
   if (tickerConfig.length === 0) {
@@ -309,10 +365,8 @@ async function initializePolygonConnections() {
     return;
   }
   
-  // Fetch initial prices
   await fetchInitialPrices(tickerConfig);
   
-  // Separate crypto and forex tickers
   const cryptoTickers = tickerConfig
     .filter(t => t.type === 'crypto')
     .map(t => t.ticker);
@@ -321,7 +375,6 @@ async function initializePolygonConnections() {
     .filter(t => t.type === 'fx')
     .map(t => t.ticker);
   
-  // Connect to appropriate WebSockets
   if (cryptoTickers.length > 0) {
     await connectPolygonWebSocket('crypto', cryptoTickers);
   }
@@ -329,69 +382,50 @@ async function initializePolygonConnections() {
   if (forexTickers.length > 0) {
     await connectPolygonWebSocket('fx', forexTickers);
   }
+  
+  // Start heartbeat
+  setInterval(() => sendHeartbeat(), 10000);
 }
 
-// Handle new client connection
-function handleClientConnection(socket: WebSocket) {
-  console.log('New client connected');
-  clients.add(socket);
+// ============================================
+// INITIALIZATION
+// ============================================
+
+async function initialize() {
+  console.log(`🆔 Instance ID: ${INSTANCE_ID}`);
   
-  // Send initial snapshot
-  const snapshot = Array.from(priceState.values());
-  socket.send(JSON.stringify({
-    type: 'snapshot',
-    data: snapshot
-  }));
+  isLeader = await tryBecomeLeader();
   
-  // Send current status
-  const hasConnections = (cryptoWs?.readyState === WebSocket.OPEN) || 
-                        (forexWs?.readyState === WebSocket.OPEN);
-  
-  socket.send(JSON.stringify({
-    type: 'status',
-    status: hasConnections ? 'connected' : 'connecting',
-    message: hasConnections ? 'Connected to Polygon' : 'Connecting to Polygon...'
-  }));
-  
-  socket.onclose = () => {
-    console.log('Client disconnected');
-    clients.delete(socket);
-  };
-  
-  socket.onerror = (error) => {
-    console.error('Client connection error:', error);
-    clients.delete(socket);
-  };
-  
-  socket.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      
-      // Handle ping
-      if (msg.type === 'ping') {
-        socket.send(JSON.stringify({ type: 'pong' }));
+  if (!isLeader) {
+    console.log('⏸️ Standby mode - checking leader health every 30s');
+    
+    setInterval(async () => {
+      const shouldRetry = await checkLeaderHealth();
+      if (shouldRetry) {
+        const becameLeader = await tryBecomeLeader();
+        if (becameLeader) {
+          isLeader = true;
+          console.log('🎉 Promoted to leader!');
+          await initializePolygonConnections();
+        }
       }
-    } catch (error) {
-      console.error('Error handling client message:', error);
-    }
-  };
-}
-
-// Main handler
-Deno.serve(async (req) => {
-  const upgrade = req.headers.get('upgrade') || '';
-  
-  // Handle WebSocket upgrade
-  if (upgrade.toLowerCase() === 'websocket') {
-    const { socket, response } = Deno.upgradeWebSocket(req);
-    handleClientConnection(socket);
-    return response;
+    }, 30000);
+    
+    return;
   }
   
-  // HTTP endpoint for status
+  await initializePolygonConnections();
+}
+
+// ============================================
+// DENO SERVER
+// ============================================
+
+Deno.serve(async (req) => {
   return new Response(JSON.stringify({
     status: 'ok',
-    clients: clients.size,
+    instance_id: INSTANCE_ID,
+    is_leader: isLeader,
     tickers: tickerConfig.length,
     prices: priceState.size,
     connections: {
@@ -403,5 +437,4 @@ Deno.serve(async (req) => {
   });
 });
 
-// Initialize on startup
-initializePolygonConnections();
+initialize();

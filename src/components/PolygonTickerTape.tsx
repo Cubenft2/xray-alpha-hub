@@ -1,12 +1,13 @@
 import React, { useState, useEffect, memo } from 'react';
 import { useTheme } from 'next-themes';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TickerItem {
   ticker: string;
   display: string;
   price: number;
   change24h: number;
-  timestamp: number;
+  updated_at: string;
 }
 
 interface TickerCardProps extends TickerItem {
@@ -32,107 +33,83 @@ TickerCard.displayName = 'TickerCard';
 
 export function PolygonTickerTape() {
   const [tickers, setTickers] = useState<TickerItem[]>([]);
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'reconnecting' | 'error'>('connecting');
+  const [isLoading, setIsLoading] = useState(true);
   const { theme } = useTheme();
   const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: NodeJS.Timeout;
-    let reconnectAttempts = 0;
-    const maxReconnectAttempts = 5;
+    // Fetch initial snapshot
+    const fetchInitialPrices = async () => {
+      const { data, error } = await supabase
+        .from('live_prices')
+        .select('*')
+        .order('ticker', { ascending: true });
 
-    const connect = () => {
-      try {
-        setStatus(reconnectAttempts > 0 ? 'reconnecting' : 'connecting');
-        
-        ws = new WebSocket('wss://odncvfiuzliyohxrsigc.supabase.co/functions/v1/polygon-ticker-stream');
-        
-        ws.onopen = () => {
-          console.log('Polygon ticker WebSocket connected');
-          setStatus('connected');
-          reconnectAttempts = 0;
-        };
-        
-        ws.onmessage = (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            
-            if (message.type === 'snapshot') {
-              setTickers(message.data || []);
-            } else if (message.type === 'price_update') {
-              setTickers(prev => 
-                prev.map(t => t.ticker === message.data.ticker ? message.data : t)
-              );
-            } else if (message.type === 'status') {
-              setStatus(message.status);
-            }
-          } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
-          }
-        };
-        
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          setStatus('error');
-        };
-        
-        ws.onclose = () => {
-          console.log('WebSocket closed');
-          
-          if (reconnectAttempts < maxReconnectAttempts) {
-            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 10000);
-            reconnectAttempts++;
-            console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`);
-            
-            reconnectTimeout = setTimeout(() => {
-              connect();
-            }, delay);
-          } else {
-            setStatus('error');
-          }
-        };
-      } catch (error) {
-        console.error('Error connecting to WebSocket:', error);
-        setStatus('error');
+      if (error) {
+        console.error('Error fetching initial prices:', error);
+        return;
       }
+
+      setTickers(data || []);
+      setIsLoading(false);
     };
 
-    connect();
+    fetchInitialPrices();
+
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('live-prices-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'live_prices'
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const newPrice = payload.new as TickerItem;
+            
+            setTickers(prev => {
+              const existingIndex = prev.findIndex(t => t.ticker === newPrice.ticker);
+              
+              if (existingIndex >= 0) {
+                const updated = [...prev];
+                updated[existingIndex] = newPrice;
+                return updated;
+              } else {
+                return [...prev, newPrice].sort((a, b) => a.ticker.localeCompare(b.ticker));
+              }
+            });
+          } else if (payload.eventType === 'DELETE') {
+            setTickers(prev => prev.filter(t => t.ticker !== payload.old.ticker));
+          }
+        }
+      )
+      .subscribe();
 
     return () => {
-      if (ws) {
-        ws.close();
-      }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
+      supabase.removeChannel(channel);
     };
   }, []);
 
   // Duplicate tickers for infinite scroll effect
   const displayTickers = tickers.length > 0 ? [...tickers, ...tickers] : [];
 
+  if (isLoading) {
+    return (
+      <div className="ticker-tape-container relative overflow-hidden bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="flex items-center justify-center py-3">
+          <span className="text-muted-foreground text-sm animate-pulse">
+            Loading live prices...
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="ticker-tape-container relative overflow-hidden bg-background/95 backdrop-blur-sm border-b border-border">
-      {status === 'connecting' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-          <span className="text-muted-foreground text-sm animate-pulse">Connecting to live data...</span>
-        </div>
-      )}
-      
-      {status === 'error' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-          <span className="text-destructive text-sm">Connection error. Retrying...</span>
-        </div>
-      )}
-      
-      {status === 'reconnecting' && (
-        <div className="absolute top-2 right-2 z-10">
-          <span className="text-yellow-500 text-xs">Reconnecting...</span>
-        </div>
-      )}
-      
       <div 
         className="ticker-tape-scroll flex gap-4 py-3"
         style={{ 
