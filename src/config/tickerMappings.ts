@@ -124,7 +124,8 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'WEETH': { symbol: 'COINBASE:ETHUSD', displayName: 'Wrapped eETH (WEETH)', type: 'crypto' },
   'WBETH': { symbol: 'BINANCE:WBETHUSDT', displayName: 'Wrapped Beacon ETH (WBETH)', type: 'crypto' },
   'ASTR': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar (ASTR)', type: 'crypto' },
-  'ASTER': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar (ASTR)', type: 'crypto' },
+  'ASTER': { symbol: 'MEXC:ASTERUSDT', displayName: 'Aster (ASTER)', type: 'crypto' },
+  'ASTAR': { symbol: 'BINANCE:ASTRUSDT', displayName: 'Astar Network (ASTAR)', type: 'crypto' },
   'FF': { symbol: 'BINANCE:FFUSDT', displayName: 'Falcon Finance (FF)', type: 'crypto' },
   // User-specified cryptos
   'BORG': { symbol: 'BORGUSD', displayName: 'SwissBorg (BORG)', type: 'crypto' },

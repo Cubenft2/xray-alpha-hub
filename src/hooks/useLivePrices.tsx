@@ -183,7 +183,7 @@ export function useLivePrices(tickers: string[] = []) {
       'AXS': 'axie-infinity',
       'AXIE': 'axie-infinity',
       'FLOW': 'flow',
-      'ASTER': 'astar',
+      'ASTER': 'aster-2',
       'ASTR': 'astar',
       'HYPE': 'hyperliquid',
       'HYPERLIQUID': 'hyperliquid',
