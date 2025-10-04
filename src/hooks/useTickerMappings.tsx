@@ -8,6 +8,8 @@ interface TickerMapping {
   type: string;
   aliases?: string[];
   tradingview_supported?: boolean;
+  coingecko_id?: string | null;
+  polygon_ticker?: string | null;
 }
 
 export function useTickerMappings() {
@@ -19,7 +21,7 @@ export function useTickerMappings() {
       try {
         const { data, error } = await supabase
           .from('ticker_mappings')
-          .select('symbol, display_name, tradingview_symbol, type, aliases, tradingview_supported')
+          .select('symbol, display_name, tradingview_symbol, type, aliases, tradingview_supported, coingecko_id, polygon_ticker')
           .eq('is_active', true);
 
         if (error) throw error;

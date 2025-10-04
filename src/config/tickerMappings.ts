@@ -165,6 +165,9 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'APEPE': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
   'APEPEUSDT': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
   'APEPEUSD': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
+  // Explicit mappings to prevent NASDAQ defaults
+  'ADX': { symbol: 'MEXC:ADXUSDT', displayName: 'Ambire AdEx (ADX)', type: 'crypto' },
+  'CORN': { symbol: 'MEXC:CORNUSDT', displayName: 'CORN (CORN)', type: 'crypto' },
 };
 
 // Index and Forex tickers

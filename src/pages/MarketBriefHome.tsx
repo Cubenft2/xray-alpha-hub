@@ -17,6 +17,7 @@ import { getTickerMapping } from '@/config/tickerMappings';
 import { toZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
 import { NewsSentimentOverview } from '@/components/NewsSentimentOverview';
+import { useTickerMappings } from '@/hooks/useTickerMappings';
 
 interface MarketBrief {
   slug: string;
@@ -45,7 +46,8 @@ export default function MarketBriefHome() {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const { toast } = useToast();
-  const { theme } = useTheme();
+const { theme } = useTheme();
+  const { getMapping: getDbMapping } = useTickerMappings();
 
   // Get live prices for all tickers (including top 50 cryptos)
   const allTickers = [
@@ -77,44 +79,38 @@ export default function MarketBriefHome() {
     fetchQuotesTimestamp();
   }, []);
 
-  // Function to map ticker symbols to TradingView format for charts
-  // Uses centralized configuration to prevent mistakes that waste credits
+// Function to map ticker symbols to TradingView format for charts
+  // Resolves from database first, then local config, then sensible crypto fallback
   const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
     const upperTicker = ticker.toUpperCase().trim();
-    
-    // Try to get from centralized mappings first
-    const mapping = getTickerMapping(upperTicker);
-    if (mapping) {
+
+    // 1) Database mapping (authoritative)
+    const dbMap = getDbMapping(upperTicker);
+    if (dbMap) {
+      const tvSymbol = dbMap.tradingview_symbol || undefined;
+      const displayName = dbMap.display_name || upperTicker;
+      if (tvSymbol) {
+        return { symbol: tvSymbol, displayName };
+      }
+      // If DB knows the asset but no TV symbol, fall back to local mapping or crypto default
+      const local = getTickerMapping(upperTicker);
+      if (local) return { symbol: local.symbol, displayName: local.displayName };
       return {
-        symbol: mapping.symbol,
-        displayName: mapping.displayName
+        symbol: dbMap.type === 'stock' ? `NASDAQ:${upperTicker}` : `${upperTicker}USD`,
+        displayName
       };
     }
-    
-    // Special-case known corrections
-    if (upperTicker === 'SNX') {
-      return { symbol: 'BYBIT:SNXUSDT', displayName: 'Synthetix (SNX)' };
+
+    // 2) Local mapping config
+    const localMapping = getTickerMapping(upperTicker);
+    if (localMapping) {
+      return { symbol: localMapping.symbol, displayName: localMapping.displayName };
     }
-    
-    // If not found, log a warning (this helps prevent future mistakes)
-    console.warn(`⚠️ TICKER NOT FOUND: "${ticker}" - This may cause incorrect chart display. Please add to src/config/tickerMappings.ts`);
-    
-    // Fallback: Try to detect if it's likely a stock or crypto
-    // Most stock tickers are 1-4 letters, crypto can be longer
-    if (upperTicker.length <= 4 && /^[A-Z]+$/.test(upperTicker)) {
-      // Likely a stock - default to NASDAQ (most common for tech/crypto stocks)
-      console.warn(`⚠️ Assuming "${upperTicker}" is NASDAQ stock - verify this is correct!`);
-      return {
-        symbol: `NASDAQ:${upperTicker}`,
-        displayName: `${upperTicker}`
-      };
-    }
-    
-    // Default to crypto format as last resort
-    console.warn(`⚠️ Assuming "${upperTicker}" is crypto - verify this is correct!`);
+
+    // 3) Sensible fallback: prefer crypto formatting to avoid wrong NASDAQ default
     return {
       symbol: `${upperTicker}USD`,
-      displayName: `${upperTicker}`
+      displayName: upperTicker
     };
   };
 
