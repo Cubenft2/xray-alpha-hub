@@ -807,6 +807,16 @@ const { theme } = useTheme();
                   </CardContent>
                 </Card>
 
+                {/* DOGE */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Dogecoin (DOGE)</div>
+                    <div className="h-36">
+                      <MiniChart symbol={mapTickerToTradingView('DOGE').symbol} theme={theme} />
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Add S&P 500 for market context */}
                 <Card className="h-48">
                   <CardContent className="p-3">
