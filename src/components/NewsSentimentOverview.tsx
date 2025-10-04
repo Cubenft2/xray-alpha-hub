@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TrendingUp, TrendingDown, Minus, Download, Share2 } from 'lucide-react';
@@ -24,6 +24,7 @@ export function NewsSentimentOverview({
   topKeywords = [] 
 }: NewsSentimentOverviewProps) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
   if (!sentimentBreakdown || sentimentBreakdown.total === 0) {
@@ -34,17 +35,25 @@ export function NewsSentimentOverview({
     if (!cardRef.current) return;
 
     try {
+      setIsExporting(true);
+      
+      // Wait for state update to render
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: null,
+        backgroundColor: '#ffffff',
         scale: 2,
         logging: false,
+        useCORS: true,
       });
+
+      setIsExporting(false);
 
       canvas.toBlob((blob) => {
         if (blob) {
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
-          link.download = `news-sentiment-${new Date().toISOString().split('T')[0]}.png`;
+          link.download = `xraycrypto-sentiment-${new Date().toISOString().split('T')[0]}.png`;
           link.href = url;
           link.click();
           URL.revokeObjectURL(url);
@@ -56,6 +65,7 @@ export function NewsSentimentOverview({
         }
       });
     } catch (error) {
+      setIsExporting(false);
       toast({
         title: "Export failed",
         description: "Could not export the card as image",
@@ -68,29 +78,60 @@ export function NewsSentimentOverview({
     if (!cardRef.current) return;
 
     try {
+      setIsExporting(true);
+      
+      // Wait for state update to render
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const canvas = await html2canvas(cardRef.current, {
-        backgroundColor: null,
+        backgroundColor: '#ffffff',
         scale: 2,
         logging: false,
+        useCORS: true,
       });
+
+      setIsExporting(false);
 
       canvas.toBlob(async (blob) => {
         if (blob) {
-          const file = new File([blob], 'news-sentiment.png', { type: 'image/png' });
+          const file = new File([blob], 'xraycrypto-sentiment.png', { type: 'image/png' });
           
           if (navigator.share && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: 'News Sentiment Analysis',
-              text: 'Check out this market sentiment analysis!',
-            });
+            try {
+              await navigator.share({
+                files: [file],
+                title: 'News Sentiment Analysis - XRayCrypto',
+                text: 'Check out this market sentiment analysis from @XRaycryptox!',
+              });
+              
+              toast({
+                title: "Shared successfully!",
+                description: "News sentiment card shared",
+              });
+            } catch (shareError) {
+              // User cancelled share
+              if ((shareError as Error).name !== 'AbortError') {
+                handleExportImage();
+              }
+            }
           } else {
-            // Fallback to download
-            handleExportImage();
+            // Fallback to download if share not supported
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `xraycrypto-sentiment-${new Date().toISOString().split('T')[0]}.png`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            toast({
+              title: "Image downloaded!",
+              description: "Share not supported on this device - image downloaded instead",
+            });
           }
         }
       });
     } catch (error) {
+      setIsExporting(false);
       toast({
         title: "Share failed",
         description: "Could not share the card",
@@ -114,33 +155,35 @@ export function NewsSentimentOverview({
   const mood = getMarketMood();
 
   return (
-    <Card className="overflow-hidden" ref={cardRef}>
+    <Card className="overflow-hidden relative" ref={cardRef}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
             📰 News Sentiment Analysis
             <span className="text-sm text-muted-foreground">({sentimentBreakdown.total} articles)</span>
           </CardTitle>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportImage}
-              className="gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Download
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleShare}
-              className="gap-2"
-            >
-              <Share2 className="w-4 h-4" />
-              Share
-            </Button>
-          </div>
+          {!isExporting && (
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportImage}
+                className="gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleShare}
+                className="gap-2"
+              >
+                <Share2 className="w-4 h-4" />
+                Share
+              </Button>
+            </div>
+          )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -237,6 +280,21 @@ export function NewsSentimentOverview({
           Powered by Polygon.io professional news data
         </div>
       </CardContent>
+
+      {/* Watermark - Only visible during export */}
+      {isExporting && (
+        <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-white/90 dark:bg-black/90 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
+          <img 
+            src="/xray-dog.png" 
+            alt="XRayCrypto" 
+            className="w-8 h-8 object-contain"
+          />
+          <div className="flex flex-col text-right">
+            <span className="text-xs font-bold text-gray-900 dark:text-white">XRayCrypto™</span>
+            <span className="text-[10px] text-gray-600 dark:text-gray-400">@XRaycryptox</span>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
