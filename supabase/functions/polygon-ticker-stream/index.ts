@@ -6,6 +6,12 @@ const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY')!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+// CORS headers for browser access
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 // Leader election
 const INSTANCE_ID = crypto.randomUUID();
 let isLeader = false;
@@ -423,6 +429,11 @@ async function initialize() {
 // ============================================
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   // Initialize only once per container lifecycle
   if (!isInitialized) {
     isInitialized = true;
@@ -441,6 +452,6 @@ Deno.serve(async (req) => {
       forex: forexWs?.readyState === WebSocket.OPEN
     }
   }), {
-    headers: { 'Content-Type': 'application/json' }
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
   });
 });
