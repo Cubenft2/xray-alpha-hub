@@ -19,6 +19,27 @@ interface CoinbaseProduct {
   status: string;
 }
 
+interface BybitSymbol {
+  symbol: string;
+  baseCoin: string;
+  quoteCoin: string;
+  status: string;
+}
+
+interface MEXCSymbol {
+  symbol: string;
+  baseAsset: string;
+  quoteAsset: string;
+  status: string;
+}
+
+interface GateIOPair {
+  id: string;
+  base: string;
+  quote: string;
+  trade_status: string;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -34,6 +55,9 @@ Deno.serve(async (req) => {
     const results = {
       binance: { synced: 0, active: 0 },
       coinbase: { synced: 0, active: 0 },
+      bybit: { synced: 0, active: 0 },
+      mexc: { synced: 0, active: 0 },
+      gateio: { synced: 0, active: 0 },
     };
 
     // Sync Binance
@@ -113,6 +137,122 @@ Deno.serve(async (req) => {
       }
     } catch (error) {
       console.error('Error syncing Coinbase:', error);
+    }
+
+    // Sync Bybit
+    try {
+      const bybitResponse = await fetch('https://api.bybit.com/v5/market/instruments-info?category=spot');
+      if (bybitResponse.ok) {
+        const bybitData = await bybitResponse.json();
+        const symbols: BybitSymbol[] = bybitData?.result?.list || [];
+        
+        const bybitRecords = symbols.map(s => ({
+          exchange: 'bybit',
+          symbol: s.symbol,
+          base_asset: s.baseCoin,
+          quote_asset: s.quoteCoin,
+          is_active: s.status === 'Trading',
+          synced_at: new Date().toISOString(),
+        }));
+
+        const batchSize = 500;
+        for (let i = 0; i < bybitRecords.length; i += batchSize) {
+          const batch = bybitRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            console.error('Error upserting Bybit batch:', error);
+          }
+        }
+
+        results.bybit.synced = bybitRecords.length;
+        results.bybit.active = bybitRecords.filter(r => r.is_active).length;
+        console.log(`Bybit: ${results.bybit.synced} pairs, ${results.bybit.active} active`);
+      }
+    } catch (error) {
+      console.error('Error syncing Bybit:', error);
+    }
+
+    // Sync MEXC
+    try {
+      const mexcResponse = await fetch('https://api.mexc.com/api/v3/exchangeInfo');
+      if (mexcResponse.ok) {
+        const mexcData = await mexcResponse.json();
+        const symbols: MEXCSymbol[] = mexcData?.symbols || [];
+        
+        const mexcRecords = symbols.map(s => ({
+          exchange: 'mexc',
+          symbol: s.symbol,
+          base_asset: s.baseAsset,
+          quote_asset: s.quoteAsset,
+          is_active: s.status === 'ENABLED',
+          synced_at: new Date().toISOString(),
+        }));
+
+        const batchSize = 500;
+        for (let i = 0; i < mexcRecords.length; i += batchSize) {
+          const batch = mexcRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            console.error('Error upserting MEXC batch:', error);
+          }
+        }
+
+        results.mexc.synced = mexcRecords.length;
+        results.mexc.active = mexcRecords.filter(r => r.is_active).length;
+        console.log(`MEXC: ${results.mexc.synced} pairs, ${results.mexc.active} active`);
+      }
+    } catch (error) {
+      console.error('Error syncing MEXC:', error);
+    }
+
+    // Sync Gate.io
+    try {
+      const gateioResponse = await fetch('https://api.gateio.ws/api/v4/spot/currency_pairs');
+      if (gateioResponse.ok) {
+        const pairs: GateIOPair[] = await gateioResponse.json();
+        
+        const gateioRecords = pairs.map(p => ({
+          exchange: 'gateio',
+          symbol: p.id,
+          base_asset: p.base,
+          quote_asset: p.quote,
+          is_active: p.trade_status === 'tradable',
+          synced_at: new Date().toISOString(),
+        }));
+
+        const batchSize = 500;
+        for (let i = 0; i < gateioRecords.length; i += batchSize) {
+          const batch = gateioRecords.slice(i, i + batchSize);
+          const { error } = await supabase
+            .from('exchange_pairs')
+            .upsert(batch, { 
+              onConflict: 'exchange,symbol',
+              ignoreDuplicates: false 
+            });
+          
+          if (error) {
+            console.error('Error upserting Gate.io batch:', error);
+          }
+        }
+
+        results.gateio.synced = gateioRecords.length;
+        results.gateio.active = gateioRecords.filter(r => r.is_active).length;
+        console.log(`Gate.io: ${results.gateio.synced} pairs, ${results.gateio.active} active`);
+      }
+    } catch (error) {
+      console.error('Error syncing Gate.io:', error);
     }
 
     return new Response(
