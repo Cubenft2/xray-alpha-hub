@@ -22,12 +22,21 @@ export function MiniChart({
   showFallback = true 
 }: MiniChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [widgetLoadFailed, setWidgetLoadFailed] = React.useState(false);
 
   useEffect(() => {
     if (!containerRef.current || !tvOk) return;
 
+    setWidgetLoadFailed(false);
+    
     // Clear previous widget
     containerRef.current.innerHTML = '';
+
+    // Set 8-second timeout for widget load
+    const loadTimeout = setTimeout(() => {
+      console.warn(`TradingView widget timeout for ${symbol}`);
+      setWidgetLoadFailed(true);
+    }, 8000);
 
     const script = document.createElement('script');
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
@@ -63,7 +72,13 @@ export function MiniChart({
     widgetContainer.appendChild(script);
     containerRef.current.appendChild(widgetContainer);
 
+    // Clear timeout if widget loads successfully
+    script.onload = () => {
+      clearTimeout(loadTimeout);
+    };
+
     return () => {
+      clearTimeout(loadTimeout);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
@@ -72,6 +87,23 @@ export function MiniChart({
       }
     };
   }, [symbol, theme, onClick]);
+
+  // Show fallback if widget failed to load and fallback is available
+  if (widgetLoadFailed && showFallback && (coingeckoId || polygonTicker)) {
+    return (
+      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
+        <Suspense fallback={<div className="text-sm text-muted-foreground">Loading chart...</div>}>
+          <FallbackSparkline 
+            symbol={symbol}
+            coingeckoId={coingeckoId}
+            polygonTicker={polygonTicker}
+            timespan="7D"
+            className="w-full"
+          />
+        </Suspense>
+      </div>
+    );
+  }
 
   if (!tvOk) {
     // Show fallback sparkline if data sources are available

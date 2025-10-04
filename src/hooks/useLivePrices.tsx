@@ -16,10 +16,24 @@ interface LivePricesData {
 export function useLivePrices(tickers: string[] = []) {
   const [prices, setPrices] = useState<LivePricesData>({});
   const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout>();
+  const lastRefreshRef = useRef<number>(0);
 
-  const fetchPrices = async (tickerList: string[]) => {
+  const fetchPrices = async (tickerList: string[], isManualRefresh = false) => {
     if (tickerList.length === 0) return;
+
+    // Prevent spam refresh (30 second cooldown)
+    if (isManualRefresh) {
+      const now = Date.now();
+      if (now - lastRefreshRef.current < 30000) {
+        console.log('Please wait before refreshing again...');
+        return;
+      }
+      lastRefreshRef.current = now;
+      setIsRefreshing(true);
+    }
 
     try {
       setLoading(true);
@@ -86,10 +100,12 @@ export function useLivePrices(tickers: string[] = []) {
         ...prev,
         ...transformedPrices,
       }));
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('🔴 Error fetching live prices:', error);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -296,5 +312,11 @@ export function useLivePrices(tickers: string[] = []) {
     };
   }, [tickers.join(',')]); // Re-run when tickers change
 
-  return { prices, loading, refetch: () => fetchPrices([...new Set(tickers.map((s) => s.toUpperCase().trim()))]) };
+  return { 
+    prices, 
+    loading, 
+    lastUpdated,
+    isRefreshing,
+    refetch: () => fetchPrices([...new Set(tickers.map((s) => s.toUpperCase().trim()))], true) 
+  };
 }

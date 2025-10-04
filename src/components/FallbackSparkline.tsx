@@ -24,12 +24,13 @@ export function FallbackSparkline({
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     fetchSparklineData();
   }, [symbol, coingeckoId, polygonTicker, timespan]);
 
-  const fetchSparklineData = async () => {
+  const fetchSparklineData = async (attempt = 0) => {
     setLoading(true);
     setError(null);
 
@@ -84,12 +85,30 @@ export function FallbackSparkline({
         }
       }
 
+      // Retry logic with exponential backoff (max 2 retries)
+      if (attempt < 2) {
+        const delay = Math.pow(2, attempt) * 2000; // 2s, 4s
+        console.log(`Retrying sparkline fetch for ${symbol} in ${delay}ms (attempt ${attempt + 1}/2)`);
+        setTimeout(() => fetchSparklineData(attempt + 1), delay);
+        return;
+      }
+      
       setError('No data available');
     } catch (err) {
       console.error('Sparkline fetch error:', err);
+      
+      // Retry logic for errors (max 2 retries)
+      if (attempt < 2) {
+        const delay = Math.pow(2, attempt) * 2000; // 2s, 4s
+        console.log(`Retrying sparkline fetch for ${symbol} in ${delay}ms (attempt ${attempt + 1}/2)`);
+        setTimeout(() => fetchSparklineData(attempt + 1), delay);
+        return;
+      }
+      
       setError('Failed to load chart');
     } finally {
       setLoading(false);
+      setRetryCount(attempt);
     }
   };
 

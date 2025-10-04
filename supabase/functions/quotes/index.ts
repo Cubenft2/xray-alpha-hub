@@ -382,7 +382,7 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
   return { quotes };
 }
 
-const TTL_MS = 150000; // 150 seconds cache
+const TTL_MS = 60000; // 60 seconds cache
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
