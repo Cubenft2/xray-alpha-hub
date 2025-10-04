@@ -194,8 +194,15 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   };
 
   const NewsCard = ({ item, isNew = false }: { item: NewsItem; isNew?: boolean }) => {
-    const isBlockedSite = item.source.includes('cryptonews.com') || item.url.includes('cryptonews.com') || 
-                          item.source.includes('fool.com') || item.url.includes('fool.com');
+    const isBlockedSite = (() => {
+      try {
+        const host = new URL(item.url).hostname.replace('www.', '').toLowerCase();
+        return host.endsWith('cryptonews.com') || host.endsWith('fool.com');
+      } catch {
+        const src = (item.source || '').toLowerCase();
+        return src.includes('cryptonews.com') || src.includes('fool.com');
+      }
+    })();
     const getSentimentColor = () => {
       if (!item.sentiment) return '';
       if (item.sentiment === 'positive') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
@@ -278,19 +285,16 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
             e.preventDefault();
             e.stopPropagation();
             
-            // Special handling for blocked sites like cryptonews.com and fool.com
-            if (item.source.includes('cryptonews.com') || item.url.includes('cryptonews.com') || 
-                item.source.includes('fool.com') || item.url.includes('fool.com')) {
-              // Copy URL to clipboard and show toast
-              const siteName = item.source.includes('fool.com') || item.url.includes('fool.com') ? 'Fool.com' : 'CryptoNews.com';
+            // Blocked sites: copy URL instead of opening
+            if (isBlockedSite) {
+              const siteName = hostname || 'This site';
               navigator.clipboard.writeText(item.url).then(() => {
                 toast({
                   title: "Link Copied",
-                  description: `${siteName} blocks direct access. URL copied to clipboard - paste in new tab.`,
+                  description: `${siteName} blocks direct access. Paste the URL into a new tab.`,
                   duration: 4000
                 });
               }).catch(() => {
-                // Fallback: show the URL in an alert
                 alert(`${siteName} blocks direct access. Copy this URL manually:\n\n${item.url}`);
               });
             } else {
