@@ -1,6 +1,7 @@
 import React, { useState, useEffect, memo } from 'react';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
+import { useMarquee } from '@/hooks/useMarquee';
 
 interface TickerItem {
   ticker: string;
@@ -112,8 +113,10 @@ export function PolygonTickerTape() {
     };
   }, []);
 
-  // Duplicate tickers for infinite scroll effect
-  const displayTickers = tickers.length > 0 ? [...tickers, ...tickers] : [];
+  const { containerRef, trackRef } = useMarquee({ 
+    pxPerSecond: 80, 
+    pause: isPaused 
+  });
 
   if (isLoading) {
     return (
@@ -128,37 +131,38 @@ export function PolygonTickerTape() {
   }
 
   return (
-    <div className="ticker-tape-container relative overflow-hidden bg-background/95 backdrop-blur-sm border-b border-border">
+    <div 
+      ref={containerRef}
+      className="ticker-tape-container relative overflow-hidden bg-background/95 backdrop-blur-sm border-b border-border"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={() => setIsPaused(true)}
+      onTouchEnd={() => setIsPaused(false)}
+    >
       <div 
-        className="ticker-tape-scroll flex gap-4 py-3"
-        style={{ 
-          animationPlayState: isPaused ? 'paused' : 'running',
-          willChange: 'transform'
-        }}
-        onMouseEnter={() => setIsPaused(true)}
-        onMouseLeave={() => setIsPaused(false)}
-        onTouchStart={() => setIsPaused(true)}
-        onTouchEnd={() => setIsPaused(false)}
+        ref={trackRef}
+        className="flex gap-4 py-3"
+        style={{ willChange: 'transform' }}
       >
-        {displayTickers.map((ticker, idx) => (
-          <TickerCard 
-            key={`${ticker.ticker}-${idx}`} 
-            {...ticker}
-            index={idx}
-          />
-        ))}
+        <div className="flex gap-4">
+          {tickers.map((ticker) => (
+            <TickerCard 
+              key={`${ticker.ticker}-A`} 
+              {...ticker}
+              index={0}
+            />
+          ))}
+        </div>
+        <div className="flex gap-4">
+          {tickers.map((ticker) => (
+            <TickerCard 
+              key={`${ticker.ticker}-B`} 
+              {...ticker}
+              index={0}
+            />
+          ))}
+        </div>
       </div>
-      
-      <style>{`
-        .ticker-tape-scroll {
-          animation: scroll-left 6s linear infinite;
-        }
-        
-        @keyframes scroll-left {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-      `}</style>
     </div>
   );
 }
