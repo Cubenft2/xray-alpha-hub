@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { NewsAlertBanner } from './NewsAlertBanner';
 
 interface NewsItem {
   title: string;
@@ -11,6 +12,7 @@ interface NewsItem {
   url: string;
   publishedAt: string;
   source: string;
+  sourceType?: string;
 }
 
 interface NewsSectionProps {
@@ -28,7 +30,13 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [newItemsCount, setNewItemsCount] = useState({ crypto: 0, stocks: 0, trump: 0 });
   const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [polygonAlert, setPolygonAlert] = useState<{
+    count: number;
+    latestHeadline: string;
+    show: boolean;
+  }>({ count: 0, latestHeadline: '', show: false });
   const { toast } = useToast();
+  const newsTopRef = useRef<HTMLDivElement>(null);
 
   // Enhanced news fetching with live updates
   const fetchNews = async () => {
@@ -74,11 +82,19 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         setTrumpNews(trumpItems.slice(0, 50));
         setIsFirstLoad(false);
       } else {
+        // Collect all new Polygon articles before updating state
+        let allNewPolygonItems: NewsItem[] = [];
+
         // Merge by URL or title, prepend new, keep max 50
         setCryptoNews((prev) => {
           const prevKeys = new Set(prev.map((i) => i.url || i.title));
           const incoming = cryptoItems.filter((i) => i.url || i.title);
           const newOnes = incoming.filter((i) => !prevKeys.has(i.url || i.title));
+          
+          // Track new Polygon items
+          const newPolygon = newOnes.filter((i) => i.sourceType === 'polygon');
+          allNewPolygonItems.push(...newPolygon);
+          
           if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, crypto: newOnes.length }));
           return [...newOnes, ...prev].slice(0, 50);
         });
@@ -87,6 +103,14 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           const prevKeys = new Set(prev.map((i) => i.url || i.title));
           const incoming = stocksItems.filter((i) => i.url || i.title);
           const newOnes = incoming.filter((i) => !prevKeys.has(i.url || i.title));
+          
+          // Track new Polygon items (avoid duplicates by URL)
+          const newPolygon = newOnes.filter((i) => 
+            i.sourceType === 'polygon' && 
+            !allNewPolygonItems.some(existing => existing.url === i.url)
+          );
+          allNewPolygonItems.push(...newPolygon);
+          
           if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, stocks: newOnes.length }));
           return [...newOnes, ...prev].slice(0, 50);
         });
@@ -98,6 +122,15 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, trump: newOnes.length }));
           return [...newOnes, ...prev].slice(0, 50);
         });
+
+        // Show Polygon alert if there are new items
+        if (allNewPolygonItems.length > 0) {
+          setPolygonAlert({
+            count: allNewPolygonItems.length,
+            latestHeadline: allNewPolygonItems[0]?.title || '',
+            show: true
+          });
+        }
       }
 
       setLastUpdated(new Date());
@@ -250,7 +283,19 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const filteredTrumpNews = filterNews(trumpNews);
 
   return (
-    <div className="xr-card p-4">
+    <div className="xr-card p-4" ref={newsTopRef}>
+      {polygonAlert.show && (
+        <NewsAlertBanner
+          count={polygonAlert.count}
+          latestHeadline={polygonAlert.latestHeadline}
+          onClose={() => setPolygonAlert(prev => ({ ...prev, show: false }))}
+          onViewNews={() => {
+            newsTopRef.current?.scrollIntoView({ behavior: 'smooth' });
+            setPolygonAlert(prev => ({ ...prev, show: false }));
+          }}
+        />
+      )}
+      
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">📰 Financial News</h2>
         <div className="flex items-center space-x-2">

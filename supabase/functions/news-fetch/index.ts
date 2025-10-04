@@ -7,6 +7,7 @@ interface NewsItem {
   url: string;
   publishedAt: string; // ISO
   source: string;
+  sourceType?: string; // "polygon" or "rss"
 }
 
 const CORS_HEADERS = {
@@ -87,6 +88,36 @@ async function fetchText(url: string, timeoutMs = 7000): Promise<string | null> 
   }
 }
 
+async function fetchPolygonNews(apiKey: string): Promise<NewsItem[]> {
+  try {
+    const url = `https://api.polygon.io/v2/reference/news?limit=50&apiKey=${apiKey}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error(`Polygon API error: ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    
+    if (!data.results || !Array.isArray(data.results)) {
+      return [];
+    }
+    
+    return data.results.map((item: any) => ({
+      title: item.title || "Untitled",
+      description: (item.description || "").slice(0, 300),
+      url: item.article_url || "",
+      publishedAt: item.published_utc || new Date().toISOString(),
+      source: item.publisher?.name || "Polygon.io",
+      sourceType: "polygon"
+    })).filter((item: NewsItem) => item.url);
+  } catch (error) {
+    console.error('Error fetching Polygon news:', error);
+    return [];
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });
@@ -128,28 +159,49 @@ serve(async (req) => {
     "https://www.oann.com/feed/",
   ];
 
-  const [cryptoTexts, stockTexts, trumpTexts] = await Promise.all([
+  const polygonApiKey = Deno.env.get('POLYGON_API_KEY');
+  
+  const [cryptoTexts, stockTexts, trumpTexts, polygonNews] = await Promise.all([
     Promise.all(cryptoFeeds.map((u) => fetchText(u))),
     Promise.all(stockFeeds.map((u) => fetchText(u))),
     Promise.all(trumpFeeds.map((u) => fetchText(u))),
+    polygonApiKey ? fetchPolygonNews(polygonApiKey) : Promise.resolve([])
   ]);
 
   let cryptoItems: NewsItem[] = [];
   for (let i = 0; i < cryptoFeeds.length; i++) {
     const xml = cryptoTexts[i];
-    if (xml) cryptoItems.push(...parseRss(xml, hostnameFromUrl(cryptoFeeds[i])));
+    if (xml) {
+      const rssItems = parseRss(xml, hostnameFromUrl(cryptoFeeds[i]));
+      rssItems.forEach(item => item.sourceType = "rss");
+      cryptoItems.push(...rssItems);
+    }
   }
 
   let stockItems: NewsItem[] = [];
   for (let i = 0; i < stockFeeds.length; i++) {
     const xml = stockTexts[i];
-    if (xml) stockItems.push(...parseRss(xml, hostnameFromUrl(stockFeeds[i])));
+    if (xml) {
+      const rssItems = parseRss(xml, hostnameFromUrl(stockFeeds[i]));
+      rssItems.forEach(item => item.sourceType = "rss");
+      stockItems.push(...rssItems);
+    }
   }
 
   let trumpItems: NewsItem[] = [];
   for (let i = 0; i < trumpFeeds.length; i++) {
     const xml = trumpTexts[i];
-    if (xml) trumpItems.push(...parseRss(xml, hostnameFromUrl(trumpFeeds[i])));
+    if (xml) {
+      const rssItems = parseRss(xml, hostnameFromUrl(trumpFeeds[i]));
+      rssItems.forEach(item => item.sourceType = "rss");
+      trumpItems.push(...rssItems);
+    }
+  }
+
+  // Add Polygon news to both crypto and stocks
+  if (polygonNews.length > 0) {
+    cryptoItems.push(...polygonNews);
+    stockItems.push(...polygonNews);
   }
 
   // Sort newest first and limit

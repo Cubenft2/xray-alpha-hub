@@ -161,6 +161,24 @@ export default {
             opacity: "1"
           }
         },
+        "gradient": {
+          "0%, 100%": {
+            backgroundPosition: "0% 50%"
+          },
+          "50%": {
+            backgroundPosition: "100% 50%"
+          }
+        },
+        "slide-in-down": {
+          "from": {
+            transform: "translateY(-100%)",
+            opacity: "0"
+          },
+          "to": {
+            transform: "translateY(0)",
+            opacity: "1"
+          }
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -173,6 +191,8 @@ export default {
         "woof-shake": "woof-shake 0.6s ease-in-out",
         "wiggle": "wiggle 2s ease-in-out infinite",
         "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "gradient": "gradient 3s ease infinite",
+        "slide-in-down": "slide-in-down 0.3s ease-out",
       },
     },
   },
