@@ -9,6 +9,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // Leader election
 const INSTANCE_ID = crypto.randomUUID();
 let isLeader = false;
+let isInitialized = false;
 
 interface TickerConfig {
   ticker: string;
@@ -422,10 +423,17 @@ async function initialize() {
 // ============================================
 
 Deno.serve(async (req) => {
+  // Initialize only once per container lifecycle
+  if (!isInitialized) {
+    isInitialized = true;
+    initialize(); // Don't await - let it run in background
+  }
+  
   return new Response(JSON.stringify({
     status: 'ok',
     instance_id: INSTANCE_ID,
     is_leader: isLeader,
+    initialized: isInitialized,
     tickers: tickerConfig.length,
     prices: priceState.size,
     connections: {
@@ -436,5 +444,3 @@ Deno.serve(async (req) => {
     headers: { 'Content-Type': 'application/json' }
   });
 });
-
-initialize();
