@@ -46,6 +46,45 @@ serve(async (req) => {
   }
 
   try {
+    // Admin role verification
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Get user from JWT
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if user has admin role
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .single();
+
+    if (!roleData) {
+      return new Response(
+        JSON.stringify({ error: 'Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`✅ Admin user ${user.email} authorized to generate brief`);
+
     const requestBody = await req.json().catch(() => ({}));
     const briefType = requestBody.briefType || 'morning';
     const isWeekendBrief = briefType === 'weekend';
@@ -54,8 +93,6 @@ serve(async (req) => {
       : briefType === 'morning' 
         ? 'Morning Brief' 
         : 'Evening Brief';
-    
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log(`🚀 Starting ${isWeekendBrief ? 'comprehensive WEEKLY' : 'comprehensive daily'} market data collection...`, { briefType });
     

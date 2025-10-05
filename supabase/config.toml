@@ -7,7 +7,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.generate-daily-brief]
-verify_jwt = false
+verify_jwt = true
 
 [functions.news-fetch]
 verify_jwt = false

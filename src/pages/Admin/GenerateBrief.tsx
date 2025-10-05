@@ -34,6 +34,19 @@ export function GenerateBrief() {
       
       if (error) {
         console.error('Brief generation error:', error);
+        
+        // Handle specific error cases
+        if (error.message?.includes('401') || error.message?.includes('Authentication required')) {
+          toast.error('Authentication required. Please sign in again.');
+          navigate('/auth');
+          return;
+        }
+        
+        if (error.message?.includes('403') || error.message?.includes('Admin access required')) {
+          toast.error('Admin access required. You do not have permission to generate briefs.');
+          return;
+        }
+        
         toast.error('Failed to generate brief');
         return;
       }
