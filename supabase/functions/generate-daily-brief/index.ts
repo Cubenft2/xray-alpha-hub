@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { toZonedTime, format } from 'https://esm.sh/date-fns-tz@3.2.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1040,9 +1041,9 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
       adminAuditBlock += '\n---\n';
     }
 
-    // Create today's date and slug
-    const today = new Date();
-    const dateStr = today.toISOString().split('T')[0];
+    // Create today's date and slug using EST/EDT timezone
+    const estDate = toZonedTime(new Date(), 'America/New_York');
+    const dateStr = format(estDate, 'yyyy-MM-dd');
     const timestamp = Math.floor(Date.now() / 1000);
 
     // Determine featured assets based on biggest movers and social buzz
@@ -1064,16 +1065,8 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
       .insert({
         brief_type: briefType,
         title: isWeekendBrief ? 
-          `Weekly Market Recap - ${today.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}` :
-          `${briefType === 'evening' ? 'Evening' : 'Morning'} Brief - ${today.toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}`,
+          `Weekly Market Recap - ${format(estDate, 'MMMM d, yyyy')}` :
+          `${briefType === 'evening' ? 'Evening' : 'Morning'} Brief - ${format(estDate, 'MMMM d, yyyy')}`,
         slug: `${briefType}-brief-${dateStr}-${timestamp}`,
         executive_summary: isWeekendBrief ?
           `Comprehensive weekly market analysis covering 7-day performance, macro events, and next week's outlook. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads weekly performance with ${biggestMover.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${biggestMover.price_change_percentage_7d_in_currency?.toFixed(1)}% move.` : 'Mixed weekly performance across markets.'}` :
@@ -1200,7 +1193,7 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
         },
         market_data: {
           session_type: isWeekendBrief ? 'comprehensive_weekly' : 'comprehensive_daily',
-          generation_time: dateStr,
+          generation_time: format(estDate, 'yyyy-MM-dd HH:mm:ss zzz'),
           fear_greed_index: currentFearGreed.value,
           market_cap_total: totalMarketCap,
           volume_24h: totalVolume,
@@ -1222,7 +1215,7 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
         },
         featured_assets: featuredAssets,
         is_published: true,
-        published_at: new Date().toISOString(),
+        published_at: estDate.toISOString(),
         stoic_quote: randomQuote,
         stoic_quote_author: selectedAuthor,
         sentiment_score: lunarcrushData.data?.length ?
