@@ -233,8 +233,8 @@
   }
 
   .xr-nav-text {
-    @apply font-bold font-pixel;
-    letter-spacing: 0.05em;
+    @apply text-xs font-pixel;
+    letter-spacing: 0.02em;
   }
 
   /* XRay Dog Animations */

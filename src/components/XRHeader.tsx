@@ -75,7 +75,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'Crypto', href: '/crypto' },
-    { name: 'Stocks', href: '/markets' },
+    { name: 'Markets', href: '/markets' },
     { name: 'Watch', href: '/watchlist' },
     { name: 'News', href: '/news' },
     { name: 'Chill', href: '/chill' },
@@ -94,7 +94,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   return (
     <>
       <header className="xr-header relative overflow-visible">
-        <div className="container mx-auto flex h-16 items-center justify-between">
+        <div className="container mx-auto flex h-14 items-center justify-between">
           {/* XRay Dog Logo & Brand */}
           <Link 
             to="/"
@@ -106,22 +106,22 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 <img 
                   src="/pfp.png" 
                   alt="XRay Profile" 
-                  className="w-10 h-10 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-2"
+                  className="w-8 h-8 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-2"
                 />
-                <span className="text-xl xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
+                <span className="text-lg xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
                   XRayCrypto™
                 </span>
               </div>
-              <span className="text-xs text-muted-foreground hidden sm:block font-mono ml-12 -mt-1">
+              <span className="text-[10px] text-muted-foreground hidden md:block font-mono ml-10 -mt-1">
                 Powered by XRay Dog
               </span>
               <div className="flex items-center space-x-1 sm:hidden">
                 <img 
                   src="/pfp.png" 
                   alt="XRay Profile" 
-                  className="w-8 h-8 rounded-full"
+                  className="w-7 h-7 rounded-full"
                 />
-                <span className="text-lg xr-pixel-text animate-radioactive-glow">
+                <span className="text-base xr-pixel-text animate-radioactive-glow">
                   XR™
                 </span>
               </div>
@@ -129,15 +129,16 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6">
+          <nav className="hidden lg:flex items-center space-x-3">
             {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
                   <Button
                     variant={location.pathname === item.href ? "default" : "ghost"}
+                    size="sm"
                     className={`xr-nav-text ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
                   {item.href === '/support' ? (
-                    <Heart className="w-4 h-4 text-red-500 animate-pulse" fill="currentColor" />
+                    <Heart className="w-3.5 h-3.5 text-red-500 animate-pulse" fill="currentColor" />
                   ) : (
                     item.name
                   )}
