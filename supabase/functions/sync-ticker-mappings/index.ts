@@ -83,6 +83,45 @@ function levenshteinDistance(s1: string, s2: string): number {
   return costs[s2.length];
 }
 
+async function fetchAllRows(supabase: any, table: string, columns: string, filters?: any): Promise<any[]> {
+  const BATCH_SIZE = 1000;
+  let allRows: any[] = [];
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    let query = supabase
+      .from(table)
+      .select(columns)
+      .range(from, from + BATCH_SIZE - 1);
+
+    if (filters) {
+      for (const [key, value] of Object.entries(filters)) {
+        query = query.eq(key, value);
+      }
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      allRows = allRows.concat(data);
+      console.log(`📥 Fetched ${allRows.length} rows from ${table}...`);
+      
+      if (data.length < BATCH_SIZE) {
+        hasMore = false;
+      } else {
+        from += BATCH_SIZE;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return allRows;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -103,13 +142,14 @@ Deno.serve(async (req) => {
       errors: [],
     };
 
-    // 1. Get unique base assets from exchange_pairs with their exchanges
-    const { data: exchangePairs, error: pairsError } = await supabase
-      .from('exchange_pairs')
-      .select('base_asset, quote_asset, exchange, symbol')
-      .eq('is_active', true);
-
-    if (pairsError) throw pairsError;
+    // 1. Get ALL exchange pairs with pagination
+    console.log('📥 Fetching all exchange pairs...');
+    const exchangePairs = await fetchAllRows(
+      supabase,
+      'exchange_pairs',
+      'base_asset, quote_asset, exchange, symbol',
+      { is_active: true }
+    );
 
     console.log(`📊 Found ${exchangePairs.length} active exchange pairs`);
 
@@ -135,12 +175,13 @@ Deno.serve(async (req) => {
 
     console.log(`🔍 Identified ${assetMap.size} unique base assets`);
 
-    // 2. Get CoinGecko master data for matching
-    const { data: cgCoins, error: cgError } = await supabase
-      .from('cg_master')
-      .select('cg_id, symbol, name');
-
-    if (cgError) throw cgError;
+    // 2. Get ALL CoinGecko master data with pagination
+    console.log('📥 Fetching all CoinGecko coins...');
+    const cgCoins = await fetchAllRows(
+      supabase,
+      'cg_master',
+      'cg_id, symbol, name'
+    );
 
     console.log(`💰 Loaded ${cgCoins.length} CoinGecko coins for matching`);
 
@@ -173,8 +214,14 @@ Deno.serve(async (req) => {
     console.log(`✅ Found ${existingSymbols.size} existing mapped symbols`);
 
     // 4. Process each unique asset
+    console.log(`🔄 Processing ${assetMap.size} unique assets...`);
     for (const [baseAsset, assetData] of assetMap) {
       stats.processed++;
+
+      // Log progress every 500 assets
+      if (stats.processed % 500 === 0) {
+        console.log(`⏳ Progress: ${stats.processed}/${assetMap.size} assets processed...`);
+      }
 
       // Skip if already mapped
       if (existingSymbols.has(baseAsset)) {
