@@ -35,8 +35,9 @@ serve(async (req) => {
       const cryptoData = await cryptoResponse.json();
       const cryptoTickers = cryptoData.results || [];
       
-      for (const ticker of cryptoTickers) {
-        await supabase.from('poly_tickers').upsert({
+      // Batch insert crypto tickers
+      if (cryptoTickers.length > 0) {
+        const cryptoRecords = cryptoTickers.map(ticker => ({
           ticker: ticker.ticker,
           name: ticker.name,
           market: 'crypto',
@@ -50,11 +51,21 @@ serve(async (req) => {
           delisted_utc: ticker.delisted_utc,
           last_updated_utc: ticker.last_updated_utc,
           synced_at: new Date().toISOString(),
-        }, { onConflict: 'ticker' });
+        }));
+
+        const { error: cryptoError } = await supabase
+          .from('poly_tickers')
+          .upsert(cryptoRecords, { onConflict: 'ticker' });
+        
+        if (cryptoError) {
+          console.error('Error syncing crypto tickers:', cryptoError);
+        } else {
+          totalSynced += cryptoTickers.length;
+          console.log(`✅ Synced ${cryptoTickers.length} crypto tickers`);
+        }
       }
-      
-      totalSynced += cryptoTickers.length;
-      console.log(`✅ Synced ${cryptoTickers.length} crypto tickers`);
+    } else {
+      console.warn(`⚠️ Crypto API returned ${cryptoResponse.status}`);
     }
 
     // Sync Stock tickers
@@ -66,8 +77,9 @@ serve(async (req) => {
       const stockData = await stockResponse.json();
       const stockTickers = stockData.results || [];
       
-      for (const ticker of stockTickers) {
-        await supabase.from('poly_tickers').upsert({
+      // Batch insert stock tickers
+      if (stockTickers.length > 0) {
+        const stockRecords = stockTickers.map(ticker => ({
           ticker: ticker.ticker,
           name: ticker.name,
           market: 'stocks',
@@ -79,11 +91,21 @@ serve(async (req) => {
           delisted_utc: ticker.delisted_utc,
           last_updated_utc: ticker.last_updated_utc,
           synced_at: new Date().toISOString(),
-        }, { onConflict: 'ticker' });
+        }));
+
+        const { error: stockError } = await supabase
+          .from('poly_tickers')
+          .upsert(stockRecords, { onConflict: 'ticker' });
+        
+        if (stockError) {
+          console.error('Error syncing stock tickers:', stockError);
+        } else {
+          totalSynced += stockTickers.length;
+          console.log(`✅ Synced ${stockTickers.length} stock tickers`);
+        }
       }
-      
-      totalSynced += stockTickers.length;
-      console.log(`✅ Synced ${stockTickers.length} stock tickers`);
+    } else {
+      console.warn(`⚠️ Stock API returned ${stockResponse.status}`);
     }
 
     // Sync FX pairs
@@ -95,38 +117,63 @@ serve(async (req) => {
       const fxData = await fxResponse.json();
       const fxTickers = fxData.results || [];
       
-      for (const ticker of fxTickers) {
-        // Parse FX pair (format: C:EURUSD)
-        const pairMatch = ticker.ticker.match(/C:([A-Z]{3})([A-Z]{3})/);
-        if (pairMatch) {
-          await supabase.from('poly_fx_pairs').upsert({
+      if (fxTickers.length > 0) {
+        const fxPairRecords = [];
+        const fxTickerRecords = [];
+        
+        for (const ticker of fxTickers) {
+          // Parse FX pair (format: C:EURUSD)
+          const pairMatch = ticker.ticker.match(/C:([A-Z]{3})([A-Z]{3})/);
+          if (pairMatch) {
+            fxPairRecords.push({
+              ticker: ticker.ticker,
+              base_currency: pairMatch[1],
+              quote_currency: pairMatch[2],
+              name: ticker.name,
+              active: ticker.active,
+              synced_at: new Date().toISOString(),
+            });
+          }
+          
+          fxTickerRecords.push({
             ticker: ticker.ticker,
-            base_currency: pairMatch[1],
-            quote_currency: pairMatch[2],
             name: ticker.name,
+            market: 'fx',
+            locale: ticker.locale,
+            type: ticker.type,
+            currency_name: ticker.currency_name,
             active: ticker.active,
             synced_at: new Date().toISOString(),
-          }, { onConflict: 'ticker' });
-          
-          totalFx++;
+          });
         }
         
-        // Also add to poly_tickers
-        await supabase.from('poly_tickers').upsert({
-          ticker: ticker.ticker,
-          name: ticker.name,
-          market: 'fx',
-          locale: ticker.locale,
-          type: ticker.type,
-          currency_name: ticker.currency_name,
-          active: ticker.active,
-          synced_at: new Date().toISOString(),
-        }, { onConflict: 'ticker' });
+        // Batch insert FX pairs
+        if (fxPairRecords.length > 0) {
+          const { error: fxPairError } = await supabase
+            .from('poly_fx_pairs')
+            .upsert(fxPairRecords, { onConflict: 'ticker' });
+          
+          if (fxPairError) {
+            console.error('Error syncing FX pairs:', fxPairError);
+          } else {
+            totalFx = fxPairRecords.length;
+          }
+        }
         
-        totalSynced++;
+        // Batch insert FX tickers
+        const { error: fxTickerError } = await supabase
+          .from('poly_tickers')
+          .upsert(fxTickerRecords, { onConflict: 'ticker' });
+        
+        if (fxTickerError) {
+          console.error('Error syncing FX tickers:', fxTickerError);
+        } else {
+          totalSynced += fxTickerRecords.length;
+          console.log(`✅ Synced ${fxTickerRecords.length} FX pairs`);
+        }
       }
-      
-      console.log(`✅ Synced ${fxTickers.length} FX pairs`);
+    } else {
+      console.warn(`⚠️ FX API returned ${fxResponse.status}`);
     }
 
     console.log(`✅ Polygon sync complete: ${totalSynced} total tickers, ${totalFx} FX pairs`);
