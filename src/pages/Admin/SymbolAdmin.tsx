@@ -12,6 +12,7 @@ export function SymbolAdmin() {
     coingecko: false,
     exchange: false,
     polygon: false,
+    tickerMappings: false,
   });
 
   const handleCoinGeckoSync = async () => {
@@ -78,6 +79,24 @@ export function SymbolAdmin() {
     }
   };
 
+  const handleTickerMappingsSync = async () => {
+    setSyncing({ ...syncing, tickerMappings: true });
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-ticker-mappings');
+      
+      if (error) throw error;
+      
+      toast.success(
+        `Ticker mappings sync complete! ${data.stats.mapped} mapped, ${data.stats.pending} pending review, ${data.stats.skipped} skipped`
+      );
+    } catch (error) {
+      console.error('Ticker mappings sync error:', error);
+      toast.error('Failed to sync ticker mappings');
+    } finally {
+      setSyncing({ ...syncing, tickerMappings: false });
+    }
+  };
+
   return (
     <div className="container mx-auto p-8">
       <h1 className="text-3xl font-bold mb-8">Symbol Intelligence Admin</h1>
@@ -89,6 +108,40 @@ export function SymbolAdmin() {
         </TabsList>
 
         <TabsContent value="sync">
+          <Card className="mb-6 border-primary/50">
+            <CardHeader>
+              <CardTitle className="text-xl">🎯 Ticker Mappings Sync</CardTitle>
+              <CardDescription>
+                Intelligently populate ticker_mappings from exchange_pairs and cg_master
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={handleTickerMappingsSync} 
+                disabled={syncing.tickerMappings}
+                className="w-full"
+                size="lg"
+              >
+                {syncing.tickerMappings && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {syncing.tickerMappings ? 'Syncing Mappings...' : 'Sync Ticker Mappings'}
+              </Button>
+              <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                <p className="font-medium">This will:</p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>Analyze 4,700+ unique base assets from exchange pairs</li>
+                  <li>Match with 19,000+ CoinGecko coins</li>
+                  <li>Auto-map high-confidence symbols (≥80%) to ticker_mappings</li>
+                  <li>Queue medium-confidence (50-79%) for manual review</li>
+                  <li>Prioritize exchanges: Kraken → KuCoin → Gate.io</li>
+                  <li>Generate TradingView symbols and aliases</li>
+                </ul>
+                <p className="text-xs italic mt-3">
+                  Expected to add 3,000-4,000 new mappings automatically
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-6 md:grid-cols-3">
             <Card>
               <CardHeader>
