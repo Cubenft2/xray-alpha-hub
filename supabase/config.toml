@@ -32,3 +32,9 @@ verify_jwt = false
 
 [functions.sync-ticker-mappings]
 verify_jwt = false
+
+[functions.map-polygon-tickers]
+verify_jwt = false
+
+[functions.polygon-price-relay]
+verify_jwt = false

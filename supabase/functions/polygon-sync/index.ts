@@ -21,159 +21,192 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    console.log('🚀 Starting Polygon.io reference data sync...');
+    console.log('🚀 Starting Polygon.io reference data sync with pagination...');
 
     let totalSynced = 0;
     let totalFx = 0;
 
-    // Sync Crypto tickers
-    console.log('📡 Fetching Polygon crypto tickers...');
-    const cryptoUrl = `https://api.polygon.io/v3/reference/tickers?market=crypto&active=true&limit=1000&apiKey=${polygonApiKey}`;
-    const cryptoResponse = await fetch(cryptoUrl);
-    
-    if (cryptoResponse.ok) {
-      const cryptoData = await cryptoResponse.json();
-      const cryptoTickers = cryptoData.results || [];
+    // Helper function to fetch all pages
+    async function fetchAllPages(baseUrl: string, market: string): Promise<any[]> {
+      const allResults: any[] = [];
+      let nextUrl: string | null = `${baseUrl}&limit=1000`;
       
-      // Batch insert crypto tickers
-      if (cryptoTickers.length > 0) {
-        const cryptoRecords = cryptoTickers.map(ticker => ({
-          ticker: ticker.ticker,
-          name: ticker.name,
-          market: 'crypto',
-          locale: ticker.locale,
-          primary_exchange: ticker.primary_exchange,
-          type: ticker.type,
-          currency_name: ticker.currency_name,
-          base_currency_symbol: ticker.base_currency_symbol,
-          base_currency_name: ticker.base_currency_name,
-          active: ticker.active,
-          delisted_utc: ticker.delisted_utc,
-          last_updated_utc: ticker.last_updated_utc,
-          synced_at: new Date().toISOString(),
-        }));
+      while (nextUrl) {
+        console.log(`📡 Fetching ${market} page...`);
+        const response = await fetch(nextUrl);
+        
+        if (!response.ok) {
+          console.warn(`⚠️ ${market} API returned ${response.status}`);
+          break;
+        }
+        
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+          allResults.push(...data.results);
+          console.log(`   Fetched ${data.results.length} ${market} tickers (total: ${allResults.length})`);
+        }
+        
+        // Check for next page
+        nextUrl = data.next_url ? `${data.next_url}&apiKey=${polygonApiKey}` : null;
+        
+        // Rate limiting: wait 200ms between requests
+        if (nextUrl) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      
+      return allResults;
+    }
 
+    // Sync Crypto tickers with pagination
+    console.log('📊 Syncing crypto tickers...');
+    const cryptoTickers = await fetchAllPages(
+      `https://api.polygon.io/v3/reference/tickers?market=crypto&active=true&apiKey=${polygonApiKey}`,
+      'crypto'
+    );
+    
+    if (cryptoTickers.length > 0) {
+      const cryptoRecords = cryptoTickers.map(ticker => ({
+        ticker: ticker.ticker,
+        name: ticker.name,
+        market: 'crypto',
+        locale: ticker.locale,
+        primary_exchange: ticker.primary_exchange,
+        type: ticker.type,
+        currency_name: ticker.currency_name,
+        base_currency_symbol: ticker.base_currency_symbol,
+        base_currency_name: ticker.base_currency_name,
+        active: ticker.active,
+        delisted_utc: ticker.delisted_utc,
+        last_updated_utc: ticker.last_updated_utc,
+        synced_at: new Date().toISOString(),
+      }));
+
+      // Batch upsert in chunks of 1000
+      const chunkSize = 1000;
+      for (let i = 0; i < cryptoRecords.length; i += chunkSize) {
+        const chunk = cryptoRecords.slice(i, i + chunkSize);
         const { error: cryptoError } = await supabase
           .from('poly_tickers')
-          .upsert(cryptoRecords, { onConflict: 'ticker' });
+          .upsert(chunk, { onConflict: 'ticker' });
         
         if (cryptoError) {
-          console.error('Error syncing crypto tickers:', cryptoError);
-        } else {
-          totalSynced += cryptoTickers.length;
-          console.log(`✅ Synced ${cryptoTickers.length} crypto tickers`);
+          console.error('Error syncing crypto batch:', cryptoError);
         }
       }
-    } else {
-      console.warn(`⚠️ Crypto API returned ${cryptoResponse.status}`);
+      
+      totalSynced += cryptoTickers.length;
+      console.log(`✅ Synced ${cryptoTickers.length} crypto tickers`);
     }
 
-    // Sync Stock tickers
-    console.log('📡 Fetching Polygon stock tickers...');
-    const stockUrl = `https://api.polygon.io/v3/reference/tickers?market=stocks&active=true&limit=1000&apiKey=${polygonApiKey}`;
-    const stockResponse = await fetch(stockUrl);
+    // Sync Stock tickers with pagination
+    console.log('📊 Syncing stock tickers...');
+    const stockTickers = await fetchAllPages(
+      `https://api.polygon.io/v3/reference/tickers?market=stocks&active=true&apiKey=${polygonApiKey}`,
+      'stocks'
+    );
     
-    if (stockResponse.ok) {
-      const stockData = await stockResponse.json();
-      const stockTickers = stockData.results || [];
-      
-      // Batch insert stock tickers
-      if (stockTickers.length > 0) {
-        const stockRecords = stockTickers.map(ticker => ({
-          ticker: ticker.ticker,
-          name: ticker.name,
-          market: 'stocks',
-          locale: ticker.locale,
-          primary_exchange: ticker.primary_exchange,
-          type: ticker.type,
-          currency_name: ticker.currency_name,
-          active: ticker.active,
-          delisted_utc: ticker.delisted_utc,
-          last_updated_utc: ticker.last_updated_utc,
-          synced_at: new Date().toISOString(),
-        }));
+    if (stockTickers.length > 0) {
+      const stockRecords = stockTickers.map(ticker => ({
+        ticker: ticker.ticker,
+        name: ticker.name,
+        market: 'stocks',
+        locale: ticker.locale,
+        primary_exchange: ticker.primary_exchange,
+        type: ticker.type,
+        currency_name: ticker.currency_name,
+        active: ticker.active,
+        delisted_utc: ticker.delisted_utc,
+        last_updated_utc: ticker.last_updated_utc,
+        synced_at: new Date().toISOString(),
+      }));
 
+      // Batch upsert in chunks of 1000
+      const chunkSize = 1000;
+      for (let i = 0; i < stockRecords.length; i += chunkSize) {
+        const chunk = stockRecords.slice(i, i + chunkSize);
         const { error: stockError } = await supabase
           .from('poly_tickers')
-          .upsert(stockRecords, { onConflict: 'ticker' });
+          .upsert(chunk, { onConflict: 'ticker' });
         
         if (stockError) {
-          console.error('Error syncing stock tickers:', stockError);
-        } else {
-          totalSynced += stockTickers.length;
-          console.log(`✅ Synced ${stockTickers.length} stock tickers`);
+          console.error('Error syncing stock batch:', stockError);
         }
       }
-    } else {
-      console.warn(`⚠️ Stock API returned ${stockResponse.status}`);
+      
+      totalSynced += stockTickers.length;
+      console.log(`✅ Synced ${stockTickers.length} stock tickers`);
     }
 
-    // Sync FX pairs
-    console.log('📡 Fetching Polygon FX pairs...');
-    const fxUrl = `https://api.polygon.io/v3/reference/tickers?market=fx&active=true&limit=1000&apiKey=${polygonApiKey}`;
-    const fxResponse = await fetch(fxUrl);
+    // Sync FX pairs with pagination
+    console.log('📊 Syncing FX pairs...');
+    const fxTickers = await fetchAllPages(
+      `https://api.polygon.io/v3/reference/tickers?market=fx&active=true&apiKey=${polygonApiKey}`,
+      'fx'
+    );
     
-    if (fxResponse.ok) {
-      const fxData = await fxResponse.json();
-      const fxTickers = fxData.results || [];
+    if (fxTickers.length > 0) {
+      const fxPairRecords = [];
+      const fxTickerRecords = [];
       
-      if (fxTickers.length > 0) {
-        const fxPairRecords = [];
-        const fxTickerRecords = [];
-        
-        for (const ticker of fxTickers) {
-          // Parse FX pair (format: C:EURUSD)
-          const pairMatch = ticker.ticker.match(/C:([A-Z]{3})([A-Z]{3})/);
-          if (pairMatch) {
-            fxPairRecords.push({
-              ticker: ticker.ticker,
-              base_currency: pairMatch[1],
-              quote_currency: pairMatch[2],
-              name: ticker.name,
-              active: ticker.active,
-              synced_at: new Date().toISOString(),
-            });
-          }
-          
-          fxTickerRecords.push({
+      for (const ticker of fxTickers) {
+        // Parse FX pair (format: C:EURUSD)
+        const pairMatch = ticker.ticker.match(/C:([A-Z]{3})([A-Z]{3})/);
+        if (pairMatch) {
+          fxPairRecords.push({
             ticker: ticker.ticker,
+            base_currency: pairMatch[1],
+            quote_currency: pairMatch[2],
             name: ticker.name,
-            market: 'fx',
-            locale: ticker.locale,
-            type: ticker.type,
-            currency_name: ticker.currency_name,
             active: ticker.active,
             synced_at: new Date().toISOString(),
           });
         }
         
-        // Batch insert FX pairs
-        if (fxPairRecords.length > 0) {
+        fxTickerRecords.push({
+          ticker: ticker.ticker,
+          name: ticker.name,
+          market: 'fx',
+          locale: ticker.locale,
+          type: ticker.type,
+          currency_name: ticker.currency_name,
+          active: ticker.active,
+          synced_at: new Date().toISOString(),
+        });
+      }
+      
+      // Batch insert FX pairs
+      if (fxPairRecords.length > 0) {
+        const chunkSize = 1000;
+        for (let i = 0; i < fxPairRecords.length; i += chunkSize) {
+          const chunk = fxPairRecords.slice(i, i + chunkSize);
           const { error: fxPairError } = await supabase
             .from('poly_fx_pairs')
-            .upsert(fxPairRecords, { onConflict: 'ticker' });
+            .upsert(chunk, { onConflict: 'ticker' });
           
           if (fxPairError) {
-            console.error('Error syncing FX pairs:', fxPairError);
-          } else {
-            totalFx = fxPairRecords.length;
+            console.error('Error syncing FX pair batch:', fxPairError);
           }
         }
-        
-        // Batch insert FX tickers
+        totalFx = fxPairRecords.length;
+      }
+      
+      // Batch insert FX tickers
+      const chunkSize = 1000;
+      for (let i = 0; i < fxTickerRecords.length; i += chunkSize) {
+        const chunk = fxTickerRecords.slice(i, i + chunkSize);
         const { error: fxTickerError } = await supabase
           .from('poly_tickers')
-          .upsert(fxTickerRecords, { onConflict: 'ticker' });
+          .upsert(chunk, { onConflict: 'ticker' });
         
         if (fxTickerError) {
-          console.error('Error syncing FX tickers:', fxTickerError);
-        } else {
-          totalSynced += fxTickerRecords.length;
-          console.log(`✅ Synced ${fxTickerRecords.length} FX pairs`);
+          console.error('Error syncing FX ticker batch:', fxTickerError);
         }
       }
-    } else {
-      console.warn(`⚠️ FX API returned ${fxResponse.status}`);
+      
+      totalSynced += fxTickerRecords.length;
+      console.log(`✅ Synced ${fxTickerRecords.length} FX tickers and ${fxPairRecords.length} FX pairs`);
     }
 
     console.log(`✅ Polygon sync complete: ${totalSynced} total tickers, ${totalFx} FX pairs`);

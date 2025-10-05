@@ -6,6 +6,7 @@ import { CryptoScreener } from '@/components/CryptoScreener';
 import { CryptoHeatmap } from '@/components/CryptoHeatmap';
 import { NewsSection } from '@/components/NewsSection';
 import { FinancialDisclaimer } from '@/components/FinancialDisclaimer';
+import { PolygonTicker } from '@/components/PolygonTicker';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
 
 const Index = () => {
@@ -279,6 +280,11 @@ const Index = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Real-time Polygon Ticker */}
+      <div className="w-full mb-6">
+        <PolygonTicker />
       </div>
 
       {/* Main Chart - Full nav width */}
