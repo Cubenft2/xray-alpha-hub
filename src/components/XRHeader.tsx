@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Menu, X, Search, Heart } from 'lucide-react';
+import { Menu, X, Search, Heart, LogOut, Shield } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
 interface XRHeaderProps {
   currentPage?: string;
@@ -14,7 +17,49 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLogoShaking, setIsLogoShaking] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check current auth state
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        checkAdminStatus(session.user.id);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAdminStatus = async (userId: string) => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .single();
+    
+    setIsAdmin(!!data);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success('Logged out successfully');
+    navigate('/');
+  };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -115,6 +160,28 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 />
               </div>
             )}
+
+            {/* Auth Buttons */}
+            {user ? (
+              <div className="hidden md:flex items-center space-x-2">
+                {isAdmin && (
+                  <Link to="/admin">
+                    <Button variant="outline" size="sm" className="space-x-1">
+                      <Shield className="w-4 h-4" />
+                      <span>Admin</span>
+                    </Button>
+                  </Link>
+                )}
+                <Button variant="ghost" size="sm" onClick={handleLogout} className="space-x-1">
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
+                </Button>
+              </div>
+            ) : (
+              <Link to="/auth" className="hidden md:block">
+                <Button variant="outline" size="sm">Login</Button>
+              </Link>
+            )}
             
             <ThemeToggle />
 
@@ -160,6 +227,37 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                   </Button>
                 </Link>
               ))}
+
+              {/* Mobile Auth Buttons */}
+              <div className="pt-4 border-t border-border space-y-2">
+                {user ? (
+                  <>
+                    {isAdmin && (
+                      <Link to="/admin" onClick={closeMobileMenu}>
+                        <Button variant="outline" className="w-full justify-start space-x-2">
+                          <Shield className="w-4 h-4" />
+                          <span>Admin</span>
+                        </Button>
+                      </Link>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      className="w-full justify-start space-x-2" 
+                      onClick={() => {
+                        handleLogout();
+                        closeMobileMenu();
+                      }}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Logout</span>
+                    </Button>
+                  </>
+                ) : (
+                  <Link to="/auth" onClick={closeMobileMenu}>
+                    <Button variant="outline" className="w-full">Login</Button>
+                  </Link>
+                )}
+              </div>
             </nav>
 
             {(location.pathname === '/crypto' || location.pathname === '/markets') && (

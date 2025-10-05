@@ -18,7 +18,7 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -28,7 +28,28 @@ export default function Auth() {
 
       if (error) throw error;
 
-      toast.success('Account created! Please check your email to verify your account.');
+      // Check if this is the first user and auto-assign admin role
+      if (signUpData.user) {
+        const { count } = await supabase
+          .from('user_roles')
+          .select('*', { count: 'exact', head: true });
+
+        // If no roles exist, this is the first user - make them admin
+        if (count === 0) {
+          const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert({ user_id: signUpData.user.id, role: 'admin' });
+
+          if (roleError) {
+            console.error('Failed to assign admin role:', roleError);
+          } else {
+            toast.success('Account created as admin! Please check your email to verify.');
+          }
+        } else {
+          toast.success('Account created! Please check your email to verify your account.');
+        }
+      }
+
       setEmail('');
       setPassword('');
     } catch (error: any) {
