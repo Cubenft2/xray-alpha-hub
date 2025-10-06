@@ -18,7 +18,7 @@ interface PriceData {
 }
 
 export function PolygonTicker() {
-  const speedLevels = [30, 50, 80]; // slow, medium, fast
+  const speedLevels = [20, 40, 60, 80, 100]; // 5 speed levels: slowest to fastest
   const [prices, setPrices] = useState<Map<string, PriceData>>(new Map());
   const [isPaused, setIsPaused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
