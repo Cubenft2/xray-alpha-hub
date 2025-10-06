@@ -13,12 +13,14 @@ interface PriceData {
   change24h: number;
   updated_at: string;
   coingecko_id?: string | null;
+  logo_url?: string | null;
 }
 
 export function PolygonTicker() {
   const [prices, setPrices] = useState<Map<string, PriceData>>(new Map());
   const [isPaused, setIsPaused] = useState(false);
   const [speed, setSpeed] = useState(50); // pixels per second
+  const [logoCache, setLogoCache] = useState<Map<string, string>>(new Map());
   const tickerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const navigate = useNavigate();
@@ -63,6 +65,31 @@ export function PolygonTicker() {
           });
         });
         setPrices(priceMap);
+
+        // Fetch logo URLs for all coingecko_ids
+        const coingeckoIds = Array.from(new Set(
+          Array.from(tickerToCoinGecko.values()).filter(id => id != null)
+        ));
+        
+        if (coingeckoIds.length > 0) {
+          fetchLogos(coingeckoIds);
+        }
+      }
+    };
+
+    const fetchLogos = async (coingeckoIds: string[]) => {
+      try {
+        const { data, error } = await supabase.functions.invoke('coingecko-logos', {
+          body: { coingecko_ids: coingeckoIds }
+        });
+
+        if (error) throw error;
+
+        if (data?.logos && mounted) {
+          setLogoCache(new Map(Object.entries(data.logos)));
+        }
+      } catch (error) {
+        console.error('Error fetching logos:', error);
       }
     };
 
@@ -195,7 +222,7 @@ export function PolygonTicker() {
             {displayPrices.map((price, idx) => {
               const isPositive = price.change24h >= 0;
               const logoUrl = price.coingecko_id 
-                ? `https://assets.coingecko.com/coins/images/${price.coingecko_id}/small/coin.png`
+                ? logoCache.get(price.coingecko_id)
                 : null;
               
               return (
