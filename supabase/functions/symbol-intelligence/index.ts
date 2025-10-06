@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
         console.log(`  ✓ Found in poly_tickers: ${polyMatch.ticker} (${polyMatch.name})`);
         
         // Add to pending with Polygon info
-        await supabase
+        const { error: upsertError } = await supabase
           .from('pending_ticker_mappings')
           .upsert({
             symbol: rawSymbol,
@@ -226,9 +226,12 @@ Deno.serve(async (req) => {
               added_at: new Date().toISOString(),
             },
           }, {
-            onConflict: 'normalized_symbol',
-            ignoreDuplicates: false,
+            onConflict: 'normalized_symbol,status',
           });
+        
+        if (upsertError) {
+          console.error(`Failed to upsert ${rawSymbol}:`, upsertError);
+        }
 
         missing.push({
           symbol: rawSymbol,
@@ -342,7 +345,7 @@ Deno.serve(async (req) => {
         
         // Lower confidence or failed insert - add to pending with upsert
         console.log(`  → Adding to pending_ticker_mappings with confidence ${bestConfidence.toFixed(2)}`);
-        await supabase
+        const { error: upsertError2 } = await supabase
           .from('pending_ticker_mappings')
           .upsert({
             symbol: rawSymbol,
@@ -360,9 +363,12 @@ Deno.serve(async (req) => {
               added_at: new Date().toISOString(),
             },
           }, {
-            onConflict: 'normalized_symbol',
-            ignoreDuplicates: false,
+            onConflict: 'normalized_symbol,status',
           });
+        
+        if (upsertError2) {
+          console.error(`Failed to upsert ${rawSymbol}:`, upsertError2);
+        }
 
         missing.push({
           symbol: rawSymbol,
@@ -375,7 +381,7 @@ Deno.serve(async (req) => {
       // Step 4: Not found anywhere - add to pending
       console.log(`  ✗ Not found: ${rawSymbol}`);
       
-      await supabase
+      const { error: upsertError3 } = await supabase
         .from('pending_ticker_mappings')
         .upsert({
           symbol: rawSymbol,
@@ -389,9 +395,12 @@ Deno.serve(async (req) => {
             added_at: new Date().toISOString(),
           },
         }, {
-          onConflict: 'normalized_symbol',
-          ignoreDuplicates: false,
+          onConflict: 'normalized_symbol,status',
         });
+      
+      if (upsertError3) {
+        console.error(`Failed to upsert ${rawSymbol}:`, upsertError3);
+      }
 
       missing.push({
         symbol: rawSymbol,

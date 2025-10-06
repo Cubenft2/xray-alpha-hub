@@ -44,22 +44,27 @@ interface AggregatedTokenData {
   };
 }
 
-// Exchange API configurations
+// Exchange API configurations - Priority order matches sync-ticker-mappings
 const EXCHANGE_CONFIGS = {
-  binance: {
-    baseUrl: 'https://api.binance.com/api/v3',
-    tickerEndpoint: '/ticker/24hr',
-    symbolFormat: (symbol: string) => `${symbol}USDT`
+  kraken: {
+    baseUrl: 'https://api.kraken.com/0',
+    tickerEndpoint: '/public/Ticker',
+    symbolFormat: (symbol: string) => `${symbol}USD`
+  },
+  kucoin: {
+    baseUrl: 'https://api.kucoin.com/api/v1',
+    tickerEndpoint: '/market/stats',
+    symbolFormat: (symbol: string) => `${symbol}-USDT`
+  },
+  gate: {
+    baseUrl: 'https://api.gateio.ws/api/v4',
+    tickerEndpoint: '/spot/tickers',
+    symbolFormat: (symbol: string) => `${symbol}_USDT`
   },
   coinbase: {
     baseUrl: 'https://api.exchange.coinbase.com',
     tickerEndpoint: '/products/{symbol}/ticker',
     symbolFormat: (symbol: string) => `${symbol}-USD`
-  },
-  bybit: {
-    baseUrl: 'https://api.bybit.com/v5',
-    tickerEndpoint: '/market/tickers',
-    symbolFormat: (symbol: string) => `${symbol}USDT`
   },
   okx: {
     baseUrl: 'https://www.okx.com/api/v5',
@@ -71,20 +76,25 @@ const EXCHANGE_CONFIGS = {
     tickerEndpoint: '/spot/market/tickers',
     symbolFormat: (symbol: string) => `${symbol}USDT`
   },
+  htx: {
+    baseUrl: 'https://api.huobi.pro',
+    tickerEndpoint: '/market/detail/merged',
+    symbolFormat: (symbol: string) => `${symbol.toLowerCase()}usdt`
+  },
+  bybit: {
+    baseUrl: 'https://api.bybit.com/v5',
+    tickerEndpoint: '/market/tickers',
+    symbolFormat: (symbol: string) => `${symbol}USDT`
+  },
   mexc: {
     baseUrl: 'https://api.mexc.com/api/v3',
     tickerEndpoint: '/ticker/24hr',
     symbolFormat: (symbol: string) => `${symbol}USDT`
   },
-  gate: {
-    baseUrl: 'https://api.gateio.ws/api/v4',
-    tickerEndpoint: '/spot/tickers',
-    symbolFormat: (symbol: string) => `${symbol}_USDT`
-  },
-  htx: {
-    baseUrl: 'https://api.huobi.pro',
-    tickerEndpoint: '/market/detail/merged',
-    symbolFormat: (symbol: string) => `${symbol.toLowerCase()}usdt`
+  binance: {
+    baseUrl: 'https://api.binance.com/api/v3',
+    tickerEndpoint: '/ticker/24hr',
+    symbolFormat: (symbol: string) => `${symbol}USDT`
   }
 };
 
@@ -306,18 +316,78 @@ async function fetchHTXData(symbol: string): Promise<ExchangeData | null> {
   }
 }
 
+async function fetchKrakenData(symbol: string): Promise<ExchangeData | null> {
+  try {
+    const formattedSymbol = EXCHANGE_CONFIGS.kraken.symbolFormat(symbol);
+    const response = await fetch(`${EXCHANGE_CONFIGS.kraken.baseUrl}${EXCHANGE_CONFIGS.kraken.tickerEndpoint}?pair=${formattedSymbol}`);
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const pairKey = Object.keys(data.result || {})[0];
+    if (!pairKey) return null;
+    
+    const ticker = data.result[pairKey];
+    const change24h = parseFloat(ticker.p[1]); // Today's percentage change
+    
+    return {
+      exchange: 'Kraken',
+      symbol: symbol,
+      price: parseFloat(ticker.c[0]), // Last trade closed
+      volume_24h: parseFloat(ticker.v[1]) * parseFloat(ticker.c[0]), // 24h volume * price
+      change_24h: change24h,
+      high_24h: parseFloat(ticker.h[1]),
+      low_24h: parseFloat(ticker.l[1]),
+      timestamp: Date.now()
+    };
+  } catch (error) {
+    console.error('Kraken API error:', error);
+    return null;
+  }
+}
+
+async function fetchKuCoinData(symbol: string): Promise<ExchangeData | null> {
+  try {
+    const formattedSymbol = EXCHANGE_CONFIGS.kucoin.symbolFormat(symbol);
+    const response = await fetch(`${EXCHANGE_CONFIGS.kucoin.baseUrl}${EXCHANGE_CONFIGS.kucoin.tickerEndpoint}?symbol=${formattedSymbol}`);
+    
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    if (!data.data) return null;
+    
+    const ticker = data.data;
+    return {
+      exchange: 'KuCoin',
+      symbol: symbol,
+      price: parseFloat(ticker.last),
+      volume_24h: parseFloat(ticker.volValue),
+      change_24h: parseFloat(ticker.changeRate) * 100,
+      high_24h: parseFloat(ticker.high),
+      low_24h: parseFloat(ticker.low),
+      timestamp: Date.now()
+    };
+  } catch (error) {
+    console.error('KuCoin API error:', error);
+    return null;
+  }
+}
+
 async function aggregateExchangeData(symbol: string): Promise<AggregatedTokenData | null> {
   console.log(`Aggregating exchange data for ${symbol}`);
   
+  // Priority order: Kraken → KuCoin → Gate.io → Coinbase → OKX → Bitget → HTX → Bybit → MEXC → Binance (last)
   const exchangeFetchers = [
-    fetchBinanceData,
+    fetchKrakenData,
+    fetchKuCoinData,
+    fetchGateData,
     fetchCoinbaseData,
-    fetchBybitData,
     fetchOKXData,
     fetchBitgetData,
+    fetchHTXData,
+    fetchBybitData,
     fetchMEXCData,
-    fetchGateData,
-    fetchHTXData
+    fetchBinanceData
   ];
   
   // Fetch data from all exchanges concurrently
