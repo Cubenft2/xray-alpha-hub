@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { isKnownStock, isKnownCrypto } from '@/config/tickerMappings';
+import { getTickerMapping, isKnownCrypto } from '@/config/tickerMappings';
 
 interface EnhancedBriefRendererProps {
   content: string;
@@ -26,9 +26,22 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     }
     
     // Use centralized configuration to determine routing
-    if (isKnownStock(upperTicker)) {
-      // Route to Markets page for stocks
-      navigate(`/markets?symbol=NASDAQ:${upperTicker}`);
+    const NON_ASSET = new Set(['CPI', 'GREED', 'NEUTRAL']);
+    const mapping = getTickerMapping(upperTicker);
+
+    if (mapping) {
+      if (mapping.type === 'crypto') {
+        // Crypto → external detail on CoinGecko (no internal chart yet)
+        window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
+      } else {
+        // Stocks, indices, forex → internal Markets page using mapped symbol (EXCHANGE:SYMBOL)
+        navigate(`/markets?symbol=${encodeURIComponent(mapping.symbol)}`);
+      }
+      return;
+    }
+
+    if (NON_ASSET.has(upperTicker)) {
+      // Macro/sentiment keywords: do nothing
       return;
     }
     
