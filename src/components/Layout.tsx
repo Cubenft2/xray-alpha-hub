@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useCallback, useMemo } from
 import { useLocation } from 'react-router-dom';
 import { XRHeader } from './XRHeader';
 import { XRTicker } from './XRTicker';
+import { PolygonTicker } from './PolygonTicker';
 import { XRFooter } from './XRFooter';
 
 interface LayoutContextType {
@@ -57,7 +58,7 @@ export const Layout = ({ children }: LayoutProps) => {
             {location.pathname === '/markets' ? (
               <XRTicker type="stocks" />
             ) : (
-              <XRTicker type="crypto" />
+              <PolygonTicker />
             )}
           </div>
         </div>

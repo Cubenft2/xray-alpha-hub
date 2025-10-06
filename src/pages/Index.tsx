@@ -282,11 +282,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Real-time Polygon Ticker - Hidden on large screens */}
-      <div className="w-full mb-6 lg:hidden">
-        <PolygonTicker />
-      </div>
-
       {/* Main Chart - Full nav width */}
       <div className="w-full mb-6">
         <div className="container mx-auto">
