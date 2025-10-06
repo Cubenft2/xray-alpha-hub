@@ -586,7 +586,7 @@ const { theme } = useTheme();
 
             {/* Live Prices Indicator - Fixed Position */}
             {pricesLoading && (
-              <div className="fixed top-20 right-4 z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg">
+              <div className="fixed top-32 right-4 z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg">
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   Updating live prices...
