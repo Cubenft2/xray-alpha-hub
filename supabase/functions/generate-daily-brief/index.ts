@@ -52,6 +52,9 @@ serve(async (req) => {
     const providedCronSecret = requestBody.cron_secret;
     const briefType = requestBody.briefType || 'morning';
     
+    // Create Supabase client for use throughout the function
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
     // Check if this is an automated cron job call
     const isCronCall = cronSecret && providedCronSecret === cronSecret;
     
@@ -66,8 +69,6 @@ serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
       
       const token = authHeader.replace('Bearer ', '');
       const { data: { user }, error: userError } = await supabase.auth.getUser(token);
@@ -1324,7 +1325,6 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
     console.log('🎯 Enhancing content with live ticker data...');
     let enhancedTickerData = {};
     try {
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
       const tickerResponse = await supabase.functions.invoke('enhance-ticker-data', {
         body: { content: generatedAnalysis }
       });
@@ -1362,8 +1362,6 @@ What’s next: watch liquidity into US hours, policy headlines, and any unusuall
     
     if (uniqueSymbols.length > 0) {
       try {
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        
         // Use symbol-intelligence for capability-aware validation
         const intelligenceResponse = await supabase.functions.invoke('symbol-intelligence', {
           body: { symbols: uniqueSymbols }
