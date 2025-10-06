@@ -262,7 +262,12 @@ const { theme } = useTheme();
 
         const aiText = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
         const cleanAiText = sanitizeAdminLeak(aiText);
-        const articleHtmlFromAI = markdownToHtml(cleanAiText);
+        
+        // Check if content already contains HTML tags (from AI generation)
+        const containsHtmlTags = /<h[1-6]>|<p>|<ul>|<ol>|<li>/.test(cleanAiText || '');
+        
+        // If content already has HTML tags, use it directly; otherwise convert markdown
+        const articleHtmlFromAI = containsHtmlTags ? cleanAiText : markdownToHtml(cleanAiText);
 
         const cleanArticleHtml = sanitizeAdminLeak(briefData.article_html);
         const displayDate = briefData.published_at || briefData.created_at;
@@ -275,7 +280,7 @@ const { theme } = useTheme();
         const isWeekendBrief = briefData.brief_type === 'weekend';
         const finalArticleHtml = isWeekendBrief && articleHtmlFromAI 
           ? articleHtmlFromAI 
-          : (cleanArticleHtml || articleHtmlFromAI || '');
+          : (processedStoredHtml || articleHtmlFromAI || '');
 
         const brief: MarketBrief = {
           slug: briefData.slug || '',
