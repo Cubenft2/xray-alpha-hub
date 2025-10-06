@@ -96,6 +96,34 @@ export function useLivePrices(tickers: string[] = []) {
         }
       }
 
+      // Final fallback: use exchange-data-aggregator for still missing symbols
+      const stillMissing = symbols.filter((s) => !transformedPrices[s.toUpperCase()]);
+      if (stillMissing.length > 0) {
+        try {
+          console.log('🔄 Fetching from exchange-data-aggregator for:', stillMissing);
+          const { data: aggData, error: aggError } = await supabase.functions.invoke('exchange-data-aggregator', {
+            body: { symbols: stillMissing }
+          });
+
+          if (!aggError && aggData && Array.isArray(aggData)) {
+            for (const item of aggData) {
+              if (item.symbol && typeof item.weighted_price === 'number' && item.weighted_price > 0) {
+                const sym = item.symbol.toUpperCase();
+                transformedPrices[sym] = {
+                  price: item.weighted_price,
+                  change_24h: typeof item.weighted_change_24h === 'number' ? item.weighted_change_24h : 0,
+                  symbol: sym,
+                  name: item.name || sym
+                };
+                console.log(`✅ Got ${sym} from aggregator: $${item.weighted_price.toFixed(4)} (${item.exchanges_count} exchanges)`);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Exchange aggregator fallback failed:', e);
+        }
+      }
+
       setPrices((prev) => ({
         ...prev,
         ...transformedPrices,
@@ -202,6 +230,8 @@ export function useLivePrices(tickers: string[] = []) {
       'FLOW': 'flow',
       'ASTER': 'aster-2',
       'ASTR': 'astar',
+      'MNT': 'mantle',
+      'MANTLE': 'mantle',
       'OKB': 'okb',
       'HASH': 'hashflow',
       'HYPE': 'hyperliquid',
@@ -277,6 +307,7 @@ export function useLivePrices(tickers: string[] = []) {
       'flow': 'FLOW',
       'astar': 'ASTER',
       'aster-2': 'ASTER',
+      'mantle': 'MNT',
       'okb': 'OKB',
       'hashflow': 'HASH',
       'hyperliquid': 'HYPE',
