@@ -41,6 +41,72 @@ interface LunarCrushAsset {
   fomo_score: number;
 }
 
+// Deduplication utility function
+function deduplicateContent(text: string): string {
+  // Split by headings to preserve section structure
+  const sections = text.split(/(<h2>.*?<\/h2>)/g);
+  const dedupedSections: string[] = [];
+  const seenSentences = new Set<string>();
+  
+  for (const section of sections) {
+    // Always preserve headings
+    if (section.startsWith('<h2>')) {
+      dedupedSections.push(section);
+      continue;
+    }
+    
+    // Split section into sentences (handle ., !, ?)
+    const sentences = section.split(/(?<=[.!?])\s+/);
+    const dedupedSentences: string[] = [];
+    
+    for (const sentence of sentences) {
+      if (!sentence.trim()) continue;
+      
+      // Create normalized fingerprint (lowercase, no extra spaces)
+      const fingerprint = sentence.toLowerCase().replace(/\s+/g, ' ').trim();
+      
+      // Skip if we've seen this exact sentence
+      if (seenSentences.has(fingerprint)) {
+        console.log(`🗑️ Removed duplicate: "${sentence.substring(0, 60)}..."`);
+        continue;
+      }
+      
+      // Check for high similarity with existing sentences (>85% match)
+      let isDuplicate = false;
+      for (const seen of seenSentences) {
+        const similarity = calculateSimilarity(fingerprint, seen);
+        if (similarity > 0.85) {
+          console.log(`🗑️ Removed similar sentence (${(similarity * 100).toFixed(0)}% match): "${sentence.substring(0, 60)}..."`);
+          isDuplicate = true;
+          break;
+        }
+      }
+      
+      if (!isDuplicate) {
+        seenSentences.add(fingerprint);
+        dedupedSentences.push(sentence);
+      }
+    }
+    
+    if (dedupedSentences.length > 0) {
+      dedupedSections.push(dedupedSentences.join(' '));
+    }
+  }
+  
+  return dedupedSections.join('');
+}
+
+// Calculate similarity between two strings (Jaccard similarity)
+function calculateSimilarity(str1: string, str2: string): number {
+  const words1 = new Set(str1.split(' '));
+  const words2 = new Set(str2.split(' '));
+  
+  const intersection = new Set([...words1].filter(x => words2.has(x)));
+  const union = new Set([...words1, ...words2]);
+  
+  return intersection.size / union.size;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -1264,6 +1330,13 @@ Write approximately 800-1200 words that inform and entertain while staying true 
 
         const aiData = await response.json();
         generatedAnalysis = aiData.choices?.[0]?.message?.content || '';
+        
+        // Deduplicate content to remove repeated sentences
+        console.log('🧹 Deduplicating content...');
+        const originalLength = generatedAnalysis.length;
+        generatedAnalysis = deduplicateContent(generatedAnalysis);
+        const dedupedLength = generatedAnalysis.length;
+        console.log(`✅ Deduplication complete: ${originalLength} → ${dedupedLength} chars (removed ${originalLength - dedupedLength} chars)`);
         
         // Check word count for weekend briefs
         if (isWeekendBrief && generatedAnalysis) {
