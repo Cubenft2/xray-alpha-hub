@@ -101,21 +101,27 @@ export function useLivePrices(tickers: string[] = []) {
       if (stillMissing.length > 0) {
         try {
           console.log('🔄 Fetching from exchange-data-aggregator for:', stillMissing);
-          const { data: aggData, error: aggError } = await supabase.functions.invoke('exchange-data-aggregator', {
+          const { data: aggResp, error: aggError } = await supabase.functions.invoke('exchange-data-aggregator', {
             body: { symbols: stillMissing }
           });
 
-          if (!aggError && aggData && Array.isArray(aggData)) {
+          if (!aggError && aggResp) {
+            // Response has structure: { success: true, data: [...] }
+            const aggData = Array.isArray(aggResp?.data) ? aggResp.data : (Array.isArray(aggResp) ? aggResp : []);
+            
             for (const item of aggData) {
-              if (item.symbol && typeof item.weighted_price === 'number' && item.weighted_price > 0) {
-                const sym = item.symbol.toUpperCase();
+              const sym = (item.symbol || '').toUpperCase();
+              const price = Number(item.current_price);
+              const change = Number(item.weighted_change_24h ?? 0);
+              
+              if (sym && !isNaN(price) && price > 0) {
                 transformedPrices[sym] = {
-                  price: item.weighted_price,
-                  change_24h: typeof item.weighted_change_24h === 'number' ? item.weighted_change_24h : 0,
+                  price,
+                  change_24h: change,
                   symbol: sym,
                   name: item.name || sym
                 };
-                console.log(`✅ Got ${sym} from aggregator: $${item.weighted_price.toFixed(4)} (${item.exchanges_count} exchanges)`);
+                console.log(`✅ Got ${sym} from aggregator: $${price.toFixed(4)} (${item.exchange_count} exchanges)`);
               }
             }
           }
