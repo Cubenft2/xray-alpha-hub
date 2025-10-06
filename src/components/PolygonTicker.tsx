@@ -12,6 +12,7 @@ interface PriceData {
   price: number;
   change24h: number;
   updated_at: string;
+  coingecko_id?: string | null;
 }
 
 export function PolygonTicker() {
@@ -21,7 +22,6 @@ export function PolygonTicker() {
   const tickerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const navigate = useNavigate();
-  const { getMapping } = useTickerMappings();
 
   useEffect(() => {
     let mounted = true;
@@ -30,13 +30,21 @@ export function PolygonTicker() {
     const initializeTickers = async () => {
       const { data: tickers } = await supabase
         .from('ticker_mappings')
-        .select('symbol, display_name, polygon_ticker')
+        .select('symbol, display_name, polygon_ticker, coingecko_id')
         .not('polygon_ticker', 'is', null)
         .eq('type', 'crypto')
         .eq('is_active', true)
         .limit(71);
 
       if (!tickers || !mounted) return;
+
+      // Create mapping of polygon_ticker to coingecko_id
+      const tickerToCoinGecko = new Map<string, string | null>();
+      tickers.forEach(t => {
+        if (t.polygon_ticker) {
+          tickerToCoinGecko.set(t.polygon_ticker, t.coingecko_id);
+        }
+      });
 
       // Fetch current prices for these tickers
       const tickerList = tickers.map(t => t.polygon_ticker).filter(Boolean);
@@ -49,7 +57,10 @@ export function PolygonTicker() {
       if (currentPrices && mounted) {
         const priceMap = new Map<string, PriceData>();
         currentPrices.forEach(price => {
-          priceMap.set(price.ticker, price);
+          priceMap.set(price.ticker, {
+            ...price,
+            coingecko_id: tickerToCoinGecko.get(price.ticker)
+          });
         });
         setPrices(priceMap);
       }
@@ -183,18 +194,30 @@ export function PolygonTicker() {
           >
             {displayPrices.map((price, idx) => {
               const isPositive = price.change24h >= 0;
+              const logoUrl = price.coingecko_id 
+                ? `https://assets.coingecko.com/coins/images/${price.coingecko_id}/small/coin.png`
+                : null;
               
               return (
                 <div
                   key={`${price.ticker}-${idx}`}
                   className="flex items-center gap-3 hover:bg-accent/50 px-3 py-1 rounded cursor-pointer transition-colors"
-                  onClick={() => {
-                    const mapping = getMapping(price.display);
-                    if (mapping?.tradingview_symbol) {
-                      navigate(`/?symbol=${mapping.tradingview_symbol}`);
-                    }
-                  }}
+                  onClick={() => navigate(`/crypto?symbol=${price.display}`)}
                 >
+                  {logoUrl ? (
+                    <img 
+                      src={logoUrl} 
+                      alt={price.display}
+                      className="w-5 h-5 rounded-full"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-muted-foreground">{price.display.slice(0, 2)}</span>
+                    </div>
+                  )}
                   <span className="font-semibold text-sm">{price.display}</span>
                   <span className="text-sm font-mono">{formatPrice(price.price)}</span>
                   <span
