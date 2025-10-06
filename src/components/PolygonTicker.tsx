@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from './ui/badge';
-import { Pause, Play, ChevronUp, ChevronDown } from 'lucide-react';
+import { Gauge } from 'lucide-react';
 import { Button } from './ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
@@ -18,15 +18,19 @@ interface PriceData {
 }
 
 export function PolygonTicker() {
+  const speedLevels = [30, 50, 80]; // slow, medium, fast
   const [prices, setPrices] = useState<Map<string, PriceData>>(new Map());
   const [isPaused, setIsPaused] = useState(false);
-  const [speed, setSpeed] = useState(50); // pixels per second
+  const [isHovered, setIsHovered] = useState(false);
+  const [speedLevel, setSpeedLevel] = useState(1); // index into speedLevels (start at medium)
   const [logoCache, setLogoCache] = useState<Map<string, string>>(new Map());
   const tickerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const offsetRef = useRef(0); // Persist offset across pauses
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  
+  const speed = speedLevels[speedLevel];
 
   useEffect(() => {
     let mounted = true;
@@ -130,7 +134,7 @@ export function PolygonTicker() {
 
   // Smooth scrolling animation
   useEffect(() => {
-    if (!tickerRef.current || isPaused) return;
+    if (!tickerRef.current || isPaused || isHovered) return;
 
     let lastTimestamp = 0;
 
@@ -162,7 +166,7 @@ export function PolygonTicker() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPaused, speed]);
+  }, [isPaused, isHovered, speed]);
 
   const priceArray = Array.from(prices.values());
 
@@ -178,48 +182,40 @@ export function PolygonTicker() {
 
   return (
     <div className="relative bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y overflow-hidden">
+      {/* LIVE Badge - Floating */}
+      <Badge 
+        variant="secondary" 
+        className="absolute top-2 right-4 z-10 animate-pulse"
+      >
+        🔴 LIVE
+      </Badge>
+
       <div className="container mx-auto py-2 flex items-center gap-2 md:gap-4">
-        {/* Controls */}
-        <div className={`flex items-center shrink-0 ${isMobile ? 'gap-1' : 'gap-2'}`}>
+        {/* Speed Control */}
+        <div className="flex items-center shrink-0">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setIsPaused(!isPaused)}
-            className={isMobile ? 'h-6 w-6 p-0' : 'h-7 w-7 p-0'}
+            onClick={() => setSpeedLevel((prev) => (prev + 1) % speedLevels.length)}
+            className="h-7 px-2 gap-1 text-xs font-medium"
+            title="Cycle speed"
           >
-            {isPaused ? <Play className={isMobile ? 'h-3 w-3' : 'h-4 w-4'} /> : <Pause className={isMobile ? 'h-3 w-3' : 'h-4 w-4'} />}
+            <Gauge className="h-3 w-3" />
+            {speedLevel + 1}x
           </Button>
-          
-          <div className="flex flex-col gap-0.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSpeed(s => Math.min(s + 10, 100))}
-              className={isMobile ? 'h-2.5 w-4 p-0' : 'h-3 w-5 p-0'}
-            >
-              <ChevronUp className={isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSpeed(s => Math.max(s - 10, 10))}
-              className={isMobile ? 'h-2.5 w-4 p-0' : 'h-3 w-5 p-0'}
-            >
-              <ChevronDown className={isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-            </Button>
-          </div>
-
-          <Badge variant="secondary" className={`shrink-0 ${isMobile ? 'text-[10px] px-1.5 py-0' : 'text-xs'}`}>
-            LIVE
-          </Badge>
         </div>
 
         {/* Ticker */}
         <div className="flex-1 overflow-hidden">
           <div
             ref={tickerRef}
-            className="flex gap-6 whitespace-nowrap"
-            style={{ width: 'max-content' }}
+            className="flex gap-6 whitespace-nowrap transition-opacity duration-200"
+            style={{ 
+              width: 'max-content',
+              opacity: isHovered ? 0.7 : 1
+            }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
           >
             {displayPrices.map((price, idx) => {
               const isPositive = price.change24h >= 0;
@@ -232,6 +228,12 @@ export function PolygonTicker() {
                   key={`${price.ticker}-${idx}`}
                   className="flex items-center gap-3 hover:bg-accent/50 px-3 py-1 rounded cursor-pointer transition-colors"
                   onClick={() => navigate(`/crypto?symbol=${price.display}`)}
+                  onTouchStart={(e) => {
+                    if (isMobile) {
+                      e.stopPropagation();
+                      setIsPaused(!isPaused);
+                    }
+                  }}
                 >
                   {logoUrl ? (
                     <img 
