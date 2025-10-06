@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
         .select('ticker')
         .eq('market', 'crypto')
         .eq('base_currency_symbol', symbol)
-        .eq('currency_name', 'United States Dollar')
+        .ilike('currency_name', 'United States dollar')
         .eq('active', true)
         .limit(1)
         .maybeSingle();
