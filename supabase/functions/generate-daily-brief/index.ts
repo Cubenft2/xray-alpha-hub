@@ -590,37 +590,105 @@ serve(async (req) => {
       return true;
     };
     
-    // Step 1: Try API Ninjas (only if no custom override)
+    // Get authors used in last 14 days for diversity tracking
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    
+    const { data: recentAuthors } = await supabase
+      .from('daily_quotes')
+      .select('author')
+      .gte('used_date', fourteenDaysAgo.toISOString().split('T')[0]);
+    
+    const usedAuthors = new Set(recentAuthors?.map(q => q.author.toLowerCase()) || []);
+    console.log('📊 Authors used in last 14 days:', Array.from(usedAuthors));
+    
+    // Helper function to check if author was recently used
+    const isAuthorFresh = (author: string) => !usedAuthors.has(author.toLowerCase());
+    
+    // Step 1: Try The Daily Stoic (priority source for Stoic philosophy)
     if (!selectedQuote) {
       try {
-        const apiNinjasKey = Deno.env.get('API_NINJAS_KEY');
-        if (apiNinjasKey) {
-        const response = await fetch('https://api.api-ninjas.com/v1/quotes?category=inspirational', {
-          headers: { 'X-Api-Key': apiNinjasKey }
-        });
+        console.log('🏛️ Trying The Daily Stoic API...');
+        const response = await fetch('https://stoic.tekloon.net/stoic-quote');
         
         if (response.ok) {
-          const quotes = await response.json();
-          if (quotes && quotes.length > 0 && quotes[0].quote && quotes[0].author) {
-            const quote = quotes[0].quote;
-            const author = quotes[0].author;
-            
-            if (isValidQuote(quote)) {
-              selectedQuote = quote;
-              selectedAuthor = author;
-              console.log('✅ Got quote from API Ninjas:', author);
+          const data = await response.json();
+          if (data && data.text && data.author && isValidQuote(data.text)) {
+            if (isAuthorFresh(data.author)) {
+              selectedQuote = data.text;
+              selectedAuthor = data.author;
+              quoteSource = 'daily_stoic';
+              console.log('✅ Got quote from The Daily Stoic:', selectedAuthor);
             } else {
-              console.log('⚠️ API Ninjas quote failed quality check');
+              console.log('⚠️ The Daily Stoic author recently used, trying next source');
             }
           }
         }
+      } catch (error) {
+        console.log('⚠️ The Daily Stoic fetch failed:', error);
+      }
+    }
+    
+    // Step 2: Try API Ninjas (inspirational quotes)
+    if (!selectedQuote) {
+      try {
+        console.log('💡 Trying API Ninjas...');
+        const apiNinjasKey = Deno.env.get('API_NINJAS_KEY');
+        if (apiNinjasKey) {
+          const response = await fetch('https://api.api-ninjas.com/v1/quotes?category=inspirational', {
+            headers: { 'X-Api-Key': apiNinjasKey }
+          });
+          
+          if (response.ok) {
+            const quotes = await response.json();
+            if (quotes && quotes.length > 0 && quotes[0].quote && quotes[0].author) {
+              const quote = quotes[0].quote;
+              const author = quotes[0].author;
+              
+              if (isValidQuote(quote) && isAuthorFresh(author)) {
+                selectedQuote = quote;
+                selectedAuthor = author;
+                quoteSource = 'api_ninjas';
+                console.log('✅ Got quote from API Ninjas:', author);
+              } else {
+                console.log('⚠️ API Ninjas quote failed quality check or author recently used');
+              }
+            }
+          }
         }
       } catch (error) {
         console.log('⚠️ API Ninjas fetch failed:', error);
       }
     }
     
-    // Step 2: Fallback to quote library if API failed
+    // Step 3: Try ZenQuotes (diverse philosophy)
+    if (!selectedQuote) {
+      try {
+        console.log('🧘 Trying ZenQuotes API...');
+        const response = await fetch('https://zenquotes.io/api/today');
+        
+        if (response.ok) {
+          const quotes = await response.json();
+          if (quotes && quotes.length > 0 && quotes[0].q && quotes[0].a) {
+            const quote = quotes[0].q;
+            const author = quotes[0].a;
+            
+            if (isValidQuote(quote) && isAuthorFresh(author)) {
+              selectedQuote = quote;
+              selectedAuthor = author;
+              quoteSource = 'zenquotes';
+              console.log('✅ Got quote from ZenQuotes:', author);
+            } else {
+              console.log('⚠️ ZenQuotes quote failed quality check or author recently used');
+            }
+          }
+        }
+      } catch (error) {
+        console.log('⚠️ ZenQuotes fetch failed:', error);
+      }
+    }
+    
+    // Step 4: Fallback to quote library
     if (!selectedQuote) {
       console.log('📚 Using fallback quote library...');
       quoteSource = 'fallback_library';
@@ -643,17 +711,23 @@ serve(async (req) => {
           .select('*')
           .eq('is_active', true)
           .order('last_used_at', { ascending: true, nullsFirst: true })
-          .limit(10);
+          .limit(20);
         
         if (availableQuotes && availableQuotes.length > 0) {
-          // Filter out recently used quotes
-          const freshQuotes = availableQuotes.filter(q => !usedQuoteTexts.has(q.quote_text));
+          // Filter out recently used quotes AND authors
+          const freshQuotes = availableQuotes.filter(q => 
+            !usedQuoteTexts.has(q.quote_text) && isAuthorFresh(q.author)
+          );
           
-          // If all have been used, just use the least recently used
-          const quotePool = freshQuotes.length > 0 ? freshQuotes : availableQuotes;
+          // If all fresh, use them; otherwise try just unused quote texts; otherwise use any
+          const quotePool = freshQuotes.length > 0 
+            ? freshQuotes 
+            : availableQuotes.filter(q => !usedQuoteTexts.has(q.quote_text));
+          
+          const finalPool = quotePool.length > 0 ? quotePool : availableQuotes;
           
           // Pick the first one (least recently used)
-          const chosen = quotePool[0];
+          const chosen = finalPool[0];
           selectedQuote = chosen.quote_text;
           selectedAuthor = chosen.author;
           
@@ -673,7 +747,7 @@ serve(async (req) => {
       }
     }
     
-    // Step 3: Ultimate fallback - hardcoded quote
+    // Step 5: Ultimate fallback - hardcoded quote
     if (!selectedQuote) {
       selectedQuote = "The market is a device for transferring money from the impatient to the patient.";
       selectedAuthor = "Warren Buffett";
