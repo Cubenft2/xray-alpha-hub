@@ -182,9 +182,7 @@ export function PolygonTicker() {
 
   return (
     <div className="relative bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y overflow-hidden">
-      <div className="container mx-auto py-2 flex flex-col gap-1">
-        {/* Main Ticker Row */}
-        <div className="flex items-center gap-2 md:gap-4">
+      <div className="container mx-auto py-2 flex items-center gap-2 md:gap-4">
           {/* Speed Control */}
           <div className="flex items-center shrink-0">
             <Button
@@ -256,17 +254,6 @@ export function PolygonTicker() {
               );
             })}
           </div>
-        </div>
-        </div>
-        
-        {/* LIVE Badge Row - Below ticker */}
-        <div className="flex items-center pl-2">
-          <Badge 
-            variant="secondary" 
-            className="text-[10px] px-2 py-0.5 animate-pulse"
-          >
-            🔴 LIVE
-          </Badge>
         </div>
       </div>
     </div>
