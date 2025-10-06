@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from './ui/badge';
 import { Pause, Play, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
+import { useNavigate } from 'react-router-dom';
+import { useTickerMappings } from '@/hooks/useTickerMappings';
 
 interface PriceData {
   ticker: string;
@@ -18,6 +20,8 @@ export function PolygonTicker() {
   const [speed, setSpeed] = useState(50); // pixels per second
   const tickerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
+  const navigate = useNavigate();
+  const { getMapping } = useTickerMappings();
 
   useEffect(() => {
     let mounted = true;
@@ -185,8 +189,10 @@ export function PolygonTicker() {
                   key={`${price.ticker}-${idx}`}
                   className="flex items-center gap-3 hover:bg-accent/50 px-3 py-1 rounded cursor-pointer transition-colors"
                   onClick={() => {
-                    // TODO: Open chart for this ticker
-                    console.log('Open chart for', price.ticker);
+                    const mapping = getMapping(price.display);
+                    if (mapping?.tradingview_symbol) {
+                      navigate(`/?symbol=${mapping.tradingview_symbol}`);
+                    }
                   }}
                 >
                   <span className="font-semibold text-sm">{price.display}</span>
