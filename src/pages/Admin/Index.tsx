@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SymbolAdmin } from './SymbolAdmin';
 import { PendingTickerMappings } from './PendingTickerMappings';
 import { GenerateBrief } from './GenerateBrief';
+import { PolygonSync } from './PolygonSync';
 
 export default function AdminIndex() {
   return (
@@ -14,6 +15,7 @@ export default function AdminIndex() {
           <TabsTrigger value="generate-brief">Generate Brief</TabsTrigger>
           <TabsTrigger value="missing-tickers">Missing Tickers</TabsTrigger>
           <TabsTrigger value="symbol-intelligence">Symbol Intelligence</TabsTrigger>
+          <TabsTrigger value="polygon-sync">Polygon Sync</TabsTrigger>
         </TabsList>
 
         <TabsContent value="generate-brief">
@@ -26,6 +28,10 @@ export default function AdminIndex() {
 
         <TabsContent value="symbol-intelligence">
           <SymbolAdmin />
+        </TabsContent>
+
+        <TabsContent value="polygon-sync">
+          <PolygonSync />
         </TabsContent>
       </Tabs>
     </div>
