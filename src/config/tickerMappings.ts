@@ -18,6 +18,7 @@ export const STOCK_TICKERS: Record<string, TickerMapping> = {
   'MSFT': { symbol: 'NASDAQ:MSFT', displayName: 'Microsoft (MSFT)', type: 'stock' },
   'GOOGL': { symbol: 'NASDAQ:GOOGL', displayName: 'Alphabet (GOOGL)', type: 'stock' },
   'GOOGLE': { symbol: 'NASDAQ:GOOGL', displayName: 'Alphabet (GOOGL)', type: 'stock' },
+  'GOOG': { symbol: 'NASDAQ:GOOG', displayName: 'Alphabet Class C (GOOG)', type: 'stock' },
   'AMZN': { symbol: 'NASDAQ:AMZN', displayName: 'Amazon (AMZN)', type: 'stock' },
   'AMAZON': { symbol: 'NASDAQ:AMZN', displayName: 'Amazon (AMZN)', type: 'stock' },
   'META': { symbol: 'NASDAQ:META', displayName: 'Meta Platforms (META)', type: 'stock' },
@@ -63,6 +64,7 @@ export const STOCK_TICKERS: Record<string, TickerMapping> = {
   'PFE': { symbol: 'NYSE:PFE', displayName: 'Pfizer (PFE)', type: 'stock' },
   'PFIZER': { symbol: 'NYSE:PFE', displayName: 'Pfizer (PFE)', type: 'stock' },
   'LAC': { symbol: 'NYSE:PFE', displayName: 'Pfizer (PFE)', type: 'stock' },
+  'NX': { symbol: 'NYSE:NX', displayName: 'Quanex Building Products (NX)', type: 'stock' },
   
   // Other Stocks
   'EA': { symbol: 'NASDAQ:EA', displayName: 'Electronic Arts (EA)', type: 'stock' },
@@ -74,6 +76,7 @@ export const STOCK_TICKERS: Record<string, TickerMapping> = {
   'PAYPAL': { symbol: 'NASDAQ:PYPL', displayName: 'PayPal (PYPL)', type: 'stock' },
   'SQ': { symbol: 'NASDAQ:SQ', displayName: 'Block/Square (SQ)', type: 'stock' },
   'SQUARE': { symbol: 'NASDAQ:SQ', displayName: 'Block/Square (SQ)', type: 'stock' },
+  'PUBM': { symbol: 'NASDAQ:PUBM', displayName: 'PubMatic (PUBM)', type: 'stock' },
   
   // ETFs
   'SPY': { symbol: 'AMEX:SPY', displayName: 'S&P 500 ETF (SPY)', type: 'stock' },
