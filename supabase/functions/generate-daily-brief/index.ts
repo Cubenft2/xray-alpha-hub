@@ -162,6 +162,48 @@ serve(async (req) => {
           topTickers,
           topKeywords
         };
+        
+        // CRITICAL FIX: Resolve stock exchange information from poly_tickers to prevent misclassification
+        try {
+          console.log('🏛️ Resolving stock exchange information from poly_tickers...');
+          const stockTickers = [...new Set(polygonNews
+            .flatMap((article: any) => article.tickers || [])
+            .filter((ticker: string) => !ticker.includes(':') && /^[A-Z]{1,5}$/.test(ticker))
+          )];
+          
+          if (stockTickers.length > 0) {
+            const { data: polyData } = await supabase
+              .from('poly_tickers')
+              .select('ticker, name, primary_exchange, market, type')
+              .in('ticker', stockTickers)
+              .eq('market', 'stocks');
+            
+            if (polyData && polyData.length > 0) {
+              // Map exchange codes to readable names
+              const exchangeMap: Record<string, string> = {
+                'XNAS': 'NASDAQ',
+                'XNYS': 'NYSE',
+                'ARCX': 'NYSE Arca',
+                'BATS': 'CBOE BZX',
+                'XASE': 'NYSE American',
+                'IEXG': 'IEX'
+              };
+              
+              const stockExchangeContext = polyData.map((stock: any) => ({
+                ticker: stock.ticker,
+                name: stock.name,
+                exchange: exchangeMap[stock.primary_exchange] || stock.primary_exchange || 'Unknown',
+                type: stock.type
+              }));
+              
+              (newsData as any).stockExchangeContext = stockExchangeContext;
+              console.log(`✅ Resolved ${stockExchangeContext.length} stock exchanges:`, 
+                stockExchangeContext.slice(0, 5).map((s: any) => `${s.ticker} (${s.exchange})`).join(', '));
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ Failed to resolve stock exchanges:', err);
+        }
       }
     } catch (err) {
       console.error('❌ News fetch failed:', err);
@@ -492,14 +534,26 @@ serve(async (req) => {
       console.log('📊 Fear & Greed weekly stats:', fearGreedWeeklyStats);
     }
 
-    // Fetch derivatives data for weekend briefs
+    // Fetch derivatives data for weekend briefs - EXPANDED COVERAGE
     let derivsData: any = {};
     if (isWeekendBrief) {
       try {
-        console.log('💱 Fetching derivatives data for BTC, ETH, SOL, and top movers...');
-        const derivsSymbols = ['BTC', 'ETH', 'SOL'];
+        console.log('💱 Fetching derivatives data for majors (BTC, ETH, SOL, XRP, DOGE, ASTER) + top movers...');
+        
+        // Base symbols: majors + ASTER watchlist
+        const baseDerivSymbols = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ASTER'];
+        
+        // Add dynamic top movers with >15% weekly change
+        const topMoverSymbols = [...topGainers, ...topLosers]
+          .filter(coin => Math.abs(coin.price_change_percentage_7d_in_currency || 0) > 15)
+          .slice(0, 5)
+          .map(coin => coin.symbol.toUpperCase());
+        
+        const allDerivsSymbols = [...new Set([...baseDerivSymbols, ...topMoverSymbols])];
+        console.log(`📊 Fetching derivatives for ${allDerivsSymbols.length} symbols:`, allDerivsSymbols.join(', '));
+        
         const derivsResponse = await fetch(
-          `${supabaseUrl}/functions/v1/derivs?symbols=${derivsSymbols.join(',')}`,
+          `${supabaseUrl}/functions/v1/derivs?symbols=${allDerivsSymbols.join(',')}`,
           { headers: { 'Authorization': `Bearer ${supabaseServiceKey}` } }
         );
         if (derivsResponse.ok) {
@@ -513,12 +567,23 @@ serve(async (req) => {
       }
     }
 
-    // Fetch exchange aggregator data for weekend briefs
+    // Fetch exchange aggregator data for weekend briefs - EXPANDED COVERAGE
     let exchangeData: any = {};
     if (isWeekendBrief) {
       try {
-        console.log('🏦 Fetching exchange aggregator data for BTC, ETH, and top movers...');
-        const exchangeSymbols = ['BTC', 'ETH'];
+        console.log('🏦 Fetching exchange aggregator data for majors (BTC, ETH, SOL, XRP, DOGE, ASTER) + top movers...');
+        
+        // Base symbols: majors + ASTER watchlist
+        const baseExchangeSymbols = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ASTER'];
+        
+        // Add dynamic top 3 movers
+        const topMoverSymbols = [...topGainers, ...topLosers]
+          .slice(0, 3)
+          .map(coin => coin.symbol.toUpperCase());
+        
+        const allExchangeSymbols = [...new Set([...baseExchangeSymbols, ...topMoverSymbols])];
+        console.log(`📊 Fetching exchange data for ${allExchangeSymbols.length} symbols:`, allExchangeSymbols.join(', '));
+        
         const exchangeResponse = await fetch(
           `${supabaseUrl}/functions/v1/exchange-data-aggregator`,
           {
@@ -527,7 +592,7 @@ serve(async (req) => {
               'Authorization': `Bearer ${supabaseServiceKey}`,
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ symbols: exchangeSymbols })
+            body: JSON.stringify({ symbols: allExchangeSymbols })
           }
         );
         if (exchangeResponse.ok) {
@@ -539,6 +604,41 @@ serve(async (req) => {
         }
       } catch (err) {
         console.error('❌ Exchange aggregator fetch error:', err);
+      }
+    }
+
+    // Fetch upcoming economic calendar for weekend briefs - NEW SECTION
+    let upcomingEarnings: any[] = [];
+    let macroEvents: any[] = [];
+    if (isWeekendBrief) {
+      try {
+        console.log('📅 Fetching upcoming economic calendar (next 7 days)...');
+        const nextWeekDate = new Date();
+        nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+        
+        const { data: earningsData } = await supabase
+          .from('earnings_calendar')
+          .select('*')
+          .gte('earnings_date', new Date().toISOString().split('T')[0])
+          .lte('earnings_date', nextWeekDate.toISOString().split('T')[0])
+          .or('is_crypto_related.eq.true,importance_score.gte.8')
+          .order('earnings_date', { ascending: true })
+          .limit(15);
+        
+        if (earningsData && earningsData.length > 0) {
+          upcomingEarnings = earningsData;
+          console.log(`✅ Found ${upcomingEarnings.length} upcoming earnings/events`);
+        }
+        
+        // Add static macro events (these should be manually updated or fetched from a calendar API)
+        macroEvents = [
+          { date: 'TBD', event: 'CPI Data Release', importance: 'High' },
+          { date: 'TBD', event: 'Non-Farm Payrolls (NFP)', importance: 'High' },
+          { date: 'TBD', event: 'FOMC Meeting Minutes', importance: 'High' }
+        ];
+        
+      } catch (err) {
+        console.warn('⚠️ Failed to fetch economic calendar:', err);
       }
     }
 
@@ -883,18 +983,48 @@ Start with a varied, casual greeting (rotate between fun options like "Alright m
 ${fearGreedWeeklyStats ? `- Weekly F&G Range: ${fearGreedWeeklyStats.min}-${fearGreedWeeklyStats.max} (Net Delta: ${fearGreedWeeklyStats.netDelta > 0 ? '+' : ''}${fearGreedWeeklyStats.netDelta}, Avg: ${fearGreedWeeklyStats.avgValue})
 - Fear & Greed Evolution: Started week at ${fearGreedWeeklyStats.max}, currently ${fearGreedWeeklyStats.current} - ${fearGreedWeeklyStats.netDelta > 0 ? 'sentiment improved' : 'sentiment declined'} by ${Math.abs(fearGreedWeeklyStats.netDelta)} points` : ''}
 
+**CRITICAL: ASSET TYPE CLASSIFICATION**
+🚨 **KNOWN CRYPTOCURRENCIES:** BTC (Bitcoin), ETH (Ethereum), SOL (Solana), XRP (Ripple), DOGE (Dogecoin), ADA (Cardano), AVAX (Avalanche), MATIC (Polygon), DOT (Polkadot), LINK (Chainlink), UNI (Uniswap), ATOM (Cosmos), ALGO (Algorand), HYPE (Hyperliquid), ASTER (ASTER crypto - WATCHLIST)
+🚨 **KNOWN STOCKS:** COIN (Coinbase - NASDAQ), MSTR (MicroStrategy - NASDAQ), NVDA (NVIDIA - NASDAQ), TSLA (Tesla - NASDAQ), AAPL (Apple - NASDAQ), MSFT (Microsoft - NASDAQ), GOOGL (Google - NASDAQ), AMZN (Amazon - NASDAQ), RIOT (RIOT Platforms - NASDAQ), MARA (Marathon Digital - NASDAQ)
+
+**CRITICAL FORMATTING RULE:** 
+- Cryptocurrencies: Always write "Cryptocurrency Name (SYMBOL)" - e.g., "Bitcoin (BTC)", "ASTER (ASTER)"
+- Stocks: Always write "Company Name (SYMBOL) - EXCHANGE" - e.g., "Coinbase (COIN) - NASDAQ", "NVIDIA (NVDA) - NASDAQ"
+- NEVER guess exchanges for stocks. Use the provided exchange data below.
+
+${(newsData as any).stockExchangeContext ? `
+📊 **VERIFIED STOCK EXCHANGE INFORMATION (DO NOT GUESS, USE THESE):**
+${(newsData as any).stockExchangeContext.map((stock: any) => 
+  `${stock.name} (${stock.ticker}) - Listed on ${stock.exchange} | Type: ${stock.type}`
+).join('\n')}
+**CRITICAL:** When mentioning any stock above, use the EXACT exchange listed here. Example: "Apple (AAPL) - NASDAQ" not "Apple (AAPL) - NYSE"
+` : ''}
+
 **Major Assets Weekly Performance:**
 ${btcData ? `Bitcoin (BTC): $${btcData.current_price.toLocaleString()} (7d: ${btcData.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${btcData.price_change_percentage_7d_in_currency?.toFixed(2)}%)` : 'BTC data unavailable'}
 ${ethData ? `Ethereum (ETH): $${ethData.current_price.toLocaleString()} (7d: ${ethData.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${ethData.price_change_percentage_7d_in_currency?.toFixed(2)}%)` : 'ETH data unavailable'}
 
-**Derivatives Data (Weekly):**
+**Derivatives Data (Weekly) - EXPANDED COVERAGE:**
 ${derivsData.BTC ? `Bitcoin (BTC) Derivatives: Funding Rate ${(derivsData.BTC.fundingRate * 100).toFixed(4)}%, 24h Liquidations $${(derivsData.BTC.liquidations24h / 1e6).toFixed(2)}M, Open Interest $${(derivsData.BTC.openInterest / 1e9).toFixed(2)}B` : ''}
 ${derivsData.ETH ? `Ethereum (ETH) Derivatives: Funding Rate ${(derivsData.ETH.fundingRate * 100).toFixed(4)}%, 24h Liquidations $${(derivsData.ETH.liquidations24h / 1e6).toFixed(2)}M, Open Interest $${(derivsData.ETH.openInterest / 1e9).toFixed(2)}B` : ''}
-${derivsData.SOL ? `Solana (SOL) Derivatives: Funding Rate ${(derivsData.SOL.fundingRate * 100).toFixed(4)}%, 24h Liquidations $${(derivsData.SOL.liquidations24h / 1e6).toFixed(2)}M` : ''}
+${derivsData.SOL ? `Solana (SOL) Derivatives: Funding Rate ${(derivsData.SOL.fundingRate * 100).toFixed(4)}%, 24h Liquidations $${(derivsData.SOL.liquidations24h / 1e6).toFixed(2)}M, Open Interest $${(derivsData.SOL.openInterest / 1e9).toFixed(2)}B` : ''}
+${derivsData.XRP ? `XRP (XRP) Derivatives: Funding Rate ${(derivsData.XRP.fundingRate * 100).toFixed(4)}%, 24h Liquidations $${(derivsData.XRP.liquidations24h / 1e6).toFixed(2)}M` : ''}
+${derivsData.DOGE ? `Dogecoin (DOGE) Derivatives: Funding Rate ${(derivsData.DOGE.fundingRate * 100).toFixed(4)}%, 24h Liquidations $${(derivsData.DOGE.liquidations24h / 1e6).toFixed(2)}M` : ''}
+${derivsData.ASTER ? `ASTER (ASTER - WATCHLIST CRYPTO) Derivatives: ${derivsData.ASTER.fundingRate ? `Funding Rate ${(derivsData.ASTER.fundingRate * 100).toFixed(4)}%` : 'Limited derivatives data'}` : ''}
+${Object.keys(derivsData).filter(k => !['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ASTER'].includes(k)).length > 0 ? `
+**Top Movers Derivatives:**
+${Object.keys(derivsData).filter(k => !['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ASTER'].includes(k)).map(symbol => 
+  `${symbol}: Funding ${(derivsData[symbol].fundingRate * 100).toFixed(4)}%, Liquidations $${(derivsData[symbol].liquidations24h / 1e6).toFixed(2)}M`
+).join('\n')}` : ''}
 
-**Exchange Dynamics (Weekly):**
-${exchangeData.BTC ? `Bitcoin (BTC) Exchange Analysis: Avg Price $${exchangeData.BTC.avgPrice?.toLocaleString()}, Price Variance ${(exchangeData.BTC.priceVariance * 100).toFixed(2)}%, Top Exchange: ${exchangeData.BTC.topExchange} (${(exchangeData.BTC.marketDominance * 100).toFixed(1)}% dominance)` : ''}
-${exchangeData.ETH ? `Ethereum (ETH) Exchange Analysis: Avg Price $${exchangeData.ETH.avgPrice?.toLocaleString()}, Price Variance ${(exchangeData.ETH.priceVariance * 100).toFixed(2)}%, Top Exchange: ${exchangeData.ETH.topExchange} (${(exchangeData.ETH.marketDominance * 100).toFixed(1)}% dominance)` : ''}
+**Exchange Dynamics (Weekly) - COMPREHENSIVE COVERAGE:**
+REQUIREMENT: Mention specific exchange dominance percentages (e.g., "Binance dominated BTC volume at 42.3%") and price variance insights.
+${exchangeData.BTC ? `Bitcoin (BTC): Avg Price $${exchangeData.BTC.avgPrice?.toLocaleString()}, Price Variance ${(exchangeData.BTC.priceVariance * 100).toFixed(2)}%, ${exchangeData.BTC.topExchange} dominated at ${(exchangeData.BTC.marketDominance * 100).toFixed(1)}% of weekly volume${exchangeData.BTC.priceVariance > 0.005 ? ` - notable ${(exchangeData.BTC.priceVariance * 100).toFixed(2)}% spread across venues` : ' - tight price consistency'}` : ''}
+${exchangeData.ETH ? `Ethereum (ETH): Avg Price $${exchangeData.ETH.avgPrice?.toLocaleString()}, Price Variance ${(exchangeData.ETH.priceVariance * 100).toFixed(2)}%, ${exchangeData.ETH.topExchange} dominated at ${(exchangeData.ETH.marketDominance * 100).toFixed(1)}% of weekly volume` : ''}
+${exchangeData.SOL ? `Solana (SOL): Avg Price $${exchangeData.SOL.avgPrice?.toLocaleString()}, Top Exchange: ${exchangeData.SOL.topExchange} (${(exchangeData.SOL.marketDominance * 100).toFixed(1)}% dominance)` : ''}
+${exchangeData.XRP ? `XRP (XRP): Avg Price $${exchangeData.XRP.avgPrice?.toLocaleString()}, Top Exchange: ${exchangeData.XRP.topExchange} (${(exchangeData.XRP.marketDominance * 100).toFixed(1)}% dominance)` : ''}
+${exchangeData.DOGE ? `Dogecoin (DOGE): Avg Price $${exchangeData.DOGE.avgPrice?.toLocaleString()}, Top Exchange: ${exchangeData.DOGE.topExchange}` : ''}
+${exchangeData.ASTER ? `ASTER (ASTER - WATCHLIST): ${exchangeData.ASTER.avgPrice ? `Avg Price $${exchangeData.ASTER.avgPrice?.toLocaleString()}` : 'Limited exchange data available'}` : ''}
 
 **Biggest Weekly Mover:**
 ${biggestMover ? `${biggestMover.name} (${biggestMover.symbol.toUpperCase()}): ${biggestMover.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${biggestMover.price_change_percentage_7d_in_currency?.toFixed(2)}% over 7 days ($${biggestMover.current_price})` : 'No significant weekly movers'}
@@ -925,6 +1055,28 @@ ${(newsData as any).polygonAnalysis ? `
 - Most Covered Assets: ${(newsData as any).polygonAnalysis.topTickers.slice(0, 8).join(', ')}
 - Dominant Themes This Week: ${(newsData as any).polygonAnalysis.topKeywords.slice(0, 10).join(', ')}
 ` : ''}
+
+${upcomingEarnings.length > 0 || macroEvents.length > 0 ? `
+📅 **WHAT'S COMING NEXT WEEK (Calendar-Specific):**
+${upcomingEarnings.length > 0 ? `
+**Upcoming Earnings & Events:**
+${upcomingEarnings.map(e => 
+  `${e.earnings_date}: ${e.company_name} (${e.stock_symbol})${e.is_crypto_related ? ' - CRYPTO-RELATED' : ''} earnings ${e.earnings_time || 'TBD'}${e.expected_eps ? ` | Expected EPS: $${e.expected_eps}` : ''}`
+).join('\n')}
+` : ''}
+${macroEvents.length > 0 ? `
+**Key Macro Events:**
+${macroEvents.map(e => `${e.date}: ${e.event} (${e.importance} importance)`).join('\n')}
+` : ''}
+REQUIREMENT: In your "What's Coming Next Week" section, reference these specific dates and events with actionable insights.
+` : ''}
+
+**DEEPER RESEARCH REQUIREMENTS:**
+1. **Correlation Analysis:** Discuss BTC correlation with SPX, DXY, and traditional markets. Mention specific correlation coefficients if possible (e.g., "BTC/SPX correlation strengthened to 0.78 this week").
+2. **Leverage Ratio Analysis:** In the derivatives section, analyze funding rate trends and what they indicate about market positioning (e.g., "Positive funding suggests overleveraged longs").
+3. **Forward-Looking Technical Analysis:** Don't just report levels - predict where key support/resistance might matter next week based on weekly chart patterns.
+4. **On-Chain Context:** If available, mention active addresses, exchange flows, or whale activity that provides deeper market insight.
+5. **Specific Exchange Insights:** Use actual exchange dominance percentages (e.g., "Binance handled 42.3% of BTC volume") and note any price discovery patterns (e.g., "Gate.io consistently had highest BTC price").
 
 **WEEKEND BRIEF REQUIREMENTS:**
 - MINIMUM 1,500 WORDS - This is premium long-form content
