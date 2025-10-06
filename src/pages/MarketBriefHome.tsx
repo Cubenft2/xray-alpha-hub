@@ -271,12 +271,18 @@ const { theme } = useTheme();
         const containsMarkdown = /(^|\n)#{1,6}\s|\n[-*]\s|\n\d+\.\s/.test(cleanArticleHtml);
         const processedStoredHtml = containsMarkdown ? markdownToHtml(cleanArticleHtml) : cleanArticleHtml;
 
+        // For weekend briefs, prioritize full AI-generated content over article_html
+        const isWeekendBrief = briefData.brief_type === 'weekend';
+        const finalArticleHtml = isWeekendBrief && articleHtmlFromAI 
+          ? articleHtmlFromAI 
+          : (cleanArticleHtml || articleHtmlFromAI || '');
+
         const brief: MarketBrief = {
           slug: briefData.slug || '',
           date: displayDate ? new Date(displayDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '',
           title: briefData.title || '',
           summary: briefData.executive_summary || briefData.summary || '',
-          article_html: cleanArticleHtml || articleHtmlFromAI || '',
+          article_html: finalArticleHtml,
           last_word: '',
           social_text: '',
           sources: [],
