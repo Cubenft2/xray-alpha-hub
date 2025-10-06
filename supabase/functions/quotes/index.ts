@@ -262,40 +262,72 @@ async function fetchCoinGeckoPrice(coinId: string, symbol: string, mapping?: any
   }
 }
 
-// Fetch from Polygon
+// Fetch from Polygon - supports both stocks and crypto
 async function fetchPolygonPrice(ticker: string, symbol: string, mapping?: any): Promise<QuoteData | null> {
   if (!polygonApiKey) return null;
   
   try {
-    const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}?apiKey=${polygonApiKey}`;
-    const response = await fetch(url);
+    console.log(`📡 Fetching Polygon price for ${symbol} (${ticker})...`);
     
-    if (!response.ok) return null;
+    // Try stocks endpoint first
+    const stockUrl = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}?apiKey=${polygonApiKey}`;
+    const stockResponse = await fetch(stockUrl);
     
-    const data = await response.json();
-    if (data.status === 'OK' && data.ticker) {
-      const tickerData = data.ticker;
-      const price = tickerData.day?.c || tickerData.prevDay?.c || 0;
-      const prevClose = tickerData.prevDay?.c || price;
-      const change24h = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
-      
-      return {
-        symbol,
-        price,
-        change24h,
-        timestamp: new Date().toISOString(),
-        source: 'polygon',
-        // SIL capability flags from mapping
-        price_ok: mapping?.price_supported !== false,
-        tv_ok: mapping?.tradingview_supported !== false,
-        derivs_ok: mapping?.derivs_supported === true,
-        social_ok: mapping?.social_supported === true,
-      };
+    if (stockResponse.ok) {
+      const data = await stockResponse.json();
+      if (data.status === 'OK' && data.ticker) {
+        const tickerData = data.ticker;
+        const price = tickerData.day?.c || tickerData.prevDay?.c || 0;
+        const prevClose = tickerData.prevDay?.c || price;
+        const change24h = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
+        
+        console.log(`✅ Got Polygon stock price for ${symbol}: $${price}`);
+        return {
+          symbol,
+          price,
+          change24h,
+          timestamp: new Date().toISOString(),
+          source: 'polygon-stock',
+          price_ok: mapping?.price_supported !== false,
+          tv_ok: mapping?.tradingview_supported !== false,
+          derivs_ok: mapping?.derivs_supported === true,
+          social_ok: mapping?.social_supported === true,
+        };
+      }
     }
     
+    // If stock fails, try crypto endpoint with X: prefix
+    const cryptoTicker = ticker.startsWith('X:') ? ticker : `X:${ticker}USD`;
+    const cryptoUrl = `https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers/${cryptoTicker}?apiKey=${polygonApiKey}`;
+    const cryptoResponse = await fetch(cryptoUrl);
+    
+    if (cryptoResponse.ok) {
+      const data = await cryptoResponse.json();
+      if (data.status === 'OK' && data.ticker) {
+        const tickerData = data.ticker;
+        const price = tickerData.day?.c || tickerData.prevDay?.c || 0;
+        const prevClose = tickerData.prevDay?.c || price;
+        const change24h = prevClose > 0 ? ((price - prevClose) / prevClose) * 100 : 0;
+        
+        console.log(`✅ Got Polygon crypto price for ${symbol}: $${price}`);
+        return {
+          symbol,
+          price,
+          change24h,
+          timestamp: new Date().toISOString(),
+          source: 'polygon-crypto',
+          price_ok: mapping?.price_supported !== false,
+          tv_ok: mapping?.tradingview_supported !== false,
+          derivs_ok: mapping?.derivs_supported === true,
+          social_ok: mapping?.social_supported === true,
+        };
+      }
+    }
+    
+    console.warn(`⚠️ No Polygon data found for ${ticker}`);
     return null;
   } catch (error) {
-    console.error(`Error fetching ${ticker} from Polygon:`, error);
+    console.error(`❌ Error fetching ${ticker} from Polygon:`, error);
     return null;
   }
 }
@@ -312,7 +344,14 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
     const resolution = await resolveSymbol(symbol);
     
     if (!resolution.resolved) {
-      console.warn(`❌ Symbol not resolved: ${symbol}`);
+      console.warn(`❌ Symbol not resolved: ${symbol} - trying as stock ticker`);
+      // For unresolved symbols, try Polygon as stock ticker (last resort)
+      const stockQuote = await fetchPolygonPrice(symbol, symbol);
+      if (stockQuote) {
+        quotes.push(stockQuote);
+        continue;
+      }
+      
       missingInternal.push(symbol);
       quotes.push({
         symbol,
@@ -340,6 +379,12 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
     // Try Polygon if CoinGecko failed and we have a ticker
     if (!quote && resolution.polygonTicker) {
       quote = await fetchPolygonPrice(resolution.polygonTicker, symbol, resolution.mapping);
+    }
+    
+    // If still no quote but symbol looks like stock (2-5 uppercase letters), try Polygon
+    if (!quote && /^[A-Z]{2,5}$/.test(symbol)) {
+      console.log(`⚠️ Trying ${symbol} as stock ticker on Polygon`);
+      quote = await fetchPolygonPrice(symbol, symbol, resolution.mapping);
     }
     
     // If still no quote but we have a mapping, mark as mapped but unavailable
