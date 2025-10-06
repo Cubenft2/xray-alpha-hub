@@ -3,11 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Zap, Radio } from 'lucide-react';
+import { Loader2, Zap, Radio, StopCircle } from 'lucide-react';
 
 export function PolygonSync() {
   const [mapping, setMapping] = useState(false);
   const [relaying, setRelaying] = useState(false);
+  const [stopping, setStopping] = useState(false);
 
   const handleMapTickers = async () => {
     setMapping(true);
@@ -49,6 +50,29 @@ export function PolygonSync() {
     }
   };
 
+  const handleStopRelay = async () => {
+    setStopping(true);
+    try {
+      const { error } = await supabase
+        .from('price_sync_leader')
+        .delete()
+        .eq('id', 'singleton');
+      
+      if (error) throw error;
+      
+      toast.success('Price relay stopped', {
+        description: 'Leadership released. Wait 30 seconds for cleanup, then restart if needed.'
+      });
+    } catch (error: any) {
+      console.error('Error stopping relay:', error);
+      toast.error('Failed to stop relay', {
+        description: error.message
+      });
+    } finally {
+      setStopping(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -81,30 +105,43 @@ export function PolygonSync() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Radio className="h-5 w-5" />
-            Start Price Relay
+            Price Relay Control
           </CardTitle>
           <CardDescription>
-            Start the centralized WebSocket connection to stream live prices
+            Start or stop the centralized WebSocket connection to stream live prices
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             This will establish a single WebSocket connection to Polygon.io and subscribe to all mapped crypto tickers.
-            Prices will be buffered and upserted to the live_prices table every 5 seconds.
+            Prices will be buffered and upserted to the live_prices table every second.
           </p>
           <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-1">
             <p><strong>⚠️ Important:</strong> Run "Map Polygon Tickers" first!</p>
             <p>The relay will automatically subscribe to all tickers with polygon_ticker values in ticker_mappings.</p>
+            <p><strong>🛑 If stuck:</strong> Use "Force Stop" to clear leadership and wait 30 seconds before restarting.</p>
           </div>
-          <Button 
-            onClick={handleStartRelay} 
-            disabled={relaying}
-            className="w-full"
-            variant="default"
-          >
-            {relaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {relaying ? 'Starting Relay...' : 'Start Price Relay'}
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleStartRelay} 
+              disabled={relaying || stopping}
+              className="flex-1"
+              variant="default"
+            >
+              {relaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {relaying ? 'Starting...' : 'Start Relay'}
+            </Button>
+            <Button 
+              onClick={handleStopRelay} 
+              disabled={stopping || relaying}
+              className="flex-1"
+              variant="destructive"
+            >
+              {stopping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <StopCircle className="mr-2 h-4 w-4" />
+              {stopping ? 'Stopping...' : 'Force Stop'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

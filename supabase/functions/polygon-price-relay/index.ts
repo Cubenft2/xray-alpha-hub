@@ -8,8 +8,9 @@ const corsHeaders = {
 // Leader election configuration
 const LEADER_ID = 'polygon-price-relay';
 const HEARTBEAT_INTERVAL = 5000; // 5 seconds
-const LEADER_TIMEOUT = 15000; // 15 seconds
+const LEADER_TIMEOUT = 30000; // 30 seconds (reduced from 60s for faster takeover)
 const BATCH_INTERVAL = 1000; // 1 second batch upserts
+const MAX_RECONNECT_ATTEMPTS = 5;
 
 interface PriceUpdate {
   ticker: string;
@@ -19,10 +20,21 @@ interface PriceUpdate {
   volume?: number;
 }
 
+// Connection state tracking
+enum ConnectionState {
+  DISCONNECTED = 'disconnected',
+  CONNECTING = 'connecting',
+  CONNECTED = 'connected',
+  CLOSING = 'closing',
+  ERROR = 'error'
+}
+
 let ws: WebSocket | null = null;
 let isLeader = false;
 let heartbeatTimer: number | null = null;
 let batchTimer: number | null = null;
+let reconnectAttempts = 0;
+let connectionState: ConnectionState = ConnectionState.DISCONNECTED;
 const priceBuffer = new Map<string, PriceUpdate>();
 
 Deno.serve(async (req) => {
@@ -194,21 +206,43 @@ function startBatchProcessor(supabase: any) {
 }
 
 async function startWebSocket(supabase: any, apiKey: string, tickers: any[]) {
+  // CRITICAL: Close any existing WebSocket connection first
+  if (ws && connectionState !== ConnectionState.CLOSING && connectionState !== ConnectionState.DISCONNECTED) {
+    console.log('⚠️ Closing existing WebSocket connection before creating new one...');
+    connectionState = ConnectionState.CLOSING;
+    try {
+      ws.close();
+    } catch (error) {
+      console.error('Error closing existing WebSocket:', error);
+    }
+    ws = null;
+    // Wait for connection to fully close
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
+
+  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error(`❌ Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached. Stopping relay.`);
+    await releaseLeadership(supabase);
+    cleanup();
+    return;
+  }
+
   const wsUrl = `wss://socket.polygon.io/crypto`;
   
+  console.log(`🔌 Creating new WebSocket connection (attempt ${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})...`);
+  connectionState = ConnectionState.CONNECTING;
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    console.log('🔌 WebSocket connected to Polygon');
+    console.log('✅ WebSocket connected to Polygon');
+    connectionState = ConnectionState.CONNECTED;
+    reconnectAttempts = 0; // Reset on successful connection
     
     // Authenticate
     ws?.send(JSON.stringify({ action: 'auth', params: apiKey }));
 
-    // Subscribe to tickers (prefer USD, fallback USDT)
-    const symbols = tickers.map(t => {
-      const polygonTicker = t.polygon_ticker;
-      return `X:${polygonTicker}`;
-    });
+    // Subscribe to tickers
+    const symbols = tickers.map(t => `X:${t.polygon_ticker}`);
 
     ws?.send(JSON.stringify({
       action: 'subscribe',
@@ -254,19 +288,42 @@ async function startWebSocket(supabase: any, apiKey: string, tickers: any[]) {
 
   ws.onerror = (error) => {
     console.error('❌ WebSocket error:', error);
+    connectionState = ConnectionState.ERROR;
   };
 
-  ws.onclose = () => {
-    console.log('🔌 WebSocket closed');
+  ws.onclose = (event) => {
+    console.log(`🔌 WebSocket closed (code: ${event.code}, reason: ${event.reason || 'none'})`);
+    connectionState = ConnectionState.DISCONNECTED;
     
-    // Attempt reconnect after delay if still leader
-    if (isLeader) {
+    // Attempt reconnect with exponential backoff if still leader
+    if (isLeader && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      reconnectAttempts++;
+      const backoffDelay = Math.min(5000 * Math.pow(2, reconnectAttempts - 1), 60000); // 5s, 10s, 20s, 40s, max 60s
+      console.log(`🔄 Reconnecting in ${backoffDelay / 1000}s (attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+      
       setTimeout(() => {
-        console.log('🔄 Attempting reconnect...');
-        startWebSocket(supabase, apiKey, tickers);
-      }, 5000);
+        if (isLeader) {
+          startWebSocket(supabase, apiKey, tickers);
+        }
+      }, backoffDelay);
+    } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      console.error('❌ Max reconnection attempts reached. Relay stopped.');
+      cleanup();
     }
   };
+}
+
+async function releaseLeadership(supabase: any) {
+  try {
+    await supabase
+      .from('price_sync_leader')
+      .delete()
+      .eq('id', 'singleton')
+      .eq('instance_id', LEADER_ID);
+    console.log('✅ Leadership released');
+  } catch (error) {
+    console.error('Error releasing leadership:', error);
+  }
 }
 
 function cleanup() {
@@ -274,8 +331,14 @@ function cleanup() {
   
   isLeader = false;
   
-  if (ws) {
-    ws.close();
+  if (ws && connectionState !== ConnectionState.DISCONNECTED) {
+    console.log('🔌 Closing WebSocket connection...');
+    connectionState = ConnectionState.CLOSING;
+    try {
+      ws.close();
+    } catch (error) {
+      console.error('Error during WebSocket cleanup:', error);
+    }
     ws = null;
   }
   
@@ -290,9 +353,21 @@ function cleanup() {
   }
   
   priceBuffer.clear();
+  reconnectAttempts = 0;
+  connectionState = ConnectionState.DISCONNECTED;
 }
 
-// Cleanup on shutdown
-addEventListener('beforeunload', () => {
+// Cleanup on shutdown - release leadership and close connections
+addEventListener('beforeunload', async () => {
+  console.log('⚠️ Function shutting down, releasing leadership...');
+  
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  if (supabaseUrl && supabaseKey) {
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    await releaseLeadership(supabase);
+  }
+  
   cleanup();
 });
