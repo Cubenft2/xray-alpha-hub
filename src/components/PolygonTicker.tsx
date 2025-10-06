@@ -182,41 +182,35 @@ export function PolygonTicker() {
 
   return (
     <div className="relative bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y overflow-hidden">
-      {/* LIVE Badge - Floating */}
-      <Badge 
-        variant="secondary" 
-        className="absolute top-2 right-4 z-10 animate-pulse"
-      >
-        🔴 LIVE
-      </Badge>
+      <div className="container mx-auto py-2 flex flex-col gap-1">
+        {/* Main Ticker Row */}
+        <div className="flex items-center gap-2 md:gap-4">
+          {/* Speed Control */}
+          <div className="flex items-center shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSpeedLevel((prev) => (prev + 1) % speedLevels.length)}
+              className="h-7 px-2 gap-1 text-xs font-medium"
+              title="Cycle speed"
+            >
+              <Gauge className="h-3 w-3" />
+              {speedLevel + 1}x
+            </Button>
+          </div>
 
-      <div className="container mx-auto py-2 flex items-center gap-2 md:gap-4">
-        {/* Speed Control */}
-        <div className="flex items-center shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSpeedLevel((prev) => (prev + 1) % speedLevels.length)}
-            className="h-7 px-2 gap-1 text-xs font-medium"
-            title="Cycle speed"
-          >
-            <Gauge className="h-3 w-3" />
-            {speedLevel + 1}x
-          </Button>
-        </div>
-
-        {/* Ticker */}
-        <div className="flex-1 overflow-hidden">
-          <div
-            ref={tickerRef}
-            className="flex gap-6 whitespace-nowrap transition-opacity duration-200"
-            style={{ 
-              width: 'max-content',
-              opacity: isHovered ? 0.7 : 1
-            }}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-          >
+          {/* Ticker */}
+          <div className="flex-1 overflow-hidden">
+            <div
+              ref={tickerRef}
+              className="flex gap-6 whitespace-nowrap transition-opacity duration-200"
+              style={{ 
+                width: 'max-content',
+                opacity: isHovered ? 0.7 : 1
+              }}
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
             {displayPrices.map((price, idx) => {
               const isPositive = price.change24h >= 0;
               const logoUrl = price.coingecko_id 
@@ -262,6 +256,17 @@ export function PolygonTicker() {
               );
             })}
           </div>
+        </div>
+        </div>
+        
+        {/* LIVE Badge Row - Below ticker */}
+        <div className="flex items-center pl-2">
+          <Badge 
+            variant="secondary" 
+            className="text-[10px] px-2 py-0.5 animate-pulse"
+          >
+            🔴 LIVE
+          </Badge>
         </div>
       </div>
     </div>
