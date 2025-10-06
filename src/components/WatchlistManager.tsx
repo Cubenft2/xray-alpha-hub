@@ -67,7 +67,7 @@ export function WatchlistManager() {
         
         if (commonCryptos.includes(raw)) {
           // Known crypto without mapping
-          resolvedSymbol = `BINANCE:${raw}USDT`;
+          resolvedSymbol = `MEXC:${raw}USDT`;
           itemType = 'crypto';
         } else if (/^[A-Z]{1,5}$/.test(raw)) {
           // Short symbol - default to stock (most stock tickers are 1-5 chars)

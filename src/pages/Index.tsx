@@ -128,8 +128,9 @@ const Index = () => {
           if (matchedKey) {
             newSymbol = cryptoMappings[matchedKey];
           } else {
-            // 3. Last resort: default to Binance format
-            newSymbol = `BINANCE:${upperTerm}USDT`;
+            // 3. Last resort: try exchanges in priority order (MEXC → GATEIO → KUCOIN → BYBIT → OKX → BINANCE)
+            const exchanges = ['MEXC', 'GATEIO', 'KUCOIN', 'BYBIT', 'OKX', 'BINANCE'];
+            newSymbol = `${exchanges[0]}:${upperTerm}USDT`;
           }
         }
       }
@@ -247,8 +248,9 @@ const Index = () => {
           if (symbolFromUrl.includes(':')) {
             newSymbol = symbolFromUrl;
           } else {
-            // 3. Last resort: default to Binance format
-            newSymbol = `BINANCE:${upperSymbol}USDT`;
+            // 3. Last resort: try exchanges in priority order (MEXC → GATEIO → KUCOIN → BYBIT → OKX → BINANCE)
+            const exchanges = ['MEXC', 'GATEIO', 'KUCOIN', 'BYBIT', 'OKX', 'BINANCE'];
+            newSymbol = `${exchanges[0]}:${upperSymbol}USDT`;
           }
         }
       }
