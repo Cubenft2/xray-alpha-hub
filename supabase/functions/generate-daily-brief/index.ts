@@ -465,8 +465,8 @@ serve(async (req) => {
     }
 
     try {
-      console.log('😨 Fetching Fear & Greed Index...');
-      const fearGreedResponse = await fetch('https://api.alternative.me/fng/?limit=7');
+    console.log('😨 Fetching Fear & Greed Index...');
+      const fearGreedResponse = await fetch('https://api.alternative.me/fng/?limit=14');
       if (fearGreedResponse.ok) {
         const fgData = await fearGreedResponse.json();
         fearGreedArray = fgData.data || [];
@@ -478,12 +478,78 @@ serve(async (req) => {
       console.error('❌ Fear & Greed fetch failed:', err);
     }
 
+    // Compute Fear & Greed weekly statistics for weekend briefs
+    let fearGreedWeeklyStats = null;
+    if (isWeekendBrief && fearGreedArray.length >= 7) {
+      const weeklyValues = fearGreedArray.slice(0, 7).map((d: any) => parseInt(d.value));
+      fearGreedWeeklyStats = {
+        min: Math.min(...weeklyValues),
+        max: Math.max(...weeklyValues),
+        current: weeklyValues[0],
+        netDelta: weeklyValues[0] - weeklyValues[weeklyValues.length - 1],
+        avgValue: Math.round(weeklyValues.reduce((a, b) => a + b, 0) / weeklyValues.length)
+      };
+      console.log('📊 Fear & Greed weekly stats:', fearGreedWeeklyStats);
+    }
+
+    // Fetch derivatives data for weekend briefs
+    let derivsData: any = {};
+    if (isWeekendBrief) {
+      try {
+        console.log('💱 Fetching derivatives data for BTC, ETH, SOL, and top movers...');
+        const derivsSymbols = ['BTC', 'ETH', 'SOL'];
+        const derivsResponse = await fetch(
+          `${supabaseUrl}/functions/v1/derivs?symbols=${derivsSymbols.join(',')}`,
+          { headers: { 'Authorization': `Bearer ${supabaseServiceKey}` } }
+        );
+        if (derivsResponse.ok) {
+          derivsData = await derivsResponse.json();
+          console.log('✅ Derivatives data fetched:', Object.keys(derivsData).length, 'symbols');
+        } else {
+          console.warn('⚠️ Derivatives fetch failed:', derivsResponse.status);
+        }
+      } catch (err) {
+        console.error('❌ Derivatives fetch error:', err);
+      }
+    }
+
+    // Fetch exchange aggregator data for weekend briefs
+    let exchangeData: any = {};
+    if (isWeekendBrief) {
+      try {
+        console.log('🏦 Fetching exchange aggregator data for BTC, ETH, and top movers...');
+        const exchangeSymbols = ['BTC', 'ETH'];
+        const exchangeResponse = await fetch(
+          `${supabaseUrl}/functions/v1/exchange-data-aggregator`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ symbols: exchangeSymbols })
+          }
+        );
+        if (exchangeResponse.ok) {
+          const result = await exchangeResponse.json();
+          exchangeData = result.data || {};
+          console.log('✅ Exchange data fetched:', Object.keys(exchangeData).length, 'symbols');
+        } else {
+          console.warn('⚠️ Exchange aggregator fetch failed:', exchangeResponse.status);
+        }
+      } catch (err) {
+        console.error('❌ Exchange aggregator fetch error:', err);
+      }
+    }
+
     console.log('📊 Market data collection complete:', {
       newsArticles: (newsData.crypto?.length || 0) + (newsData.stocks?.length || 0),
       coinsAnalyzed: coingeckoData.length,
       trendingCoins: trendingData.coins?.length || 0,
       socialAssets: lunarcrushData.data?.length || 0,
-      fearGreedDays: fearGreedArray.length
+      fearGreedDays: fearGreedArray.length,
+      derivsAssets: Object.keys(derivsData).length,
+      exchangeAssets: Object.keys(exchangeData).length
     });
 
     // Analyze market movements and find key insights
@@ -785,34 +851,47 @@ serve(async (req) => {
 
     // Enhanced AI prompt with comprehensive market strategy - different for weekend vs daily
     const marketAnalysisPrompt = isWeekendBrief ?
-    // WEEKEND COMPREHENSIVE ANALYSIS PROMPT
+    // WEEKEND COMPREHENSIVE ANALYSIS PROMPT WITH TWO-PASS SYSTEM
     `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive WEEKLY market recap - this is your signature Sunday evening brief that covers the whole week and sets up the upcoming one. This should be longer, richer, and more entertaining than your daily briefs. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
 
-IMPORTANT: When mentioning any cryptocurrency or stock, ALWAYS format it as "Name (SYMBOL)" - for example: "Bitcoin (BTC)", "Ethereum (ETH)", "Apple (AAPL)", "Hyperliquid (HYPE)", etc. This helps readers identify the exact ticker symbol.
+**CRITICAL FORMATTING RULES:**
+1. When mentioning any cryptocurrency or stock, ALWAYS format it as "Name (SYMBOL)" - for example: "Bitcoin (BTC)", "Ethereum (ETH)", "Apple (AAPL)", "Hyperliquid (HYPE)", etc.
+2. Use HTML <h2> heading tags for EVERY section title - for example: <h2>Weekly Hook</h2>, <h2>What Happened Last Week</h2>, etc.
+3. Each section should be 2-3 substantial paragraphs (150-250 words per section minimum)
 
-**REQUIRED STRUCTURE FOR WEEKLY RECAP:**
-1. Start with: "Let's talk about something special."
-2. **Weekly Hook** - Lead with the biggest story/move of the week backed by real numbers
-3. **What Happened Last Week** - Comprehensive 7-day recap with macro events, policy moves, ETF flows, regulatory news
-4. **Weekly Performance Breakdown** - Deep dive into top weekly gainers/losers with context
-5. **Social Momentum & Sentiment Shifts** - How the crowd mood evolved over the week
-6. **Exchange Dynamics** - Weekly volume patterns, new listings, major exchange developments
-7. **Macro Context & Institutional Moves** - Fed policy, inflation data, institutional adoption, ETF flows
-8. **Technical Landscape** - Weekly chart patterns, key support/resistance levels tested
-9. **What's Coming Next Week** - Calendar events, earnings, policy announcements, potential catalysts
+**REQUIRED 10-SECTION STRUCTURE FOR WEEKLY RECAP:**
+1. <h2>Weekly Hook</h2> - Lead with the biggest story/move of the week backed by real numbers
+2. <h2>What Happened Last Week</h2> - Comprehensive 7-day recap with macro events, policy moves, ETF flows, regulatory news
+3. <h2>Weekly Performance Breakdown</h2> - Deep dive into top weekly gainers/losers with context and reasons
+4. <h2>Social Momentum & Sentiment Shifts</h2> - How the crowd mood evolved over the week, social volume changes
+5. <h2>Exchange Dynamics</h2> - Weekly volume patterns, price variance, venue dominance, new listings
+6. <h2>Derivatives & Leverage</h2> - Funding rates, liquidations, open interest changes over the week
+7. <h2>Macro Context & Institutional Moves</h2> - Fed policy, inflation data, ETF flows, institutional adoption
+8. <h2>Technical Landscape</h2> - Weekly chart patterns, key support/resistance levels tested
+9. <h2>What's Coming Next Week</h2> - Calendar events, earnings, policy announcements, potential catalysts
 10. End with a thoughtful Stoic quote or witty philosophical observation
 
-**WEEKLY MARKET DATA (7-DAY FOCUS):**
+**COMPREHENSIVE WEEKLY MARKET DATA (7-DAY FOCUS):**
 
 **Weekly Overview:**
 - Total Market Cap: $${(totalMarketCap / 1e12).toFixed(2)}T
 - Weekly Volume: $${(totalVolume / 1e9).toFixed(2)}B daily avg
-- Fear & Greed: ${currentFearGreed.value}/100 (${currentFearGreed.value_classification})
-- Weekly F&G Range: Track sentiment swings across the week
+- Fear & Greed Index: ${currentFearGreed.value}/100 (${currentFearGreed.value_classification})
+${fearGreedWeeklyStats ? `- Weekly F&G Range: ${fearGreedWeeklyStats.min}-${fearGreedWeeklyStats.max} (Net Delta: ${fearGreedWeeklyStats.netDelta > 0 ? '+' : ''}${fearGreedWeeklyStats.netDelta}, Avg: ${fearGreedWeeklyStats.avgValue})
+- Fear & Greed Evolution: Started week at ${fearGreedWeeklyStats.max}, currently ${fearGreedWeeklyStats.current} - ${fearGreedWeeklyStats.netDelta > 0 ? 'sentiment improved' : 'sentiment declined'} by ${Math.abs(fearGreedWeeklyStats.netDelta)} points` : ''}
 
 **Major Assets Weekly Performance:**
 ${btcData ? `Bitcoin (BTC): $${btcData.current_price.toLocaleString()} (7d: ${btcData.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${btcData.price_change_percentage_7d_in_currency?.toFixed(2)}%)` : 'BTC data unavailable'}
 ${ethData ? `Ethereum (ETH): $${ethData.current_price.toLocaleString()} (7d: ${ethData.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${ethData.price_change_percentage_7d_in_currency?.toFixed(2)}%)` : 'ETH data unavailable'}
+
+**Derivatives Data (Weekly):**
+${derivsData.BTC ? `Bitcoin (BTC) Derivatives: Funding Rate ${(derivsData.BTC.fundingRate * 100).toFixed(4)}%, 24h Liquidations $${(derivsData.BTC.liquidations24h / 1e6).toFixed(2)}M, Open Interest $${(derivsData.BTC.openInterest / 1e9).toFixed(2)}B` : ''}
+${derivsData.ETH ? `Ethereum (ETH) Derivatives: Funding Rate ${(derivsData.ETH.fundingRate * 100).toFixed(4)}%, 24h Liquidations $${(derivsData.ETH.liquidations24h / 1e6).toFixed(2)}M, Open Interest $${(derivsData.ETH.openInterest / 1e9).toFixed(2)}B` : ''}
+${derivsData.SOL ? `Solana (SOL) Derivatives: Funding Rate ${(derivsData.SOL.fundingRate * 100).toFixed(4)}%, 24h Liquidations $${(derivsData.SOL.liquidations24h / 1e6).toFixed(2)}M` : ''}
+
+**Exchange Dynamics (Weekly):**
+${exchangeData.BTC ? `Bitcoin (BTC) Exchange Analysis: Avg Price $${exchangeData.BTC.avgPrice?.toLocaleString()}, Price Variance ${(exchangeData.BTC.priceVariance * 100).toFixed(2)}%, Top Exchange: ${exchangeData.BTC.topExchange} (${(exchangeData.BTC.marketDominance * 100).toFixed(1)}% dominance)` : ''}
+${exchangeData.ETH ? `Ethereum (ETH) Exchange Analysis: Avg Price $${exchangeData.ETH.avgPrice?.toLocaleString()}, Price Variance ${(exchangeData.ETH.priceVariance * 100).toFixed(2)}%, Top Exchange: ${exchangeData.ETH.topExchange} (${(exchangeData.ETH.marketDominance * 100).toFixed(1)}% dominance)` : ''}
 
 **Biggest Weekly Mover:**
 ${biggestMover ? `${biggestMover.name} (${biggestMover.symbol.toUpperCase()}): ${biggestMover.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${biggestMover.price_change_percentage_7d_in_currency?.toFixed(2)}% over 7 days ($${biggestMover.current_price})` : 'No significant weekly movers'}
@@ -842,29 +921,22 @@ ${(newsData as any).polygonAnalysis ? `
 - Weekly Sentiment Breakdown: ${(newsData as any).polygonAnalysis.sentimentBreakdown.positive} Positive (${((newsData as any).polygonAnalysis.sentimentBreakdown.positive / (newsData as any).polygonAnalysis.sentimentBreakdown.total * 100).toFixed(0)}%), ${(newsData as any).polygonAnalysis.sentimentBreakdown.negative} Negative (${((newsData as any).polygonAnalysis.sentimentBreakdown.negative / (newsData as any).polygonAnalysis.sentimentBreakdown.total * 100).toFixed(0)}%), ${(newsData as any).polygonAnalysis.sentimentBreakdown.neutral} Neutral (${((newsData as any).polygonAnalysis.sentimentBreakdown.neutral / (newsData as any).polygonAnalysis.sentimentBreakdown.total * 100).toFixed(0)}%)
 - Most Covered Assets: ${(newsData as any).polygonAnalysis.topTickers.slice(0, 8).join(', ')}
 - Dominant Themes This Week: ${(newsData as any).polygonAnalysis.topKeywords.slice(0, 10).join(', ')}
-
-**USE THIS WEEKLY SENTIMENT DATA TO:**
-- Track how market mood evolved through the week (did sentiment shift dramatically?)
-- Highlight assets that dominated headlines (heavy coverage = major story)
-- Identify emerging themes that gained traction over 7 days
-- Connect sentiment patterns to weekly price performance
-- Note if news sentiment diverges from price action (bearish news but prices up = opportunity or trap?)
 ` : ''}
 
-**WEEKEND BRIEF STYLE REQUIREMENTS:**
-- This is your premium weekly content - make it comprehensive and entertaining
-- Include macro context: Fed policy, inflation data, traditional market correlations
-- Discuss institutional adoption, ETF flows, regulatory developments
-- Cover emerging narratives and sector rotations over the week
-- Analyze social sentiment shifts and crowd psychology evolution
-- Reference specific exchanges for volume and liquidity insights
-- Include technical analysis perspectives on weekly charts
-- Preview the upcoming week with calendar events and potential catalysts
-- Make it feel like a premium weekend read - thoughtful, insightful, entertaining
-- Use more sophisticated analysis while keeping your conversational voice
-- End with a meaningful Stoic quote that ties into the week's themes
+**WEEKEND BRIEF REQUIREMENTS:**
+- MINIMUM 1,500 WORDS - This is premium long-form content
+- Use HTML <h2> tags for ALL 10 section headings
+- Each section must be 2-3 substantial paragraphs (150-250 words)
+- Include specific numbers: prices, percentages, funding rates, liquidations, F&G ranges
+- Connect derivatives data to price action (e.g., "funding flipped positive midweek as BTC rallied")
+- Reference exchange dynamics (e.g., "Binance dominated volume at 45%, price variance remained tight")
+- Discuss macro context: Fed policy, ETF flows, institutional moves
+- Include technical perspectives on weekly chart patterns
+- Preview next week's calendar and catalysts
+- End with a meaningful Stoic quote
+- Make it comprehensive, entertaining, and worth the weekend read
 
-Write approximately 1500-2000+ words - this is your signature long-form weekend content that readers look forward to.` :
+Write your complete weekly recap now with all 10 sections using <h2> headings.` :
     
     // DAILY BRIEF PROMPT (original)
     `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive daily market brief that feels like a smart friend talking through important market moves. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
@@ -957,38 +1029,111 @@ Write approximately 800-1200 words that inform and entertain while staying true 
 
     // Generate AI analysis (with graceful fallback if OpenAI fails)
     let generatedAnalysis = '';
+    let wordCount = 0;
+    let retryCount = 0;
+    const maxRetries = isWeekendBrief ? 1 : 0; // Allow one retry for weekend if under length
+    
     try {
       console.log('🤖 Generating AI analysis with comprehensive data...');
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { 
-              role: 'system', 
-              content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. ${isWeekendBrief ? 'This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs.' : ''}`
+      
+      // For weekend briefs, optionally try Lovable AI first (Gemini 2.5 Pro is free until Oct 6, 2025)
+      let useLovableAI = isWeekendBrief && Deno.env.get('LOVABLE_API_KEY');
+      
+      while (retryCount <= maxRetries) {
+        let response: Response;
+        
+        if (useLovableAI) {
+          console.log('🧠 Using Lovable AI (Gemini 2.5 Pro) for weekend brief...');
+          response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+              'Content-Type': 'application/json',
             },
-            { role: 'user', content: marketAnalysisPrompt }
-          ],
-          max_tokens: isWeekendBrief ? 4000 : 2000,
-          temperature: 0.8
-        }),
-      });
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-pro',
+              messages: [
+                { 
+                  role: 'system', 
+                  content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.`
+                },
+                { role: 'user', content: marketAnalysisPrompt }
+              ],
+              max_tokens: 8000
+            }),
+          });
+          
+          // If Lovable AI fails or is rate limited, fall back to OpenAI
+          if (!response.ok) {
+            console.warn('⚠️ Lovable AI failed, falling back to OpenAI:', response.status);
+            useLovableAI = false;
+            continue;
+          }
+        } else {
+          console.log(`🤖 Using OpenAI (${isWeekendBrief ? 'gpt-4o' : 'gpt-4o-mini'}) for brief generation...`);
+          response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openaiApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: isWeekendBrief ? 'gpt-4o' : 'gpt-4o-mini',
+              messages: [
+                { 
+                  role: 'system', 
+                  content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. ${isWeekendBrief ? 'This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.' : ''}`
+                },
+                { role: 'user', content: marketAnalysisPrompt }
+              ],
+              max_tokens: isWeekendBrief ? 8000 : 2000,
+              temperature: isWeekendBrief ? 0.65 : 0.8
+            }),
+          });
+        }
 
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error('OpenAI API error body:', errText);
-        throw new Error(`OpenAI API error: ${response.status} ${errText}`);
+        if (!response.ok) {
+          const errText = await response.text();
+          console.error('API error body:', errText);
+          throw new Error(`API error: ${response.status} ${errText}`);
+        }
+
+        const aiData = await response.json();
+        generatedAnalysis = aiData.choices?.[0]?.message?.content || '';
+        
+        // Check word count for weekend briefs
+        if (isWeekendBrief && generatedAnalysis) {
+          wordCount = generatedAnalysis.split(/\s+/).length;
+          console.log(`📝 Generated ${wordCount} words (target: 1,500+)`);
+          
+          if (wordCount < 1500 && retryCount < maxRetries) {
+            console.warn(`⚠️ Word count ${wordCount} is below 1,500. Requesting expansion...`);
+            
+            // Request deepening of thin sections
+            const expansionPrompt = `The weekly brief you generated is only ${wordCount} words, but it needs to be at least 1,500 words. Please expand the following sections with more detail, specific numbers, and deeper analysis:
+
+1. Add more context to "What Happened Last Week" with specific macro events
+2. Expand "Weekly Performance Breakdown" with reasons behind moves
+3. Deepen "Social Momentum & Sentiment Shifts" with crowd psychology
+4. Add more detail to "Derivatives & Leverage" section
+5. Expand "Macro Context & Institutional Moves" with Fed policy details
+6. Add more technical analysis in "Technical Landscape"
+
+Use the same XRayCrypto voice and maintain all <h2> headings. Include specific numbers from the data provided. Make it comprehensive and entertaining.`;
+
+            marketAnalysisPrompt = expansionPrompt + '\n\n' + marketAnalysisPrompt;
+            retryCount++;
+            continue;
+          }
+        }
+        
+        break; // Success
       }
-
-      const aiData = await response.json();
-      generatedAnalysis = aiData.choices?.[0]?.message?.content || '';
+      
+      console.log(`✅ AI generation complete: ${wordCount} words, model: ${useLovableAI ? 'Gemini 2.5 Pro' : isWeekendBrief ? 'GPT-4o' : 'GPT-4o-mini'}`);
+      
     } catch (err) {
-      console.error('❌ OpenAI generation failed, using deterministic fallback:', err);
+      console.error('❌ AI generation failed, using deterministic fallback:', err);
       // Fallback narrative built from real data so we still publish a brief
       const fgVal = currentFearGreed?.value ?? 50;
       const fgLbl = currentFearGreed?.value_classification ?? 'Neutral';
