@@ -282,8 +282,8 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Real-time Polygon Ticker */}
-      <div className="w-full mb-6">
+      {/* Real-time Polygon Ticker - Hidden on large screens */}
+      <div className="w-full mb-6 lg:hidden">
         <PolygonTicker />
       </div>
 
