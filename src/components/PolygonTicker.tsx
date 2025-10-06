@@ -5,6 +5,7 @@ import { Pause, Play, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from './ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PriceData {
   ticker: string;
@@ -23,7 +24,9 @@ export function PolygonTicker() {
   const [logoCache, setLogoCache] = useState<Map<string, string>>(new Map());
   const tickerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
+  const offsetRef = useRef(0); // Persist offset across pauses
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     let mounted = true;
@@ -130,7 +133,6 @@ export function PolygonTicker() {
     if (!tickerRef.current || isPaused) return;
 
     let lastTimestamp = 0;
-    let offset = 0;
 
     const animate = (timestamp: number) => {
       if (!lastTimestamp) {
@@ -140,14 +142,14 @@ export function PolygonTicker() {
       const deltaTime = (timestamp - lastTimestamp) / 1000; // seconds
       lastTimestamp = timestamp;
 
-      offset += speed * deltaTime;
+      offsetRef.current += speed * deltaTime;
 
       if (tickerRef.current) {
         const maxScroll = tickerRef.current.scrollWidth / 2;
-        if (offset >= maxScroll) {
-          offset = 0;
+        if (offsetRef.current >= maxScroll) {
+          offsetRef.current = 0;
         }
-        tickerRef.current.style.transform = `translateX(-${offset}px)`;
+        tickerRef.current.style.transform = `translateX(-${offsetRef.current}px)`;
       }
 
       animationRef.current = requestAnimationFrame(animate);
@@ -176,16 +178,16 @@ export function PolygonTicker() {
 
   return (
     <div className="relative bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y overflow-hidden">
-      <div className="container mx-auto py-2 flex items-center gap-4">
+      <div className="container mx-auto py-2 flex items-center gap-2 md:gap-4">
         {/* Controls */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className={`flex items-center shrink-0 ${isMobile ? 'gap-1' : 'gap-2'}`}>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsPaused(!isPaused)}
-            className="h-7 w-7 p-0"
+            className={isMobile ? 'h-6 w-6 p-0' : 'h-7 w-7 p-0'}
           >
-            {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+            {isPaused ? <Play className={isMobile ? 'h-3 w-3' : 'h-4 w-4'} /> : <Pause className={isMobile ? 'h-3 w-3' : 'h-4 w-4'} />}
           </Button>
           
           <div className="flex flex-col gap-0.5">
@@ -193,21 +195,21 @@ export function PolygonTicker() {
               variant="ghost"
               size="sm"
               onClick={() => setSpeed(s => Math.min(s + 10, 100))}
-              className="h-3 w-5 p-0"
+              className={isMobile ? 'h-2.5 w-4 p-0' : 'h-3 w-5 p-0'}
             >
-              <ChevronUp className="h-3 w-3" />
+              <ChevronUp className={isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSpeed(s => Math.max(s - 10, 10))}
-              className="h-3 w-5 p-0"
+              className={isMobile ? 'h-2.5 w-4 p-0' : 'h-3 w-5 p-0'}
             >
-              <ChevronDown className="h-3 w-3" />
+              <ChevronDown className={isMobile ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
             </Button>
           </div>
 
-          <Badge variant="secondary" className="text-xs shrink-0">
+          <Badge variant="secondary" className={`shrink-0 ${isMobile ? 'text-[10px] px-1.5 py-0' : 'text-xs'}`}>
             LIVE
           </Badge>
         </div>

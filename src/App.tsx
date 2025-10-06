@@ -37,7 +37,7 @@ const App = () => (
     >
       <TooltipProvider>
         <Toaster />
-        <Sonner />
+        <Sonner position="top-center" offset="120px" />
         <CommunityPromotion />
         <SlidingBanner />
         <BrowserRouter>
