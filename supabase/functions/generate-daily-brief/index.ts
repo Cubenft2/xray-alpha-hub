@@ -41,63 +41,169 @@ interface LunarCrushAsset {
   fomo_score: number;
 }
 
-// Deduplication utility function
+// Improved deduplication utility function with phrase-level detection
 function deduplicateContent(text: string): string {
-  // Split by headings to preserve section structure
-  const sections = text.split(/(<h2>.*?<\/h2>)/g);
+  const boilerplateOpeners = [
+    'in plain english:',
+    "what's next:",
+    'bottom line:',
+    "here's the takeaway:",
+    'put simply:',
+    'the short version:',
+    'straight talk:'
+  ];
+  
+  // Track removal counts for logging
+  let removedDuplicates = 0;
+  let removedSimilar = 0;
+  let cappedOpeners = 0;
+  let cappedSymbols = 0;
+  
+  // Split by headings to preserve section structure (both <h2> and markdown ##)
+  const sections = text.split(/(<h2>.*?<\/h2>|^##\s+.*$)/gm);
   const dedupedSections: string[] = [];
-  const seenSentences = new Set<string>();
+  const seenUnits = new Set<string>();
+  const ngramMap = new Map<string, Set<string>>(); // Track n-grams for phrase detection
+  const openerCounts = new Map<string, number>();
+  const symbolCounts = new Map<string, number>();
   
   for (const section of sections) {
     // Always preserve headings
-    if (section.startsWith('<h2>')) {
+    if (section.startsWith('<h2>') || section.match(/^##\s+/)) {
       dedupedSections.push(section);
       continue;
     }
     
-    // Split section into sentences (handle ., !, ?)
-    const sentences = section.split(/(?<=[.!?])\s+/);
-    const dedupedSentences: string[] = [];
+    // Split by punctuation OR newline/bullet boundaries for better segmentation
+    const units = section.split(/(?<=[.!?])\s+|[\r\n]+/).filter(u => u.trim().length > 0);
+    const dedupedUnits: string[] = [];
     
-    for (const sentence of sentences) {
-      if (!sentence.trim()) continue;
+    for (const unit of units) {
+      if (!unit.trim()) continue;
       
-      // Create normalized fingerprint (lowercase, no extra spaces)
-      const fingerprint = sentence.toLowerCase().replace(/\s+/g, ' ').trim();
+      // Create normalized fingerprint (lowercase, no extra spaces, no punctuation)
+      const fingerprint = unit.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
       
-      // Skip if we've seen this exact sentence
-      if (seenSentences.has(fingerprint)) {
-        console.log(`🗑️ Removed duplicate: "${sentence.substring(0, 60)}..."`);
+      // Skip if we've seen this exact unit
+      if (seenUnits.has(fingerprint)) {
+        console.log(`🗑️ Removed duplicate: "${unit.substring(0, 60)}..."`);
+        removedDuplicates++;
         continue;
       }
       
-      // Check for high similarity with existing sentences (>85% match)
-      let isDuplicate = false;
-      for (const seen of seenSentences) {
-        const similarity = calculateSimilarity(fingerprint, seen);
-        if (similarity > 0.85) {
-          console.log(`🗑️ Removed similar sentence (${(similarity * 100).toFixed(0)}% match): "${sentence.substring(0, 60)}..."`);
-          isDuplicate = true;
+      // Generate 3-5 word n-grams for phrase-level detection
+      const words = fingerprint.split(' ');
+      const unitNgrams = new Set<string>();
+      
+      for (let n = 3; n <= 5; n++) {
+        for (let i = 0; i <= words.length - n; i++) {
+          const ngram = words.slice(i, i + n).join(' ');
+          unitNgrams.add(ngram);
+        }
+      }
+      
+      // Check for high n-gram overlap (≥70% indicates paraphrased or list-style repeats)
+      let hasHighOverlap = false;
+      for (const seen of seenUnits) {
+        if (!ngramMap.has(seen)) continue;
+        
+        const seenNgrams = ngramMap.get(seen)!;
+        const intersection = new Set([...unitNgrams].filter(x => seenNgrams.has(x)));
+        const union = new Set([...unitNgrams, ...seenNgrams]);
+        
+        const overlap = intersection.size / union.size;
+        if (overlap >= 0.70) {
+          console.log(`🗑️ Removed similar phrase (${(overlap * 100).toFixed(0)}% n-gram overlap): "${unit.substring(0, 60)}..."`);
+          removedSimilar++;
+          hasHighOverlap = true;
           break;
         }
       }
       
-      if (!isDuplicate) {
-        seenSentences.add(fingerprint);
-        dedupedSentences.push(sentence);
+      if (hasHighOverlap) continue;
+      
+      // Check for lower similarity threshold (0.72 using word-level Jaccard)
+      let isSimilar = false;
+      for (const seen of seenUnits) {
+        const similarity = calculateJaccardSimilarity(fingerprint, seen);
+        if (similarity > 0.72) {
+          console.log(`🗑️ Removed similar sentence (${(similarity * 100).toFixed(0)}% match): "${unit.substring(0, 60)}..."`);
+          removedSimilar++;
+          isSimilar = true;
+          break;
+        }
       }
+      
+      if (isSimilar) continue;
+      
+      // Cap boilerplate openers (keep only first occurrence)
+      let shouldCapOpener = false;
+      for (const opener of boilerplateOpeners) {
+        if (fingerprint.startsWith(opener)) {
+          const count = openerCounts.get(opener) || 0;
+          if (count > 0) {
+            console.log(`🗑️ Capped boilerplate opener: "${opener}"`);
+            cappedOpeners++;
+            shouldCapOpener = true;
+            break;
+          }
+          openerCounts.set(opener, count + 1);
+        }
+      }
+      
+      if (shouldCapOpener) continue;
+      
+      // Limit symbol repetitions (max 2 mentions per asset, unless new context keywords)
+      const symbolMatch = unit.match(/\b([A-Z]{2,12})\b/g);
+      if (symbolMatch) {
+        let shouldCapSymbol = false;
+        for (const symbol of symbolMatch) {
+          const count = symbolCounts.get(symbol) || 0;
+          if (count >= 2) {
+            // Allow if unit introduces new context keywords
+            const hasNewContext = /\b(macro|on-chain|derivatives|technical|institutional|exchange)\b/i.test(unit);
+            if (!hasNewContext) {
+              console.log(`🗑️ Capped symbol repetition: ${symbol} (already mentioned ${count}x)`);
+              cappedSymbols++;
+              shouldCapSymbol = true;
+              break;
+            }
+          }
+          symbolCounts.set(symbol, count + 1);
+        }
+        
+        if (shouldCapSymbol) continue;
+      }
+      
+      // Keep this unit
+      seenUnits.add(fingerprint);
+      ngramMap.set(fingerprint, unitNgrams);
+      dedupedUnits.push(unit);
     }
     
-    if (dedupedSentences.length > 0) {
-      dedupedSections.push(dedupedSentences.join(' '));
+    if (dedupedUnits.length > 0) {
+      dedupedSections.push(dedupedUnits.join(' '));
     }
   }
   
-  return dedupedSections.join('');
+  const result = dedupedSections.join('');
+  
+  // Safety check: warn if >25% of units removed
+  const totalUnits = text.split(/(?<=[.!?])\s+|[\r\n]+/).filter(u => u.trim().length > 0).length;
+  const removedTotal = removedDuplicates + removedSimilar + cappedOpeners + cappedSymbols;
+  const removalRate = removedTotal / totalUnits;
+  
+  console.log(`📊 Deduplication stats: ${removedDuplicates} exact dupes, ${removedSimilar} similar phrases, ${cappedOpeners} capped openers, ${cappedSymbols} capped symbols`);
+  
+  if (removalRate > 0.25) {
+    console.warn(`⚠️ HIGH REMOVAL RATE: ${(removalRate * 100).toFixed(1)}% of units removed (${removedTotal}/${totalUnits})`);
+  }
+  
+  return result;
 }
 
-// Calculate similarity between two strings (Jaccard similarity)
-function calculateSimilarity(str1: string, str2: string): number {
+// Calculate Jaccard similarity between two strings (word-level)
+function calculateJaccardSimilarity(str1: string, str2: string): number {
   const words1 = new Set(str1.split(' '));
   const words2 = new Set(str2.split(' '));
   
@@ -1171,6 +1277,8 @@ Write your complete weekly recap now with all 10 sections using <h2> headings.` 
     // DAILY BRIEF PROMPT (original)
     `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive daily market brief that feels like a smart friend talking through important market moves. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
 
+CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid restating the same data later. Vary transitions; do not reuse the same opener twice. If you reference Bitcoin (BTC) or an asset in the hook, do not repeat the same price/change later — only add new context.
+
 IMPORTANT: When mentioning any cryptocurrency or stock, ALWAYS format it as "Name (SYMBOL)" - for example: "Bitcoin (BTC)", "Ethereum (ETH)", "Apple (AAPL)", "Hyperliquid (HYPE)", etc. This helps readers identify the exact ticker symbol.
 
 **REQUIRED STRUCTURE & VOICE:**
@@ -1285,7 +1393,9 @@ Write approximately 800-1200 words that inform and entertain while staying true 
               messages: [
                 { 
                   role: 'system', 
-                  content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.`
+                  content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.
+                  
+CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid restating the same data later. Vary transitions; do not reuse the same opener twice. If you reference Bitcoin (BTC) or an asset in the hook, do not repeat the same price/change later — only add new context.`
                 },
                 { role: 'user', content: marketAnalysisPrompt }
               ],
@@ -1312,7 +1422,9 @@ Write approximately 800-1200 words that inform and entertain while staying true 
               messages: [
                 { 
                   role: 'system', 
-                  content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. ${isWeekendBrief ? 'This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.' : ''}`
+                  content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. ${isWeekendBrief ? 'This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.' : ''}
+                  
+CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid restating the same data later. Vary transitions; do not reuse the same opener twice. If you reference Bitcoin (BTC) or an asset in the hook, do not repeat the same price/change later — only add new context.`
                 },
                 { role: 'user', content: marketAnalysisPrompt }
               ],
@@ -1382,16 +1494,15 @@ Use the same XRayCrypto voice and maintain all <h2> headings. Include specific n
       const btcLine = btcData ? `Bitcoin sits around $${btcData.current_price?.toLocaleString()} (${btcData.price_change_percentage_24h > 0 ? '+' : ''}${btcData.price_change_percentage_24h?.toFixed(2)}% 24h).` : '';
       const ethLine = ethData ? `Ethereum trades near $${ethData.current_price?.toLocaleString()} (${ethData.price_change_percentage_24h > 0 ? '+' : ''}${ethData.price_change_percentage_24h?.toFixed(2)}% 24h).` : '';
 
-      generatedAnalysis = `Let's talk about something.
-
-${hook}
-${btcLine} ${ethLine}
-
-Fear & Greed prints ${fgVal}/100 (${fgLbl}). Top gainers: ${gainersStr || '—'}. Top losers: ${losersStr || '—'}.
-
-In plain English: the tide was ${fgVal >= 55 ? 'favorable' : fgVal <= 45 ? 'choppy' : 'even'} and flows rotated across majors and selected alts. If you’re casting lines today, mind the currents—momentum clusters around strength and leaves weak hands treading water.
-
-What’s next: watch liquidity into US hours, policy headlines, and any unusually strong social buzz around leaders. Keep your tackle box tidy; quick pivots win on days like this.`;
+      let fallbackText = `Let's talk about something.
+...
+What's next: watch liquidity into US hours, policy headlines, and any unusually strong social buzz around leaders. Keep your tackle box tidy; quick pivots win on days like this.`;
+      
+      // Apply deduplication to fallback content as well
+      console.log('🧹 Deduplicating fallback content...');
+      const fallbackOriginalLength = fallbackText.length;
+      generatedAnalysis = deduplicateContent(fallbackText);
+      console.log(`✅ Fallback deduplication: ${fallbackOriginalLength} → ${generatedAnalysis.length} chars`);
     }
 
     // Enhance the generated content with live ticker data
