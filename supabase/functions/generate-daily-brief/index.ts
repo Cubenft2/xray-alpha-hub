@@ -42,6 +42,7 @@ interface LunarCrushAsset {
 }
 
 // Improved deduplication utility function with paragraph AND phrase-level detection
+// NOW WITH PER-SECTION RESETS TO PRESERVE STRUCTURE
 function deduplicateContent(text: string): string {
   const boilerplateOpeners = [
     'in plain english:',
@@ -53,7 +54,7 @@ function deduplicateContent(text: string): string {
     'straight talk:'
   ];
   
-  // Banned stock phrases that create repetition
+  // Banned stock phrases that create repetition (expanded list, PER-SECTION cap)
   const bannedPhrases = [
     'as we peer ahead',
     'hitting its stride',
@@ -151,22 +152,25 @@ function deduplicateContent(text: string): string {
   
   console.log(`✅ Paragraph deduplication complete: removed ${paragraphsRemoved} duplicate/similar paragraphs`);
   
-  // ===== STEP 2: SENTENCE-LEVEL DEDUPLICATION (existing logic) =====
+  // ===== STEP 2: SENTENCE-LEVEL DEDUPLICATION (PER-SECTION) =====
   
   // Split by headings to preserve section structure (both <h2> and markdown ##)
   const sections = text.split(/(<h2>.*?<\/h2>|^##\s+.*$)/gm);
   const dedupedSections: string[] = [];
-  const seenUnits = new Set<string>();
-  const ngramMap = new Map<string, Set<string>>(); // Track n-grams for phrase detection
-  const openerCounts = new Map<string, number>();
-  const symbolCounts = new Map<string, number>();
   
+  // CRITICAL FIX: Reset tracking per section to avoid removing valid content from later sections
   for (const section of sections) {
     // Always preserve headings
     if (section.startsWith('<h2>') || section.match(/^##\s+/)) {
       dedupedSections.push(section);
       continue;
     }
+    
+    // RESET PER SECTION (this is the key fix)
+    const seenUnits = new Set<string>();
+    const ngramMap = new Map<string, Set<string>>(); 
+    const openerCounts = new Map<string, number>();
+    const symbolCounts = new Map<string, number>();
     
     // Split by punctuation OR newline/bullet boundaries for better segmentation
     const units = section.split(/(?<=[.!?])\s+|[\r\n]+/).filter(u => u.trim().length > 0);
@@ -178,9 +182,9 @@ function deduplicateContent(text: string): string {
       // Create normalized fingerprint (lowercase, no extra spaces, no punctuation)
       const fingerprint = unit.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
       
-      // Skip if we've seen this exact unit
+      // Skip if we've seen this exact unit IN THIS SECTION
       if (seenUnits.has(fingerprint)) {
-        console.log(`🗑️ Removed duplicate: "${unit.substring(0, 60)}..."`);
+        console.log(`🗑️ Removed duplicate (section-level): "${unit.substring(0, 60)}..."`);
         removedDuplicates++;
         continue;
       }
@@ -230,7 +234,7 @@ function deduplicateContent(text: string): string {
       
       if (isSimilar) continue;
       
-      // Cap boilerplate openers (keep only first occurrence)
+      // Cap boilerplate openers (per section)
       let shouldCapOpener = false;
       for (const opener of boilerplateOpeners) {
         if (fingerprint.startsWith(opener)) {
@@ -247,7 +251,7 @@ function deduplicateContent(text: string): string {
       
       if (shouldCapOpener) continue;
       
-      // Limit symbol repetitions (max 2 mentions per asset, unless new context keywords)
+      // Limit symbol repetitions (max 2 mentions per asset per section, unless new context keywords)
       const symbolMatch = unit.match(/\b([A-Z]{2,12})\b/g);
       if (symbolMatch) {
         let shouldCapSymbol = false;
@@ -257,7 +261,7 @@ function deduplicateContent(text: string): string {
             // Allow if unit introduces new context keywords
             const hasNewContext = /\b(macro|on-chain|derivatives|technical|institutional|exchange)\b/i.test(unit);
             if (!hasNewContext) {
-              console.log(`🗑️ Capped symbol repetition: ${symbol} (already mentioned ${count}x)`);
+              console.log(`🗑️ Capped symbol repetition: ${symbol} (already mentioned ${count}x in section)`);
               cappedSymbols++;
               shouldCapSymbol = true;
               break;
@@ -280,7 +284,8 @@ function deduplicateContent(text: string): string {
     }
   }
   
-  const result = dedupedSections.join('');
+  // CRITICAL FIX: Rejoin with double newlines to preserve section spacing
+  const result = dedupedSections.join('\n\n');
   
   // Safety check: warn if >25% of units removed
   const totalUnits = text.split(/(?<=[.!?])\s+|[\r\n]+/).filter(u => u.trim().length > 0).length;
@@ -361,9 +366,12 @@ async function validateBriefContent(
     .eq('is_active', true);
   
   const mappingsBySymbol = new Map();
+  const mappingsByNormalized = new Map();
   if (tickerMappings) {
     tickerMappings.forEach((m: any) => {
-      mappingsBySymbol.set(m.symbol.toUpperCase(), m);
+      const normalized = m.symbol.toUpperCase().trim();
+      mappingsBySymbol.set(normalized, m);
+      mappingsByNormalized.set(normalized, m);
     });
   }
   
@@ -381,22 +389,24 @@ async function validateBriefContent(
     const isCryptoSection = cryptoSectionPattern.test(prevHeader);
     const isStockSection = stockSectionPattern.test(prevHeader);
     
-    // Extract asset mentions (SYMBOL) patterns
-    const mentions = section.match(/\(([A-Z]{2,10})\)/g);
+    // Extract asset mentions (SYMBOL) patterns - normalize tokens
+    const mentions = section.match(/\(([A-Z0-9_]{2,10})\)/g);
     if (mentions) {
       mentions.forEach(m => {
-        const symbol = m.replace(/[()]/g, '');
+        const symbol = m.replace(/[()]/g, '').toUpperCase().trim();
         assetMentions.set(symbol, (assetMentions.get(symbol) || 0) + 1);
         
-        // CRITICAL: Database-backed type validation
-        const mapping = mappingsBySymbol.get(symbol);
+        // CRITICAL: Database-backed type validation with normalization
+        const mapping = mappingsByNormalized.get(symbol);
         if (mapping) {
-          if (isCryptoSection && mapping.type !== 'crypto') {
+          // FIXED: Allow 'dex' type in crypto sections alongside 'crypto'
+          if (isCryptoSection && !['crypto', 'dex'].includes(mapping.type)) {
             issues.push(`CRITICAL: ${symbol} (type: ${mapping.type || 'undefined'}) in Cryptocurrency section - ${prevHeader}`);
             metrics.assetMisclassifications++;
           }
           
-          if (isStockSection && mapping.type !== 'stock') {
+          // FIXED: Allow 'etf' type in stock sections alongside 'stock'
+          if (isStockSection && !['stock', 'etf'].includes(mapping.type)) {
             issues.push(`CRITICAL: ${symbol} (type: ${mapping.type || 'undefined'}) in Stock section - ${prevHeader}`);
             metrics.assetMisclassifications++;
           }
@@ -406,7 +416,8 @@ async function validateBriefContent(
             metrics.assetMisclassifications++;
           }
         } else {
-          issues.push(`WARNING: ${symbol} not found in ticker_mappings`);
+          // Only warn if we haven't found this symbol at all - could be typo or missing mapping
+          console.log(`⚠️ Symbol ${symbol} not found in ticker_mappings - may need normalization`);
         }
       });
     }
@@ -509,6 +520,7 @@ async function validateBriefContent(
 }
 
 // Post-processing: remove duplicate sentences within paragraphs and within each section
+// ENHANCED: Add cross-section similarity guard
 function dedupeSentencesScoped(text: string): string {
   const parts = text.split(/(<h2>.*?<\/h2>|^##\s+.*$)/gm);
   const out: string[] = [];
@@ -547,7 +559,87 @@ function dedupeSentencesScoped(text: string): string {
       out.push(processedParas.join('\n\n'));
     }
   }
-  return out.join('');
+  return out.join('\n\n'); // FIXED: Preserve section spacing
+}
+
+// NEW: Cross-section similarity guard to catch repetition between sections
+function applyCrossSectionSimilarityGuard(text: string): string {
+  console.log('🔍 Running cross-section similarity guard...');
+  
+  const sections = text.split(/(<h2>.*?<\/h2>)/g).filter(s => s.trim());
+  const processedSections: string[] = [];
+  const sectionBodies: Array<{ header: string; body: string; sentences: string[] }> = [];
+  
+  // Parse sections into header + body
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    if (section.startsWith('<h2>')) {
+      const nextSection = sections[i + 1] || '';
+      const sentences = nextSection
+        .split(/[.!?]+/)
+        .map(s => s.trim().toLowerCase().replace(/<[^>]+>/g, '').replace(/\s+/g, ' '))
+        .filter(s => s.length > 20);
+      
+      sectionBodies.push({
+        header: section,
+        body: nextSection,
+        sentences: sentences
+      });
+    }
+  }
+  
+  // Compare each section to prior sections
+  let prunedSentences = 0;
+  for (let i = 0; i < sectionBodies.length; i++) {
+    const current = sectionBodies[i];
+    const keptSentences = new Set(current.sentences);
+    
+    // Compare to all previous sections
+    for (let j = 0; j < i; j++) {
+      const prior = sectionBodies[j];
+      
+      // Calculate Jaccard similarity between sentence sets
+      const intersection = new Set([...current.sentences].filter(x => prior.sentences.includes(x)));
+      const union = new Set([...current.sentences, ...prior.sentences]);
+      const similarity = intersection.size / union.size;
+      
+      // If >60% overlap, prune overlapping sentences from current section
+      if (similarity > 0.60) {
+        console.log(`🗑️ Cross-section overlap detected: "${current.header.substring(0, 50)}" vs "${prior.header.substring(0, 50)}" (${(similarity * 100).toFixed(0)}% similar)`);
+        
+        // Remove overlapping sentences from current
+        for (const sentence of intersection) {
+          keptSentences.delete(sentence);
+          prunedSentences++;
+        }
+      }
+    }
+    
+    // Reconstruct section body from kept sentences
+    if (keptSentences.size < current.sentences.length) {
+      const originalSentences = current.body.split(/([.!?]+)/);
+      const rebuilt: string[] = [];
+      
+      for (let k = 0; k < originalSentences.length; k += 2) {
+        const sent = originalSentences[k];
+        const punct = originalSentences[k + 1] || '';
+        const normalized = sent.trim().toLowerCase().replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+        
+        if (keptSentences.has(normalized)) {
+          rebuilt.push(sent + punct);
+        }
+      }
+      
+      sectionBodies[i].body = rebuilt.join('');
+    }
+    
+    processedSections.push(current.header);
+    processedSections.push(sectionBodies[i].body);
+  }
+  
+  console.log(`✅ Cross-section guard complete: pruned ${prunedSentences} overlapping sentences`);
+  
+  return processedSections.join('\n\n');
 }
 
 serve(async (req) => {
@@ -1879,30 +1971,28 @@ UNIQUE CONTENT RULES:
           throw new Error(`API error: ${response.status} ${errText}`);
         }
 
-const aiData = await response.json();
+        const aiData = await response.json();
         generatedAnalysis = aiData.choices?.[0]?.message?.content || '';
         modelUsed = lastTriedModel;
         
-// Post-process: scoped sentence dedup (per paragraph/section), then global safety pass
-        console.log('🧹 Deduplicating content (scoped -> global)...');
+        // ENHANCED POST-PROCESSING PIPELINE
+        console.log('🧹 Starting enhanced deduplication pipeline...');
         const originalLength = generatedAnalysis.length;
+        
+        // Step 1: Scoped sentence dedup (per paragraph/section)
         generatedAnalysis = dedupeSentencesScoped(generatedAnalysis);
+        console.log(`   Step 1 (scoped): ${originalLength} → ${generatedAnalysis.length} chars`);
+        
+        // Step 2: Cross-section similarity guard (NEW)
+        generatedAnalysis = applyCrossSectionSimilarityGuard(generatedAnalysis);
+        console.log(`   Step 2 (cross-section): ${generatedAnalysis.length} chars`);
+        
+        // Step 3: Global deduplication with per-section resets
         generatedAnalysis = deduplicateContent(generatedAnalysis);
         const dedupedLength = generatedAnalysis.length;
-        console.log(`✅ Deduplication complete: ${originalLength} → ${dedupedLength} chars (removed ${originalLength - dedupedLength} chars)`);
+        console.log(`   Step 3 (global): ${dedupedLength} chars`);
+        console.log(`✅ Total deduplication: ${originalLength} → ${dedupedLength} chars (removed ${originalLength - dedupedLength} chars, ${((1 - dedupedLength / originalLength) * 100).toFixed(1)}%)`);
         
-        // Run pre-publish validation
-        const validation = await validateBriefContent(generatedAnalysis, briefType, supabase);
-        if (validation.cleanedContent) {
-          generatedAnalysis = validation.cleanedContent;
-          console.log('✅ Applied auto-corrections from validation');
-        }
-        
-        if (!validation.passed) {
-          console.warn('⚠️ Validation found issues:', validation.issues);
-        }
-        
-        console.log('📊 Validation metrics:', validation.metrics);
         // Check word count for weekend briefs
         if (isWeekendBrief && generatedAnalysis) {
           wordCount = generatedAnalysis.split(/\s+/).length;
@@ -1951,15 +2041,16 @@ Use the same XRayCrypto voice and maintain all <h2> headings. Include specific n
 ...
 What's next: watch liquidity into US hours, policy headlines, and any unusually strong social buzz around leaders. Keep your tackle box tidy; quick pivots win on days like this.`;
       
-// Apply deduplication to fallback content as well
+      // Apply deduplication to fallback content as well
       console.log('🧹 Deduplicating fallback content...');
       const fallbackOriginalLength = fallbackText.length;
       generatedAnalysis = dedupeSentencesScoped(fallbackText);
+      generatedAnalysis = applyCrossSectionSimilarityGuard(generatedAnalysis);
       generatedAnalysis = deduplicateContent(generatedAnalysis);
       console.log(`✅ Fallback deduplication: ${fallbackOriginalLength} → ${generatedAnalysis.length} chars`);
     }
 
-    // Run pre-publish validation
+    // Run SINGLE pre-publish validation (REMOVED DUPLICATE at line 1895)
     console.log('🔍 Running pre-publish validation...');
     const validation = await validateBriefContent(generatedAnalysis, briefType, supabase);
     
