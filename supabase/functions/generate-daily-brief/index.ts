@@ -353,8 +353,19 @@ async function validateBriefContent(
   
   // Track asset mentions across sections
   const assetMentions = new Map<string, number>();
-  const cryptoSymbols = new Set(['BTC', 'ETH', 'XRP', 'ADA', 'SOL', 'DOT', 'DOGE', 'AVAX', 'LINK', 'MATIC']);
-  const stockExchanges = ['NYSE', 'NASDAQ', 'AMEX'];
+  
+  // Fetch ticker mappings for type validation
+  const { data: tickerMappings } = await supabase
+    .from('ticker_mappings')
+    .select('symbol, type, display_name')
+    .eq('is_active', true);
+  
+  const mappingsBySymbol = new Map();
+  if (tickerMappings) {
+    tickerMappings.forEach((m: any) => {
+      mappingsBySymbol.set(m.symbol.toUpperCase(), m);
+    });
+  }
   
   // Check for asset type misclassifications
   const cryptoSectionPattern = /<h2>.*?(Cryptocurrency|Crypto|Bitcoin|Altcoin).*?<\/h2>/i;
@@ -377,15 +388,25 @@ async function validateBriefContent(
         const symbol = m.replace(/[()]/g, '');
         assetMentions.set(symbol, (assetMentions.get(symbol) || 0) + 1);
         
-        // Check for misclassification
-        if (isCryptoSection && stockExchanges.some(ex => section.includes(ex))) {
-          issues.push(`Stock exchange mentioned in crypto section: ${prevHeader}`);
-          metrics.assetMisclassifications++;
-        }
-        
-        if (isStockSection && cryptoSymbols.has(symbol)) {
-          issues.push(`Crypto asset ${symbol} in stock section: ${prevHeader}`);
-          metrics.assetMisclassifications++;
+        // CRITICAL: Database-backed type validation
+        const mapping = mappingsBySymbol.get(symbol);
+        if (mapping) {
+          if (isCryptoSection && mapping.type !== 'crypto') {
+            issues.push(`CRITICAL: ${symbol} (type: ${mapping.type || 'undefined'}) in Cryptocurrency section - ${prevHeader}`);
+            metrics.assetMisclassifications++;
+          }
+          
+          if (isStockSection && mapping.type !== 'stock') {
+            issues.push(`CRITICAL: ${symbol} (type: ${mapping.type || 'undefined'}) in Stock section - ${prevHeader}`);
+            metrics.assetMisclassifications++;
+          }
+          
+          if (!mapping.type) {
+            issues.push(`CRITICAL: ${symbol} has no type defined in ticker_mappings`);
+            metrics.assetMisclassifications++;
+          }
+        } else {
+          issues.push(`WARNING: ${symbol} not found in ticker_mappings`);
         }
       });
     }

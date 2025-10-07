@@ -205,6 +205,32 @@ Deno.serve(async (req) => {
         console.log(`  ✓ Found in poly_tickers: ${polyMatch.ticker} (${polyMatch.name})`);
         
         // Add to pending with Polygon info
+        // Auto-detect type based on Polygon market
+        let detectedType = 'crypto'; // default
+        if (polyMatch.market === 'stocks') {
+          detectedType = 'stock';
+        } else if (polyMatch.market === 'fx') {
+          detectedType = 'forex';
+        } else if (polyMatch.market === 'crypto') {
+          detectedType = 'crypto';
+        }
+        
+        // Generate proper TradingView symbol with exchange prefix for stocks
+        let tvSymbol = undefined;
+        if (polyMatch.market === 'stocks') {
+          if (polyMatch.primary_exchange?.includes('NASDAQ')) {
+            tvSymbol = `NASDAQ:${polyMatch.ticker}`;
+          } else if (polyMatch.primary_exchange?.includes('NYSE')) {
+            tvSymbol = `NYSE:${polyMatch.ticker}`;
+          } else {
+            tvSymbol = polyMatch.ticker;
+          }
+        } else if (polyMatch.market === 'crypto') {
+          tvSymbol = `CRYPTO:${normalized}USDT`;
+        } else if (polyMatch.market === 'fx') {
+          tvSymbol = `FX:${normalized}`;
+        }
+        
         const { error: upsertError } = await supabase
           .from('pending_ticker_mappings')
           .upsert({
@@ -212,9 +238,7 @@ Deno.serve(async (req) => {
             normalized_symbol: normalized,
             display_name: polyMatch.name,
             polygon_ticker: polyMatch.ticker,
-            tradingview_symbol: polyMatch.market === 'stocks' ? polyMatch.ticker : 
-                              polyMatch.market === 'crypto' ? `CRYPTO:${normalized}USDT` :
-                              polyMatch.market === 'fx' ? `FX:${normalized}` : undefined,
+            tradingview_symbol: tvSymbol,
             confidence_score: 0.85,
             match_type: 'polygon_exact',
             status: 'pending',
@@ -223,6 +247,7 @@ Deno.serve(async (req) => {
               polygon_ticker: polyMatch.ticker,
               polygon_market: polyMatch.market,
               polygon_type: polyMatch.type,
+              detected_type: detectedType,
               added_at: new Date().toISOString(),
             },
           }, {
