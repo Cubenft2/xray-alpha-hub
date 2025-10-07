@@ -1961,7 +1961,7 @@ What's next: watch liquidity into US hours, policy headlines, and any unusually 
 
     // Run pre-publish validation
     console.log('🔍 Running pre-publish validation...');
-    const validation = await validateBriefContent(generatedAnalysis);
+    const validation = await validateBriefContent(generatedAnalysis, briefType, supabase);
     
     console.log(`✅ Validation complete: ${validation.passed ? 'PASSED' : 'FAILED'}`);
     console.log(`📊 Validation metrics:`, validation.metrics);
