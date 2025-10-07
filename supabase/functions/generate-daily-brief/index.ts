@@ -53,11 +53,30 @@ function deduplicateContent(text: string): string {
     'straight talk:'
   ];
   
+  // Banned stock phrases that create repetition
+  const bannedPhrases = [
+    'as we peer ahead',
+    'hitting its stride',
+    'the road ahead',
+    'keep your eyes peeled',
+    'stay nimble',
+    'buckle up',
+    'strap in',
+    'hold onto your hats',
+    'the takeaway',
+    'the bottom line',
+    'what does this mean',
+    'here is what matters',
+    'at the end of the day'
+  ];
+  
   // Track removal counts for logging
   let removedDuplicates = 0;
   let removedSimilar = 0;
   let cappedOpeners = 0;
   let cappedSymbols = 0;
+  let bannedPhrasesCapped = 0;
+  let paragraphsRemoved = 0;
   
   // Split by headings to preserve section structure (both <h2> and markdown ##)
   const sections = text.split(/(<h2>.*?<\/h2>|^##\s+.*$)/gm);
@@ -211,6 +230,163 @@ function calculateJaccardSimilarity(str1: string, str2: string): number {
   const union = new Set([...words1, ...words2]);
   
   return intersection.size / union.size;
+}
+
+// Pre-publish validation layer
+interface ValidationResult {
+  passed: boolean;
+  issues: string[];
+  metrics: {
+    duplicateSentences: number;
+    repeatedPhrases: number;
+    assetMisclassifications: number;
+    sectionsWithIssues: number;
+    totalSections: number;
+    wordCount: number;
+  };
+  cleanedContent?: string;
+}
+
+async function validateBriefContent(
+  content: string, 
+  briefType: string,
+  supabase: any
+): Promise<ValidationResult> {
+  const issues: string[] = [];
+  const metrics = {
+    duplicateSentences: 0,
+    repeatedPhrases: 0,
+    assetMisclassifications: 0,
+    sectionsWithIssues: 0,
+    totalSections: 0,
+    wordCount: content.split(/\s+/).length
+  };
+  
+  console.log('🔍 Running pre-publish validation...');
+  
+  // Extract sections (split by <h2> tags)
+  const sections = content.split(/(<h2>.*?<\/h2>)/g).filter(s => s.trim());
+  metrics.totalSections = sections.filter(s => s.startsWith('<h2>')).length;
+  
+  // Track asset mentions across sections
+  const assetMentions = new Map<string, number>();
+  const cryptoSymbols = new Set(['BTC', 'ETH', 'XRP', 'ADA', 'SOL', 'DOT', 'DOGE', 'AVAX', 'LINK', 'MATIC']);
+  const stockExchanges = ['NYSE', 'NASDAQ', 'AMEX'];
+  
+  // Check for asset type misclassifications
+  const cryptoSectionPattern = /<h2>.*?(Cryptocurrency|Crypto|Bitcoin|Altcoin).*?<\/h2>/i;
+  const stockSectionPattern = /<h2>.*?(Stock|Traditional Market|Equity|S&P).*?<\/h2>/i;
+  
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    
+    // Skip headers
+    if (section.startsWith('<h2>')) continue;
+    
+    const prevHeader = i > 0 ? sections[i - 1] : '';
+    const isCryptoSection = cryptoSectionPattern.test(prevHeader);
+    const isStockSection = stockSectionPattern.test(prevHeader);
+    
+    // Extract asset mentions (SYMBOL) patterns
+    const mentions = section.match(/\(([A-Z]{2,10})\)/g);
+    if (mentions) {
+      mentions.forEach(m => {
+        const symbol = m.replace(/[()]/g, '');
+        assetMentions.set(symbol, (assetMentions.get(symbol) || 0) + 1);
+        
+        // Check for misclassification
+        if (isCryptoSection && stockExchanges.some(ex => section.includes(ex))) {
+          issues.push(`Stock exchange mentioned in crypto section: ${prevHeader}`);
+          metrics.assetMisclassifications++;
+        }
+        
+        if (isStockSection && cryptoSymbols.has(symbol)) {
+          issues.push(`Crypto asset ${symbol} in stock section: ${prevHeader}`);
+          metrics.assetMisclassifications++;
+        }
+      });
+    }
+    
+    // Check for calling stocks "cryptocurrencies" or vice versa
+    if (isStockSection && /\b(cryptocurrency|crypto asset|token|blockchain)\b/i.test(section)) {
+      issues.push(`Crypto terminology in stock section: ${prevHeader}`);
+      metrics.assetMisclassifications++;
+    }
+    
+    if (isCryptoSection && /\b(stock exchange|equity|share price|NYSE|NASDAQ)\b/i.test(section)) {
+      issues.push(`Stock terminology in crypto section: ${prevHeader}`);
+      metrics.assetMisclassifications++;
+    }
+  }
+  
+  // Check for assets mentioned more than twice
+  for (const [symbol, count] of assetMentions) {
+    if (count > 2) {
+      issues.push(`Asset ${symbol} mentioned ${count} times (max 2 recommended)`);
+    }
+  }
+  
+  // Check for duplicate sentences across the entire brief
+  const sentences = content
+    .replace(/<[^>]+>/g, '') // Strip HTML
+    .split(/[.!?]+/)
+    .map(s => s.trim().toLowerCase())
+    .filter(s => s.length > 20);
+  
+  const seenSentences = new Set<string>();
+  for (const sentence of sentences) {
+    if (seenSentences.has(sentence)) {
+      metrics.duplicateSentences++;
+    }
+    seenSentences.add(sentence);
+  }
+  
+  // Check for repeated stock phrases
+  const stockPhrases = [
+    'as we peer ahead',
+    'hitting its stride',
+    'keep your eyes peeled',
+    'buckle up',
+    'the takeaway'
+  ];
+  
+  for (const phrase of stockPhrases) {
+    const regex = new RegExp(phrase, 'gi');
+    const matches = content.match(regex);
+    if (matches && matches.length > 1) {
+      issues.push(`Repeated phrase "${phrase}" (${matches.length} times)`);
+      metrics.repeatedPhrases++;
+    }
+  }
+  
+  // Auto-clean minor issues
+  let cleanedContent = content;
+  
+  // Remove repeated stock phrases (keep first occurrence only)
+  for (const phrase of stockPhrases) {
+    const regex = new RegExp(`\\b${phrase}\\b`, 'gi');
+    let firstMatch = true;
+    cleanedContent = cleanedContent.replace(regex, (match) => {
+      if (firstMatch) {
+        firstMatch = false;
+        return match;
+      }
+      return '';
+    });
+  }
+  
+  console.log('✅ Validation complete:', {
+    passed: issues.length === 0,
+    issues: issues.length,
+    metrics
+  });
+  
+  return {
+    passed: issues.length === 0 && metrics.assetMisclassifications === 0,
+    issues,
+    metrics,
+    cleanedContent
+  };
 }
 
 // Post-processing: remove duplicate sentences within paragraphs and within each section
@@ -1314,24 +1490,62 @@ REQUIREMENT: In your "What's Coming Next Week" section, reference these specific
 - End with a meaningful Stoic quote
 - Make it comprehensive, entertaining, and worth the weekend read
 
+CRITICAL STRUCTURAL RULES (MUST FOLLOW):
+1. NEVER mix crypto and stock terminology:
+   - In crypto sections: use "token", "coin", "crypto asset", "blockchain"
+   - In stock sections: use "stock", "equity", "share", "NYSE/NASDAQ"
+   - NEVER call a stock a "cryptocurrency" or a crypto a "stock"
+
+2. Each asset gets ONE primary analysis per brief:
+   - First mention: Full context with price and percentage
+   - Any later reference: MUST add NEW context in ≤10 words
+   - NEVER restate price/percentage data already mentioned
+
+3. BANNED REPETITIONS (do not use more than once):
+   - "as we peer ahead", "hitting its stride", "buckle up"
+   - Do NOT copy sentences between sections
+
 Write your complete weekly recap now with all 10 sections using <h2> headings.` :
     
-    // DAILY BRIEF PROMPT (original)
+    // DAILY BRIEF PROMPT (with strict structural rules)
     `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive daily market brief that feels like a smart friend talking through important market moves. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
 
-CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid restating the same data later. Vary transitions; do not reuse the same opener twice. If you reference Bitcoin (BTC) or an asset in the hook, do not repeat the same price/change later — only add new context.
+CRITICAL STRUCTURAL RULES (MUST FOLLOW):
+1. Use <h2> HTML tags to separate distinct sections:
+   - <h2>Market Overview</h2> (overall market sentiment, F&G)
+   - <h2>Cryptocurrency Movers</h2> (ONLY crypto assets - BTC, ETH, altcoins)
+   - <h2>Traditional Market Updates</h2> (ONLY stocks, commodities, forex - if relevant)
+   - <h2>Exchange Dynamics</h2> (liquidity, volume, listings)
+   - <h2>Social Sentiment</h2> (LunarCrush data, crowd behavior)
+   - <h2>What's Ahead</h2> (upcoming catalysts)
+
+2. NEVER mix crypto and stock terminology:
+   - In Cryptocurrency sections: use "token", "coin", "crypto asset", "blockchain"
+   - In Traditional Market sections: use "stock", "equity", "share", "NYSE/NASDAQ"
+   - NEVER call a stock a "cryptocurrency" or a crypto a "stock"
+
+3. Each asset gets ONE primary analysis in its designated section:
+   - First mention: Full context with price and percentage
+   - Any later reference: MUST add NEW context (derivatives, social, macro) in ≤10 words
+   - NEVER restate price/percentage data already mentioned
+
+4. BANNED REPETITIONS (do not use more than once):
+   - "as we peer ahead", "hitting its stride", "keep your eyes peeled", "buckle up", "the takeaway"
+   - "what does this mean", "here is what matters", "at the end of the day"
+   - Do NOT copy sentences between sections - vary wording completely
 
 IMPORTANT: When mentioning any cryptocurrency or stock, ALWAYS format it as "Name (SYMBOL)" - for example: "Bitcoin (BTC)", "Ethereum (ETH)", "Apple (AAPL)", "Hyperliquid (HYPE)", etc. This helps readers identify the exact ticker symbol.
 
 **REQUIRED STRUCTURE & VOICE:**
 1. Start with: "Let's talk about something."
 2. **Data-Driven Hook** - Lead with the biggest market move/surprise backed by real numbers
-3. **Context & Multi-Asset View** - Connect events to broader crypto and macro themes
-4. **Top Movers Analysis** - Discuss significant gainers and losers with personality
-5. **Exchange Coverage** - Mention which major exchanges are showing the best liquidity or prices for interesting tokens (Binance, Coinbase, Bybit, OKX, Bitget, MEXC, Gate.io, HTX)
-6. **Social & Sentiment Insights** - Weave in crowd behavior and social metrics
-7. **What's Next** - Preview upcoming catalysts and things to watch
-8. End with a memorable, one-sentence takeaway
+3. Use <h2> tags for each section as specified above
+4. **Cryptocurrency Movers** - Discuss crypto gains/losses with personality (CRYPTO ONLY)
+5. **Traditional Markets** - If relevant, mention stocks/commodities (SEPARATE from crypto)
+6. **Exchange Coverage** - Mention liquidity/volume on major exchanges
+7. **Social & Sentiment Insights** - Weave in crowd behavior and social metrics
+8. **What's Ahead** - Preview upcoming catalysts
+9. End with a memorable, one-sentence takeaway
 
 **EXCHANGE INTEGRATION GUIDELINES:**
 - When discussing significant price moves, mention if there are notable price differences across exchanges
@@ -1437,9 +1651,24 @@ const maxRetries = isWeekendBrief ? 1 : 0; // Allow one retry for weekend if und
               messages: [
                 { 
                   role: 'system', 
-                  content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.
+                  content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. ${isWeekendBrief ? 'This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.' : ''}
                   
-CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid restating the same data later. Vary transitions; do not reuse the same opener twice. If you reference Bitcoin (BTC) or an asset in the hook, do not repeat the same price/change later — only add new context.`
+CRITICAL STRUCTURAL RULES:
+1. Use <h2> HTML tags to clearly separate sections
+2. NEVER mix crypto and stock terminology:
+   - In crypto sections: use "token", "coin", "crypto asset", "blockchain"  
+   - In stock sections: use "stock", "equity", "share", "NYSE/NASDAQ"
+   - NEVER call a stock a "cryptocurrency" or vice versa
+3. Each asset gets ONE primary analysis - later mentions must add NEW context in ≤10 words
+4. NEVER restate price/percentage data already mentioned
+5. BANNED PHRASES (use max once): "as we peer ahead", "hitting its stride", "buckle up"
+6. Do NOT copy sentences between sections - vary all wording
+7. If a fact was stated earlier, only reference it to add a new angle
+
+UNIQUE CONTENT RULES:
+- Each section must deliver unique insights; do not repeat identical information across sections.
+- Never copy sentences or stock phrases between sections; vary wording and transitions.
+- Avoid echoing price/percent changes already mentioned unless bringing a different perspective (derivatives, liquidity, macro).`
                 },
                 { role: 'user', content: marketAnalysisPrompt }
               ],
@@ -1469,12 +1698,21 @@ console.log(`🤖 Using OpenAI (${isWeekendBrief ? 'gpt-4o' : 'gpt-4o-mini'}) fo
                   role: 'system', 
                   content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. ${isWeekendBrief ? 'This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.' : ''}
                   
-CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid restating the same data later. Vary transitions; do not reuse the same opener twice. If you reference Bitcoin (BTC) or an asset in the hook, do not repeat the same price/change later — only add new context.
+CRITICAL STRUCTURAL RULES:
+1. Use <h2> HTML tags to clearly separate sections  
+2. NEVER mix crypto and stock terminology:
+   - In crypto sections: use "token", "coin", "crypto asset", "blockchain"
+   - In stock sections: use "stock", "equity", "share", "NYSE/NASDAQ"
+   - NEVER call a stock a "cryptocurrency" or vice versa
+3. Each asset gets ONE primary analysis - later mentions must add NEW context in ≤10 words
+4. NEVER restate price/percentage data already mentioned
+5. BANNED PHRASES (use max once): "as we peer ahead", "hitting its stride", "buckle up"
+6. Do NOT copy sentences between sections - vary all wording
+7. If a fact was stated earlier, only reference it to add a new angle
 
 UNIQUE CONTENT RULES:
 - Each section must deliver unique insights; do not repeat identical information across sections.
 - Never copy sentences or stock phrases between sections; vary wording and transitions.
-- If a fact was stated earlier, only reference it to add a new angle (why it matters, implications, or next steps).
 - Avoid echoing price/percent changes already mentioned unless bringing a different perspective (derivatives, liquidity, macro).`
                 },
                 { role: 'user', content: marketAnalysisPrompt }
@@ -1503,6 +1741,18 @@ const aiData = await response.json();
         const dedupedLength = generatedAnalysis.length;
         console.log(`✅ Deduplication complete: ${originalLength} → ${dedupedLength} chars (removed ${originalLength - dedupedLength} chars)`);
         
+        // Run pre-publish validation
+        const validation = await validateBriefContent(generatedAnalysis, briefType, supabase);
+        if (validation.cleanedContent) {
+          generatedAnalysis = validation.cleanedContent;
+          console.log('✅ Applied auto-corrections from validation');
+        }
+        
+        if (!validation.passed) {
+          console.warn('⚠️ Validation found issues:', validation.issues);
+        }
+        
+        console.log('📊 Validation metrics:', validation.metrics);
         // Check word count for weekend briefs
         if (isWeekendBrief && generatedAnalysis) {
           wordCount = generatedAnalysis.split(/\s+/).length;
@@ -1726,12 +1976,14 @@ What's next: watch liquidity into US hours, policy headlines, and any unusually 
         executive_summary: isWeekendBrief ?
           `Comprehensive weekly market analysis covering 7-day performance, macro events, and next week's outlook. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads weekly performance with ${biggestMover.price_change_percentage_7d_in_currency > 0 ? '+' : ''}${biggestMover.price_change_percentage_7d_in_currency?.toFixed(1)}% move.` : 'Mixed weekly performance across markets.'}` :
           `Comprehensive daily market intelligence combining price action, social sentiment, and trend analysis. Fear & Greed at ${currentFearGreed.value}/100 (${currentFearGreed.value_classification}). ${biggestMover ? `${biggestMover.name} leads with ${biggestMover.price_change_percentage_24h > 0 ? '+' : ''}${biggestMover.price_change_percentage_24h.toFixed(1)}% move.` : 'Markets showing mixed signals.'}`,
-        content_sections: {
+          content_sections: {
           ai_generated_content: generatedAnalysis,
           generation_timestamp: new Date().toISOString(),
           audit_data: auditData,
           missing_symbols: missingSymbols,
-model_used: modelUsed || 'unknown',
+          model_used: modelUsed || 'unknown',
+          validation_metrics: validation?.metrics || null,
+          validation_issues: validation?.issues || [],
           data_sources: ['coingecko', 'lunarcrush', 'fear_greed', 'news_feeds', 'trending'],
           market_data: {
             total_market_cap: totalMarketCap,
