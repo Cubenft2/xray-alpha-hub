@@ -1809,6 +1809,25 @@ What's next: watch liquidity into US hours, policy headlines, and any unusually 
       console.log(`✅ Fallback deduplication: ${fallbackOriginalLength} → ${generatedAnalysis.length} chars`);
     }
 
+    // Run pre-publish validation
+    console.log('🔍 Running pre-publish validation...');
+    const validation = await validateBriefContent(generatedAnalysis);
+    
+    console.log(`✅ Validation complete: ${validation.passed ? 'PASSED' : 'FAILED'}`);
+    console.log(`📊 Validation metrics:`, validation.metrics);
+    
+    if (validation.issues.length > 0) {
+      console.log(`⚠️ Validation issues found (${validation.issues.length}):`, validation.issues);
+    }
+    
+    // Apply cleaned content if validation passed and auto-corrections were made
+    if (validation.cleanedContent && validation.passed) {
+      console.log('✨ Applying auto-corrected content');
+      generatedAnalysis = validation.cleanedContent;
+    } else if (!validation.passed) {
+      console.log('⚠️ Validation failed but continuing with original content');
+    }
+
     // Enhance the generated content with live ticker data
     console.log('🎯 Enhancing content with live ticker data...');
     let enhancedTickerData = {};
