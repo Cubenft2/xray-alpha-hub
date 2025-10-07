@@ -213,6 +213,48 @@ function calculateJaccardSimilarity(str1: string, str2: string): number {
   return intersection.size / union.size;
 }
 
+// Post-processing: remove duplicate sentences within paragraphs and within each section
+function dedupeSentencesScoped(text: string): string {
+  const parts = text.split(/(<h2>.*?<\/h2>|^##\s+.*$)/gm);
+  const out: string[] = [];
+  for (const part of parts) {
+    if (!part) continue;
+    if (part.startsWith('<h2>') || /^##\s+/.test(part)) {
+      out.push(part);
+      continue;
+    }
+    // Per-section set to avoid repeats across paragraphs inside the same section
+    const sectionSeen = new Set<string>();
+    const processBlock = (block: string) => {
+      const sentences = block.match(/[^.!?]+[.!?]+|[^.!?]+$/g);
+      if (!sentences) return block;
+      const kept: string[] = [];
+      for (const s of sentences) {
+        const key = s
+          .replace(/<[^>]+>/g, '')
+          .replace(/&nbsp;/g, ' ')
+          .toLowerCase()
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (!key) continue;
+        if (sectionSeen.has(key)) continue;
+        sectionSeen.add(key);
+        kept.push(s.trim());
+      }
+      return kept.join(' ').replace(/\s+([,;:.!?])/g, '$1');
+    };
+    if (/<p\b/i.test(part)) {
+      const processed = part.replace(/<p\b[^>]*>([\s\S]*?)<\/p>/gi, (_m, inner) => `<p>${processBlock(inner)}</p>`);
+      out.push(processed);
+    } else {
+      const paragraphs = part.split(/\n{2,}/);
+      const processedParas = paragraphs.map(p => processBlock(p));
+      out.push(processedParas.join('\n\n'));
+    }
+  }
+  return out.join('');
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -1366,22 +1408,24 @@ ${(newsData as any).polygonAnalysis ? `
 Write approximately 800-1200 words that inform and entertain while staying true to your voice.`;
 
     // Generate AI analysis (with graceful fallback if OpenAI fails)
-    let generatedAnalysis = '';
-    let wordCount = 0;
-    let retryCount = 0;
-    const maxRetries = isWeekendBrief ? 1 : 0; // Allow one retry for weekend if under length
+let generatedAnalysis = '';
+let modelUsed = '';
+let lastTriedModel = '';
+let wordCount = 0;
+let retryCount = 0;
+const maxRetries = isWeekendBrief ? 1 : 0; // Allow one retry for weekend if under length
     
     try {
       console.log('🤖 Generating AI analysis with comprehensive data...');
       
       // For weekend briefs, optionally try Lovable AI first (Gemini 2.5 Pro is free until Oct 6, 2025)
-      let useLovableAI = isWeekendBrief && Deno.env.get('LOVABLE_API_KEY');
+      let useLovableAI = Boolean(Deno.env.get('LOVABLE_API_KEY'));
       
       while (retryCount <= maxRetries) {
         let response: Response;
         
         if (useLovableAI) {
-          console.log('🧠 Using Lovable AI (Gemini 2.5 Pro) for weekend brief...');
+          console.log(`🧠 Using Lovable AI (${isWeekendBrief ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}) for ${isWeekendBrief ? 'weekend' : 'daily'} brief...`);
           response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -1389,7 +1433,7 @@ Write approximately 800-1200 words that inform and entertain while staying true 
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'google/gemini-2.5-pro',
+              model: isWeekendBrief ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash',
               messages: [
                 { 
                   role: 'system', 
@@ -1410,7 +1454,8 @@ CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid
             continue;
           }
         } else {
-          console.log(`🤖 Using OpenAI (${isWeekendBrief ? 'gpt-4o' : 'gpt-4o-mini'}) for brief generation...`);
+console.log(`🤖 Using OpenAI (${isWeekendBrief ? 'gpt-4o' : 'gpt-4o-mini'}) for brief generation...`);
+          lastTriedModel = isWeekendBrief ? 'gpt-4o' : 'gpt-4o-mini';
           response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -1418,13 +1463,19 @@ CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: isWeekendBrief ? 'gpt-4o' : 'gpt-4o-mini',
+              model: lastTriedModel,
               messages: [
                 { 
                   role: 'system', 
                   content: `You are XRayCrypto, a seasoned trader with American-Latino identity who creates engaging, data-driven market briefs. Your voice is sharp, plain-spoken, with natural humor and occasional fishing/travel metaphors. You make complex market data accessible and actionable. ${isWeekendBrief ? 'This is your comprehensive weekly recap - longer, richer, and more entertaining than daily briefs. MINIMUM 1,500 WORDS.' : ''}
                   
-CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid restating the same data later. Vary transitions; do not reuse the same opener twice. If you reference Bitcoin (BTC) or an asset in the hook, do not repeat the same price/change later — only add new context.`
+CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid restating the same data later. Vary transitions; do not reuse the same opener twice. If you reference Bitcoin (BTC) or an asset in the hook, do not repeat the same price/change later — only add new context.
+
+UNIQUE CONTENT RULES:
+- Each section must deliver unique insights; do not repeat identical information across sections.
+- Never copy sentences or stock phrases between sections; vary wording and transitions.
+- If a fact was stated earlier, only reference it to add a new angle (why it matters, implications, or next steps).
+- Avoid echoing price/percent changes already mentioned unless bringing a different perspective (derivatives, liquidity, macro).`
                 },
                 { role: 'user', content: marketAnalysisPrompt }
               ],
@@ -1440,12 +1491,14 @@ CRITICAL: Do not repeat sentences or phrases. Each asset is analyzed once; avoid
           throw new Error(`API error: ${response.status} ${errText}`);
         }
 
-        const aiData = await response.json();
+const aiData = await response.json();
         generatedAnalysis = aiData.choices?.[0]?.message?.content || '';
+        modelUsed = lastTriedModel;
         
-        // Deduplicate content to remove repeated sentences
-        console.log('🧹 Deduplicating content...');
+// Post-process: scoped sentence dedup (per paragraph/section), then global safety pass
+        console.log('🧹 Deduplicating content (scoped -> global)...');
         const originalLength = generatedAnalysis.length;
+        generatedAnalysis = dedupeSentencesScoped(generatedAnalysis);
         generatedAnalysis = deduplicateContent(generatedAnalysis);
         const dedupedLength = generatedAnalysis.length;
         console.log(`✅ Deduplication complete: ${originalLength} → ${dedupedLength} chars (removed ${originalLength - dedupedLength} chars)`);
@@ -1479,7 +1532,7 @@ Use the same XRayCrypto voice and maintain all <h2> headings. Include specific n
         break; // Success
       }
       
-      console.log(`✅ AI generation complete: ${wordCount} words, model: ${useLovableAI ? 'Gemini 2.5 Pro' : isWeekendBrief ? 'GPT-4o' : 'GPT-4o-mini'}`);
+      console.log(`✅ AI generation complete: ${wordCount} words, model: ${modelUsed || lastTriedModel}`);
       
     } catch (err) {
       console.error('❌ AI generation failed, using deterministic fallback:', err);
@@ -1498,10 +1551,11 @@ Use the same XRayCrypto voice and maintain all <h2> headings. Include specific n
 ...
 What's next: watch liquidity into US hours, policy headlines, and any unusually strong social buzz around leaders. Keep your tackle box tidy; quick pivots win on days like this.`;
       
-      // Apply deduplication to fallback content as well
+// Apply deduplication to fallback content as well
       console.log('🧹 Deduplicating fallback content...');
       const fallbackOriginalLength = fallbackText.length;
-      generatedAnalysis = deduplicateContent(fallbackText);
+      generatedAnalysis = dedupeSentencesScoped(fallbackText);
+      generatedAnalysis = deduplicateContent(generatedAnalysis);
       console.log(`✅ Fallback deduplication: ${fallbackOriginalLength} → ${generatedAnalysis.length} chars`);
     }
 
@@ -1677,7 +1731,7 @@ What's next: watch liquidity into US hours, policy headlines, and any unusually 
           generation_timestamp: new Date().toISOString(),
           audit_data: auditData,
           missing_symbols: missingSymbols,
-          model_used: 'gpt-4o-mini',
+model_used: modelUsed || 'unknown',
           data_sources: ['coingecko', 'lunarcrush', 'fear_greed', 'news_feeds', 'trending'],
           market_data: {
             total_market_cap: totalMarketCap,
