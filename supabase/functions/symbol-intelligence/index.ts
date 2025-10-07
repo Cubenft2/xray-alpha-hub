@@ -231,6 +231,47 @@ Deno.serve(async (req) => {
           tvSymbol = `FX:${normalized}`;
         }
         
+        // Auto-approve if confidence is high enough
+        if (bestConfidence >= 0.85 && detectedType === 'stock') {
+          // Insert directly into ticker_mappings for stocks with high confidence
+          const { error: insertError } = await supabase
+            .from('ticker_mappings')
+            .insert({
+              symbol: normalized,
+              display_name: polyMatch.name,
+              type: detectedType,
+              polygon_ticker: polyMatch.ticker,
+              tradingview_symbol: tvSymbol,
+              is_active: true,
+              tradingview_supported: true,
+              price_supported: true,
+              derivs_supported: false,
+              social_supported: false,
+            })
+            .select()
+            .single();
+          
+          if (!insertError) {
+            console.log(`  ✓ Auto-approved stock ${normalized} with confidence 0.85+`);
+            results.push({
+              symbol: rawSymbol,
+              normalized,
+              displaySymbol: normalized,
+              displayName: polyMatch.name,
+              price_ok: true,
+              tv_ok: true,
+              derivs_ok: false,
+              social_ok: false,
+              confidence: 0.85,
+              source: 'poly_tickers_auto',
+              polygon_ticker: polyMatch.ticker,
+              tradingview_symbol: tvSymbol,
+            });
+            continue;
+          }
+        }
+        
+        // Add to pending with proper type field
         const { error: upsertError } = await supabase
           .from('pending_ticker_mappings')
           .upsert({
