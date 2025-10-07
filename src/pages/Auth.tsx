@@ -6,15 +6,49 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { z } from 'zod';
+
+// Validation schemas
+const emailSchema = z.string()
+  .trim()
+  .email({ message: "Invalid email address" })
+  .max(255, { message: "Email must be less than 255 characters" });
+
+const passwordSchema = z.string()
+  .min(8, { message: "Password must be at least 8 characters" })
+  .regex(/[A-Z]/, { message: "Password must contain at least one uppercase letter" })
+  .regex(/[a-z]/, { message: "Password must contain at least one lowercase letter" })
+  .regex(/[0-9]/, { message: "Password must contain at least one number" });
 
 export default function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
   const navigate = useNavigate();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Reset errors
+    setEmailError("");
+    setPasswordError("");
+    
+    // Validate email
+    const emailValidation = emailSchema.safeParse(email);
+    if (!emailValidation.success) {
+      setEmailError(emailValidation.error.errors[0].message);
+      return;
+    }
+    
+    // Validate password
+    const passwordValidation = passwordSchema.safeParse(password);
+    if (!passwordValidation.success) {
+      setPasswordError(passwordValidation.error.errors[0].message);
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -61,6 +95,24 @@ export default function Auth() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Reset errors
+    setEmailError("");
+    setPasswordError("");
+    
+    // Validate email
+    const emailValidation = emailSchema.safeParse(email);
+    if (!emailValidation.success) {
+      setEmailError(emailValidation.error.errors[0].message);
+      return;
+    }
+    
+    // Basic password check for sign-in (less strict than sign-up)
+    if (password.length === 0) {
+      setPasswordError("Password is required");
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -101,18 +153,28 @@ export default function Auth() {
                     type="email"
                     placeholder="Email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setEmailError("");
+                    }}
                     required
+                    className={emailError ? "border-destructive" : ""}
                   />
+                  {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                 </div>
                 <div className="space-y-2">
                   <Input
                     type="password"
                     placeholder="Password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setPasswordError("");
+                    }}
                     required
+                    className={passwordError ? "border-destructive" : ""}
                   />
+                  {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Signing in...' : 'Sign In'}
@@ -127,19 +189,28 @@ export default function Auth() {
                     type="email"
                     placeholder="Email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setEmailError("");
+                    }}
                     required
+                    className={emailError ? "border-destructive" : ""}
                   />
+                  {emailError && <p className="text-sm text-destructive">{emailError}</p>}
                 </div>
                 <div className="space-y-2">
                   <Input
                     type="password"
-                    placeholder="Password (min 6 characters)"
+                    placeholder="Min 8 chars, 1 uppercase, 1 number"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setPasswordError("");
+                    }}
                     required
-                    minLength={6}
+                    className={passwordError ? "border-destructive" : ""}
                   />
+                  {passwordError && <p className="text-sm text-destructive">{passwordError}</p>}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? 'Creating account...' : 'Sign Up'}

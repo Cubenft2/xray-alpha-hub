@@ -1,4 +1,5 @@
 import React from 'react';
+import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import { getTickerMapping, isKnownCrypto } from '@/config/tickerMappings';
 
@@ -106,10 +107,20 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     enhancedText = enhancedText.replace(/([+-]?)([0-9]+\.?[0-9]*)%/g, 
       '<span class="percentage-badge" data-sign="$1" data-value="$2">$1$2%</span>');
 
+    // Sanitize HTML before DOM manipulation to prevent XSS attacks
+    const sanitized = DOMPurify.sanitize(enhancedText, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'ul', 'ol', 'li', 'hr'],
+      ALLOWED_ATTR: ['class', 'data-ticker', 'data-type', 'data-sign', 'data-value', 'data-quote-symbol', 'data-sym', 'onclick', 'style'],
+      ADD_ATTR: ['onclick'],
+      KEEP_CONTENT: true,
+      RETURN_DOM: false,
+      RETURN_DOM_FRAGMENT: false
+    });
+
     // DOM-based ticker wrapping - link only ticker symbol inside parentheses
     const extractedTickers: string[] = [];
     const parser = new DOMParser();
-    const tempDoc = parser.parseFromString(`<div>${enhancedText}</div>`, 'text/html');
+    const tempDoc = parser.parseFromString(`<div>${sanitized}</div>`, 'text/html');
     const container = tempDoc.body.firstChild as HTMLElement;
     
     // Skip these elements and their descendants
@@ -459,79 +470,48 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           color: hsl(var(--muted-foreground));
         }
         
-        /* Prevent color bleed to regular links */
-        .enhanced-brief a {
-          color: hsl(var(--foreground));
-          text-decoration: underline;
+        /* Section breaks */
+        .section-break {
+          border-color: hsl(var(--border) / 0.3);
         }
         
-        .enhanced-brief a:hover {
-          opacity: 0.8;
-        }
-        
-        /* Heading styles */
-        .heading-1 {
+        /* Headings */
+        .heading-1, .heading-2, .heading-3 {
           display: block;
-          font-size: 1.875rem;
           font-weight: 700;
-          margin: 1.5rem 0 1rem 0;
-          line-height: 1.2;
           color: hsl(var(--foreground));
+          margin-top: 2rem;
+          margin-bottom: 1rem;
+          line-height: 1.3;
+        }
+        
+        .heading-1 {
+          font-size: 2rem;
+          border-bottom: 2px solid hsl(var(--primary));
+          padding-bottom: 0.5rem;
         }
         
         .heading-2 {
-          display: block;
           font-size: 1.5rem;
-          font-weight: 700;
-          margin: 1.25rem 0 0.875rem 0;
-          line-height: 1.3;
-          color: hsl(var(--foreground));
         }
         
         .heading-3 {
-          display: block;
           font-size: 1.25rem;
-          font-weight: 700;
-          margin: 1rem 0 0.75rem 0;
-          line-height: 1.4;
-          color: hsl(var(--foreground));
         }
         
-        .heading-4 {
+        .heading-4, .heading-5, .heading-6 {
           display: block;
-          font-size: 1.125rem;
           font-weight: 600;
-          margin: 0.875rem 0 0.625rem 0;
-          line-height: 1.4;
-          color: hsl(var(--foreground));
+          color: hsl(var(--foreground) / 0.9);
+          margin-top: 1.5rem;
+          margin-bottom: 0.75rem;
         }
         
-        .heading-5 {
-          display: block;
-          font-size: 1rem;
-          font-weight: 600;
-          margin: 0.75rem 0 0.5rem 0;
-          line-height: 1.5;
-          color: hsl(var(--foreground));
-        }
-        
-        .heading-6 {
-          display: block;
-          font-size: 0.875rem;
-          font-weight: 600;
-          margin: 0.625rem 0 0.5rem 0;
-          line-height: 1.5;
-          color: hsl(var(--muted-foreground));
-        }
-        
-        /* Mobile responsive adjustments */
+        /* Responsive adjustments */
         @media (max-width: 640px) {
-          .sym-ticker,
-          .sym-price,
-          .sym-change,
-          .price-badge,
-          .percent {
-            font-size: 0.9rem;
+          .enhanced-brief {
+            font-size: 0.95rem;
+            line-height: 1.6;
           }
           
           .heading-1 {
@@ -543,11 +523,14 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           }
           
           .heading-3 {
-            font-size: 1.125rem;
+            font-size: 1.1rem;
           }
           
-          .heading-4, .heading-5 {
-            font-size: 1rem;
+          .sym-price,
+          .sym-change,
+          .price-badge,
+          .percent {
+            font-size: 0.9rem;
           }
         }
       `}</style>
