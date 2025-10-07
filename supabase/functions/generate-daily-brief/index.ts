@@ -41,7 +41,7 @@ interface LunarCrushAsset {
   fomo_score: number;
 }
 
-// Improved deduplication utility function with phrase-level detection
+// Improved deduplication utility function with paragraph AND phrase-level detection
 function deduplicateContent(text: string): string {
   const boilerplateOpeners = [
     'in plain english:',
@@ -77,6 +77,81 @@ function deduplicateContent(text: string): string {
   let cappedSymbols = 0;
   let bannedPhrasesCapped = 0;
   let paragraphsRemoved = 0;
+  
+  // ===== STEP 1: PARAGRAPH-LEVEL DEDUPLICATION =====
+  console.log('🔍 Starting paragraph-level deduplication...');
+  
+  // Split content into paragraphs (by double newlines or <p> tags)
+  const paragraphDelimiter = /\n\n+|<\/p>\s*<p[^>]*>|<p[^>]*>|<\/p>/g;
+  const rawParagraphs = text.split(paragraphDelimiter).filter(p => p.trim().length > 0);
+  
+  const seenParagraphFingerprints = new Set<string>();
+  const paragraphNgramMap = new Map<string, Set<string>>();
+  const keptParagraphs: string[] = [];
+  
+  for (const paragraph of rawParagraphs) {
+    const trimmed = paragraph.trim();
+    if (!trimmed || trimmed.length < 50) {
+      // Keep short paragraphs as-is (likely headings or transitions)
+      keptParagraphs.push(trimmed);
+      continue;
+    }
+    
+    // Create paragraph fingerprint (lowercase, no punctuation, normalized whitespace)
+    const fingerprint = trimmed
+      .toLowerCase()
+      .replace(/<[^>]+>/g, '') // Remove HTML tags
+      .replace(/[^\w\s]/g, '') // Remove punctuation
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    // Check for exact paragraph duplicates
+    if (seenParagraphFingerprints.has(fingerprint)) {
+      console.log(`🗑️ Removed duplicate paragraph (${fingerprint.length} chars): "${trimmed.substring(0, 80)}..."`);
+      paragraphsRemoved++;
+      continue;
+    }
+    
+    // Generate larger n-grams for paragraph similarity (6-10 word phrases)
+    const words = fingerprint.split(' ');
+    const paragraphNgrams = new Set<string>();
+    
+    for (let n = 6; n <= 10; n++) {
+      for (let i = 0; i <= words.length - n; i++) {
+        const ngram = words.slice(i, i + n).join(' ');
+        paragraphNgrams.add(ngram);
+      }
+    }
+    
+    // Check for high paragraph similarity (≥60% n-gram overlap indicates paraphrasing)
+    let hasSimilarParagraph = false;
+    for (const [seenFingerprint, seenNgrams] of paragraphNgramMap) {
+      const intersection = new Set([...paragraphNgrams].filter(x => seenNgrams.has(x)));
+      const union = new Set([...paragraphNgrams, ...seenNgrams]);
+      
+      const similarity = intersection.size / union.size;
+      if (similarity >= 0.60) {
+        console.log(`🗑️ Removed similar paragraph (${(similarity * 100).toFixed(0)}% overlap, ${fingerprint.length} chars): "${trimmed.substring(0, 80)}..."`);
+        paragraphsRemoved++;
+        hasSimilarParagraph = true;
+        break;
+      }
+    }
+    
+    if (hasSimilarParagraph) continue;
+    
+    // Keep this paragraph
+    seenParagraphFingerprints.add(fingerprint);
+    paragraphNgramMap.set(fingerprint, paragraphNgrams);
+    keptParagraphs.push(trimmed);
+  }
+  
+  // Rejoin paragraphs with double newlines
+  text = keptParagraphs.join('\n\n');
+  
+  console.log(`✅ Paragraph deduplication complete: removed ${paragraphsRemoved} duplicate/similar paragraphs`);
+  
+  // ===== STEP 2: SENTENCE-LEVEL DEDUPLICATION (existing logic) =====
   
   // Split by headings to preserve section structure (both <h2> and markdown ##)
   const sections = text.split(/(<h2>.*?<\/h2>|^##\s+.*$)/gm);
@@ -212,10 +287,16 @@ function deduplicateContent(text: string): string {
   const removedTotal = removedDuplicates + removedSimilar + cappedOpeners + cappedSymbols;
   const removalRate = removedTotal / totalUnits;
   
-  console.log(`📊 Deduplication stats: ${removedDuplicates} exact dupes, ${removedSimilar} similar phrases, ${cappedOpeners} capped openers, ${cappedSymbols} capped symbols`);
+  console.log(`📊 Deduplication stats: ${paragraphsRemoved} paragraphs, ${removedDuplicates} exact dupes, ${removedSimilar} similar phrases, ${cappedOpeners} capped openers, ${cappedSymbols} capped symbols`);
   
   if (removalRate > 0.25) {
     console.warn(`⚠️ HIGH REMOVAL RATE: ${(removalRate * 100).toFixed(1)}% of units removed (${removedTotal}/${totalUnits})`);
+  }
+  
+  // Warn if too many paragraphs removed (>20% suggests over-aggressive detection)
+  const paragraphRemovalRate = paragraphsRemoved / rawParagraphs.length;
+  if (paragraphRemovalRate > 0.20) {
+    console.warn(`⚠️ HIGH PARAGRAPH REMOVAL RATE: ${(paragraphRemovalRate * 100).toFixed(1)}% of paragraphs removed (${paragraphsRemoved}/${rawParagraphs.length})`);
   }
   
   return result;
@@ -238,6 +319,7 @@ interface ValidationResult {
   issues: string[];
   metrics: {
     duplicateSentences: number;
+    duplicateParagraphs: number;
     repeatedPhrases: number;
     assetMisclassifications: number;
     sectionsWithIssues: number;
@@ -255,6 +337,7 @@ async function validateBriefContent(
   const issues: string[] = [];
   const metrics = {
     duplicateSentences: 0,
+    duplicateParagraphs: 0,
     repeatedPhrases: 0,
     assetMisclassifications: 0,
     sectionsWithIssues: 0,
@@ -324,6 +407,21 @@ async function validateBriefContent(
     if (count > 2) {
       issues.push(`Asset ${symbol} mentioned ${count} times (max 2 recommended)`);
     }
+  }
+  
+  // Check for duplicate paragraphs (50+ words)
+  const paragraphs = content
+    .split(/\n\n+|<\/p>\s*<p[^>]*>/)
+    .map(p => p.replace(/<[^>]+>/g, '').trim().toLowerCase())
+    .filter(p => p.split(/\s+/).length >= 50);
+  
+  const seenParagraphs = new Set<string>();
+  for (const para of paragraphs) {
+    if (seenParagraphs.has(para)) {
+      metrics.duplicateParagraphs++;
+      issues.push(`Duplicate paragraph found (${para.substring(0, 60)}...)`);
+    }
+    seenParagraphs.add(para);
   }
   
   // Check for duplicate sentences across the entire brief
@@ -1361,6 +1459,13 @@ Start with a varied, casual greeting (rotate between fun options like "Alright m
 2. Use HTML <h2> heading tags for EVERY section title - for example: <h2>Weekly Hook</h2>, <h2>What Happened Last Week</h2>, etc.
 3. Each section should be 2-3 substantial paragraphs (150-250 words per section minimum)
 
+**CRITICAL ANTI-REPETITION RULES:**
+1. NEVER repeat the same paragraph structure or analysis block across sections
+2. Each asset gets ONE primary analysis paragraph with full context
+3. If you mention an asset again later, add NEW information ONLY (derivatives data, social sentiment, macro context) in ≤15 words
+4. DO NOT copy-paste explanations about liquidity, exchange behavior, or market dynamics
+5. Each section must deliver UNIQUE insights - vary wording, transitions, and perspectives completely
+
 **REQUIRED 10-SECTION STRUCTURE FOR WEEKLY RECAP:**
 1. <h2>Weekly Hook</h2> - Lead with the biggest story/move of the week backed by real numbers
 2. <h2>What Happened Last Week</h2> - Comprehensive 7-day recap with macro events, policy moves, ETF flows, regulatory news
@@ -1526,10 +1631,16 @@ CRITICAL STRUCTURAL RULES (MUST FOLLOW):
 
 3. Each asset gets ONE primary analysis in its designated section:
    - First mention: Full context with price and percentage
-   - Any later reference: MUST add NEW context (derivatives, social, macro) in ≤10 words
+   - Any later reference: MUST add NEW context (derivatives, social, macro) in ≤15 words
    - NEVER restate price/percentage data already mentioned
 
-4. BANNED REPETITIONS (do not use more than once):
+4. PARAGRAPH-LEVEL UNIQUENESS (CRITICAL):
+   - NEVER repeat the same paragraph structure between sections
+   - Each asset analysis must be written ONCE with unique wording
+   - DO NOT copy-paste explanations about exchange dynamics, liquidity patterns, or market behavior
+   - If discussing an asset in multiple sections, each mention must offer a DIFFERENT angle
+
+5. BANNED REPETITIONS (do not use more than once):
    - "as we peer ahead", "hitting its stride", "keep your eyes peeled", "buckle up", "the takeaway"
    - "what does this mean", "here is what matters", "at the end of the day"
    - Do NOT copy sentences between sections - vary wording completely
@@ -1659,11 +1770,20 @@ CRITICAL STRUCTURAL RULES:
    - In crypto sections: use "token", "coin", "crypto asset", "blockchain"  
    - In stock sections: use "stock", "equity", "share", "NYSE/NASDAQ"
    - NEVER call a stock a "cryptocurrency" or vice versa
-3. Each asset gets ONE primary analysis - later mentions must add NEW context in ≤10 words
+3. Each asset gets ONE primary analysis - later mentions must add NEW context in ≤15 words
 4. NEVER restate price/percentage data already mentioned
 5. BANNED PHRASES (use max once): "as we peer ahead", "hitting its stride", "buckle up"
 6. Do NOT copy sentences between sections - vary all wording
 7. If a fact was stated earlier, only reference it to add a new angle
+
+PARAGRAPH-LEVEL ANTI-REPETITION (CRITICAL):
+- NEVER repeat the same paragraph structure or analysis block between sections
+- Each asset analysis must be written ONCE with completely unique wording
+- DO NOT copy-paste explanations about liquidity, exchange behavior, volume patterns, or market dynamics
+- If you discuss an asset in multiple sections, each mention MUST offer a DIFFERENT perspective:
+  * First mention: Price action and immediate context
+  * Second mention: Derivatives data OR social sentiment OR macro factors (pick ONE new angle)
+  * DO NOT repeat the same information with slightly different wording
 
 UNIQUE CONTENT RULES:
 - Each section must deliver unique insights; do not repeat identical information across sections.
@@ -1704,11 +1824,20 @@ CRITICAL STRUCTURAL RULES:
    - In crypto sections: use "token", "coin", "crypto asset", "blockchain"
    - In stock sections: use "stock", "equity", "share", "NYSE/NASDAQ"
    - NEVER call a stock a "cryptocurrency" or vice versa
-3. Each asset gets ONE primary analysis - later mentions must add NEW context in ≤10 words
+3. Each asset gets ONE primary analysis - later mentions must add NEW context in ≤15 words
 4. NEVER restate price/percentage data already mentioned
 5. BANNED PHRASES (use max once): "as we peer ahead", "hitting its stride", "buckle up"
 6. Do NOT copy sentences between sections - vary all wording
 7. If a fact was stated earlier, only reference it to add a new angle
+
+PARAGRAPH-LEVEL ANTI-REPETITION (CRITICAL):
+- NEVER repeat the same paragraph structure or analysis block between sections
+- Each asset analysis must be written ONCE with completely unique wording
+- DO NOT copy-paste explanations about liquidity, exchange behavior, volume patterns, or market dynamics
+- If you discuss an asset in multiple sections, each mention MUST offer a DIFFERENT perspective:
+  * First mention: Price action and immediate context
+  * Second mention: Derivatives data OR social sentiment OR macro factors (pick ONE new angle)
+  * DO NOT repeat the same information with slightly different wording
 
 UNIQUE CONTENT RULES:
 - Each section must deliver unique insights; do not repeat identical information across sections.
