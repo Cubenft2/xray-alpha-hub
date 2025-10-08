@@ -56,31 +56,31 @@ interface SectionDefinition {
 const DAILY_SECTIONS: SectionDefinition[] = [
   {
     title: 'Market Overview',
-    guidelines: 'Lead with the biggest story/move of the day. Cover overall market sentiment, Fear & Greed, Bitcoin/Ethereum moves, and total market metrics. MANDATORY FORMAT: "AssetName (SYM: $price, +X.XX%): Analysis here." Each asset starts on NEW LINE with blank line between. 2-3 sentences max per asset.',
+    guidelines: 'Lead with the biggest story/move of the day. Cover overall market sentiment, Fear & Greed, Bitcoin/Ethereum moves, and total market metrics. FORMAT STRICTLY: One paragraph per major asset (BTC, ETH, top mover). Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets. 2-3 paragraphs total.',
     dataScope: ['marketCap', 'volume', 'fearGreed', 'btc', 'eth', 'topMover'],
     minWords: 150
   },
   {
     title: 'Cryptocurrency Movers',
-    guidelines: 'Deep dive into top 24h gainers and losers with context. DO NOT repeat price changes already mentioned in Market Overview - ADD NEW CONTEXT (on-chain, social, exchange data). MANDATORY FORMAT: "AssetName (SYM: $price, +X.XX%): Analysis here." Each asset starts on NEW LINE with blank line between. 2-3 sentences max per asset. Do NOT repeat any asset.',
+    guidelines: 'Deep dive into top 24h gainers and losers with context. DO NOT repeat price changes already mentioned in Market Overview - ADD NEW CONTEXT (on-chain, social, exchange data). FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets. Do NOT repeat any asset.',
     dataScope: ['topGainers', 'topLosers', 'coingeckoData', 'trendingCoins'],
     minWords: 150
   },
   {
     title: 'Traditional Markets',
-    guidelines: 'Focus on stock movements, tech stocks, crypto-related equities (COIN, MSTR), earnings if relevant. Keep crypto OUT of this section. MANDATORY FORMAT: "CompanyName (TICKER: $price, +X.XX%): Analysis here." Each stock starts on NEW LINE with blank line between. 2-3 sentences max per stock.',
+    guidelines: 'Focus on stock movements, tech stocks, crypto-related equities (COIN, MSTR), earnings if relevant. Keep crypto OUT of this section. FORMAT STRICTLY: One paragraph per stock. Start each with "CompanyName (TICKER):" then 2-3 sentences. Insert blank line between stocks.',
     dataScope: ['newsStocks', 'stockExchangeContext'],
     minWords: 100
   },
   {
     title: 'Derivatives & Flows',
-    guidelines: 'Funding rates, liquidations, open interest, exchange flows. Include technical indicators (RSI, MACD, SMA) when available. Technical analysis only - no price repetition from earlier sections. MANDATORY FORMAT: "AssetName (SYM: $price, +X.XX%): Analysis here." or "Exchange: Analysis." Each starts on NEW LINE with blank line between. 2-3 sentences max per item.',
+    guidelines: 'Funding rates, liquidations, open interest, exchange flows. Include technical indicators (RSI, MACD, SMA) when available. Technical analysis only - no price repetition from earlier sections. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets.',
     dataScope: ['derivsData', 'exchangeData', 'technicalData'],
     minWords: 100
   },
   {
     title: 'Social Sentiment',
-    guidelines: 'SOCIAL METRICS ONLY: Cover 3-4 top-trending assets. MANDATORY FORMAT: "AssetName (SYM: $price, +X.XX%): Social analysis here." Each asset starts on NEW LINE with blank line between. 2-3 sentences max per asset about ONLY social metrics (trending score, social volume change, galaxy score, why it\'s buzzing). DO NOT mention price movements in your analysis. Do NOT repeat any asset.',
+    guidelines: 'SOCIAL METRICS ONLY: Cover 3-4 top-trending assets. FORMAT STRICTLY: For each asset, start a new paragraph with "AssetName (SYM):" then write 2-3 short sentences about ONLY social metrics (trending score, social volume change, galaxy score, why it\'s buzzing). Insert blank line between assets. DO NOT mention price changes or movements. Do NOT repeat any asset.',
     dataScope: ['lunarcrushData', 'trendingData', 'socialData'],
     minWords: 100
   },
@@ -95,37 +95,37 @@ const DAILY_SECTIONS: SectionDefinition[] = [
 const WEEKLY_SECTIONS: SectionDefinition[] = [
   {
     title: 'Weekly Hook',
-    guidelines: 'Lead with the biggest story of the week backed by real numbers. Make it compelling and set the stage. MANDATORY FORMAT: "AssetName (SYM: $price, +X.XX%): Analysis here." Each starts on NEW LINE with blank line between. 2-3 sentences max per asset.',
+    guidelines: 'Lead with the biggest story of the week backed by real numbers. Make it compelling and set the stage. FORMAT STRICTLY: One paragraph per major asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets.',
     dataScope: ['weeklyTopMover', 'marketCap', 'volume'],
     minWords: 150
   },
   {
     title: 'What Happened Last Week',
-    guidelines: 'Comprehensive 7-day recap with macro events, policy moves, ETF flows, regulatory news. MANDATORY FORMAT: "AssetName (SYM: $price, +X.XX%): Analysis." or "Theme: Analysis." Each starts on NEW LINE with blank line between. 2-3 sentences max per item.',
+    guidelines: 'Comprehensive 7-day recap with macro events, policy moves, ETF flows, regulatory news. FORMAT STRICTLY: One paragraph per major theme or asset. Start each with "AssetName (SYM):" or "Theme:" then 2-3 sentences. Insert blank line between paragraphs.',
     dataScope: ['newsAll', 'macroEvents', 'fearGreedWeekly'],
     minWords: 200
   },
   {
     title: 'Weekly Performance Breakdown',
-    guidelines: 'Deep dive into top weekly gainers/losers with reasons. NO price repetition from Hook - ADD NEW CONTEXT. MANDATORY FORMAT: "AssetName (SYM: $price, +X.XX%): Analysis." Each starts on NEW LINE with blank line between. 2-3 sentences max per asset. Do NOT repeat any asset.',
+    guidelines: 'Deep dive into top weekly gainers/losers with reasons. NO price repetition from Hook - ADD NEW CONTEXT. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets. Do NOT repeat any asset.',
     dataScope: ['weeklyGainers', 'weeklyLosers', 'coingeckoData'],
     minWords: 200
   },
   {
     title: 'Social Momentum & Sentiment Shifts',
-    guidelines: 'How crowd mood evolved over the week, social volume changes, trending narratives. MANDATORY FORMAT: "AssetName (SYM: $price, +X.XX%): Social analysis." Each starts on NEW LINE with blank line between. 2-3 sentences max per asset about social metrics.',
+    guidelines: 'How crowd mood evolved over the week, social volume changes, trending narratives. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences about social metrics. Insert blank line between assets.',
     dataScope: ['lunarcrushData', 'trendingData', 'socialWeekly'],
     minWords: 150
   },
   {
     title: 'Exchange Dynamics',
-    guidelines: 'Weekly volume patterns, price variance across venues, new listings, liquidity changes. MANDATORY FORMAT: "Exchange: Analysis." or "AssetName (SYM: $price, +X.XX%): Analysis." Each starts on NEW LINE with blank line between. 2-3 sentences max per item.',
+    guidelines: 'Weekly volume patterns, price variance across venues, new listings, liquidity changes. FORMAT STRICTLY: One paragraph per asset or exchange. Start each with "AssetName (SYM):" or "Exchange:" then 2-3 sentences. Insert blank line between paragraphs.',
     dataScope: ['exchangeData', 'volumePatterns'],
     minWords: 150
   },
   {
     title: 'Derivatives & Leverage',
-    guidelines: 'Funding rates, liquidations, open interest changes over the week. Technical focus. MANDATORY FORMAT: "AssetName (SYM: $price, +X.XX%): Analysis." Each starts on NEW LINE with blank line between. 2-3 sentences max per asset.',
+    guidelines: 'Funding rates, liquidations, open interest changes over the week. Technical focus. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets.',
     dataScope: ['derivsData', 'weeklyLiquidations'],
     minWords: 150
   },
@@ -255,14 +255,10 @@ async function generateSection(
 ): Promise<string> {
   console.log(`\n📝 Generating section: ${sectionDef.title}`);
   
-  // For Social Sentiment, select specific assets to cover with their price data
+  // For Social Sentiment, select specific assets to cover
   let topAssets: string[] = [];
   if (sectionDef.title === 'Social Sentiment' && allData.lunarcrushData?.data?.length > 0) {
-    topAssets = allData.lunarcrushData.data.slice(0, 4).map((a: any) => {
-      const price = a.price ? `$${Number(a.price).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 'N/A';
-      const change = a.percent_change_24h ? `${a.percent_change_24h > 0 ? '+' : ''}${a.percent_change_24h.toFixed(2)}%` : 'N/A';
-      return `${a.name} (${a.symbol}: ${price}, ${change})`;
-    });
+    topAssets = allData.lunarcrushData.data.slice(0, 4).map((a: any) => `${a.name} (${a.symbol})`);
     console.log(`  🎯 Selected assets to cover: ${topAssets.join(', ')}`);
   }
   
@@ -280,23 +276,9 @@ async function generateSection(
     ? `\n\n⚠️ CRITICAL: ${previousAssets} were already analyzed. DO NOT repeat their price movements or gains/losses. ONLY discuss social metrics: trending scores, social volume changes, community sentiment, and why they're buzzing on social media.`
     : '';
   
-  // For Social Sentiment, explicitly list assets to cover with format instructions
+  // For Social Sentiment, explicitly list assets to cover
   const assetListNote = sectionDef.title === 'Social Sentiment' && topAssets.length > 0
-    ? `\n\n📋 COVER ONLY THESE ASSETS: ${topAssets.join(', ')}. 
-
-⚠️ MANDATORY FORMAT (copy this EXACTLY):
-AssetName (SYM: $price, +X.XX%): Your analysis here in 2-3 sentences max.
-
-[blank line]
-
-NextAsset (SYM: $price, +X.XX%): Your analysis here in 2-3 sentences max.
-
-EXAMPLE:
-Bitcoin (BTC: $95,234, +2.45%): Dominated social discussions with 45K mentions. Community sentiment turned bullish after institutional buying signals.
-
-[blank line]
-
-Ethereum (ETH: $4,521, +1.82%): Social volume spiked 28% following network upgrade news. Developer community engagement reached monthly highs.`
+    ? `\n\n📋 COVER ONLY THESE ASSETS: ${topAssets.join(', ')}. One paragraph per asset. Do not include others.`
     : '';
   
   // Construct section prompt
