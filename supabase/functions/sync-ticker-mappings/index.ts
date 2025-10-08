@@ -259,21 +259,39 @@ Deno.serve(async (req) => {
         confidence = 0.9; // High confidence for exact match
       }
 
-      // Determine preferred exchange based on priority
+      // Determine preferred exchange - STRICT RULES
+      // NEVER default to Binance or Bybit as first choice
       const sortedExchanges = Array.from(assetData.exchanges).sort(
         (a, b) => (EXCHANGE_PRIORITY[a] || 999) - (EXCHANGE_PRIORITY[b] || 999)
       );
-      const preferredExchange = sortedExchanges[0];
+      
+      // Filter out Binance and Bybit for trusted exchanges
+      const trustedExchanges = sortedExchanges.filter(e => 
+        !['binance', 'bybit', 'binance.us'].includes(e.toLowerCase())
+      );
+      
+      const preferredExchange = trustedExchanges.length > 0 
+        ? trustedExchanges[0] 
+        : sortedExchanges[0];
 
-      // Build TradingView symbol
-      const tvExchange = TV_EXCHANGE_MAP[preferredExchange] || 'KRAKEN';
-      const mainPair = assetData.pairs.find(
-        p => p.exchange === preferredExchange && p.quote === 'USDT'
-      ) || assetData.pairs.find(
-        p => p.exchange === preferredExchange && p.quote === 'USD'
-      ) || assetData.pairs[0];
-
-      const tvSymbol = `${tvExchange}:${baseAsset}${mainPair.quote}`;
+      // Only set TradingView symbol if we have a trusted exchange and multiple exchanges
+      const hasTrustedExchange = trustedExchanges.length > 0;
+      const hasMultipleExchanges = assetData.exchanges.size >= 3;
+      const tradingViewSupported = hasTrustedExchange && hasMultipleExchanges;
+      
+      let tvSymbol: string;
+      if (tradingViewSupported) {
+        const tvExchange = TV_EXCHANGE_MAP[preferredExchange] || preferredExchange.toUpperCase();
+        const mainPair = assetData.pairs.find(
+          p => p.exchange === preferredExchange && p.quote === 'USDT'
+        ) || assetData.pairs.find(
+          p => p.exchange === preferredExchange && p.quote === 'USD'
+        ) || assetData.pairs[0];
+        tvSymbol = `${tvExchange}:${baseAsset}${mainPair.quote}`;
+      } else {
+        // Neutral placeholder - requires manual review
+        tvSymbol = `${baseAsset}USD`;
+      }
 
       // Generate aliases from all pair variations
       const aliases = Array.from(
@@ -295,6 +313,7 @@ Deno.serve(async (req) => {
         type: 'crypto',
         coingecko_id: cgMatch?.cg_id || null,
         tradingview_symbol: tvSymbol,
+        tradingview_supported: tradingViewSupported,
         polygon_ticker: null,
         aliases: aliases,
         is_active: true,
@@ -333,6 +352,8 @@ Deno.serve(async (req) => {
                 exchanges: sortedExchanges,
                 pair_count: assetData.pairs.length,
                 preferred_exchange: preferredExchange,
+                tradingview_supported: tradingViewSupported,
+                needs_manual_tv_review: !tradingViewSupported,
               },
               status: 'pending',
             });

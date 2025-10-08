@@ -179,10 +179,6 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   // DeFi assets
   'DEFI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
   'DE-FI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
-  // SX Network
-  'SX': { symbol: 'BYBIT:SXUSDT', displayName: 'SX Network (SX)', type: 'crypto' },
-  'SXNETWORK': { symbol: 'BYBIT:SXUSDT', displayName: 'SX Network (SX)', type: 'crypto' },
-  'SX NETWORK': { symbol: 'BYBIT:SXUSDT', displayName: 'SX Network (SX)', type: 'crypto' },
 };
 
 // Index and Forex tickers

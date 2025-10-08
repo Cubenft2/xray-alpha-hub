@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 
@@ -14,6 +15,7 @@ interface PendingMapping {
   display_name: string | null;
   coingecko_id: string | null;
   tradingview_symbol: string | null;
+  tradingview_supported?: boolean;
   polygon_ticker: string | null;
   aliases: string[] | null;
   confidence_score: number;
@@ -104,7 +106,7 @@ export function PendingTickerMappings() {
           polygon_ticker: mapping.polygon_ticker,
           aliases: mapping.aliases || [mapping.normalized_symbol],
           price_supported: !!mapping.coingecko_id || !!mapping.polygon_ticker,
-          tradingview_supported: !!mapping.tradingview_symbol,
+          tradingview_supported: mapping.context?.tradingview_supported ?? !!mapping.tradingview_symbol,
           is_active: true,
         });
 
@@ -150,12 +152,17 @@ export function PendingTickerMappings() {
 
   const handleEdit = (mapping: PendingMapping) => {
     setEditingId(mapping.id);
+    const tvSupported = mapping.context?.tradingview_supported ?? 
+      (mapping.tradingview_symbol && 
+       !mapping.tradingview_symbol.includes('BINANCE') && 
+       !mapping.tradingview_symbol.includes('BYBIT'));
     setEditForm({
       display_name: mapping.display_name || '',
       coingecko_id: mapping.coingecko_id || '',
       tradingview_symbol: mapping.tradingview_symbol || '',
       polygon_ticker: mapping.polygon_ticker || '',
       aliases: mapping.aliases || [],
+      tradingview_supported: tvSupported,
     });
   };
 
@@ -291,8 +298,20 @@ export function PendingTickerMappings() {
                           <Input
                             value={editForm.tradingview_symbol || ''}
                             onChange={(e) => setEditForm({ ...editForm, tradingview_symbol: e.target.value })}
+                            placeholder="KRAKEN:BTCUSD or leave as placeholder"
                           />
                         </div>
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="tv-supported">TradingView Supported</Label>
+                          <Switch
+                            id="tv-supported"
+                            checked={editForm.tradingview_supported === true}
+                            onCheckedChange={(checked) => setEditForm({ ...editForm, tradingview_supported: checked })}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Only enable if TradingView symbol is verified and not defaulting to Binance/Bybit
+                        </p>
                         <div>
                           <Label>Polygon Ticker</Label>
                           <Input
@@ -334,7 +353,12 @@ export function PendingTickerMappings() {
                           <p><strong>CoinGecko ID:</strong> {mapping.coingecko_id}</p>
                         )}
                         {mapping.tradingview_symbol && (
-                          <p><strong>TradingView:</strong> {mapping.tradingview_symbol}</p>
+                          <p>
+                            <strong>TradingView:</strong> {mapping.tradingview_symbol}
+                            {mapping.context?.tradingview_supported === false && (
+                              <Badge variant="outline" className="ml-2 text-orange-600">Needs Review</Badge>
+                            )}
+                          </p>
                         )}
                         {mapping.context && (
                           <p className="text-sm text-muted-foreground">
