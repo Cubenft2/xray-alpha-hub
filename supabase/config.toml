@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.social-sentiment]
 verify_jwt = false
+
+[functions.lunarcrush-sse-listener]
+verify_jwt = false
