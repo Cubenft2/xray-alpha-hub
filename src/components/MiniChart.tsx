@@ -28,24 +28,32 @@ export function MiniChart({
 
   // Smart symbol formatting: add exchange prefix if missing
   const formatTradingViewSymbol = (rawSymbol: string): string => {
-    // If symbol already has an exchange prefix (contains ":"), use as-is
-    if (rawSymbol.includes(':')) {
-      return rawSymbol;
+    const input = rawSymbol.trim().toUpperCase();
+
+    // 1) If already exchange-qualified, sanitize obvious mistakes
+    if (input.includes(':')) {
+      const [exch, sym] = input.split(':');
+      const STOCK_EXCHANGES = ['NASDAQ', 'NYSE', 'AMEX', 'ARCA', 'BATS', 'CBOE'];
+      // If a stock exchange symbol incorrectly ends with USD/USDT, strip it
+      if (STOCK_EXCHANGES.includes(exch) && /[A-Z0-9]+(USD|USDT)$/.test(sym)) {
+        const cleaned = sym.replace(/(USD|USDT)$/,'');
+        return `${exch}:${cleaned}`;
+      }
+      return input;
     }
 
-    // For crypto, append USD if not already there
-    if (assetType === 'crypto' || coingeckoId || polygonTicker?.startsWith('X:')) {
-      return rawSymbol.endsWith('USD') ? rawSymbol : `${rawSymbol}USD`;
+    // 2) Crypto detection – only append USD for clear crypto cases
+    const isCrypto = assetType === 'crypto'
+      || (!!polygonTicker && polygonTicker.startsWith('X:'))
+      || /^(BTC|ETH|SOL|DOGE|ADA|XRP|DOT|LINK|MATIC|ATOM|UNI|LTC|BCH|TRX|TON|NEAR|APT|RNDR|INJ|STX|FTM|ALGO|SAND|MANA|AAVE|EOS|XTZ|THETA|AXS|FLOW|SUI|HYPE|ASTR|ASTER|XMR|DASH|ZEC|IMX|HBAR|VET|MKR|OP|ARB|GRT|RUNE|FIL)$/i.test(input);
+
+    if (isCrypto) {
+      return /USDT?$/.test(input) ? input : `${input}USD`;
     }
 
-    // For stocks without exchange, prepend NASDAQ as safe default
-    if (assetType === 'stock' || (!assetType && !coingeckoId)) {
-      console.log(`📊 Adding NASDAQ prefix to ${rawSymbol}`);
-      return `NASDAQ:${rawSymbol}`;
-    }
-
-    // For indices/forex, use as-is (they usually have proper format)
-    return rawSymbol;
+    // 3) Default to stocks (safe NASDAQ prefix)
+    console.log(`📊 Adding NASDAQ prefix to ${input}`);
+    return `NASDAQ:${input}`;
   };
 
   const formattedSymbol = formatTradingViewSymbol(symbol);
