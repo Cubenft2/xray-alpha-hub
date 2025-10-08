@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -49,16 +49,28 @@ export default function MarketBriefHome() {
 const { theme } = useTheme();
   const { getMapping: getDbMapping } = useTickerMappings();
 
-  // Get live prices for all tickers (including top 50 cryptos)
-  const allTickers = [
+  // Memoize tickers array to prevent page reloads
+  const allTickers = useMemo(() => [
     ...extractedTickers, 
     'BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'USDC', 'XRP', 'ADA', 'AVAX', 'DOGE',
     'TRX', 'TON', 'LINK', 'SHIB', 'DOT', 'MATIC', 'UNI', 'LTC', 'BCH', 'NEAR',
     'ICP', 'APT', 'FIL', 'ARB', 'OP', 'HBAR', 'VET', 'MKR', 'ATOM', 'IMX',
     'RNDR', 'STX', 'INJ', 'GRT', 'RUNE', 'FTM', 'ALGO', 'SAND', 'MANA', 'AAVE',
     'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER'
-  ];
+  ], [extractedTickers]);
+
   const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
+
+  // Helper to get asset metadata for MiniChart
+  const getAssetMetadata = (ticker: string) => {
+    const dbMap = getDbMapping(ticker.toUpperCase());
+    return {
+      assetType: dbMap?.type as 'crypto' | 'stock' | 'index' | 'forex' | undefined,
+      coingeckoId: dbMap?.coingecko_id || undefined,
+      polygonTicker: dbMap?.polygon_ticker || undefined,
+      tvOk: dbMap?.tradingview_supported ?? true
+    };
+  };
 
   // Fetch quotes timestamp from API
   useEffect(() => {
@@ -751,6 +763,7 @@ const { theme } = useTheme();
                     .slice(0, 12)
                     .map((ticker) => {
                     const { symbol, displayName } = mapTickerToTradingView(ticker);
+                    const metadata = getAssetMetadata(ticker);
                     const unsupportedSet = new Set(['FIGR_HELOC']);
                     const isUnsupported = unsupportedSet.has(ticker.toUpperCase());
                     return (
@@ -771,7 +784,14 @@ const { theme } = useTheme();
                               <ExternalLink className="w-4 h-4 ml-1" />
                             </a>
                           ) : (
-                            <MiniChart symbol={symbol} theme={theme} />
+                            <MiniChart 
+                              symbol={symbol} 
+                              theme={theme}
+                              assetType={metadata.assetType}
+                              coingeckoId={metadata.coingeckoId}
+                              polygonTicker={metadata.polygonTicker}
+                              tvOk={metadata.tvOk}
+                            />
                           )}
                         </div>
                       </CardContent>
@@ -799,7 +819,11 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Bitcoin (BTC)</div>
                     <div className="h-36">
-                      <MiniChart symbol={mapTickerToTradingView('BTC').symbol} theme={theme} />
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('BTC').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('BTC')}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -808,7 +832,11 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Ethereum (ETH)</div>
                     <div className="h-36">
-                      <MiniChart symbol={mapTickerToTradingView('ETH').symbol} theme={theme} />
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('ETH').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('ETH')}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -819,7 +847,11 @@ const { theme } = useTheme();
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">Solana (SOL)</div>
                       <div className="h-36">
-                        <MiniChart symbol={mapTickerToTradingView('SOL').symbol} theme={theme} />
+                        <MiniChart 
+                          symbol={mapTickerToTradingView('SOL').symbol} 
+                          theme={theme}
+                          {...getAssetMetadata('SOL')}
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -830,7 +862,11 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">ASTER</div>
                     <div className="h-36">
-                      <MiniChart symbol={mapTickerToTradingView('ASTER').symbol} theme={theme} />
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('ASTER').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('ASTER')}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -840,7 +876,11 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Dogecoin (DOGE)</div>
                     <div className="h-36">
-                      <MiniChart symbol={mapTickerToTradingView('DOGE').symbol} theme={theme} />
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('DOGE').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('DOGE')}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -850,7 +890,11 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">S&P 500 (SPY)</div>
                     <div className="h-36">
-                      <MiniChart symbol={mapTickerToTradingView('SPY').symbol} theme={theme} />
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('SPY').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('SPY')}
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -861,7 +905,11 @@ const { theme } = useTheme();
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">US Dollar Index</div>
                       <div className="h-36">
-                        <MiniChart symbol={mapTickerToTradingView('DXY').symbol} theme={theme} />
+                        <MiniChart 
+                          symbol={mapTickerToTradingView('DXY').symbol} 
+                          theme={theme}
+                          {...getAssetMetadata('DXY')}
+                        />
                       </div>
                     </CardContent>
                   </Card>
@@ -873,7 +921,11 @@ const { theme } = useTheme();
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">Gold (XAU/USD)</div>
                       <div className="h-36">
-                        <MiniChart symbol={mapTickerToTradingView('XAUUSD').symbol} theme={theme} />
+                        <MiniChart 
+                          symbol={mapTickerToTradingView('XAUUSD').symbol} 
+                          theme={theme}
+                          {...getAssetMetadata('XAUUSD')}
+                        />
                       </div>
                     </CardContent>
                   </Card>
