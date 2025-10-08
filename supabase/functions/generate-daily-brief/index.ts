@@ -80,7 +80,7 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'Social Sentiment',
-    guidelines: 'SOCIAL METRICS ONLY: Social volume, trending rankings, community sentiment scores, LunarCrush galaxy scores. DO NOT mention price changes or movements—those were covered in earlier sections. Focus on: What are people talking about? Why is it trending? Community sentiment shifts. 1-2 paragraphs.',
+    guidelines: 'SOCIAL METRICS ONLY: Cover 3-4 top-trending assets. FORMAT STRICTLY: For each asset, start a new paragraph with "AssetName (SYM):" then write 2-3 short sentences about ONLY social metrics (trending score, social volume change, galaxy score, why it\'s buzzing). Insert blank line between assets. DO NOT mention price changes or movements. Do NOT repeat any asset.',
     dataScope: ['lunarcrushData', 'trendingData', 'socialData'],
     minWords: 100
   },
@@ -182,6 +182,59 @@ interface FactTracker {
 }
 
 /**
+ * Deduplicate and format Social Sentiment section
+ */
+function cleanSocialSentiment(text: string): string {
+  console.log('🧹 Cleaning Social Sentiment section...');
+  
+  // Split into sentences and normalize
+  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0);
+  const seen = new Set<string>();
+  const normalized = new Map<string, string>();
+  
+  // Detect duplicates (case-insensitive, normalized)
+  const uniqueSentences = sentences.filter(sentence => {
+    const norm = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
+    if (seen.has(norm)) {
+      console.log(`  ❌ Removed duplicate: "${sentence.substring(0, 50)}..."`);
+      return false;
+    }
+    seen.add(norm);
+    normalized.set(sentence, norm);
+    return true;
+  });
+  
+  // Group by asset (detect "AssetName (SYM):" pattern)
+  const assetParagraphs = new Map<string, string[]>();
+  let currentAsset: string | null = null;
+  
+  uniqueSentences.forEach(sentence => {
+    const assetMatch = sentence.match(/^([A-Za-z0-9\s]+)\s*\(([A-Z0-9]+)\):/);
+    if (assetMatch) {
+      currentAsset = assetMatch[2]; // Use symbol as key
+      if (!assetParagraphs.has(currentAsset)) {
+        assetParagraphs.set(currentAsset, []);
+      }
+      assetParagraphs.get(currentAsset)!.push(sentence);
+    } else if (currentAsset && sentence.length > 10) {
+      // Add to current asset's paragraph
+      assetParagraphs.get(currentAsset)!.push(sentence);
+    }
+  });
+  
+  // Build final output: one paragraph per asset, max 3 sentences, blank line between
+  const paragraphs: string[] = [];
+  assetParagraphs.forEach((sentences, symbol) => {
+    const para = sentences.slice(0, 3).join('. ') + '.';
+    paragraphs.push(para);
+    console.log(`  ✅ Asset ${symbol}: ${sentences.length} sentence(s) → kept first ${Math.min(3, sentences.length)}`);
+  });
+  
+  console.log(`  📊 Result: ${assetParagraphs.size} assets, ${paragraphs.length} paragraphs`);
+  return '<p>' + paragraphs.join('</p>\n\n<p>') + '</p>';
+}
+
+/**
  * Generate a single section using section-specific prompts
  */
 async function generateSection(
@@ -192,6 +245,13 @@ async function generateSection(
   isWeekly: boolean
 ): Promise<string> {
   console.log(`\n📝 Generating section: ${sectionDef.title}`);
+  
+  // For Social Sentiment, select specific assets to cover
+  let topAssets: string[] = [];
+  if (sectionDef.title === 'Social Sentiment' && allData.lunarcrushData?.data?.length > 0) {
+    topAssets = allData.lunarcrushData.data.slice(0, 4).map((a: any) => `${a.name} (${a.symbol})`);
+    console.log(`  🎯 Selected assets to cover: ${topAssets.join(', ')}`);
+  }
   
   // Filter data relevant to this section
   const relevantData = filterDataForSection(sectionDef.dataScope, allData);
@@ -207,12 +267,17 @@ async function generateSection(
     ? `\n\n⚠️ CRITICAL: ${previousAssets} were already analyzed. DO NOT repeat their price movements or gains/losses. ONLY discuss social metrics: trending scores, social volume changes, community sentiment, and why they're buzzing on social media.`
     : '';
   
+  // For Social Sentiment, explicitly list assets to cover
+  const assetListNote = sectionDef.title === 'Social Sentiment' && topAssets.length > 0
+    ? `\n\n📋 COVER ONLY THESE ASSETS: ${topAssets.join(', ')}. One paragraph per asset. Do not include others.`
+    : '';
+  
   // Construct section prompt
   const sectionPrompt = `${XRAYCRYPTO_PERSONA}
 
 **SECTION TO WRITE:** <h2>${sectionDef.title}</h2>
 
-**SECTION GUIDELINES:** ${sectionDef.guidelines}${socialSentimentNote}
+**SECTION GUIDELINES:** ${sectionDef.guidelines}${socialSentimentNote}${assetListNote}
 
 **CONTEXT:** This is section ${sectionDef.title} of a ${isWeekly ? 'weekly' : 'daily'} market brief.${contextNote}
 
@@ -253,7 +318,13 @@ Write the section content now:`;
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content.trim();
+    let content = data.choices[0].message.content.trim();
+    
+    // Apply post-processing for Social Sentiment
+    if (sectionDef.title === 'Social Sentiment') {
+      content = cleanSocialSentiment(content);
+      console.log(`🧹 Cleaned Social Sentiment: ${content.length} chars`);
+    }
     
     // Update fact tracker
     updateFactTracker(content, factTracker);
