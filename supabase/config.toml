@@ -1,5 +1,8 @@
 project_id = "odncvfiuzliyohxrsigc"
 
+[functions.lunarcrush-sync]
+verify_jwt = false
+
 [functions.lunarcrush-webhook]
 verify_jwt = false
 
