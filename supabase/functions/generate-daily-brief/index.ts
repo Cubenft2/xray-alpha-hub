@@ -639,38 +639,53 @@ function applyCrossSectionSimilarityGuard(text: string): string {
       for (const currSent of current.sentences) {
         if (!keptSentences.has(currSent.normalized)) continue;
         
-        // NEW: Skip short sentences (< 20 words) from fuzzy dedup
+        // Skip short sentences (< 30 words) from fuzzy dedup
         const wordCount = currSent.raw.split(/\s+/).length;
-        if (wordCount < 20) continue;
+        if (wordCount < 30) continue;
+        
+        // Whitelist: Skip sentences with transition phrases (they provide different context)
+        const transitionPhrases = ['meanwhile', 'separately', 'in contrast', 'on the other hand', 'however', 'additionally', 'furthermore'];
+        const hasTransition = transitionPhrases.some(phrase => currSent.raw.toLowerCase().includes(phrase));
+        if (hasTransition) continue;
         
         let shouldPrune = false;
         let pruneReason = '';
         let similarity = 0;
         
         for (const priorSent of prior.sentences) {
-          // Check 1: Fuzzy n-gram similarity (RAISED threshold: 0.50 → 0.70)
+          // Check 1: Fuzzy n-gram similarity (RAISED threshold: 0.70 → 0.85)
           const intersection = new Set([...currSent.ngrams].filter(x => priorSent.ngrams.has(x)));
           const union = new Set([...currSent.ngrams, ...priorSent.ngrams]);
           similarity = union.size > 0 ? intersection.size / union.size : 0;
           
-          if (similarity > 0.70) {
+          if (similarity > 0.85) {
             shouldPrune = true;
             pruneReason = `fuzzy similarity ${(similarity * 100).toFixed(0)}%`;
             prunedByFuzzy++;
+            
+            // Enhanced logging: show first 80 chars of removed sentence
+            console.log(`   🔍 Removing (Jaccard=${(similarity * 100).toFixed(0)}%): "${currSent.raw.slice(0, 80)}${currSent.raw.length > 80 ? '...' : ''}"`);
             break;
           }
           
-          // Check 2: TIGHTENED numeric facts - need matching symbol + numeric
+          // Log near-threshold matches for tuning
+          if (similarity > 0.80 && similarity <= 0.85) {
+            console.log(`   📊 Near-threshold (${(similarity * 100).toFixed(0)}%): "${currSent.raw.slice(0, 80)}${currSent.raw.length > 80 ? '...' : ''}"`);
+          }
+          
+          // Check 2: TIGHTENED numeric facts - require matching symbol + exact number + similar structure
           const currSymbols = new Set(Array.from(currSent.raw.matchAll(/\(([A-Z0-9_]{2,10})\)/g), m => m[1]));
           const priorSymbols = new Set(Array.from(priorSent.raw.matchAll(/\(([A-Z0-9_]{2,10})\)/g), m => m[1]));
           const sharedSymbols = [...currSymbols].filter(s => priorSymbols.has(s));
           
           if (sharedSymbols.length > 0) {
             const numericIntersection = new Set([...currSent.numerics].filter(x => priorSent.numerics.has(x)));
-            if (numericIntersection.size >= 2) {
+            // Require at least 2 matching numbers AND high structural similarity
+            if (numericIntersection.size >= 2 && similarity > 0.60) {
               shouldPrune = true;
-              pruneReason = `${sharedSymbols[0]}: repeated numeric facts ${Array.from(numericIntersection).slice(0, 2).join(', ')}`;
+              pruneReason = `${sharedSymbols[0]}: repeated numeric facts ${Array.from(numericIntersection).slice(0, 2).join(', ')} + structure match`;
               prunedByNumeric++;
+              console.log(`   💹 Removing numeric repeat: "${currSent.raw.slice(0, 80)}${currSent.raw.length > 80 ? '...' : ''}"`);
               break;
             }
           }
@@ -689,18 +704,16 @@ function applyCrossSectionSimilarityGuard(text: string): string {
     
   }
   
-  // NEW: Emergency override if >80% would be pruned
+  // FIXED: Emergency override - check BEFORE applying pruning
   const pruneRate = totalSentences > 0 ? (pruneMatches.length / totalSentences) : 0;
   let finalMatches = pruneMatches;
   
   if (pruneRate > 0.80) {
-    console.warn(`⚠️ EMERGENCY OVERRIDE: Would prune ${(pruneRate * 100).toFixed(0)}% of content (${pruneMatches.length}/${totalSentences} sentences)`);
-    console.warn(`   Applying only top 50% most similar matches to preserve content`);
+    console.warn(`🚨 EMERGENCY OVERRIDE TRIGGERED: Would prune ${(pruneRate * 100).toFixed(0)}% of content (${pruneMatches.length}/${totalSentences} sentences)`);
+    console.warn(`   SKIPPING cross-section deduplication entirely to preserve content integrity`);
     
-    // Sort by similarity (highest first) and keep only top 50%
-    finalMatches = pruneMatches
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, Math.floor(pruneMatches.length * 0.5));
+    // Skip all cross-section dedup when emergency triggered
+    finalMatches = [];
   }
   
   // Apply the pruning
