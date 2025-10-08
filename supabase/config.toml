@@ -1,5 +1,8 @@
 project_id = "odncvfiuzliyohxrsigc"
 
+[functions.lunarcrush-diagnostic]
+verify_jwt = false
+
 [functions.exchange-data-aggregator]
 verify_jwt = false
 
