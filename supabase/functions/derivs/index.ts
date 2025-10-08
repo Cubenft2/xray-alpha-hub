@@ -13,6 +13,17 @@ const coinglassApiKey = Deno.env.get('COINGLASS_API_KEY');
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// 🔒 SECURITY: Validate API key on startup
+if (coinglassApiKey) {
+  if (coinglassApiKey.length < 20) {
+    console.warn('⚠️ CoinGlass API key looks invalid (too short)');
+  } else {
+    console.log('✅ CoinGlass API key loaded');
+  }
+} else {
+  console.warn('⚠️ No CoinGlass API key - using placeholder data');
+}
+
 interface DerivData {
   symbol: string;
   fundingRate: number;
@@ -67,6 +78,30 @@ async function setCachedData(key: string, value: any, ttlSeconds: number): Promi
   }
 }
 
+// 🔒 SECURITY: Rate limiting helper
+async function checkRateLimit(identifier: string, maxRequests: number, windowSeconds: number): Promise<{ allowed: boolean; remaining: number }> {
+  const key = `ratelimit:derivs:${identifier}`;
+  const now = Date.now();
+  
+  try {
+    const cached = await getCachedData(key);
+    const requests = cached ? cached.requests.filter((ts: number) => now - ts < windowSeconds * 1000) : [];
+    
+    if (requests.length >= maxRequests) {
+      return { allowed: false, remaining: 0 };
+    }
+    
+    requests.push(now);
+    await setCachedData(key, { requests }, windowSeconds);
+    
+    return { allowed: true, remaining: maxRequests - requests.length };
+  } catch (error) {
+    console.error('Rate limit check error:', error);
+    // Fail open to avoid blocking legitimate requests if cache fails
+    return { allowed: true, remaining: maxRequests };
+  }
+}
+
 async function fetchCoinglassData(symbols: string[]): Promise<DerivData[]> {
   if (!coinglassApiKey) {
     console.log('No CoinGlass API key found, returning placeholder data');
@@ -89,30 +124,22 @@ async function fetchCoinglassData(symbols: string[]): Promise<DerivData[]> {
     }));
   }
 
-  const derivData: DerivData[] = [];
   const timestamp = new Date().toISOString();
 
-  // Fetch funding rates and liquidations for each symbol
-  for (const symbol of symbols) {
+  // 🚀 PERFORMANCE: Fetch all symbols in parallel
+  const fetchPromises = symbols.map(async (symbol) => {
     try {
-      // Map symbol to CoinGlass format (usually just uppercase)
       const coinglassSymbol = symbol.toUpperCase();
       
-      // Fetch funding rate (using v2 API example)
-      const fundingUrl = `https://open-api.coinglass.com/public/v2/funding?symbol=${coinglassSymbol}`;
-      const fundingResponse = await fetch(fundingUrl, {
-        headers: {
-          'coinglassSecret': coinglassApiKey,
-        }
-      });
-
-      // Fetch liquidations (last 24h)
-      const liqUrl = `https://open-api.coinglass.com/public/v2/liquidation?symbol=${coinglassSymbol}&timeType=24h`;
-      const liqResponse = await fetch(liqUrl, {
-        headers: {
-          'coinglassSecret': coinglassApiKey,
-        }
-      });
+      // Fetch funding rate and liquidations in parallel
+      const [fundingResponse, liqResponse] = await Promise.all([
+        fetch(`https://open-api.coinglass.com/public/v2/funding?symbol=${coinglassSymbol}`, {
+          headers: { 'coinglassSecret': coinglassApiKey }
+        }),
+        fetch(`https://open-api.coinglass.com/public/v2/liquidation?symbol=${coinglassSymbol}&timeType=24h`, {
+          headers: { 'coinglassSecret': coinglassApiKey }
+        })
+      ]);
 
       let fundingRate = 0;
       let liquidations24h = { long: 0, short: 0, total: 0 };
@@ -122,6 +149,8 @@ async function fetchCoinglassData(symbols: string[]): Promise<DerivData[]> {
         if (fundingData.success && fundingData.data?.[0]) {
           fundingRate = parseFloat(fundingData.data[0].fundingRate || 0);
         }
+      } else {
+        console.warn(`CoinGlass funding API error for ${symbol}: ${fundingResponse.status}`);
       }
 
       if (liqResponse.ok) {
@@ -133,30 +162,31 @@ async function fetchCoinglassData(symbols: string[]): Promise<DerivData[]> {
             total: parseFloat(liqData.data.totalLiquidationUsd || 0)
           };
         }
+      } else {
+        console.warn(`CoinGlass liquidation API error for ${symbol}: ${liqResponse.status}`);
       }
 
-      derivData.push({
+      return {
         symbol,
         fundingRate,
         liquidations24h,
         timestamp,
         source: 'coinglass'
-      });
+      };
 
     } catch (error) {
       console.error(`Error fetching CoinGlass data for ${symbol}:`, error);
-      // Add placeholder data for failed requests
-      derivData.push({
+      return {
         symbol,
         fundingRate: 0,
         liquidations24h: { long: 0, short: 0, total: 0 },
         timestamp,
         source: 'error'
-      });
+      };
     }
-  }
+  });
 
-  return derivData;
+  return Promise.all(fetchPromises);
 }
 
 serve(async (req) => {
@@ -165,6 +195,7 @@ serve(async (req) => {
   }
 
   try {
+    const startTime = Date.now();
     const url = new URL(req.url);
     const symbolsParam = url.searchParams.get('symbols');
     
@@ -179,19 +210,99 @@ serve(async (req) => {
     }
 
     const symbols = symbolsParam.split(',').map(s => s.trim().toUpperCase());
+
+    // 🔒 SECURITY: Limit number of symbols to prevent abuse
+    const MAX_SYMBOLS = 10;
+    if (symbols.length > MAX_SYMBOLS) {
+      console.warn(`Request exceeded max symbols: ${symbols.length} > ${MAX_SYMBOLS}`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Too many symbols requested. Maximum ${MAX_SYMBOLS} allowed.`,
+          requested: symbols.length,
+          max: MAX_SYMBOLS
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // 🔒 SECURITY: Validate symbol format (alphanumeric only)
+    const SYMBOL_REGEX = /^[A-Z0-9]{1,10}$/;
+    const invalidSymbols = symbols.filter(s => !SYMBOL_REGEX.test(s));
+    if (invalidSymbols.length > 0) {
+      console.warn(`Invalid symbol format detected: ${invalidSymbols.join(', ')}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid symbol format',
+          invalidSymbols,
+          validFormat: 'Alphanumeric, 1-10 characters'
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // 🔒 SECURITY: Rate limiting (30 requests per 5 minutes per IP)
+    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0].trim() || 
+                     req.headers.get('x-real-ip') || 
+                     'unknown';
+                     
+    const { allowed, remaining } = await checkRateLimit(clientIP, 30, 300);
+
+    if (!allowed) {
+      console.warn(`⚠️ Rate limit exceeded for IP: ${clientIP}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Rate limit exceeded',
+          retryAfter: 300,
+          message: 'Too many requests. Please try again in 5 minutes.'
+        }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Retry-After': '300',
+            'X-RateLimit-Limit': '30',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Window': '300'
+          } 
+        }
+      );
+    }
+
+    console.log('📊 Derivs request:', {
+      ip: clientIP,
+      symbols: symbols.length,
+      symbolList: symbols.join(','),
+      timestamp: new Date().toISOString()
+    });
+
     const cacheKey = `derivs:${symbols.sort().join(',')}`;
     
     // Check cache first
     const cached = await getCachedData(cacheKey);
     if (cached) {
-      console.log('Returning cached derivatives data');
+      console.log('✅ Returning cached derivatives data');
       return new Response(
         JSON.stringify(cached),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'X-RateLimit-Limit': '30',
+            'X-RateLimit-Remaining': remaining.toString(),
+            'X-RateLimit-Window': '300'
+          } 
+        }
       );
     }
 
-    console.log('Fetching fresh derivatives data for:', symbols);
+    console.log('🔄 Fetching fresh derivatives data for:', symbols);
     
     const derivsData = await fetchCoinglassData(symbols);
     const result = {
@@ -200,16 +311,34 @@ serve(async (req) => {
       cached: false
     };
     
+    const duration = Date.now() - startTime;
+    console.log('✅ Derivs data fetched:', {
+      symbols: symbols.length,
+      sources: derivsData.map(d => d.source),
+      duration: `${duration}ms`
+    });
+    
     // Cache for 300 seconds (5 minutes)
     await setCachedData(cacheKey, result, 300);
     
     return new Response(
       JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'X-RateLimit-Limit': '30',
+          'X-RateLimit-Remaining': remaining.toString(),
+          'X-RateLimit-Window': '300'
+        } 
+      }
     );
     
   } catch (error) {
-    console.error('Error in derivs function:', error);
+    console.error('❌ Derivs error:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString()
+    });
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { 

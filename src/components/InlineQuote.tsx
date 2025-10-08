@@ -86,7 +86,15 @@ export function InlineQuote({ symbol, showDerivs = false, className = "" }: Inli
             body: { symbols: [symbol] }
           });
 
-          if (!derivsError) {
+          if (derivsError) {
+            // Handle rate limiting gracefully
+            if (derivsError.message?.includes('Rate limit') || derivsError.message?.includes('429')) {
+              console.warn(`Rate limited for ${symbol}, skipping derivatives data`);
+              // Don't set error - just skip derivs display
+            } else {
+              console.error('Error fetching derivatives:', derivsError);
+            }
+          } else {
             const derivsData = derivsResponse as DerivsResponse;
             const deriv = derivsData.derivatives.find(d => d.symbol === symbol);
             if (deriv) {
