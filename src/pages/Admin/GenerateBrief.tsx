@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 
 export function GenerateBrief() {
   const [generating, setGenerating] = useState(false);
+  const [progress, setProgress] = useState('');
   const [customQuote, setCustomQuote] = useState('');
   const [customAuthor, setCustomAuthor] = useState('');
   const [useCustomQuote, setUseCustomQuote] = useState(false);
@@ -15,9 +16,12 @@ export function GenerateBrief() {
 
   const handleGenerateBrief = async (briefType: 'morning' | 'evening' | 'weekend') => {
     setGenerating(true);
+    setProgress('Initializing...');
+    
     try {
       console.log(`🚀 Generating ${briefType} brief with Symbol Intelligence Layer...`);
       
+      setProgress('Setting up custom quote...');
       // Store custom quote if provided
       if (useCustomQuote && customQuote && customAuthor) {
         await supabase.from('cache_kv').upsert({
@@ -28,6 +32,10 @@ export function GenerateBrief() {
         console.log('✅ Custom quote override set');
       }
       
+      setProgress('Collecting market data...');
+      await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay for UX
+      
+      setProgress('Generating brief with AI (15-30s)...');
       const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
         body: { briefType }
       });
@@ -52,6 +60,7 @@ export function GenerateBrief() {
       }
       
       console.log('✅ Brief generated:', data);
+      setProgress('Brief generated! Redirecting...');
       toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated successfully!`);
       
       // Clear custom quote after use
@@ -71,6 +80,7 @@ export function GenerateBrief() {
       toast.error('Failed to generate brief');
     } finally {
       setGenerating(false);
+      setProgress('');
     }
   };
 
@@ -137,6 +147,15 @@ export function GenerateBrief() {
               </div>
             </div>
             
+            {generating && progress && (
+              <div className="p-3 bg-muted/50 rounded-lg border border-border mb-4">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-sm font-medium">{progress}</span>
+                </div>
+              </div>
+            )}
+            
             <div className="grid gap-3">
               <Button 
                 onClick={() => handleGenerateBrief('morning')} 
@@ -145,7 +164,7 @@ export function GenerateBrief() {
                 size="lg"
               >
                 {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {generating ? 'Generating...' : '🌅 Generate Morning Brief'}
+                {generating ? progress || 'Generating...' : '🌅 Generate Morning Brief'}
               </Button>
               
               <Button 
@@ -156,7 +175,7 @@ export function GenerateBrief() {
                 size="lg"
               >
                 {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {generating ? 'Generating...' : '🌆 Generate Evening Brief'}
+                {generating ? progress || 'Generating...' : '🌆 Generate Evening Brief'}
               </Button>
               
               <Button 
@@ -167,12 +186,12 @@ export function GenerateBrief() {
                 size="lg"
               >
                 {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {generating ? 'Generating...' : '📅 Generate Weekly Recap'}
+                {generating ? progress || 'Generating...' : '📅 Generate Weekly Recap'}
               </Button>
             </div>
             
             <p className="text-xs text-muted-foreground mt-4">
-              <strong>Note:</strong> Generation takes 30-60 seconds. You'll be redirected to view the new brief when complete.
+              <strong>Note:</strong> Generation takes 15-30 seconds with the new modular system. You'll be redirected to view the new brief when complete.
             </p>
           </div>
         </CardContent>
