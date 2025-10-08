@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import PageTransition from "./components/PageTransition";
 import { Layout } from "./components/Layout";
 import { CommunityPromotion } from "./components/CommunityPromotion";
-import { SlidingBanner } from "./components/SlidingBanner";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
 import MarketBrief from "./pages/MarketBrief";
@@ -38,7 +37,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner position="top-center" offset="120px" />
-        <CommunityPromotion />
+        {import.meta.env.VITE_SHOW_PROMOS === 'true' && <CommunityPromotion />}
         <BrowserRouter>
           <Layout>
             <PageTransition>

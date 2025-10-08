@@ -9,6 +9,16 @@ export const SlidingBanner: React.FC = () => {
   const pageLoadTimeRef = useRef<number>(Date.now());
 
   useEffect(() => {
+    const ADS_ENABLED = import.meta.env.VITE_SHOW_PROMOS === 'true';
+    
+    // Clean up storage if ads are disabled
+    if (!ADS_ENABLED) {
+      sessionStorage.removeItem('sliding_banner_dismissed_session');
+      localStorage.removeItem('sliding_banner_dismissed_gugo_v2');
+      setIsDismissed(true);
+      return;
+    }
+
     // Check if user has dismissed this banner
     const dismissedSession = sessionStorage.getItem('sliding_banner_dismissed_session');
     const legacyDismissed = localStorage.getItem('sliding_banner_dismissed_gugo_v2');
@@ -66,7 +76,8 @@ export const SlidingBanner: React.FC = () => {
     window.open(chartUrl, '_blank', 'noopener,noreferrer');
   };
 
-  if (isDismissed) return null;
+  const ADS_ENABLED = import.meta.env.VITE_SHOW_PROMOS === 'true';
+  if (!ADS_ENABLED || isDismissed) return null;
 
   return (
     <div

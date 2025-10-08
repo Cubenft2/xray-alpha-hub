@@ -60,6 +60,17 @@ export const CommunityPromotion: React.FC = () => {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
+    const ADS_ENABLED = import.meta.env.VITE_SHOW_PROMOS === 'true';
+    
+    // Clean up storage if ads are disabled
+    if (!ADS_ENABLED) {
+      localStorage.removeItem(`promotion_dismissed_${CURRENT_PROMOTION.id}`);
+      localStorage.removeItem('community_promo_dismissed');
+      localStorage.removeItem('community_promo_dismissed_time');
+      setDismissed(true);
+      return;
+    }
+
     if (!CURRENT_PROMOTION.isActive) return;
 
     // Check if user has dismissed this promotion
@@ -132,7 +143,8 @@ export const CommunityPromotion: React.FC = () => {
     }
   };
 
-  if (!CURRENT_PROMOTION.isActive || dismissed) return null;
+  const ADS_ENABLED = import.meta.env.VITE_SHOW_PROMOS === 'true';
+  if (!ADS_ENABLED || !CURRENT_PROMOTION.isActive || dismissed) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
