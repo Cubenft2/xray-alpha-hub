@@ -18,41 +18,9 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
 
   const data = marketData.content_sections.market_data;
   
-  // Client-side fallback for global totals when brief has 0
-  const [globalFallback, setGlobalFallback] = React.useState<{ marketCap: number; volume: number }>({ marketCap: 0, volume: 0 });
-  React.useEffect(() => {
-    const needsCap = !(data?.total_market_cap > 0);
-    const needsVol = !(data?.total_volume > 0);
-    if (!needsCap && !needsVol) return;
-    (async () => {
-      try {
-        const res = await fetch('https://api.coingecko.com/api/v3/global');
-        const json = await res.json();
-        const mc = json?.data?.total_market_cap?.usd ?? 0;
-        const tv = json?.data?.total_volume?.usd ?? 0;
-        setGlobalFallback({ marketCap: mc, volume: tv });
-        console.info('MarketOverview: loaded global fallback', { mc, tv });
-      } catch (e) {
-        console.warn('MarketOverview: global fallback failed', e);
-      }
-    })();
-  }, [data?.total_market_cap, data?.total_volume]);
-
-  // Derive biggest mover if not provided
-  const biggestMoverData = data.biggest_mover || (() => {
-    const candidates = [...(data.top_gainers || []), ...(data.top_losers || [])];
-    if (!candidates.length) return null;
-    return candidates
-      .slice()
-      .sort((a: any, b: any) => Math.abs((b.change_24h || 0)) - Math.abs((a.change_24h || 0)))[0];
-  })();
-  
-  const totalMarketCap = (data?.total_market_cap && data.total_market_cap > 0) ? data.total_market_cap : globalFallback.marketCap;
-  const totalVolume = (data?.total_volume && data.total_volume > 0) ? data.total_volume : globalFallback.volume;
-  
   // Hide if all key metrics are zero/empty
-  const hasData = (totalMarketCap || 0) > 0 || (totalVolume || 0) > 0 || 
-                  (data.fear_greed_index || 0) > 0 || !!biggestMoverData;
+  const hasData = data.total_market_cap > 0 || data.total_volume > 0 || 
+                  data.fear_greed_index > 0 || data.biggest_mover;
   
   if (!hasData) {
     return (
@@ -104,7 +72,7 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
               <div>
                 <p className="text-sm text-muted-foreground">Total Market Cap</p>
                 <p className="text-xl font-bold text-green-500 group-hover:text-green-400 transition-colors">
-                  {formatCurrency(totalMarketCap || 0)}
+                  {formatCurrency(data.total_market_cap || 0)}
                 </p>
               </div>
             </div>
@@ -124,7 +92,7 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
               <div>
                 <p className="text-sm text-muted-foreground">24h Volume</p>
                 <p className="text-xl font-bold text-blue-500 group-hover:text-blue-400 transition-colors">
-                  {formatCurrency(totalVolume || 0)}
+                  {formatCurrency(data.total_volume || 0)}
                 </p>
               </div>
             </div>
@@ -168,23 +136,23 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
               <TrendingUp className="w-5 h-5 text-yellow-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Biggest Mover</p>
-                {biggestMoverData ? (
+                {data.biggest_mover ? (
                   <>
                     <div className="space-y-1">
                       <p className="text-lg font-bold text-[#00e5ff]">
-                        {biggestMoverData.name}
+                        {data.biggest_mover.name}
                       </p>
                       <div className="flex items-center gap-2">
-                        {typeof biggestMoverData.change_24h === 'number' && (
+                        {data.biggest_mover.change_24h && (
                           <Badge 
                             variant="outline" 
-                            className={`${biggestMoverData.change_24h > 0 
+                            className={`${data.biggest_mover.change_24h > 0 
                               ? 'text-[#22c55e] border-[#22c55e]/20 bg-[#22c55e]/10' 
                               : 'text-[#ef4444] border-[#ef4444]/20 bg-[#ef4444]/10'
                             } font-bold text-xs`}
                           >
-                            {biggestMoverData.change_24h > 0 ? '+' : ''}
-                            {biggestMoverData.change_24h.toFixed(2)}%
+                            {data.biggest_mover.change_24h > 0 ? '+' : ''}
+                            {data.biggest_mover.change_24h.toFixed(2)}%
                           </Badge>
                         )}
                       </div>

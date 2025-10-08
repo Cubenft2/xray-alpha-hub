@@ -1,14 +1,5 @@
 project_id = "odncvfiuzliyohxrsigc"
 
-[functions.lunarcrush-sync]
-verify_jwt = false
-
-[functions.lunarcrush-webhook]
-verify_jwt = false
-
-[functions.lunarcrush-diagnostic]
-verify_jwt = false
-
 [functions.exchange-data-aggregator]
 verify_jwt = false
 
@@ -46,10 +37,4 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.polygon-price-relay]
-verify_jwt = false
-
-[functions.social-sentiment]
-verify_jwt = false
-
-[functions.lunarcrush-sse-listener]
 verify_jwt = false

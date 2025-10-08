@@ -670,58 +670,6 @@ serve(async (req) => {
       console.error('❌ News fetch failed:', err);
     }
 
-    // Analyze news sentiment
-    let sentimentBreakdown = { positive: 0, negative: 0, neutral: 0, total: 0 };
-    let topTickersFromNews: string[] = [];
-    let topKeywords: string[] = [];
-    
-    try {
-      const allNews = [...newsData.crypto, ...newsData.stocks];
-      sentimentBreakdown.total = allNews.length;
-      
-      // Extract sentiment
-      const tickerMap = new Map<string, number>();
-      const keywordMap = new Map<string, number>();
-      
-      allNews.forEach((article: any) => {
-        if (article.sentiment === 'positive') sentimentBreakdown.positive++;
-        else if (article.sentiment === 'negative') sentimentBreakdown.negative++;
-        else sentimentBreakdown.neutral++;
-        
-        // Count tickers
-        if (article.tickers && Array.isArray(article.tickers)) {
-          article.tickers.forEach((ticker: string) => {
-            tickerMap.set(ticker, (tickerMap.get(ticker) || 0) + 1);
-          });
-        }
-        
-        // Count keywords
-        if (article.keywords && Array.isArray(article.keywords)) {
-          article.keywords.forEach((keyword: string) => {
-            if (keyword && keyword.length > 3) {
-              keywordMap.set(keyword, (keywordMap.get(keyword) || 0) + 1);
-            }
-          });
-        }
-      });
-      
-      // Get top 10 tickers
-      topTickersFromNews = Array.from(tickerMap.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([ticker]) => ticker);
-      
-      // Get top 10 keywords
-      topKeywords = Array.from(keywordMap.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([keyword]) => keyword);
-      
-      console.log('📊 News analysis:', sentimentBreakdown, 'Top tickers:', topTickersFromNews.slice(0, 5));
-    } catch (err) {
-      console.error('❌ News sentiment analysis failed:', err);
-    }
-
     try {
       console.log('🌍 Fetching CoinGecko global market data...');
       let globalResponse = await fetch(`https://api.coingecko.com/api/v3/global`, {
@@ -772,78 +720,6 @@ serve(async (req) => {
     }
 
     try {
-      console.log('🌙 Fetching LunarCrush social data...');
-      const lunarcrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY');
-      let useFallback = false;
-      
-      if (lunarcrushApiKey) {
-        const lunarcrushResponse = await fetch(
-          'https://lunarcrush.com/api4/public/coins/list/v2?limit=50&sort=galaxy_score',
-          { headers: { 'Authorization': `Bearer ${lunarcrushApiKey}` } }
-        );
-        if (lunarcrushResponse.ok) {
-          lunarcrushData = await lunarcrushResponse.json();
-          console.log(`✅ LunarCrush: Got ${lunarcrushData.data?.length || 0} assets with social data`);
-          if (lunarcrushData.data && lunarcrushData.data.length > 0) {
-            console.log(`🌟 Sample Galaxy Scores: ${lunarcrushData.data.slice(0, 3).map((a: any) => `${a.symbol}:${a.galaxy_score}`).join(', ')}`);
-          }
-        } else {
-          console.error(`❌ LunarCrush API error: ${lunarcrushResponse.status}`);
-          const errorText = await lunarcrushResponse.text();
-          console.error(`Response: ${errorText}`);
-          console.warn('⚠️ LunarCrush unavailable, using CoinGecko fallback');
-          useFallback = true; // Trigger fallback on API error (e.g., 402 subscription required)
-        }
-      } else {
-        console.warn('⚠️ LUNARCRUSH_API_KEY not configured');
-        useFallback = true;
-      }
-      
-      // Use CoinGecko fallback if LunarCrush failed or not configured
-      if (useFallback) {
-        console.log('🔁 Building social metrics from CoinGecko trending data...');
-        lunarcrushData = {
-          data: coingeckoData.slice(0, 20).map(coin => ({
-            id: coin.id,
-            symbol: coin.symbol.toUpperCase(),
-            name: coin.name,
-            galaxy_score: Math.max(0, Math.min(100, Math.round(
-              (100 - (coin.market_cap_rank || 50)) + 
-              (coin.price_change_percentage_24h || 0)
-            ))),
-            alt_rank: coin.market_cap_rank || 999,
-            social_volume: Math.round((coin.total_volume || 0) / 1000),
-            social_dominance: 0,
-            sentiment: (coin.price_change_percentage_24h || 0) >= 0 ? 0.6 : 0.4,
-            fomo_score: Math.max(0, Math.min(100, Math.round(50 + (coin.price_change_percentage_24h || 0))))
-          }))
-        };
-        console.log(`✅ CoinGecko fallback: Generated social metrics for ${lunarcrushData.data.length} assets`);
-      }
-    } catch (err) {
-      console.error('❌ LunarCrush fetch failed:', err);
-      // Final fallback on exception
-      console.log('🔁 Using CoinGecko error fallback...');
-      lunarcrushData = {
-        data: coingeckoData.slice(0, 20).map(coin => ({
-          id: coin.id,
-          symbol: coin.symbol.toUpperCase(),
-          name: coin.name,
-          galaxy_score: Math.max(0, Math.min(100, Math.round(
-            (100 - (coin.market_cap_rank || 50)) + 
-            (coin.price_change_percentage_24h || 0)
-          ))),
-          alt_rank: coin.market_cap_rank || 999,
-          social_volume: Math.round((coin.total_volume || 0) / 1000),
-          social_dominance: 0,
-          sentiment: (coin.price_change_percentage_24h || 0) >= 0 ? 0.6 : 0.4,
-          fomo_score: Math.max(0, Math.min(100, Math.round(50 + (coin.price_change_percentage_24h || 0))))
-        }))
-      };
-      console.log(`✅ CoinGecko error fallback: ${lunarcrushData.data.length} assets`);
-    }
-
-    try {
       console.log('📊 Fetching derivatives data...');
       const derivsResponse = await supabase.functions.invoke('derivs', { body: { symbols: ['BTC', 'ETH', 'SOL'] } });
       if (!derivsResponse.error) {
@@ -865,49 +741,6 @@ serve(async (req) => {
       console.error('❌ Exchange data fetch failed:', err);
     }
 
-    // ============= ASSET CLASSIFICATION SYSTEM =============
-    console.log('🏷️ Building asset classification map...');
-    const assetClassifications = new Map<string, any>();
-    
-    // Classify all cryptos from CoinGecko
-    coingeckoData.forEach(coin => {
-      const symbol = coin.symbol.toUpperCase();
-      assetClassifications.set(symbol, {
-        type: 'crypto',
-        tradingview_symbol: `${symbol}USD`,
-        coingecko_id: coin.id,
-        display_name: coin.name,
-        is_crypto: true
-      });
-    });
-    
-    // Fetch and classify from ticker_mappings table
-    try {
-      const { data: mappings } = await supabase
-        .from('ticker_mappings')
-        .select('symbol, type, tradingview_symbol, coingecko_id, polygon_ticker, display_name')
-        .eq('is_active', true);
-      
-      mappings?.forEach((m: any) => {
-        const symbol = m.symbol.toUpperCase();
-        assetClassifications.set(symbol, {
-          type: m.type,
-          tradingview_symbol: m.tradingview_symbol,
-          coingecko_id: m.coingecko_id,
-          polygon_ticker: m.polygon_ticker,
-          display_name: m.display_name,
-          is_crypto: m.type === 'crypto'
-        });
-      });
-    } catch (err) {
-      console.error('⚠️ Failed to fetch ticker_mappings:', err);
-    }
-    
-    console.log(`🏷️ Asset Classification Complete: ${assetClassifications.size} assets classified`);
-    console.log(`  - Crypto: ${Array.from(assetClassifications.values()).filter(a => a.type === 'crypto').length}`);
-    console.log(`  - Stocks: ${Array.from(assetClassifications.values()).filter(a => a.type === 'stock').length}`);
-    console.log(`  - Others: ${Array.from(assetClassifications.values()).filter(a => a.type !== 'crypto' && a.type !== 'stock').length}`);
-    
     // Quote selection
     let selectedQuote = "The market is a device for transferring money from the impatient to the patient.";
     let selectedAuthor = "Warren Buffett";
@@ -1047,79 +880,13 @@ serve(async (req) => {
     const estTime = toZonedTime(new Date(), 'America/New_York');
     const slug = `${briefType}-${format(estTime, 'yyyy-MM-dd', { timeZone: 'America/New_York' })}`;
     
-    // Prepare social sentiment data for widgets
-    const socialSentimentForWidget = lunarcrushData.data?.slice(0, 10).map((asset: LunarCrushAsset) => ({
-      name: asset.name || asset.symbol,
-      symbol: asset.symbol,
-      galaxy_score: asset.galaxy_score || 0,
-      sentiment: asset.sentiment || 0,
-      social_volume: asset.social_volume || 0,
-      social_dominance: asset.social_dominance || 0,
-      fomo_score: asset.alt_rank || 0
-    })) || [];
-
     const briefData = {
       slug,
       brief_type: briefType,
       title: briefTitle,
       executive_summary: `Market analysis for ${format(estTime, 'MMMM d, yyyy')}`,
       content_sections: {
-        ai_generated_content: editedContent,
-        asset_classifications: Object.fromEntries(assetClassifications),
-        // Keep top-level trending for backward compatibility
-        trending_coins: trendingData.coins?.slice(0, 7).map((item: any) => ({
-          name: item.item.name,
-          symbol: item.item.symbol.toUpperCase(),
-          market_cap_rank: item.item.market_cap_rank,
-          price: item.item.data?.price,
-          change_24h: item.item.data?.price_change_percentage_24h?.usd,
-          thumb: item.item.thumb
-        })) || [],
-        market_data: {
-          // Add core metrics so UI cards can render
-          total_market_cap: totalMarketCap,
-          total_volume: totalVolume,
-          fear_greed_index: currentFearGreed.value,
-          fear_greed_label: currentFearGreed.value_classification,
-          // Biggest mover for the overview widget
-          biggest_mover: biggestMover ? {
-            name: biggestMover.name,
-            symbol: biggestMover.symbol.toUpperCase(),
-            change_24h: (biggestMover as any)[changeField] || 0
-          } : null,
-          top_gainers: topGainers.map(coin => ({
-            name: coin.name,
-            symbol: coin.symbol,
-            price: coin.current_price,
-            change_24h: coin.price_change_percentage_24h
-          })),
-          top_losers: topLosers.map(coin => ({
-            name: coin.name,
-            symbol: coin.symbol,
-            price: coin.current_price,
-            change_24h: coin.price_change_percentage_24h
-          })),
-          // Mirror trending coins here for the Trending widget
-          trending_coins: trendingData.coins?.slice(0, 7).map((item: any) => ({
-            name: item.item.name,
-            symbol: item.item.symbol.toUpperCase(),
-            market_cap_rank: item.item.market_cap_rank,
-            price: item.item.data?.price,
-            change_24h: item.item.data?.price_change_percentage_24h?.usd,
-            thumb: item.item.thumb
-          })) || [],
-          social_sentiment: socialSentimentForWidget
-        },
-        polygon_analysis: {
-          sentiment_breakdown: sentimentBreakdown,
-          top_tickers: topTickersFromNews,
-          top_keywords: topKeywords
-        },
-        social_data: {
-          top_social_assets: lunarcrushData.data?.slice(0, 10).map((a: LunarCrushAsset) => a.symbol) || [],
-          avg_galaxy_score: lunarcrushData.data?.reduce((sum: number, a: LunarCrushAsset) => sum + (a.galaxy_score || 0), 0) / (lunarcrushData.data?.length || 1) || 0,
-          total_social_volume: lunarcrushData.data?.reduce((sum: number, a: LunarCrushAsset) => sum + (a.social_volume || 0), 0) || 0
-        }
+        ai_generated_content: editedContent
       },
       market_data: {
         total_market_cap: totalMarketCap,

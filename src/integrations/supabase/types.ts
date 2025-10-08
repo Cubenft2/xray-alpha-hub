@@ -649,33 +649,6 @@ export type Database = {
         }
         Relationships: []
       }
-      social_sentiment_cache: {
-        Row: {
-          created_at: string
-          data: Json
-          generated_at: string
-          id: string
-          is_active: boolean
-          received_at: string
-        }
-        Insert: {
-          created_at?: string
-          data: Json
-          generated_at: string
-          id?: string
-          is_active?: boolean
-          received_at?: string
-        }
-        Update: {
-          created_at?: string
-          data?: Json
-          generated_at?: string
-          id?: string
-          is_active?: boolean
-          received_at?: string
-        }
-        Relationships: []
-      }
       ticker_mappings: {
         Row: {
           aliases: string[] | null

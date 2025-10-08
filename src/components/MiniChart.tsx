@@ -1,6 +1,4 @@
-import React, { useEffect, useRef, lazy, Suspense, useState } from 'react';
-import { useChartLoadManager } from '@/contexts/ChartLoadManager';
-import { Skeleton } from '@/components/ui/skeleton';
+import React, { useEffect, useRef, lazy, Suspense } from 'react';
 
 const FallbackSparkline = lazy(() => import('./FallbackSparkline').then(module => ({ default: module.FallbackSparkline })));
 
@@ -8,16 +6,11 @@ interface MiniChartProps {
   symbol: string;
   theme?: string;
   onClick?: () => void;
-  tvOk?: boolean;
+  tvOk?: boolean; // Capability flag for TradingView support
   coingeckoId?: string;
   polygonTicker?: string;
-  showFallback?: boolean;
-  assetType?: 'crypto' | 'stock' | 'index' | 'forex';
-  assetClassification?: {
-    type: string;
-    tradingview_symbol?: string;
-    is_crypto?: boolean;
-  };
+  showFallback?: boolean; // Whether to show fallback sparkline
+  assetType?: 'crypto' | 'stock' | 'index' | 'forex'; // Asset type for smart defaults
 }
 
 export function MiniChart({ 
@@ -28,16 +21,10 @@ export function MiniChart({
   coingeckoId,
   polygonTicker,
   showFallback = true,
-  assetType,
-  assetClassification
+  assetType
 }: MiniChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const [widgetLoadFailed, setWidgetLoadFailed] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const chartIdRef = useRef(`chart-${symbol}-${Math.random().toString(36).slice(2, 9)}`);
-  const { requestLoad, releaseLoad } = useChartLoadManager();
+  const [widgetLoadFailed, setWidgetLoadFailed] = React.useState(false);
 
   // Smart symbol formatting: add exchange prefix if missing
   const formatTradingViewSymbol = (rawSymbol: string): string => {
@@ -46,206 +33,120 @@ export function MiniChart({
       return rawSymbol;
     }
 
-    // PRIORITY 1: Use classification from brief data (most authoritative)
-    if (assetClassification?.tradingview_symbol) {
-      console.log(`🏷️ Using brief classification for ${rawSymbol}: ${assetClassification.tradingview_symbol}`);
-      return assetClassification.tradingview_symbol;
+    // For crypto, append USD if not already there
+    if (assetType === 'crypto' || coingeckoId || polygonTicker?.startsWith('X:')) {
+      return rawSymbol.endsWith('USD') ? rawSymbol : `${rawSymbol}USD`;
     }
 
-    // PRIORITY 2: Detect crypto by coingecko_id, X: prefix, or is_crypto flag
-    if (assetClassification?.is_crypto || coingeckoId || polygonTicker?.startsWith('X:') || assetType === 'crypto') {
-      const cryptoSymbol = rawSymbol.endsWith('USD') ? rawSymbol : `${rawSymbol}USD`;
-      console.log(`💎 Crypto detected for ${rawSymbol}: ${cryptoSymbol}`);
-      return cryptoSymbol;
-    }
-
-    // PRIORITY 3: Stock - add NASDAQ prefix
-    if (assetType === 'stock' || assetClassification?.type === 'stock') {
-      console.log(`📊 Stock detected for ${rawSymbol}: NASDAQ:${rawSymbol}`);
+    // For stocks without exchange, prepend NASDAQ as safe default
+    if (assetType === 'stock' || (!assetType && !coingeckoId)) {
+      console.log(`📊 Adding NASDAQ prefix to ${rawSymbol}`);
       return `NASDAQ:${rawSymbol}`;
     }
 
-    // PRIORITY 4: Default to crypto if no clear classification
-    const defaultSymbol = rawSymbol.endsWith('USD') ? rawSymbol : `${rawSymbol}USD`;
-    console.log(`❓ No classification for ${rawSymbol}, defaulting to crypto: ${defaultSymbol}`);
-    return defaultSymbol;
+    // For indices/forex, use as-is (they usually have proper format)
+    return rawSymbol;
   };
 
   const formattedSymbol = formatTradingViewSymbol(symbol);
 
-  // Intersection Observer to detect when chart enters viewport
   useEffect(() => {
-    const currentContainer = containerRef.current;
-    if (!currentContainer) return;
+    if (!containerRef.current || !tvOk) return;
 
-    observerRef.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && !isVisible) {
-            setIsVisible(true);
-          }
-        });
-      },
-      { rootMargin: '50px' }
+    setWidgetLoadFailed(false);
+    
+    // Clear previous widget
+    containerRef.current.innerHTML = '';
+
+    // Set 8-second timeout for widget load
+    const loadTimeout = setTimeout(() => {
+      console.warn(`TradingView widget timeout for ${symbol}`);
+      setWidgetLoadFailed(true);
+    }, 8000);
+
+    console.log(`📈 Loading TradingView chart for ${formattedSymbol} (original: ${symbol})`);
+
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      symbol: formattedSymbol,
+      width: "100%",
+      height: "100%",
+      locale: "en",
+      dateRange: "12M",
+      colorTheme: theme === 'dark' ? 'dark' : 'light',
+      isTransparent: false,
+      autosize: true,
+      largeChartUrl: ""
+    });
+
+    const widgetContainer = document.createElement('div');
+    widgetContainer.className = 'tradingview-widget-container';
+    widgetContainer.style.height = '100%';
+    widgetContainer.style.width = '100%';
+    widgetContainer.style.cursor = onClick ? 'pointer' : 'default';
+
+    const widgetInner = document.createElement('div');
+    widgetInner.className = 'tradingview-widget-container__widget';
+    widgetInner.style.height = 'calc(100% - 32px)';
+    widgetInner.style.width = '100%';
+
+    if (onClick) {
+      widgetContainer.addEventListener('click', onClick);
+    }
+
+    widgetContainer.appendChild(widgetInner);
+    widgetContainer.appendChild(script);
+    containerRef.current.appendChild(widgetContainer);
+
+    // Clear timeout if widget loads successfully
+    script.onload = () => {
+      clearTimeout(loadTimeout);
+      console.log(`✅ TradingView widget loaded for ${formattedSymbol}`);
+    };
+
+    script.onerror = () => {
+      clearTimeout(loadTimeout);
+      console.error(`❌ TradingView widget failed to load for ${formattedSymbol}`);
+      setWidgetLoadFailed(true);
+    };
+
+    return () => {
+      clearTimeout(loadTimeout);
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+      if (onClick) {
+        widgetContainer.removeEventListener('click', onClick);
+      }
+    };
+  }, [formattedSymbol, theme, onClick]);
+
+  // Show fallback if widget failed to load and fallback is available
+  if (widgetLoadFailed && showFallback && (coingeckoId || polygonTicker)) {
+    return (
+      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
+        <Suspense fallback={<div className="text-sm text-muted-foreground">Loading chart...</div>}>
+          <FallbackSparkline 
+            symbol={symbol}
+            coingeckoId={coingeckoId}
+            polygonTicker={polygonTicker}
+            timespan="7D"
+            className="w-full"
+          />
+        </Suspense>
+      </div>
     );
+  }
 
-    observerRef.current.observe(currentContainer);
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-        observerRef.current = null;
-      }
-    };
-  }, [isVisible]);
-
-  // Load TradingView widget when visible and managed by load queue
-  useEffect(() => {
-    if (!tvOk || !isVisible) return;
-
-    let widgetContainer: HTMLDivElement | null = null;
-    let loadTimeout: NodeJS.Timeout | null = null;
-    let isCleanedUp = false;
-    let clickHandler: (() => void) | null = null;
-
-    const loadWidget = () => {
-      const currentContainer = containerRef.current;
-      if (!currentContainer || isCleanedUp) return;
-
-      setWidgetLoadFailed(false);
-      setIsLoading(true);
-      
-      // Safe cleanup of existing content
-      try {
-        while (currentContainer.firstChild) {
-          currentContainer.removeChild(currentContainer.firstChild);
-        }
-      } catch (e) {
-        console.warn('Cleanup warning:', e);
-      }
-
-      loadTimeout = setTimeout(() => {
-        if (isCleanedUp) return;
-        console.warn(`TradingView widget timeout for ${symbol}`);
-        setWidgetLoadFailed(true);
-        setIsLoading(false);
-        releaseLoad(chartIdRef.current);
-      }, 4000);
-
-      console.log(`📈 Loading TradingView chart for ${formattedSymbol} (original: ${symbol})`);
-
-      const script = document.createElement('script');
-      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
-      script.async = true;
-      script.innerHTML = JSON.stringify({
-        symbol: formattedSymbol,
-        width: "100%",
-        height: "100%",
-        locale: "en",
-        dateRange: "12M",
-        colorTheme: theme === 'dark' ? 'dark' : 'light',
-        isTransparent: false,
-        autosize: true,
-        largeChartUrl: ""
-      });
-
-      widgetContainer = document.createElement('div');
-      widgetContainer.className = 'tradingview-widget-container';
-      widgetContainer.style.height = '100%';
-      widgetContainer.style.width = '100%';
-      widgetContainer.style.cursor = onClick ? 'pointer' : 'default';
-
-      const widgetInner = document.createElement('div');
-      widgetInner.className = 'tradingview-widget-container__widget';
-      widgetInner.style.height = 'calc(100% - 32px)';
-      widgetInner.style.width = '100%';
-
-      clickHandler = onClick ?? null;
-      if (clickHandler) {
-        widgetContainer.addEventListener('click', clickHandler);
-      }
-
-      widgetContainer.appendChild(widgetInner);
-      widgetContainer.appendChild(script);
-      
-      if (!isCleanedUp && currentContainer) {
-        currentContainer.appendChild(widgetContainer);
-      }
-
-      script.onload = () => {
-        if (isCleanedUp) return;
-        if (loadTimeout) clearTimeout(loadTimeout);
-        setIsLoading(false);
-        releaseLoad(chartIdRef.current);
-        console.log(`✅ TradingView widget loaded for ${formattedSymbol}`);
-      };
-
-      script.onerror = () => {
-        if (isCleanedUp) return;
-        if (loadTimeout) clearTimeout(loadTimeout);
-        setIsLoading(false);
-        setWidgetLoadFailed(true);
-        releaseLoad(chartIdRef.current);
-        console.error(`❌ TradingView widget failed to load for ${formattedSymbol}`);
-      };
-    };
-
-    requestLoad(chartIdRef.current, loadWidget);
-
-    return () => {
-      isCleanedUp = true;
-      if (loadTimeout) {
-        clearTimeout(loadTimeout);
-      }
-      releaseLoad(chartIdRef.current);
-      
-      // Safe cleanup
-      const currentContainer = containerRef.current;
-      if (widgetContainer && clickHandler) {
-        try {
-          widgetContainer.removeEventListener('click', clickHandler);
-        } catch (e) {
-          console.warn('Widget click cleanup warning:', e);
-        }
-      }
-      if (currentContainer && widgetContainer) {
-        try {
-          if (currentContainer.contains(widgetContainer)) {
-            currentContainer.removeChild(widgetContainer);
-          }
-        } catch (e) {
-          console.warn('Widget cleanup warning:', e);
-        }
-      }
-    };
-  }, [isVisible, formattedSymbol, theme, onClick, tvOk, requestLoad, releaseLoad, symbol]);
-
-  // Single wrapper to avoid React-managed children inside containerRef
-  return (
-    <div className="relative h-full w-full">
-      <div
-        ref={containerRef}
-        style={{
-          height: '100%',
-          width: '100%',
-          display:
-            (widgetLoadFailed && showFallback && (coingeckoId || polygonTicker)) || !tvOk
-              ? 'none'
-              : 'block',
-        }}
-      />
-
-      {(!isVisible || (isLoading && !widgetLoadFailed)) && (
-        <div className="absolute inset-0 p-2">
-          <Skeleton className="w-full h-full rounded-lg" />
-        </div>
-      )}
-
-      {((widgetLoadFailed && showFallback && (coingeckoId || polygonTicker)) ||
-        (!tvOk && showFallback && (coingeckoId || polygonTicker))) && (
-        <div className="absolute inset-0 p-2 flex items-center justify-center">
-          <Suspense fallback={<Skeleton className="w-full h-24" />}>
-            <FallbackSparkline
+  if (!tvOk) {
+    // Show fallback sparkline if data sources are available
+    if (showFallback && (coingeckoId || polygonTicker)) {
+      return (
+        <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
+          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading chart...</div>}>
+            <FallbackSparkline 
               symbol={symbol}
               coingeckoId={coingeckoId}
               polygonTicker={polygonTicker}
@@ -254,13 +155,15 @@ export function MiniChart({
             />
           </Suspense>
         </div>
-      )}
+      );
+    }
+    
+    return (
+      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+        <p className="text-sm text-muted-foreground">Chart not available</p>
+      </div>
+    );
+  }
 
-      {!tvOk && !(showFallback && (coingeckoId || polygonTicker)) && (
-        <div className="absolute inset-0 flex items-center justify-center opacity-50">
-          <p className="text-sm text-muted-foreground">Chart not available</p>
-        </div>
-      )}
-    </div>
-  );
+  return <div ref={containerRef} style={{ height: '100%', width: '100%' }} />;
 }

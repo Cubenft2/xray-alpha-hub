@@ -81,69 +81,36 @@ const { theme } = useTheme();
 
 // Function to map ticker symbols to TradingView format for charts
   // Resolves from database first, then local config, then sensible crypto fallback
-  const mapTickerToTradingView = (ticker: string): { 
-    symbol: string; 
-    displayName: string; 
-    assetType?: string;
-    assetClassification?: any;
-  } => {
+  const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
     const upperTicker = ticker.toUpperCase().trim();
 
-    // PRIORITY 1: Brief-level classification (most authoritative source)
-    const briefClassification = briefData?.content_sections?.asset_classifications?.[upperTicker];
-    if (briefClassification) {
-      console.log(`🏷️ Using brief classification for ${upperTicker}:`, briefClassification);
-      return {
-        symbol: briefClassification.tradingview_symbol || `${upperTicker}USD`,
-        displayName: briefClassification.display_name || upperTicker,
-        assetType: briefClassification.type,
-        assetClassification: briefClassification
-      };
-    }
-
-    // PRIORITY 2: Database mapping (from ticker_mappings table)
+    // 1) Database mapping (authoritative)
     const dbMap = getDbMapping(upperTicker);
     if (dbMap) {
       const tvSymbol = dbMap.tradingview_symbol || undefined;
       const displayName = dbMap.display_name || upperTicker;
       if (tvSymbol) {
-        return { 
-          symbol: tvSymbol, 
-          displayName,
-          assetType: dbMap.type,
-          assetClassification: {
-            type: dbMap.type,
-            tradingview_symbol: tvSymbol,
-            is_crypto: dbMap.type === 'crypto'
-          }
-        };
+        return { symbol: tvSymbol, displayName };
       }
       // If DB knows the asset but no TV symbol, fall back to local mapping or crypto default
       const local = getTickerMapping(upperTicker);
-      if (local) return { symbol: local.symbol, displayName: local.displayName, assetType: dbMap.type };
+      if (local) return { symbol: local.symbol, displayName: local.displayName };
       return {
         symbol: dbMap.type === 'stock' ? `NASDAQ:${upperTicker}` : `${upperTicker}USD`,
-        displayName,
-        assetType: dbMap.type
+        displayName
       };
     }
 
-    // PRIORITY 3: Local mapping config
+    // 2) Local mapping config
     const localMapping = getTickerMapping(upperTicker);
     if (localMapping) {
       return { symbol: localMapping.symbol, displayName: localMapping.displayName };
     }
 
-    // PRIORITY 4: Sensible fallback - default to crypto formatting
+    // 3) Sensible fallback: prefer crypto formatting to avoid wrong NASDAQ default
     return {
       symbol: `${upperTicker}USD`,
-      displayName: upperTicker,
-      assetType: 'crypto',
-      assetClassification: {
-        type: 'crypto',
-        tradingview_symbol: `${upperTicker}USD`,
-        is_crypto: true
-      }
+      displayName: upperTicker
     };
   };
 
@@ -749,21 +716,23 @@ const { theme } = useTheme();
             )}
 
             {/* Social Sentiment Section */}
-            <div className="border-t border-border pt-6 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
+            {briefData?.content_sections?.market_data && (
+              <div className="border-t border-border pt-6 mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
+                </div>
+                <SocialSentimentBoard marketData={briefData} />
               </div>
-              <SocialSentimentBoard />
-            </div>
+            )}
             
             {/* News Sentiment Overview Section */}
             {briefData?.content_sections?.polygon_analysis && (
               <div className="border-t border-border pt-6 mb-6">
                 <NewsSentimentOverview 
-                  sentimentBreakdown={briefData.content_sections.polygon_analysis.sentiment_breakdown}
-                  topTickers={briefData.content_sections.polygon_analysis.top_tickers}
-                  topKeywords={briefData.content_sections.polygon_analysis.top_keywords}
+                  sentimentBreakdown={briefData.content_sections.polygon_analysis.sentimentBreakdown}
+                  topTickers={briefData.content_sections.polygon_analysis.topTickers}
+                  topKeywords={briefData.content_sections.polygon_analysis.topKeywords}
                 />
               </div>
             )}
@@ -781,7 +750,7 @@ const { theme } = useTheme();
                     .filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED'].includes(t.toUpperCase()))
                     .slice(0, 12)
                     .map((ticker) => {
-                    const { symbol, displayName, assetType, assetClassification } = mapTickerToTradingView(ticker);
+                    const { symbol, displayName } = mapTickerToTradingView(ticker);
                     const unsupportedSet = new Set(['FIGR_HELOC']);
                     const isUnsupported = unsupportedSet.has(ticker.toUpperCase());
                     return (
@@ -802,12 +771,7 @@ const { theme } = useTheme();
                               <ExternalLink className="w-4 h-4 ml-1" />
                             </a>
                           ) : (
-                            <MiniChart 
-                              symbol={symbol} 
-                              theme={theme} 
-                              assetType={assetType as any}
-                              assetClassification={assetClassification}
-                            />
+                            <MiniChart symbol={symbol} theme={theme} />
                           )}
                         </div>
                       </CardContent>
@@ -835,12 +799,7 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Bitcoin (BTC)</div>
                     <div className="h-36">
-                      <MiniChart 
-                        symbol={mapTickerToTradingView('BTC').symbol} 
-                        theme={theme} 
-                        assetType="crypto"
-                        assetClassification={mapTickerToTradingView('BTC').assetClassification}
-                      />
+                      <MiniChart symbol={mapTickerToTradingView('BTC').symbol} theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -849,12 +808,7 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Ethereum (ETH)</div>
                     <div className="h-36">
-                      <MiniChart 
-                        symbol={mapTickerToTradingView('ETH').symbol} 
-                        theme={theme}
-                        assetType="crypto"
-                        assetClassification={mapTickerToTradingView('ETH').assetClassification}
-                      />
+                      <MiniChart symbol={mapTickerToTradingView('ETH').symbol} theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -865,12 +819,7 @@ const { theme } = useTheme();
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">Solana (SOL)</div>
                       <div className="h-36">
-                        <MiniChart 
-                          symbol={mapTickerToTradingView('SOL').symbol} 
-                          theme={theme}
-                          assetType="crypto"
-                          assetClassification={mapTickerToTradingView('SOL').assetClassification}
-                        />
+                        <MiniChart symbol={mapTickerToTradingView('SOL').symbol} theme={theme} />
                       </div>
                     </CardContent>
                   </Card>
@@ -881,12 +830,7 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">ASTER</div>
                     <div className="h-36">
-                      <MiniChart 
-                        symbol={mapTickerToTradingView('ASTER').symbol} 
-                        theme={theme}
-                        assetType="crypto"
-                        assetClassification={mapTickerToTradingView('ASTER').assetClassification}
-                      />
+                      <MiniChart symbol={mapTickerToTradingView('ASTER').symbol} theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -896,12 +840,7 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">Dogecoin (DOGE)</div>
                     <div className="h-36">
-                      <MiniChart 
-                        symbol={mapTickerToTradingView('DOGE').symbol} 
-                        theme={theme}
-                        assetType="crypto"
-                        assetClassification={mapTickerToTradingView('DOGE').assetClassification}
-                      />
+                      <MiniChart symbol={mapTickerToTradingView('DOGE').symbol} theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -911,12 +850,7 @@ const { theme } = useTheme();
                   <CardContent className="p-3">
                     <div className="text-sm font-medium mb-2 text-center">S&P 500 (SPY)</div>
                     <div className="h-36">
-                      <MiniChart 
-                        symbol={mapTickerToTradingView('SPY').symbol} 
-                        theme={theme}
-                        assetType="stock"
-                        assetClassification={mapTickerToTradingView('SPY').assetClassification}
-                      />
+                      <MiniChart symbol={mapTickerToTradingView('SPY').symbol} theme={theme} />
                     </div>
                   </CardContent>
                 </Card>
@@ -927,12 +861,7 @@ const { theme } = useTheme();
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">US Dollar Index</div>
                       <div className="h-36">
-                        <MiniChart 
-                          symbol={mapTickerToTradingView('DXY').symbol} 
-                          theme={theme}
-                          assetType="forex"
-                          assetClassification={mapTickerToTradingView('DXY').assetClassification}
-                        />
+                        <MiniChart symbol={mapTickerToTradingView('DXY').symbol} theme={theme} />
                       </div>
                     </CardContent>
                   </Card>
@@ -944,12 +873,7 @@ const { theme } = useTheme();
                     <CardContent className="p-3">
                       <div className="text-sm font-medium mb-2 text-center">Gold (XAU/USD)</div>
                       <div className="h-36">
-                        <MiniChart 
-                          symbol={mapTickerToTradingView('XAUUSD').symbol} 
-                          theme={theme}
-                          assetType="forex"
-                          assetClassification={mapTickerToTradingView('XAUUSD').assetClassification}
-                        />
+                        <MiniChart symbol={mapTickerToTradingView('XAUUSD').symbol} theme={theme} />
                       </div>
                     </CardContent>
                   </Card>

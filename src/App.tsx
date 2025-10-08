@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ChartLoadManagerProvider } from "@/contexts/ChartLoadManager";
 import PageTransition from "./components/PageTransition";
 import { Layout } from "./components/Layout";
 import { CommunityPromotion } from "./components/CommunityPromotion";
@@ -37,12 +36,11 @@ const App = () => (
       disableTransitionOnChange
     >
       <TooltipProvider>
-        <ChartLoadManagerProvider>
-          <Toaster />
-          <Sonner position="top-center" offset="120px" />
-          <CommunityPromotion />
-          <SlidingBanner />
-          <BrowserRouter>
+        <Toaster />
+        <Sonner position="top-center" offset="120px" />
+        <CommunityPromotion />
+        <SlidingBanner />
+        <BrowserRouter>
           <Layout>
             <PageTransition>
               <Routes>
@@ -65,13 +63,12 @@ const App = () => (
                     <AdminIndex />
                   </ProtectedRoute>
                 } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </PageTransition>
           </Layout>
         </BrowserRouter>
-        </ChartLoadManagerProvider>
       </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>

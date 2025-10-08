@@ -38,37 +38,11 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
   const data = marketData.content_sections.market_data;
   const gainers: TopMover[] = data.top_gainers || [];
   const losers: TopMover[] = data.top_losers || [];
-  const trending: TrendingCoin[] = data.trending_coins || marketData.content_sections?.trending_coins || [];
-
-  // Fallback: fetch trending coins client-side if missing
-  const [fallbackTrending, setFallbackTrending] = React.useState<TrendingCoin[]>([]);
-  React.useEffect(() => {
-    const fetchTrending = async () => {
-      try {
-        const res = await fetch('https://api.coingecko.com/api/v3/search/trending');
-        const json = await res.json();
-        const mapped: TrendingCoin[] = Array.isArray(json?.coins)
-          ? json.coins.slice(0, 5).map((item: any) => ({
-              name: item?.item?.name,
-              symbol: (item?.item?.symbol || '').toUpperCase(),
-              market_cap_rank: item?.item?.market_cap_rank,
-              price: item?.item?.data?.price,
-              change_24h: item?.item?.data?.price_change_percentage_24h?.usd,
-            }))
-          : [];
-        setFallbackTrending(mapped);
-      } catch (e) {
-        console.warn('Trending fallback failed', e);
-      }
-    };
-    if ((trending?.length || 0) === 0) fetchTrending();
-  }, [trending?.length]);
-
-  const effectiveTrending: TrendingCoin[] = (trending && trending.length > 0) ? trending : fallbackTrending;
+  const trending: TrendingCoin[] = data.trending_coins || [];
 
   // Live prices for trending coins
   const trendingSymbols = Array.from(
-    new Set((effectiveTrending || []).map((c) => c.symbol).filter(Boolean).map((s) => s!.toUpperCase()))
+    new Set((trending || []).map((c) => c.symbol).filter(Boolean).map((s) => s!.toUpperCase()))
   );
   const { prices: trendingPrices } = useLivePrices(trendingSymbols);
 
@@ -129,27 +103,13 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                   </div>
 
                   <div className="col-span-4 text-right flex flex-col items-end justify-center">
-                    {typeof coin.price === 'number' ? (
-                      <>
-                        <div className="font-semibold text-sm text-foreground min-w-[80px] transition-all duration-300">{formatPrice(coin.price)}</div>
-                        <Badge
-                          variant="outline"
-                          className="text-green-500 border-green-500/20 bg-green-500/10 font-semibold text-xs min-w-[60px] justify-center transition-all duration-300"
-                        >
-                          +{(coin.change_24h ?? 0).toFixed(2)}%
-                        </Badge>
-                      </>
-                    ) : (
-                      <>
-                        <div className="font-semibold text-sm text-muted-foreground mb-1 min-w-[80px]">—</div>
-                        <Badge
-                          variant="outline"
-                          className="text-green-500 border-green-500/20 bg-green-500/10 font-semibold text-xs min-w-[60px] justify-center"
-                        >
-                          Gainer
-                        </Badge>
-                      </>
-                    )}
+                    <div className="font-semibold text-sm text-foreground min-w-[80px] transition-all duration-300">{formatPrice(coin.price)}</div>
+                    <Badge
+                      variant="outline"
+                      className="text-green-500 border-green-500/20 bg-green-500/10 font-semibold text-xs min-w-[60px] justify-center transition-all duration-300"
+                    >
+                      +{coin.change_24h?.toFixed(2)}%
+                    </Badge>
                   </div>
                 </div>
               </div>
@@ -205,27 +165,13 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
                   </div>
 
                   <div className="col-span-4 text-right flex flex-col items-end justify-center">
-                    {typeof coin.price === 'number' ? (
-                      <>
-                        <div className="font-semibold text-sm text-foreground min-w-[80px] transition-all duration-300">{formatPrice(coin.price)}</div>
-                        <Badge
-                          variant="outline"
-                          className="text-red-500 border-red-500/20 bg-red-500/10 font-semibold text-xs min-w-[60px] justify-center transition-all duration-300"
-                        >
-                          {(coin.change_24h ?? 0).toFixed(2)}%
-                        </Badge>
-                      </>
-                    ) : (
-                      <>
-                        <div className="font-semibold text-sm text-muted-foreground mb-1 min-w-[80px]">—</div>
-                        <Badge
-                          variant="outline"
-                          className="text-red-500 border-red-500/20 bg-red-500/10 font-semibold text-xs min-w-[60px] justify-center"
-                        >
-                          Loser
-                        </Badge>
-                      </>
-                    )}
+                    <div className="font-semibold text-sm text-foreground min-w-[80px] transition-all duration-300">{formatPrice(coin.price)}</div>
+                    <Badge
+                      variant="outline"
+                      className="text-red-500 border-red-500/20 bg-red-500/10 font-semibold text-xs min-w-[60px] justify-center transition-all duration-300"
+                    >
+                      {coin.change_24h?.toFixed(2)}%
+                    </Badge>
                   </div>
                 </div>
               </div>
@@ -245,12 +191,12 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {effectiveTrending.length > 0 ? (
-            effectiveTrending.slice(0, 5).map((coin, index) => {
+          {trending.length > 0 ? (
+            trending.slice(0, 5).map((coin, index) => {
               const pData = coin.symbol ? trendingPrices[coin.symbol.toUpperCase()] : undefined;
               const price = pData?.price ?? coin.price;
               const change = pData?.change_24h ?? coin.change_24h;
- 
+
               return (
                 <div key={coin.symbol || index}>
                   <div
