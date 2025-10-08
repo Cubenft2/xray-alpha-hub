@@ -42,16 +42,18 @@ export function MiniChart({
       return input;
     }
 
-    // 2) Crypto detection – only append USD for clear crypto cases
+    // 2) Crypto detection – anything ending in USD/USDT is likely crypto
+    const endsWithCryptoPair = /USD(T)?$/i.test(input);
     const isCrypto = assetType === 'crypto'
+      || endsWithCryptoPair
       || (!!polygonTicker && polygonTicker.startsWith('X:'))
-      || /^(BTC|ETH|SOL|DOGE|ADA|XRP|DOT|LINK|MATIC|ATOM|UNI|LTC|BCH|TRX|TON|NEAR|APT|RNDR|INJ|STX|FTM|ALGO|SAND|MANA|AAVE|EOS|XTZ|THETA|AXS|FLOW|SUI|HYPE|ASTR|ASTER|XMR|DASH|ZEC|IMX|HBAR|VET|MKR|OP|ARB|GRT|RUNE|FIL)$/i.test(input);
+      || /^(BTC|ETH|SOL|DOGE|ADA|XRP|DOT|LINK|MATIC|ATOM|UNI|LTC|BCH|TRX|TON|NEAR|APT|RNDR|INJ|STX|FTM|ALGO|SAND|MANA|AAVE|EOS|XTZ|THETA|AXS|FLOW|SUI|HYPE|ASTR|ASTER|XMR|DASH|ZEC|IMX|HBAR|VET|MKR|OP|ARB|GRT|RUNE|FIL|LISTA|CVE|TRU|XAU)$/i.test(input);
 
     if (isCrypto) {
       return /USDT?$/.test(input) ? input : `${input}USD`;
     }
 
-    // 3) Default to stocks (safe NASDAQ prefix)
+    // 3) Stocks only - must NOT end with USD/USDT
     console.log(`📊 Adding NASDAQ prefix to ${input}`);
     return `NASDAQ:${input}`;
   };

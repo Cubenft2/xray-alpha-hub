@@ -7,13 +7,20 @@ interface MarketDataWidgetsProps {
 }
 
 export function MarketDataWidgets({ marketData }: MarketDataWidgetsProps) {
-  if (!marketData?.content_sections?.market_data) {
-    return null;
+  const data = marketData?.content_sections?.market_data;
+  
+  // If no market data at all, show fallback message
+  if (!data && !marketData?.content_sections?.social_data) {
+    return (
+      <div className="p-6 text-center text-muted-foreground">
+        <p>Market data is currently being generated. Please refresh in a moment.</p>
+      </div>
+    );
   }
-
-  const data = marketData.content_sections.market_data;
   const socialData = marketData?.content_sections?.social_data;
-  const socialForGauge = (Array.isArray(data.social_sentiment) && data.social_sentiment.length > 0)
+  
+  // Build social sentiment for gauge
+  const socialForGauge = (Array.isArray(data?.social_sentiment) && data.social_sentiment.length > 0)
     ? data.social_sentiment
     : (Array.isArray(socialData?.top_social_assets)
         ? socialData.top_social_assets.slice(0, 4).map((sym: string) => ({
@@ -27,18 +34,30 @@ export function MarketDataWidgets({ marketData }: MarketDataWidgetsProps) {
   
   return (
     <div className="space-y-6">
-      {/* Sentiment and Fear & Greed */}
-      <SentimentGauge 
-        fearGreedValue={data.fear_greed_index || 50}
-        fearGreedLabel={data.fear_greed_label || 'Neutral'}
-        socialSentiment={socialForGauge}
-      />
+      {/* Sentiment and Fear & Greed - Only show if we have data */}
+      {(data?.fear_greed_index || socialForGauge.length > 0) && (
+        <SentimentGauge 
+          fearGreedValue={data?.fear_greed_index || 50}
+          fearGreedLabel={data?.fear_greed_label || 'Neutral'}
+          socialSentiment={socialForGauge}
+        />
+      )}
       
-      {/* Top Movers */}
-      <TopMoversTable 
-        gainers={data.top_gainers || []}
-        losers={data.top_losers || []}
-      />
+      {/* Top Movers - Only show if we have data */}
+      {(data?.top_gainers?.length > 0 || data?.top_losers?.length > 0) && (
+        <TopMoversTable 
+          gainers={data?.top_gainers || []}
+          losers={data?.top_losers || []}
+        />
+      )}
+      
+      {/* Show message if no widgets have data */}
+      {!data?.fear_greed_index && socialForGauge.length === 0 && 
+       !data?.top_gainers?.length && !data?.top_losers?.length && (
+        <div className="p-6 text-center text-muted-foreground">
+          <p>Market widgets are loading. Data will appear shortly.</p>
+        </div>
+      )}
     </div>
   );
 }
