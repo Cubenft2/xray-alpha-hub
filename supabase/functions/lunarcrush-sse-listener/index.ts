@@ -3,21 +3,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 const LUNARCRUSH_SSE_URL = 'https://lunarcrush.ai/sse';
 
 Deno.serve(async (req) => {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const lunarcrushKey = Deno.env.get('LUNARCRUSH_API_KEY');
-  
-  if (!lunarcrushKey) {
-    console.error('❌ LUNARCRUSH_API_KEY not configured - SSE listener cannot start');
-    return new Response(
-      JSON.stringify({ error: 'LUNARCRUSH_API_KEY not configured' }), 
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const lunarcrushKey = Deno.env.get('LUNARCRUSH_API_KEY')!;
 
-  const supabase = createClient(supabaseUrl!, supabaseKey!);
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
-  console.log('✅ LunarCrush SSE listener starting with valid API key...');
+  console.log('🎧 Starting LunarCrush SSE listener...');
 
   // Track reconnection attempts
   let reconnectAttempts = 0;

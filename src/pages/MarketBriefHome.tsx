@@ -58,7 +58,7 @@ const { theme } = useTheme();
     'RNDR', 'STX', 'INJ', 'GRT', 'RUNE', 'FTM', 'ALGO', 'SAND', 'MANA', 'AAVE',
     'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER'
   ];
-  const { prices: livePrices, loading: pricesLoading, isRefreshing: pricesRefreshing, refetch: refetchPrices } = useLivePrices(allTickers);
+  const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
 
   // Fetch quotes timestamp from API
   useEffect(() => {
@@ -631,12 +631,12 @@ const { theme } = useTheme();
               )}
             </div>
 
-            {/* Live Prices Indicator - Only show on manual refresh */}
-            {pricesRefreshing && (
+            {/* Live Prices Indicator - Fixed Position */}
+            {pricesLoading && (
               <div className="fixed top-32 right-4 z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg">
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  Refreshing prices...
+                  Updating live prices...
                 </div>
               </div>
             )}

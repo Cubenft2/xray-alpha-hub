@@ -28,6 +28,7 @@ export function useSocialSentiment() {
     try {
       setLoading(true);
       setError(null);
+      console.log('🔄 Fetching social sentiment data...');
       
       const { data, error: err } = await supabase.functions.invoke('social-sentiment', {
         body: {}
@@ -37,6 +38,8 @@ export function useSocialSentiment() {
 
       const socialData = Array.isArray(data?.data) ? data.data : [];
       const metaData = data?.metadata || null;
+      
+      console.log(`✅ Loaded ${socialData.length} social assets from ${metaData?.source || 'unknown'}`);
       
       setAssets(socialData.map((asset: any) => {
         // Normalize sentiment to 0-100 scale
@@ -66,6 +69,7 @@ export function useSocialSentiment() {
       setMetadata(metaData);
       setLoading(false);
     } catch (err: any) {
+      console.error('❌ Failed to fetch social sentiment:', err);
       setError(err.message || 'Failed to load social sentiment data');
       setLoading(false);
     }
