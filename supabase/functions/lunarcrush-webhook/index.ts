@@ -10,10 +10,25 @@ interface SocialAsset {
   name: string;
   symbol: string;
   galaxy_score: number;
+  sentiment?: number;
+  sentiment_score?: number;
+  social_volume?: number;
+  social_volume_24h?: number;
+  volume_24h?: number;
+  social_dominance?: number;
+  market_dominance?: number;
+  fomo_score?: number;
+  alt_rank?: number;
+}
+
+interface NormalizedAsset {
+  name: string;
+  symbol: string;
+  galaxy_score: number;
   sentiment: number;
   social_volume: number;
   social_dominance: number;
-  fomo_score?: number;
+  fomo_score: number;
   alt_rank?: number;
 }
 
@@ -82,6 +97,20 @@ serve(async (req) => {
 
     console.log(`✅ Validated ${socialData.length} social assets`);
 
+    // Normalize the data to ensure consistent field names
+    const normalizedData: NormalizedAsset[] = socialData.map((asset: SocialAsset) => ({
+      name: asset.name,
+      symbol: asset.symbol,
+      galaxy_score: asset.galaxy_score,
+      sentiment: asset.sentiment || asset.sentiment_score || 0,
+      social_volume: asset.social_volume || asset.social_volume_24h || asset.volume_24h || 0,
+      social_dominance: asset.social_dominance || asset.market_dominance || 0,
+      fomo_score: asset.fomo_score || asset.alt_rank || 0,
+      alt_rank: asset.alt_rank
+    }));
+
+    console.log(`🔄 Normalized data - sample:`, JSON.stringify(normalizedData[0]));
+
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -104,7 +133,7 @@ serve(async (req) => {
     const { data: insertData, error: insertError } = await supabase
       .from('social_sentiment_cache')
       .insert({
-        data: socialData,
+        data: normalizedData,
         generated_at: generatedAt,
         is_active: true
       })
@@ -123,7 +152,7 @@ serve(async (req) => {
         success: true,
         message: 'Social sentiment data stored successfully',
         id: insertData.id,
-        assets_count: socialData.length,
+        assets_count: normalizedData.length,
         generated_at: generatedAt,
         received_at: insertData.received_at
       }),

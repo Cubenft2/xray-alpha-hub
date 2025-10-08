@@ -78,10 +78,10 @@ serve(async (req) => {
           name: a.name || a.symbol,
           symbol: String(a.symbol || '').toUpperCase(),
           galaxy_score: Number(a.galaxy_score || 0),
-          sentiment: Number(a.sentiment || 0),
-          social_volume: Number(a.social_volume || 0),
-          social_dominance: Number(a.social_dominance || 0),
-          fomo_score: Number(a.alt_rank || 0),
+          sentiment: Number(a.sentiment || a.sentiment_score || 0),
+          social_volume: Number(a.social_volume || a.social_volume_24h || a.volume_24h || 0),
+          social_dominance: Number(a.social_dominance || a.market_dominance || 0),
+          fomo_score: Number(a.fomo_score || a.alt_rank || 0),
           alt_rank: Number(a.alt_rank || 999),
         }));
         dataSource = 'lunarcrush_api';
