@@ -56,25 +56,25 @@ interface SectionDefinition {
 const DAILY_SECTIONS: SectionDefinition[] = [
   {
     title: 'Market Overview',
-    guidelines: 'Lead with the biggest story/move of the day. Cover overall market sentiment, Fear & Greed, Bitcoin/Ethereum moves, and total market metrics. 2-3 paragraphs.',
+    guidelines: 'Lead with the biggest story/move of the day. Cover overall market sentiment, Fear & Greed, Bitcoin/Ethereum moves, and total market metrics. FORMAT STRICTLY: One paragraph per major asset (BTC, ETH, top mover). Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets. 2-3 paragraphs total.',
     dataScope: ['marketCap', 'volume', 'fearGreed', 'btc', 'eth', 'topMover'],
     minWords: 150
   },
   {
     title: 'Cryptocurrency Movers',
-    guidelines: 'Deep dive into top 24h gainers and losers with context. DO NOT repeat price changes already mentioned in Market Overview - ADD NEW CONTEXT (on-chain, social, exchange data). 2-3 paragraphs.',
+    guidelines: 'Deep dive into top 24h gainers and losers with context. DO NOT repeat price changes already mentioned in Market Overview - ADD NEW CONTEXT (on-chain, social, exchange data). FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets. Do NOT repeat any asset.',
     dataScope: ['topGainers', 'topLosers', 'coingeckoData', 'trendingCoins'],
     minWords: 150
   },
   {
     title: 'Traditional Markets',
-    guidelines: 'Focus on stock movements, tech stocks, crypto-related equities (COIN, MSTR), earnings if relevant. Keep crypto OUT of this section. 1-2 paragraphs.',
+    guidelines: 'Focus on stock movements, tech stocks, crypto-related equities (COIN, MSTR), earnings if relevant. Keep crypto OUT of this section. FORMAT STRICTLY: One paragraph per stock. Start each with "CompanyName (TICKER):" then 2-3 sentences. Insert blank line between stocks.',
     dataScope: ['newsStocks', 'stockExchangeContext'],
     minWords: 100
   },
   {
     title: 'Derivatives & Flows',
-    guidelines: 'Funding rates, liquidations, open interest, exchange flows. Include technical indicators (RSI, MACD, SMA) when available. Technical analysis only - no price repetition from earlier sections. 1-2 paragraphs.',
+    guidelines: 'Funding rates, liquidations, open interest, exchange flows. Include technical indicators (RSI, MACD, SMA) when available. Technical analysis only - no price repetition from earlier sections. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets.',
     dataScope: ['derivsData', 'exchangeData', 'technicalData'],
     minWords: 100
   },
@@ -95,37 +95,37 @@ const DAILY_SECTIONS: SectionDefinition[] = [
 const WEEKLY_SECTIONS: SectionDefinition[] = [
   {
     title: 'Weekly Hook',
-    guidelines: 'Lead with the biggest story of the week backed by real numbers. Make it compelling and set the stage. 2 paragraphs.',
+    guidelines: 'Lead with the biggest story of the week backed by real numbers. Make it compelling and set the stage. FORMAT STRICTLY: One paragraph per major asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets.',
     dataScope: ['weeklyTopMover', 'marketCap', 'volume'],
     minWords: 150
   },
   {
     title: 'What Happened Last Week',
-    guidelines: 'Comprehensive 7-day recap with macro events, policy moves, ETF flows, regulatory news. 2-3 paragraphs.',
+    guidelines: 'Comprehensive 7-day recap with macro events, policy moves, ETF flows, regulatory news. FORMAT STRICTLY: One paragraph per major theme or asset. Start each with "AssetName (SYM):" or "Theme:" then 2-3 sentences. Insert blank line between paragraphs.',
     dataScope: ['newsAll', 'macroEvents', 'fearGreedWeekly'],
     minWords: 200
   },
   {
     title: 'Weekly Performance Breakdown',
-    guidelines: 'Deep dive into top weekly gainers/losers with reasons. NO price repetition from Hook - ADD NEW CONTEXT. 2-3 paragraphs.',
+    guidelines: 'Deep dive into top weekly gainers/losers with reasons. NO price repetition from Hook - ADD NEW CONTEXT. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets. Do NOT repeat any asset.',
     dataScope: ['weeklyGainers', 'weeklyLosers', 'coingeckoData'],
     minWords: 200
   },
   {
     title: 'Social Momentum & Sentiment Shifts',
-    guidelines: 'How crowd mood evolved over the week, social volume changes, trending narratives. 2 paragraphs.',
+    guidelines: 'How crowd mood evolved over the week, social volume changes, trending narratives. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences about social metrics. Insert blank line between assets.',
     dataScope: ['lunarcrushData', 'trendingData', 'socialWeekly'],
     minWords: 150
   },
   {
     title: 'Exchange Dynamics',
-    guidelines: 'Weekly volume patterns, price variance across venues, new listings, liquidity changes. 2 paragraphs.',
+    guidelines: 'Weekly volume patterns, price variance across venues, new listings, liquidity changes. FORMAT STRICTLY: One paragraph per asset or exchange. Start each with "AssetName (SYM):" or "Exchange:" then 2-3 sentences. Insert blank line between paragraphs.',
     dataScope: ['exchangeData', 'volumePatterns'],
     minWords: 150
   },
   {
     title: 'Derivatives & Leverage',
-    guidelines: 'Funding rates, liquidations, open interest changes over the week. Technical focus. 2 paragraphs.',
+    guidelines: 'Funding rates, liquidations, open interest changes over the week. Technical focus. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets.',
     dataScope: ['derivsData', 'weeklyLiquidations'],
     minWords: 150
   },
@@ -182,10 +182,10 @@ interface FactTracker {
 }
 
 /**
- * Deduplicate and format Social Sentiment section
+ * Deduplicate and format asset-focused sections (per-asset paragraphs)
  */
-function cleanSocialSentiment(text: string): string {
-  console.log('🧹 Cleaning Social Sentiment section...');
+function cleanAssetSection(text: string, sectionTitle: string): string {
+  console.log(`🧹 Cleaning ${sectionTitle} section...`);
   
   // Split into sentences and normalize
   const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0);
@@ -204,14 +204,23 @@ function cleanSocialSentiment(text: string): string {
     return true;
   });
   
-  // Group by asset (detect "AssetName (SYM):" pattern)
+  // Group by asset or theme (detect "AssetName (SYM):" or "Theme:" pattern)
   const assetParagraphs = new Map<string, string[]>();
   let currentAsset: string | null = null;
   
   uniqueSentences.forEach(sentence => {
+    // Match "AssetName (SYM):" or "Exchange:" or "Theme:"
     const assetMatch = sentence.match(/^([A-Za-z0-9\s]+)\s*\(([A-Z0-9]+)\):/);
+    const themeMatch = sentence.match(/^(Exchange|Theme):/i);
+    
     if (assetMatch) {
       currentAsset = assetMatch[2]; // Use symbol as key
+      if (!assetParagraphs.has(currentAsset)) {
+        assetParagraphs.set(currentAsset, []);
+      }
+      assetParagraphs.get(currentAsset)!.push(sentence);
+    } else if (themeMatch) {
+      currentAsset = themeMatch[1]; // Use "Exchange" or "Theme" as key
       if (!assetParagraphs.has(currentAsset)) {
         assetParagraphs.set(currentAsset, []);
       }
@@ -222,15 +231,15 @@ function cleanSocialSentiment(text: string): string {
     }
   });
   
-  // Build final output: one paragraph per asset, max 3 sentences, blank line between
+  // Build final output: one paragraph per asset/theme, max 3 sentences, blank line between
   const paragraphs: string[] = [];
-  assetParagraphs.forEach((sentences, symbol) => {
+  assetParagraphs.forEach((sentences, key) => {
     const para = sentences.slice(0, 3).join('. ') + '.';
     paragraphs.push(para);
-    console.log(`  ✅ Asset ${symbol}: ${sentences.length} sentence(s) → kept first ${Math.min(3, sentences.length)}`);
+    console.log(`  ✅ ${key}: ${sentences.length} sentence(s) → kept first ${Math.min(3, sentences.length)}`);
   });
   
-  console.log(`  📊 Result: ${assetParagraphs.size} assets, ${paragraphs.length} paragraphs`);
+  console.log(`  📊 Result: ${assetParagraphs.size} items, ${paragraphs.length} paragraphs`);
   return '<p>' + paragraphs.join('</p>\n\n<p>') + '</p>';
 }
 
@@ -320,10 +329,23 @@ Write the section content now:`;
     const data = await response.json();
     let content = data.choices[0].message.content.trim();
     
-    // Apply post-processing for Social Sentiment
-    if (sectionDef.title === 'Social Sentiment') {
-      content = cleanSocialSentiment(content);
-      console.log(`🧹 Cleaned Social Sentiment: ${content.length} chars`);
+    // Apply post-processing for asset-focused sections
+    const assetSections = [
+      'Market Overview',
+      'Cryptocurrency Movers', 
+      'Traditional Markets',
+      'Derivatives & Flows',
+      'Social Sentiment',
+      'Weekly Performance Breakdown',
+      'Social Momentum & Sentiment Shifts',
+      'Derivatives & Leverage',
+      'Exchange Dynamics',
+      'Weekly Hook'
+    ];
+    
+    if (assetSections.includes(sectionDef.title)) {
+      content = cleanAssetSection(content, sectionDef.title);
+      console.log(`🧹 Cleaned ${sectionDef.title}: ${content.length} chars`);
     }
     
     // Update fact tracker
