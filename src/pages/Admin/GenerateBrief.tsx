@@ -61,7 +61,6 @@ export function GenerateBrief() {
       
       console.log('✅ Brief generated:', data);
       setProgress('Brief generated! Redirecting...');
-      toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated successfully!`);
       
       // Clear custom quote after use
       if (useCustomQuote) {
@@ -70,14 +69,36 @@ export function GenerateBrief() {
         setUseCustomQuote(false);
       }
       
-      // Navigate to the home page to see the new brief
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
+      // Extract slug from response to navigate directly to the new brief
+      const slug = data?.slug || data?.data?.slug;
       
-    } catch (error) {
-      console.error('Brief generation error:', error);
-      toast.error('Failed to generate brief');
+      if (slug) {
+        toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated! Opening...`);
+        // Navigate directly to the new brief
+        setTimeout(() => {
+          navigate(`/marketbrief/${slug}`);
+        }, 800);
+      } else {
+        toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated!`);
+        // Fallback to home if no slug
+        setTimeout(() => {
+          navigate('/');
+        }, 1000);
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Brief generation error:', error);
+      
+      // Handle specific error codes
+      if (error?.status === 401 || error?.status === 403) {
+        toast.error('Authentication required. Please log in again.');
+      } else if (error?.status === 429) {
+        toast.error('Rate limit exceeded. Please wait a moment and try again.');
+      } else if (error?.message) {
+        toast.error(`Generation failed: ${error.message}`);
+      } else {
+        toast.error('Failed to generate brief. Please try again.');
+      }
     } finally {
       setGenerating(false);
       setProgress('');

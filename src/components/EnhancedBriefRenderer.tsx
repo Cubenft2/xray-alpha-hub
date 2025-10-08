@@ -2,6 +2,7 @@ import React from 'react';
 import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import { getTickerMapping, isKnownCrypto } from '@/config/tickerMappings';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EnhancedBriefRendererProps {
   content: string;
@@ -247,35 +248,35 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
 
       if (symbols.length === 0) return;
 
-      try {
-        // Step 1: Get capabilities from symbol-intelligence
-        const intelligenceResponse = await fetch(
-          'https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/symbol-intelligence',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbols }),
-          }
-        );
+      console.log('📊 Initializing inline quotes for:', symbols);
 
-        const { symbols: resolved } = await intelligenceResponse.json();
+      try {
+        // Step 1: Get capabilities from symbol-intelligence using Supabase invoke
+        console.log('🔍 Fetching symbol intelligence...');
+        const { data: intelligenceData, error: intelligenceError } = await supabase.functions.invoke('symbol-intelligence', {
+          body: { symbols }
+        });
+
+        if (intelligenceError) {
+          console.error('❌ Symbol intelligence error:', intelligenceError);
+          return;
+        }
+
+        const resolved = intelligenceData?.symbols || [];
         console.log('✅ Symbol intelligence resolved:', resolved);
 
-        // Step 2: Get live quotes
-        const quotesResponse = await fetch(
-          'https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/quotes',
-          {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`
-            },
-            body: JSON.stringify({ symbols }),
-          }
-        );
+        // Step 2: Get live quotes using Supabase invoke
+        console.log('💰 Fetching live quotes...');
+        const { data: quotesData, error: quotesError } = await supabase.functions.invoke('quotes', {
+          body: { symbols }
+        });
 
-        const quotesData = await quotesResponse.json();
-        console.log('✅ Quotes fetched:', quotesData);
+        if (quotesError) {
+          console.error('❌ Quotes fetch error:', quotesError);
+          // Continue anyway - we can still show tickers without prices
+        }
+
+        console.log('✅ Quotes fetched:', quotesData?.quotes?.length || 0, 'quotes');
 
         // Step 3: Update each parentheses wrapper with price data
         quoteElements.forEach(el => {

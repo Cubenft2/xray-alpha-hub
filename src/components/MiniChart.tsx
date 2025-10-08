@@ -10,6 +10,7 @@ interface MiniChartProps {
   coingeckoId?: string;
   polygonTicker?: string;
   showFallback?: boolean; // Whether to show fallback sparkline
+  assetType?: 'crypto' | 'stock' | 'index' | 'forex'; // Asset type for smart defaults
 }
 
 export function MiniChart({ 
@@ -19,10 +20,35 @@ export function MiniChart({
   tvOk = true,
   coingeckoId,
   polygonTicker,
-  showFallback = true 
+  showFallback = true,
+  assetType
 }: MiniChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [widgetLoadFailed, setWidgetLoadFailed] = React.useState(false);
+
+  // Smart symbol formatting: add exchange prefix if missing
+  const formatTradingViewSymbol = (rawSymbol: string): string => {
+    // If symbol already has an exchange prefix (contains ":"), use as-is
+    if (rawSymbol.includes(':')) {
+      return rawSymbol;
+    }
+
+    // For crypto, append USD if not already there
+    if (assetType === 'crypto' || coingeckoId || polygonTicker?.startsWith('X:')) {
+      return rawSymbol.endsWith('USD') ? rawSymbol : `${rawSymbol}USD`;
+    }
+
+    // For stocks without exchange, prepend NASDAQ as safe default
+    if (assetType === 'stock' || (!assetType && !coingeckoId)) {
+      console.log(`📊 Adding NASDAQ prefix to ${rawSymbol}`);
+      return `NASDAQ:${rawSymbol}`;
+    }
+
+    // For indices/forex, use as-is (they usually have proper format)
+    return rawSymbol;
+  };
+
+  const formattedSymbol = formatTradingViewSymbol(symbol);
 
   useEffect(() => {
     if (!containerRef.current || !tvOk) return;
@@ -38,11 +64,13 @@ export function MiniChart({
       setWidgetLoadFailed(true);
     }, 8000);
 
+    console.log(`📈 Loading TradingView chart for ${formattedSymbol} (original: ${symbol})`);
+
     const script = document.createElement('script');
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
     script.async = true;
     script.innerHTML = JSON.stringify({
-      symbol: symbol,
+      symbol: formattedSymbol,
       width: "100%",
       height: "100%",
       locale: "en",
@@ -75,6 +103,13 @@ export function MiniChart({
     // Clear timeout if widget loads successfully
     script.onload = () => {
       clearTimeout(loadTimeout);
+      console.log(`✅ TradingView widget loaded for ${formattedSymbol}`);
+    };
+
+    script.onerror = () => {
+      clearTimeout(loadTimeout);
+      console.error(`❌ TradingView widget failed to load for ${formattedSymbol}`);
+      setWidgetLoadFailed(true);
     };
 
     return () => {
@@ -86,7 +121,7 @@ export function MiniChart({
         widgetContainer.removeEventListener('click', onClick);
       }
     };
-  }, [symbol, theme, onClick]);
+  }, [formattedSymbol, theme, onClick]);
 
   // Show fallback if widget failed to load and fallback is available
   if (widgetLoadFailed && showFallback && (coingeckoId || polygonTicker)) {

@@ -73,11 +73,13 @@ export function PolygonTicker() {
         });
         setPrices(priceMap);
 
-        // Fetch logo URLs for all coingecko_ids
+        // Fetch logo URLs for all coingecko_ids - filter out invalid IDs
         const coingeckoIds = Array.from(new Set(
-          Array.from(tickerToCoinGecko.values()).filter(id => id != null)
+          Array.from(tickerToCoinGecko.values())
+            .filter(id => id != null && id.trim().length > 0)
         ));
         
+        console.log('📸 Fetching logos for', coingeckoIds.length, 'CoinGecko IDs');
         if (coingeckoIds.length > 0) {
           fetchLogos(coingeckoIds);
         }
@@ -86,17 +88,36 @@ export function PolygonTicker() {
 
     const fetchLogos = async (coingeckoIds: string[]) => {
       try {
+        // Filter out empty or invalid IDs before calling the function
+        const validIds = coingeckoIds.filter(id => 
+          id && 
+          typeof id === 'string' && 
+          id.trim().length > 0 &&
+          id !== 'null' &&
+          id !== 'undefined'
+        );
+
+        if (validIds.length === 0) {
+          console.log('⚠️ No valid CoinGecko IDs to fetch');
+          return;
+        }
+
+        console.log('📡 Calling coingecko-logos with', validIds.length, 'valid IDs');
         const { data, error } = await supabase.functions.invoke('coingecko-logos', {
-          body: { coingecko_ids: coingeckoIds }
+          body: { coingecko_ids: validIds }
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ CoinGecko logos error:', error);
+          return;
+        }
 
         if (data?.logos && mounted) {
+          console.log('✅ Logos fetched:', Object.keys(data.logos).length);
           setLogoCache(new Map(Object.entries(data.logos)));
         }
       } catch (error) {
-        console.error('Error fetching logos:', error);
+        console.error('💥 Logos fetch exception:', error);
       }
     };
 

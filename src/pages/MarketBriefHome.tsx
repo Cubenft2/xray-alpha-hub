@@ -171,12 +171,21 @@ const { theme } = useTheme();
         // Store the raw database data for market widgets
         setBriefData(briefData);
         
-        // If comprehensive market data is missing, auto-generate today's brief (no button)
-        if (!(briefData as any)?.content_sections?.market_data && !date) {
-          console.log('🛠️ Comprehensive data missing — creating fresh brief...');
+        // Only auto-regenerate if both AI content AND article_html are missing
+        const hasAiContent = (briefData as any)?.content_sections?.ai_generated_content;
+        const hasArticleHtml = briefData.article_html;
+        
+        if (!hasAiContent && !hasArticleHtml && !date) {
+          console.log('🛠️ No content available — creating fresh brief...');
           await generateFreshBrief();
           return; // Wait for reload
         }
+        
+        console.log('📰 Brief content check:', { 
+          hasAiContent: !!hasAiContent, 
+          hasArticleHtml: !!hasArticleHtml,
+          hasMarketData: !!(briefData as any)?.content_sections?.market_data 
+        });
         // If an admin audit block accidentally leaked into the article, regenerate a clean brief (no button)
         if (!date) {
           const aiTextRaw = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
@@ -277,11 +286,15 @@ const { theme } = useTheme();
         const containsMarkdown = /(^|\n)#{1,6}\s|\n[-*]\s|\n\d+\.\s/.test(cleanArticleHtml);
         const processedStoredHtml = containsMarkdown ? markdownToHtml(cleanArticleHtml) : cleanArticleHtml;
 
-        // For weekend briefs, prioritize full AI-generated content over article_html
-        const isWeekendBrief = briefData.brief_type === 'weekend';
-        const finalArticleHtml = isWeekendBrief && articleHtmlFromAI 
-          ? articleHtmlFromAI 
-          : (processedStoredHtml || articleHtmlFromAI || '');
+        // Always prefer article_html if available, fallback to AI content
+        // This prevents unnecessary regeneration and uses the curated content
+        const finalArticleHtml = processedStoredHtml || articleHtmlFromAI || '';
+        
+        console.log('📝 Selected content source:', {
+          usedArticleHtml: !!processedStoredHtml,
+          usedAiContent: !processedStoredHtml && !!articleHtmlFromAI,
+          contentLength: finalArticleHtml.length
+        });
 
         const brief: MarketBrief = {
           slug: briefData.slug || '',
@@ -304,15 +317,16 @@ const { theme } = useTheme();
           document.title = brief.title + ' — XRayCrypto News';
         }
         
-      } catch (error) {
+      } catch (error: any) {
         console.error('🐕 XRay: Brief load failed:', error);
         toast({
           title: "Connection Issue",  
-          description: `Can't reach database: ${error}`,
+          description: error?.message || "Can't reach database",
           variant: "destructive"
         });
       } finally {
         setLoading(false);
+        console.log('✅ Brief fetch complete. Loading:', loading);
       }
     };
 
