@@ -689,30 +689,13 @@ const { theme } = useTheme();
             )}
 
             {/* Market Overview Section */}
-            {briefData?.content_sections?.market_data ? (
+            {briefData?.content_sections?.market_data && (
               <div className="border-t border-border pt-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <DollarSign className="w-5 h-5 text-primary" />
                   <h3 className="text-lg font-semibold">Market Overview</h3>
                 </div>
                 <MarketOverview marketData={briefData} />
-              </div>
-            ) : (
-              <div className="border-t border-border pt-6 mb-6">
-                <Card className="xr-card">
-                  <CardContent className="p-6 text-center">
-                    <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Comprehensive Market Data Unavailable</h3>
-                    <p className="text-muted-foreground">
-                      Preparing today's comprehensive brief... This may take 10–20 seconds.
-                    </p>
-                    <div className="mt-4">
-                      <Button size="sm" onClick={generateComprehensiveBrief} disabled={generating}>
-                        {generating ? 'Generating…' : 'Regenerate Now'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             )}
 
