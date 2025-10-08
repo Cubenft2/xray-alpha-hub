@@ -829,7 +829,7 @@ serve(async (req) => {
       const technicalResponse = await supabase.functions.invoke('polygon-technical-indicators', {
         body: {
           tickers: ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT'],
-          indicators: ['rsi', 'macd', 'sma_50', 'ema_20', 'bb', 'atr', 'stoch'],
+          indicators: ['rsi', 'macd', 'sma_50', 'ema_20'],
           timeframe: 'daily'
         }
       });

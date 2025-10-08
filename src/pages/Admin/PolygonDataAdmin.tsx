@@ -67,7 +67,7 @@ export function PolygonDataAdmin() {
       const { data, error } = await supabase.functions.invoke('polygon-technical-indicators', {
         body: {
           tickers: ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT'],
-          indicators: ['rsi', 'macd', 'sma_50', 'ema_20', 'bb', 'atr', 'stoch'],
+          indicators: ['rsi', 'macd', 'sma_50', 'ema_20'],
           timeframe: 'daily'
         }
       });
@@ -201,7 +201,7 @@ export function PolygonDataAdmin() {
             </p>
             <p className="font-medium mt-3">Indicators:</p>
             <p className="text-sm text-muted-foreground">
-              RSI (14), MACD (12,26,9), SMA (50), EMA (20), Bollinger Bands, ATR, Stochastic
+              RSI (14), MACD (12,26,9), SMA (50), EMA (20)
             </p>
           </div>
 
