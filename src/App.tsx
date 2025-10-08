@@ -39,7 +39,6 @@ const App = () => (
         <Toaster />
         <Sonner position="top-center" offset="120px" />
         <CommunityPromotion />
-        <SlidingBanner />
         <BrowserRouter>
           <Layout>
             <PageTransition>
