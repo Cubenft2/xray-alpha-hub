@@ -38,6 +38,7 @@ Deno.serve(async (req) => {
       }
 
       let buffer = '';
+      let eventDataBuffer = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -51,24 +52,39 @@ Deno.serve(async (req) => {
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim();
-            
-            if (data === '[DONE]' || !data) continue;
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+
+          // Blank line denotes end of one SSE event
+          if (line === '') {
+            const payload = eventDataBuffer.trim();
+            eventDataBuffer = '';
+            if (!payload || payload === '[DONE]') continue;
+
+            const first = payload[0];
+            if (first !== '{' && first !== '[') {
+              console.log('ℹ️ Non-JSON SSE payload skipped:', payload.slice(0, 120));
+              continue;
+            }
 
             try {
-              const parsedData = JSON.parse(data);
-              console.log('📥 Received SSE data:', { 
+              const parsedData = JSON.parse(payload);
+              console.log('📥 Received SSE data:', {
                 timestamp: new Date().toISOString(),
-                assetCount: parsedData?.data?.length || 0 
+                assetCount: parsedData?.data?.length || 0,
               });
-
               await updateCache(parsedData);
             } catch (parseError) {
-              console.error('❌ Error parsing SSE data:', parseError);
+              console.error('❌ Error parsing SSE event payload:', parseError, 'sample:', payload.slice(0, 200));
             }
+            continue;
           }
+
+          // Collect data lines (can be multi-line per SSE spec)
+          if (line.startsWith('data:')) {
+            eventDataBuffer += line.slice(5).trimStart() + '\n';
+          }
+          // Ignore other fields: event:, id:, retry:, comments
         }
       }
 
