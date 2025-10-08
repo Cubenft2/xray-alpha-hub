@@ -75,7 +75,8 @@ export function MiniChart({
 
   // Intersection Observer to detect when chart enters viewport
   useEffect(() => {
-    if (!containerRef.current) return;
+    const currentContainer = containerRef.current;
+    if (!currentContainer) return;
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -85,32 +86,45 @@ export function MiniChart({
           }
         });
       },
-      { rootMargin: '50px' } // Start loading slightly before entering viewport
+      { rootMargin: '50px' }
     );
 
-    observerRef.current.observe(containerRef.current);
+    observerRef.current.observe(currentContainer);
 
     return () => {
       if (observerRef.current) {
         observerRef.current.disconnect();
+        observerRef.current = null;
       }
     };
-  }, []);
+  }, [isVisible]);
 
   // Load TradingView widget when visible and managed by load queue
   useEffect(() => {
-    if (!containerRef.current || !tvOk || !isVisible) return;
+    if (!tvOk || !isVisible) return;
+
+    let widgetContainer: HTMLDivElement | null = null;
+    let loadTimeout: NodeJS.Timeout | null = null;
+    let isCleanedUp = false;
 
     const loadWidget = () => {
-      if (!containerRef.current) return;
+      const currentContainer = containerRef.current;
+      if (!currentContainer || isCleanedUp) return;
 
       setWidgetLoadFailed(false);
       setIsLoading(true);
       
-      containerRef.current.innerHTML = '';
+      // Safe cleanup of existing content
+      try {
+        while (currentContainer.firstChild) {
+          currentContainer.removeChild(currentContainer.firstChild);
+        }
+      } catch (e) {
+        console.warn('Cleanup warning:', e);
+      }
 
-      // Reduced timeout from 8s to 4s for faster fallback
-      const loadTimeout = setTimeout(() => {
+      loadTimeout = setTimeout(() => {
+        if (isCleanedUp) return;
         console.warn(`TradingView widget timeout for ${symbol}`);
         setWidgetLoadFailed(true);
         setIsLoading(false);
@@ -134,7 +148,7 @@ export function MiniChart({
         largeChartUrl: ""
       });
 
-      const widgetContainer = document.createElement('div');
+      widgetContainer = document.createElement('div');
       widgetContainer.className = 'tradingview-widget-container';
       widgetContainer.style.height = '100%';
       widgetContainer.style.width = '100%';
@@ -145,45 +159,58 @@ export function MiniChart({
       widgetInner.style.height = 'calc(100% - 32px)';
       widgetInner.style.width = '100%';
 
-      if (onClick) {
-        widgetContainer.addEventListener('click', onClick);
+      const handleClick = onClick;
+      if (handleClick) {
+        widgetContainer.addEventListener('click', handleClick);
       }
 
       widgetContainer.appendChild(widgetInner);
       widgetContainer.appendChild(script);
-      containerRef.current.appendChild(widgetContainer);
+      
+      if (!isCleanedUp && currentContainer) {
+        currentContainer.appendChild(widgetContainer);
+      }
 
       script.onload = () => {
-        clearTimeout(loadTimeout);
+        if (isCleanedUp) return;
+        if (loadTimeout) clearTimeout(loadTimeout);
         setIsLoading(false);
         releaseLoad(chartIdRef.current);
         console.log(`✅ TradingView widget loaded for ${formattedSymbol}`);
       };
 
       script.onerror = () => {
-        clearTimeout(loadTimeout);
+        if (isCleanedUp) return;
+        if (loadTimeout) clearTimeout(loadTimeout);
         setIsLoading(false);
         setWidgetLoadFailed(true);
         releaseLoad(chartIdRef.current);
         console.error(`❌ TradingView widget failed to load for ${formattedSymbol}`);
       };
-
-      return () => {
-        clearTimeout(loadTimeout);
-        releaseLoad(chartIdRef.current);
-      };
     };
 
-    // Request load through manager
     requestLoad(chartIdRef.current, loadWidget);
 
     return () => {
+      isCleanedUp = true;
+      if (loadTimeout) {
+        clearTimeout(loadTimeout);
+      }
       releaseLoad(chartIdRef.current);
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      
+      // Safe cleanup
+      const currentContainer = containerRef.current;
+      if (currentContainer && widgetContainer) {
+        try {
+          if (currentContainer.contains(widgetContainer)) {
+            currentContainer.removeChild(widgetContainer);
+          }
+        } catch (e) {
+          console.warn('Widget cleanup warning:', e);
+        }
       }
     };
-  }, [isVisible, formattedSymbol, theme, onClick, tvOk, requestLoad, releaseLoad]);
+  }, [isVisible, formattedSymbol, theme, onClick, tvOk, requestLoad, releaseLoad, symbol]);
 
   // Show loading skeleton while waiting to become visible or loading
   if (!isVisible || isLoading) {
