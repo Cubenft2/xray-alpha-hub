@@ -623,6 +623,10 @@ function applyCrossSectionSimilarityGuard(text: string): string {
   let prunedByFuzzy = 0;
   let prunedByNumeric = 0;
   
+  // Track total content for emergency override
+  const totalSentences = sectionBodies.reduce((sum, s) => sum + s.sentences.length, 0);
+  const pruneMatches: Array<{ currIdx: number; sentIdx: number; similarity: number; reason: string }> = [];
+  
   for (let i = 0; i < sectionBodies.length; i++) {
     const current = sectionBodies[i];
     const keptSentences = new Set(current.sentences.map(s => s.normalized));
@@ -635,53 +639,100 @@ function applyCrossSectionSimilarityGuard(text: string): string {
       for (const currSent of current.sentences) {
         if (!keptSentences.has(currSent.normalized)) continue;
         
+        // NEW: Skip short sentences (< 20 words) from fuzzy dedup
+        const wordCount = currSent.raw.split(/\s+/).length;
+        if (wordCount < 20) continue;
+        
         let shouldPrune = false;
         let pruneReason = '';
+        let similarity = 0;
         
         for (const priorSent of prior.sentences) {
-          // Check 1: Fuzzy n-gram similarity (Jaccard on 3-5-grams)
+          // Check 1: Fuzzy n-gram similarity (RAISED threshold: 0.50 → 0.70)
           const intersection = new Set([...currSent.ngrams].filter(x => priorSent.ngrams.has(x)));
           const union = new Set([...currSent.ngrams, ...priorSent.ngrams]);
-          const similarity = union.size > 0 ? intersection.size / union.size : 0;
+          similarity = union.size > 0 ? intersection.size / union.size : 0;
           
-          if (similarity > 0.50) {
+          if (similarity > 0.70) {
             shouldPrune = true;
             pruneReason = `fuzzy similarity ${(similarity * 100).toFixed(0)}%`;
             prunedByFuzzy++;
             break;
           }
           
-          // Check 2: Identical numeric facts (price/percentage overlap)
-          const numericIntersection = new Set([...currSent.numerics].filter(x => priorSent.numerics.has(x)));
-          if (currSent.numerics.size > 0 && numericIntersection.size >= 2) {
-            shouldPrune = true;
-            pruneReason = `repeated numeric facts: ${Array.from(numericIntersection).join(', ')}`;
-            prunedByNumeric++;
-            break;
+          // Check 2: TIGHTENED numeric facts - need matching symbol + numeric
+          const currSymbols = new Set(Array.from(currSent.raw.matchAll(/\(([A-Z0-9_]{2,10})\)/g), m => m[1]));
+          const priorSymbols = new Set(Array.from(priorSent.raw.matchAll(/\(([A-Z0-9_]{2,10})\)/g), m => m[1]));
+          const sharedSymbols = [...currSymbols].filter(s => priorSymbols.has(s));
+          
+          if (sharedSymbols.length > 0) {
+            const numericIntersection = new Set([...currSent.numerics].filter(x => priorSent.numerics.has(x)));
+            if (numericIntersection.size >= 2) {
+              shouldPrune = true;
+              pruneReason = `${sharedSymbols[0]}: repeated numeric facts ${Array.from(numericIntersection).slice(0, 2).join(', ')}`;
+              prunedByNumeric++;
+              break;
+            }
           }
         }
         
         if (shouldPrune) {
-          keptSentences.delete(currSent.normalized);
-          prunedSentences++;
-          console.log(`🗑️ Cross-section prune (${pruneReason}): "${currSent.raw.substring(0, 60)}..."`);
+          pruneMatches.push({
+            currIdx: i,
+            sentIdx: current.sentences.indexOf(currSent),
+            similarity,
+            reason: pruneReason
+          });
         }
       }
     }
     
-    // Reconstruct section body from kept sentences
-    if (keptSentences.size < current.sentences.length) {
+  }
+  
+  // NEW: Emergency override if >80% would be pruned
+  const pruneRate = totalSentences > 0 ? (pruneMatches.length / totalSentences) : 0;
+  let finalMatches = pruneMatches;
+  
+  if (pruneRate > 0.80) {
+    console.warn(`⚠️ EMERGENCY OVERRIDE: Would prune ${(pruneRate * 100).toFixed(0)}% of content (${pruneMatches.length}/${totalSentences} sentences)`);
+    console.warn(`   Applying only top 50% most similar matches to preserve content`);
+    
+    // Sort by similarity (highest first) and keep only top 50%
+    finalMatches = pruneMatches
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, Math.floor(pruneMatches.length * 0.5));
+  }
+  
+  // Apply the pruning
+  const toPrune = new Map<number, Set<number>>();
+  for (const match of finalMatches) {
+    if (!toPrune.has(match.currIdx)) {
+      toPrune.set(match.currIdx, new Set());
+    }
+    toPrune.get(match.currIdx)!.add(match.sentIdx);
+    prunedSentences++;
+    const sent = sectionBodies[match.currIdx].sentences[match.sentIdx];
+    console.log(`🗑️ Cross-section prune (${match.reason}): "${sent.raw.substring(0, 60)}..."`);
+  }
+  
+  // Reconstruct sections
+  for (let i = 0; i < sectionBodies.length; i++) {
+    const current = sectionBodies[i];
+    const prunedIndices = toPrune.get(i) || new Set();
+    
+    if (prunedIndices.size > 0) {
       const originalSentences = current.body.split(/([.!?]+)/);
       const rebuilt: string[] = [];
       
+      let sentIdx = 0;
       for (let k = 0; k < originalSentences.length; k += 2) {
         const sent = originalSentences[k];
         const punct = originalSentences[k + 1] || '';
-        const normalized = sent.trim().toLowerCase().replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
         
-        if (keptSentences.has(normalized)) {
+        if (!prunedIndices.has(sentIdx)) {
           rebuilt.push(sent + punct);
         }
+        sentIdx++;
       }
       
       sectionBodies[i].body = rebuilt.join('');
@@ -691,7 +742,7 @@ function applyCrossSectionSimilarityGuard(text: string): string {
     processedSections.push(sectionBodies[i].body);
   }
   
-  console.log(`✅ Cross-section guard: pruned ${prunedSentences} sentences (${prunedByFuzzy} fuzzy, ${prunedByNumeric} numeric)`);
+  console.log(`✅ Cross-section guard: pruned ${prunedSentences} sentences (${prunedByFuzzy} fuzzy, ${prunedByNumeric} numeric) - ${(pruneRate * 100).toFixed(0)}% of content`);
   
   return processedSections.join('\n\n');
 }
@@ -742,14 +793,14 @@ function enforceAssetAnalysisLimit(text: string): string {
         const count = assetFirstMention.get(symbol) || 0;
         
         if (count === 0) {
-          // First mention: always keep
+          // First mention: always keep (full analysis allowed)
           assetFirstMention.set(symbol, 1);
         } else if (count === 1) {
-          // Second mention: keep only if short (≤15 words) and has new angle keywords
+          // Second mention: RELAXED - keep up to 2 sentences or 50 words with new angle
           const wordCount = sentence.split(/\s+/).length;
-          const hasNewAngle = /\b(derivatives?|funding|open interest|on-chain|macro|technical|exchange|liquidity|listing|volume|futures|perpetuals?|options)\b/i.test(sentence);
+          const hasNewAngle = /\b(derivatives?|funding|open interest|on-chain|macro|technical|exchange|liquidity|listing|volume|futures|perpetuals?|options|social|sentiment)\b/i.test(sentence);
           
-          if (wordCount > 15 || !hasNewAngle) {
+          if (wordCount > 50 || !hasNewAngle) {
             shouldKeep = false;
             violatingAsset = symbol;
           } else {
