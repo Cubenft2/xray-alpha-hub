@@ -106,6 +106,7 @@ export function MiniChart({
     let widgetContainer: HTMLDivElement | null = null;
     let loadTimeout: NodeJS.Timeout | null = null;
     let isCleanedUp = false;
+    let clickHandler: (() => void) | null = null;
 
     const loadWidget = () => {
       const currentContainer = containerRef.current;
@@ -159,9 +160,9 @@ export function MiniChart({
       widgetInner.style.height = 'calc(100% - 32px)';
       widgetInner.style.width = '100%';
 
-      const handleClick = onClick;
-      if (handleClick) {
-        widgetContainer.addEventListener('click', handleClick);
+      clickHandler = onClick ?? null;
+      if (clickHandler) {
+        widgetContainer.addEventListener('click', clickHandler);
       }
 
       widgetContainer.appendChild(widgetInner);
@@ -200,6 +201,13 @@ export function MiniChart({
       
       // Safe cleanup
       const currentContainer = containerRef.current;
+      if (widgetContainer && clickHandler) {
+        try {
+          widgetContainer.removeEventListener('click', clickHandler);
+        } catch (e) {
+          console.warn('Widget click cleanup warning:', e);
+        }
+      }
       if (currentContainer && widgetContainer) {
         try {
           if (currentContainer.contains(widgetContainer)) {
@@ -212,38 +220,32 @@ export function MiniChart({
     };
   }, [isVisible, formattedSymbol, theme, onClick, tvOk, requestLoad, releaseLoad, symbol]);
 
-  // Show loading skeleton while waiting to become visible or loading
-  if (!isVisible || isLoading) {
-    return (
-      <div ref={containerRef} style={{ height: '100%', width: '100%', padding: '8px' }}>
-        <Skeleton className="w-full h-full rounded-lg" />
-      </div>
-    );
-  }
+  // Single wrapper to avoid React-managed children inside containerRef
+  return (
+    <div className="relative h-full w-full">
+      <div
+        ref={containerRef}
+        style={{
+          height: '100%',
+          width: '100%',
+          display:
+            (widgetLoadFailed && showFallback && (coingeckoId || polygonTicker)) || !tvOk
+              ? 'none'
+              : 'block',
+        }}
+      />
 
-  // Show fallback if widget failed to load and fallback is available
-  if (widgetLoadFailed && showFallback && (coingeckoId || polygonTicker)) {
-    return (
-      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
-        <Suspense fallback={<Skeleton className="w-full h-24" />}>
-          <FallbackSparkline 
-            symbol={symbol}
-            coingeckoId={coingeckoId}
-            polygonTicker={polygonTicker}
-            timespan="7D"
-            className="w-full"
-          />
-        </Suspense>
-      </div>
-    );
-  }
+      {(!isVisible || (isLoading && !widgetLoadFailed)) && (
+        <div className="absolute inset-0 p-2">
+          <Skeleton className="w-full h-full rounded-lg" />
+        </div>
+      )}
 
-  if (!tvOk) {
-    if (showFallback && (coingeckoId || polygonTicker)) {
-      return (
-        <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
+      {((widgetLoadFailed && showFallback && (coingeckoId || polygonTicker)) ||
+        (!tvOk && showFallback && (coingeckoId || polygonTicker))) && (
+        <div className="absolute inset-0 p-2 flex items-center justify-center">
           <Suspense fallback={<Skeleton className="w-full h-24" />}>
-            <FallbackSparkline 
+            <FallbackSparkline
               symbol={symbol}
               coingeckoId={coingeckoId}
               polygonTicker={polygonTicker}
@@ -252,15 +254,13 @@ export function MiniChart({
             />
           </Suspense>
         </div>
-      );
-    }
-    
-    return (
-      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
-        <p className="text-sm text-muted-foreground">Chart not available</p>
-      </div>
-    );
-  }
+      )}
 
-  return <div ref={containerRef} style={{ height: '100%', width: '100%' }} />;
+      {!tvOk && !(showFallback && (coingeckoId || polygonTicker)) && (
+        <div className="absolute inset-0 flex items-center justify-center opacity-50">
+          <p className="text-sm text-muted-foreground">Chart not available</p>
+        </div>
+      )}
+    </div>
+  );
 }
