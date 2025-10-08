@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.derivs]
 verify_jwt = false
+
+[functions.lunarcrush-social]
+verify_jwt = false

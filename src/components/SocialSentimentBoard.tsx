@@ -4,7 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink } from 'lucide-react';
+import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink, Wifi } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { formatDistanceToNow } from 'date-fns';
 
 interface SocialAsset {
   name: string;
@@ -23,10 +26,22 @@ interface SocialSentimentBoardProps {
 
 export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) {
   const navigate = useNavigate();
-  
 
-  const primaryAssets = marketData?.content_sections?.market_data?.social_sentiment as SocialAsset[] | undefined;
-  let socialAssets: SocialAsset[] = Array.isArray(primaryAssets) ? primaryAssets : [];
+  // Fetch live LunarCrush data (refreshes every 15 minutes)
+  const { data: liveData, isLoading } = useQuery({
+    queryKey: ['lunarcrush-social'],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('lunarcrush-social');
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 15 * 60 * 1000, // Refresh every 15 minutes
+    staleTime: 14 * 60 * 1000, // Consider stale after 14 minutes
+  });
+
+  // Use live data if available, otherwise fall back to brief snapshot
+  const dataSource = liveData?.data || marketData?.content_sections?.market_data?.social_sentiment;
+  let socialAssets: SocialAsset[] = Array.isArray(dataSource) ? dataSource : [];
 
   // Fallback 1: use aggregated social_data.top_social_assets if detailed list is empty
   if (socialAssets.length === 0) {
@@ -101,6 +116,15 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
 
   return (
     <div className="space-y-6">
+      {/* Live Data Badge */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Wifi className="h-4 w-4 text-green-500 animate-pulse" />
+        <span>
+          {liveData?.cached !== false ? 'Live data' : 'Loading...'}
+          {liveData?.age_seconds && ` • Updated ${formatDistanceToNow(new Date(Date.now() - liveData.age_seconds * 1000))} ago`}
+        </span>
+      </div>
+
       {/* Overview Cards - Hidden on desktop to avoid redundancy */}
       <div className="grid grid-cols-2 lg:hidden gap-4">
         <Card className="xr-card">

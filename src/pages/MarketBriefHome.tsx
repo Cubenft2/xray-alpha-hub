@@ -713,15 +713,18 @@ const { theme } = useTheme();
             )}
 
             {/* Social Sentiment Section */}
-            {briefData?.content_sections?.market_data && (
-              <div className="border-t border-border pt-6 mb-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Users className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
+            <div className="border-2 border-primary/20 rounded-lg p-6 bg-primary/5 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="w-5 h-5 text-primary" />
+                <div>
+                  <h3 className="text-lg font-semibold">Social Sentiment Intelligence</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Real-time social metrics from LunarCrush • Updates every 15 minutes
+                  </p>
                 </div>
-                <SocialSentimentBoard marketData={briefData} />
               </div>
-            )}
+              <SocialSentimentBoard marketData={briefData} />
+            </div>
             
             {/* News Sentiment Overview Section */}
             {briefData?.content_sections?.polygon_analysis && (

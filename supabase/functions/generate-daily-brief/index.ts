@@ -79,12 +79,6 @@ const DAILY_SECTIONS: SectionDefinition[] = [
     minWords: 100
   },
   {
-    title: 'Social Sentiment',
-    guidelines: 'SOCIAL METRICS ONLY: Cover 3-4 top-trending assets. FORMAT STRICTLY: For each asset, start a new paragraph with "AssetName (SYM):" then write 2-3 short sentences about ONLY social metrics (trending score, social volume change, galaxy score, why it\'s buzzing). Insert blank line between assets. DO NOT mention price changes or movements. Do NOT repeat any asset.',
-    dataScope: ['lunarcrushData', 'trendingData', 'socialData'],
-    minWords: 100
-  },
-  {
     title: 'What\'s Next',
     guidelines: 'Forward-looking: upcoming events, key levels to watch, potential catalysts. 1-2 paragraphs.',
     dataScope: ['economicCalendar', 'upcomingEvents'],
@@ -110,12 +104,6 @@ const WEEKLY_SECTIONS: SectionDefinition[] = [
     guidelines: 'Deep dive into top weekly gainers/losers with reasons. NO price repetition from Hook - ADD NEW CONTEXT. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets. Do NOT repeat any asset.',
     dataScope: ['weeklyGainers', 'weeklyLosers', 'coingeckoData'],
     minWords: 200
-  },
-  {
-    title: 'Social Momentum & Sentiment Shifts',
-    guidelines: 'How crowd mood evolved over the week, social volume changes, trending narratives. FORMAT STRICTLY: One paragraph per asset. Start each with "AssetName (SYM):" then 2-3 sentences about social metrics. Insert blank line between assets.',
-    dataScope: ['lunarcrushData', 'trendingData', 'socialWeekly'],
-    minWords: 150
   },
   {
     title: 'Exchange Dynamics',
@@ -1092,7 +1080,17 @@ serve(async (req) => {
         total_volume: totalVolume,
         btc_price: btcData?.current_price,
         eth_price: ethData?.current_price,
-        fear_greed: currentFearGreed.value
+        fear_greed: currentFearGreed.value,
+        social_sentiment: lunarcrushData?.data?.slice(0, 20).map((coin: any) => ({
+          name: coin.name,
+          symbol: coin.symbol,
+          galaxy_score: coin.galaxy_score,
+          alt_rank: coin.alt_rank,
+          social_volume: coin.social_volume,
+          social_dominance: coin.social_dominance,
+          sentiment: coin.sentiment,
+          fomo_score: coin.fomo_score || 0
+        })) || []
       },
       stoic_quote: selectedQuote,
       stoic_quote_author: selectedAuthor,
