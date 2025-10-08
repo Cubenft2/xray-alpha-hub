@@ -15,44 +15,47 @@ interface EnhancedBriefRendererProps {
 export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted, stoicQuote, stoicQuoteAuthor }: EnhancedBriefRendererProps) {
   const navigate = useNavigate();
 
-  // Remove duplicate stoic quote from article content if it appears at the end
+  // Remove any inlined Stoic quote from the beginning or end of the article content
   const cleanedContent = React.useMemo(() => {
     if (!stoicQuote || !content) return content;
-    
-    // Create regex pattern to match the quote at the end of content
-    // Handle various formats: plain text, with <em> tags, with author attribution, with or without quotes
-    const quoteText = stoicQuote.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special chars
-    const authorText = stoicQuoteAuthor ? stoicQuoteAuthor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
-    
-    // Match patterns at the end including:
-    // - With or without <em> tags
-    // - With or without quotes around the text
-    // - With or without author attribution
-    // - With or without dash separators
-    // - May be in a paragraph or standalone
-    const patterns = [
-      // With <em> and quotes
-      new RegExp(`<p>\\s*<em>["']${quoteText}["']<\\/em>\\s*[-–—]?\\s*${authorText}\\s*<\\/p>\\s*$`, 'i'),
-      new RegExp(`<em>["']${quoteText}["']<\\/em>\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
-      // With quotes only
-      new RegExp(`<p>\\s*["']${quoteText}["']\\s*[-–—]?\\s*${authorText}\\s*<\\/p>\\s*$`, 'i'),
-      new RegExp(`["']${quoteText}["']\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
-      // With <em> without quotes
-      new RegExp(`<p>\\s*<em>${quoteText}<\\/em>\\s*[-–—]?\\s*${authorText}\\s*<\\/p>\\s*$`, 'i'),
-      new RegExp(`<em>${quoteText}<\\/em>\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
-      // Plain text with author
-      new RegExp(`<p>\\s*${quoteText}\\s*[-–—]?\\s*${authorText}\\s*<\\/p>\\s*$`, 'i'),
-      new RegExp(`${quoteText}\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
-      // Just the quote text alone
-      new RegExp(`<p>\\s*${quoteText}\\s*<\\/p>\\s*$`, 'i'),
-      new RegExp(`${quoteText}\\s*$`, 'i'),
+
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const q = esc(stoicQuote.trim());
+    const a = stoicQuoteAuthor ? esc(stoicQuoteAuthor.trim()) : '';
+
+    // Allow curly/straight quotes around the text
+    const qText = `(?:[“\"']\\s*)?${q}(?:\\s*[”\"'])?`;
+    const author = a ? `(?:<cite>\\s*)?${a}(?:\\s*</cite>)?` : '';
+    const br = '(?:<br\\s*/?>\\s*)?';
+    const dash = '(?:[-–—]|&mdash;|&ndash;)?\\s*';
+    const pOpen = '(?:<p[^>]*>\\s*)?';
+    const pClose = '(?:\\s*</p>)?';
+    const emOpen = '(?:<em[^>]*>\\s*)?';
+    const emClose = '(?:\\s*</em>)?';
+    const bqOpen = '(?:<blockquote[^>]*>\\s*)?';
+    const bqClose = '(?:\\s*</blockquote>)?';
+
+    const patterns: RegExp[] = [
+      // END-anchored single-paragraph variants
+      new RegExp(`${pOpen}${bqOpen}${emOpen}${qText}${emClose}${bqClose}${br}${dash}${author}${pClose}\\s*$`, 'i'),
+      // END-anchored two-paragraph (quote then author)
+      new RegExp(`${pOpen}${emOpen}${qText}${emClose}${pClose}\\s*${pOpen}${dash}${author}${pClose}\\s*$`, 'i'),
+      // END-anchored quote only
+      new RegExp(`${pOpen}${emOpen}${qText}${emClose}${pClose}\\s*$`, 'i'),
+
+      // START-anchored single-paragraph variants
+      new RegExp(`^\\s*${pOpen}${bqOpen}${emOpen}${qText}${emClose}${bqClose}${br}${dash}${author}${pClose}`, 'i'),
+      // START-anchored two-paragraph (quote then author)
+      new RegExp(`^\\s*${pOpen}${emOpen}${qText}${emClose}${pClose}\\s*${pOpen}${dash}${author}${pClose}`, 'i'),
+      // START-anchored quote only
+      new RegExp(`^\\s*${pOpen}${emOpen}${qText}${emClose}${pClose}`, 'i'),
     ];
-    
-    let result = content;
-    for (const pattern of patterns) {
-      result = result.replace(pattern, '').trim();
-    }
-    
+
+    let result = content.trim();
+    patterns.forEach((rx) => {
+      result = result.replace(rx, '').trim();
+    });
+
     return result;
   }, [content, stoicQuote, stoicQuoteAuthor]);
 

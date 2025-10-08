@@ -873,8 +873,8 @@ serve(async (req) => {
       fullBriefContent += sectionContent + '\n\n';
     }
     
-    // Add quote at the end
-    fullBriefContent += `\n<p><em>"${selectedQuote}"</em><br/>— ${selectedAuthor}</p>`;
+    // Quote handled in UI; do not append to content
+    
     
     console.log(`\n✅ All sections generated: ${fullBriefContent.split(/\s+/).length} total words`);
     
