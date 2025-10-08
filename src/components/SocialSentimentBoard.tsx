@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SocialAsset {
   name: string;
@@ -98,6 +99,29 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     if (volume >= 1000) return `${(volume / 1000).toFixed(1)}K`;
     return volume.toString();
   };
+
+  // Live fallback: fetch galaxy scores if none are present in the brief
+  const [fetchedAssets, setFetchedAssets] = React.useState<SocialAsset[]>([]);
+  React.useEffect(() => {
+    if (Array.isArray(primaryAssets) && primaryAssets.length > 0) return;
+    let active = true;
+    (async () => {
+      try {
+        const { data: resp, error } = await supabase.functions.invoke('social-sentiment', { body: {} });
+        if (!error && active) {
+          const arr = Array.isArray((resp as any)?.data) ? (resp as any).data : (Array.isArray(resp) ? resp : []);
+          setFetchedAssets(arr as any);
+        }
+      } catch (e) {
+        console.warn('SocialSentimentBoard: social-sentiment fallback failed', e);
+      }
+    })();
+    return () => { active = false; };
+  }, [primaryAssets]);
+
+  if (socialAssets.length === 0 && fetchedAssets.length > 0) {
+    socialAssets = fetchedAssets;
+  }
 
   return (
     <div className="space-y-6">
