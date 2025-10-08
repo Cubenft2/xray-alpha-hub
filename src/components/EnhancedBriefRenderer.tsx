@@ -8,10 +8,40 @@ interface EnhancedBriefRendererProps {
   content: string;
   enhancedTickers?: {[key: string]: any};
   onTickersExtracted?: (tickers: string[]) => void;
+  stoicQuote?: string;
+  stoicQuoteAuthor?: string;
 }
 
-export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted }: EnhancedBriefRendererProps) {
+export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted, stoicQuote, stoicQuoteAuthor }: EnhancedBriefRendererProps) {
   const navigate = useNavigate();
+
+  // Remove duplicate stoic quote from article content if it appears at the end
+  const cleanedContent = React.useMemo(() => {
+    if (!stoicQuote || !content) return content;
+    
+    // Create regex pattern to match the quote at the end of content
+    // Handle various formats: plain text, with <em> tags, with author attribution
+    const quoteText = stoicQuote.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special chars
+    const authorText = stoicQuoteAuthor ? stoicQuoteAuthor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
+    
+    // Match patterns like:
+    // "quote text" - Author
+    // <em>"quote text"</em> - Author
+    // "quote text" Author
+    const patterns = [
+      new RegExp(`<em>["']${quoteText}["']<\\/em>\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
+      new RegExp(`["']${quoteText}["']\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
+      new RegExp(`<em>${quoteText}<\\/em>\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
+      new RegExp(`${quoteText}\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
+    ];
+    
+    let result = content;
+    for (const pattern of patterns) {
+      result = result.replace(pattern, '').trim();
+    }
+    
+    return result;
+  }, [content, stoicQuote, stoicQuoteAuthor]);
 
   const handleTickerClick = React.useCallback((ticker: string) => {
     const upperTicker = ticker.toUpperCase();
@@ -224,7 +254,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     return { html: enhancedText, tickers: extractedTickers };
   };
 
-  const { html: enhancedHtml, tickers } = React.useMemo(() => processContent(content), [content, enhancedTickers]);
+  const { html: enhancedHtml, tickers } = React.useMemo(() => processContent(cleanedContent), [cleanedContent, enhancedTickers]);
 
   React.useEffect(() => {
     if (onTickersExtracted && tickers.length > 0) {

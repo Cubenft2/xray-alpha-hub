@@ -643,6 +643,8 @@ const { theme } = useTheme();
                   ...livePrices
                 }}
                 onTickersExtracted={handleTickersExtracted}
+                stoicQuote={briefData?.stoic_quote}
+                stoicQuoteAuthor={briefData?.stoic_quote_author}
               />
             </div>
 
