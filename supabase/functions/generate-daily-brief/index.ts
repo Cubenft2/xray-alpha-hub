@@ -131,7 +131,7 @@ function deduplicateContent(text: string): string {
       const union = new Set([...paragraphNgrams, ...seenNgrams]);
       
       const similarity = intersection.size / union.size;
-      if (similarity >= 0.60) {
+      if (similarity >= 0.50) {
         console.log(`🗑️ Removed similar paragraph (${(similarity * 100).toFixed(0)}% overlap, ${fingerprint.length} chars): "${trimmed.substring(0, 80)}..."`);
         paragraphsRemoved++;
         hasSimilarParagraph = true;
@@ -562,55 +562,109 @@ function dedupeSentencesScoped(text: string): string {
   return out.join('\n\n'); // FIXED: Preserve section spacing
 }
 
-// NEW: Cross-section similarity guard to catch repetition between sections
+// ENHANCED: Cross-section similarity guard with fuzzy n-gram matching and numeric-fact detection
 function applyCrossSectionSimilarityGuard(text: string): string {
-  console.log('🔍 Running cross-section similarity guard...');
+  console.log('🔍 Running enhanced cross-section similarity guard (fuzzy + numeric)...');
   
   const sections = text.split(/(<h2>.*?<\/h2>)/g).filter(s => s.trim());
   const processedSections: string[] = [];
-  const sectionBodies: Array<{ header: string; body: string; sentences: string[] }> = [];
+  const sectionBodies: Array<{ header: string; body: string; sentences: Array<{raw: string; normalized: string; ngrams: Set<string>; numerics: Set<string>}> }> = [];
   
-  // Parse sections into header + body
+  // Helper: Extract numeric facts (percentages, prices with $)
+  const extractNumericFacts = (text: string): Set<string> => {
+    const facts = new Set<string>();
+    // Match patterns like "+5.2%", "$1.23", "45.67%", etc.
+    const matches = text.match(/[+-]?\$?[\d,]+\.?\d*%?/g);
+    if (matches) {
+      matches.forEach(m => facts.add(m.replace(/,/g, '').toLowerCase()));
+    }
+    return facts;
+  };
+  
+  // Helper: Generate 3-5 word n-grams for fuzzy matching
+  const generateNgrams = (text: string): Set<string> => {
+    const words = text.toLowerCase().replace(/<[^>]+>/g, '').replace(/[^\w\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+    const ngrams = new Set<string>();
+    for (let n = 3; n <= 5; n++) {
+      for (let i = 0; i <= words.length - n; i++) {
+        ngrams.add(words.slice(i, i + n).join(' '));
+      }
+    }
+    return ngrams;
+  };
+  
+  // Parse sections into header + enhanced body
   for (let i = 0; i < sections.length; i++) {
     const section = sections[i];
     if (section.startsWith('<h2>')) {
       const nextSection = sections[i + 1] || '';
-      const sentences = nextSection
-        .split(/[.!?]+/)
-        .map(s => s.trim().toLowerCase().replace(/<[^>]+>/g, '').replace(/\s+/g, ' '))
-        .filter(s => s.length > 20);
+      const rawSentences = nextSection.split(/[.!?]+/).filter(s => s.trim().length > 20);
+      
+      const sentences = rawSentences.map(raw => {
+        const normalized = raw.trim().toLowerCase().replace(/<[^>]+>/g, '').replace(/\s+/g, ' ');
+        return {
+          raw: raw.trim(),
+          normalized,
+          ngrams: generateNgrams(raw),
+          numerics: extractNumericFacts(raw)
+        };
+      });
       
       sectionBodies.push({
         header: section,
         body: nextSection,
-        sentences: sentences
+        sentences
       });
     }
   }
   
-  // Compare each section to prior sections
+  // Compare each section to all prior sections
   let prunedSentences = 0;
+  let prunedByFuzzy = 0;
+  let prunedByNumeric = 0;
+  
   for (let i = 0; i < sectionBodies.length; i++) {
     const current = sectionBodies[i];
-    const keptSentences = new Set(current.sentences);
+    const keptSentences = new Set(current.sentences.map(s => s.normalized));
     
     // Compare to all previous sections
     for (let j = 0; j < i; j++) {
       const prior = sectionBodies[j];
       
-      // Calculate Jaccard similarity between sentence sets
-      const intersection = new Set([...current.sentences].filter(x => prior.sentences.includes(x)));
-      const union = new Set([...current.sentences, ...prior.sentences]);
-      const similarity = intersection.size / union.size;
-      
-      // If >60% overlap, prune overlapping sentences from current section
-      if (similarity > 0.60) {
-        console.log(`🗑️ Cross-section overlap detected: "${current.header.substring(0, 50)}" vs "${prior.header.substring(0, 50)}" (${(similarity * 100).toFixed(0)}% similar)`);
+      // For each sentence in current, check fuzzy similarity against prior sentences
+      for (const currSent of current.sentences) {
+        if (!keptSentences.has(currSent.normalized)) continue;
         
-        // Remove overlapping sentences from current
-        for (const sentence of intersection) {
-          keptSentences.delete(sentence);
+        let shouldPrune = false;
+        let pruneReason = '';
+        
+        for (const priorSent of prior.sentences) {
+          // Check 1: Fuzzy n-gram similarity (Jaccard on 3-5-grams)
+          const intersection = new Set([...currSent.ngrams].filter(x => priorSent.ngrams.has(x)));
+          const union = new Set([...currSent.ngrams, ...priorSent.ngrams]);
+          const similarity = union.size > 0 ? intersection.size / union.size : 0;
+          
+          if (similarity > 0.50) {
+            shouldPrune = true;
+            pruneReason = `fuzzy similarity ${(similarity * 100).toFixed(0)}%`;
+            prunedByFuzzy++;
+            break;
+          }
+          
+          // Check 2: Identical numeric facts (price/percentage overlap)
+          const numericIntersection = new Set([...currSent.numerics].filter(x => priorSent.numerics.has(x)));
+          if (currSent.numerics.size > 0 && numericIntersection.size >= 2) {
+            shouldPrune = true;
+            pruneReason = `repeated numeric facts: ${Array.from(numericIntersection).join(', ')}`;
+            prunedByNumeric++;
+            break;
+          }
+        }
+        
+        if (shouldPrune) {
+          keptSentences.delete(currSent.normalized);
           prunedSentences++;
+          console.log(`🗑️ Cross-section prune (${pruneReason}): "${currSent.raw.substring(0, 60)}..."`);
         }
       }
     }
@@ -637,7 +691,168 @@ function applyCrossSectionSimilarityGuard(text: string): string {
     processedSections.push(sectionBodies[i].body);
   }
   
-  console.log(`✅ Cross-section guard complete: pruned ${prunedSentences} overlapping sentences`);
+  console.log(`✅ Cross-section guard: pruned ${prunedSentences} sentences (${prunedByFuzzy} fuzzy, ${prunedByNumeric} numeric)`);
+  
+  return processedSections.join('\n\n');
+}
+
+// NEW: Enforce "one primary analysis per asset" rule
+function enforceAssetAnalysisLimit(text: string): string {
+  console.log('🔍 Enforcing one-primary-analysis-per-asset rule...');
+  
+  // Extract all asset mentions in format "Name (SYMBOL)"
+  const assetPattern = /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+\(([A-Z0-9_]{2,10})\)/g;
+  const assetFirstMention = new Map<string, number>();
+  const sections = text.split(/(<h2>.*?<\/h2>)/g).filter(s => s.trim());
+  const processedSections: string[] = [];
+  
+  let totalPruned = 0;
+  const prunedByAsset = new Map<string, number>();
+  
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    
+    // Keep headers as-is
+    if (section.startsWith('<h2>')) {
+      processedSections.push(section);
+      continue;
+    }
+    
+    // Process body sentences
+    const sentences = section.split(/([.!?]+\s*)/).filter(s => s.trim());
+    const keptSentences: string[] = [];
+    
+    for (let j = 0; j < sentences.length; j += 2) {
+      const sentence = sentences[j] || '';
+      const punct = sentences[j + 1] || '';
+      
+      // Find assets in this sentence
+      const assets = Array.from(sentence.matchAll(assetPattern), m => m[2]);
+      
+      if (assets.length === 0) {
+        keptSentences.push(sentence + punct);
+        continue;
+      }
+      
+      // Check if any asset is being repeated
+      let shouldKeep = true;
+      let violatingAsset = '';
+      
+      for (const symbol of assets) {
+        const count = assetFirstMention.get(symbol) || 0;
+        
+        if (count === 0) {
+          // First mention: always keep
+          assetFirstMention.set(symbol, 1);
+        } else if (count === 1) {
+          // Second mention: keep only if short (≤15 words) and has new angle keywords
+          const wordCount = sentence.split(/\s+/).length;
+          const hasNewAngle = /\b(derivatives?|funding|open interest|on-chain|macro|technical|exchange|liquidity|listing|volume|futures|perpetuals?|options)\b/i.test(sentence);
+          
+          if (wordCount > 15 || !hasNewAngle) {
+            shouldKeep = false;
+            violatingAsset = symbol;
+          } else {
+            assetFirstMention.set(symbol, 2);
+          }
+        } else {
+          // Third+ mention: drop it
+          shouldKeep = false;
+          violatingAsset = symbol;
+        }
+      }
+      
+      if (shouldKeep) {
+        keptSentences.push(sentence + punct);
+      } else {
+        totalPruned++;
+        prunedByAsset.set(violatingAsset, (prunedByAsset.get(violatingAsset) || 0) + 1);
+        console.log(`🗑️ Asset-repeat limit: ${violatingAsset} (${sentence.substring(0, 50)}...)`);
+      }
+    }
+    
+    processedSections.push(keptSentences.join(''));
+  }
+  
+  console.log(`✅ Asset-repeat guard: pruned ${totalPruned} sentences across ${prunedByAsset.size} assets`);
+  if (prunedByAsset.size > 0) {
+    console.log(`   Top pruned: ${Array.from(prunedByAsset.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([sym, count]) => `${sym} (${count}x)`).join(', ')}`);
+  }
+  
+  return processedSections.join('\n\n');
+}
+
+// NEW: Numeric-fact repetition guard per symbol
+function pruneNumericRepetitions(text: string): string {
+  console.log('🔍 Running numeric-fact repetition guard...');
+  
+  const sections = text.split(/(<h2>.*?<\/h2>)/g).filter(s => s.trim());
+  const processedSections: string[] = [];
+  
+  // Track numeric facts per symbol globally
+  const symbolNumericFacts = new Map<string, Set<string>>();
+  let prunedCount = 0;
+  
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    
+    // Keep headers
+    if (section.startsWith('<h2>')) {
+      processedSections.push(section);
+      continue;
+    }
+    
+    // Process sentences
+    const sentences = section.split(/([.!?]+\s*)/).filter(s => s.trim());
+    const keptSentences: string[] = [];
+    
+    for (let j = 0; j < sentences.length; j += 2) {
+      const sentence = sentences[j] || '';
+      const punct = sentences[j + 1] || '';
+      
+      // Extract symbols and numeric facts
+      const symbols = Array.from(sentence.matchAll(/\(([A-Z0-9_]{2,10})\)/g), m => m[1]);
+      const numerics = Array.from(sentence.matchAll(/[+-]?\$?[\d,]+\.?\d*%?/g), m => m[0].replace(/,/g, ''));
+      
+      if (symbols.length === 0 || numerics.length === 0) {
+        keptSentences.push(sentence + punct);
+        continue;
+      }
+      
+      // Check if this symbol+numeric combo was seen before
+      let isDuplicate = false;
+      for (const symbol of symbols) {
+        const seenFacts = symbolNumericFacts.get(symbol) || new Set();
+        
+        // Check if any numeric fact is a repeat
+        const repeatedFacts = numerics.filter(n => seenFacts.has(n));
+        
+        if (repeatedFacts.length > 0) {
+          // Only prune if there's no new-angle keyword
+          const hasNewAngle = /\b(derivatives?|funding|open interest|on-chain|macro|technical|exchange|liquidity|social|sentiment|catalyst)\b/i.test(sentence);
+          
+          if (!hasNewAngle) {
+            isDuplicate = true;
+            prunedCount++;
+            console.log(`🗑️ Numeric-repeat: ${symbol} (${repeatedFacts.join(', ')}) in "${sentence.substring(0, 50)}..."`);
+            break;
+          }
+        }
+        
+        // Record these facts for future checks
+        numerics.forEach(n => seenFacts.add(n));
+        symbolNumericFacts.set(symbol, seenFacts);
+      }
+      
+      if (!isDuplicate) {
+        keptSentences.push(sentence + punct);
+      }
+    }
+    
+    processedSections.push(keptSentences.join(''));
+  }
+  
+  console.log(`✅ Numeric-repeat guard: pruned ${prunedCount} sentences with repeated price/percentage data`);
   
   return processedSections.join('\n\n');
 }
@@ -1728,32 +1943,37 @@ Write your complete weekly recap now with all 10 sections using <h2> headings.` 
     // DAILY BRIEF PROMPT (with strict structural rules)
     `You are XRayCrypto, an experienced trader with American-Latino identity and global traveler vibes. Create a comprehensive daily market brief that feels like a smart friend talking through important market moves. Use your signature sharp, plain-spoken voice with hints of humor and natural fishing/travel metaphors.
 
-CRITICAL STRUCTURAL RULES (MUST FOLLOW):
-1. Use <h2> HTML tags to separate distinct sections:
-   - <h2>Market Overview</h2> (overall market sentiment, F&G)
-   - <h2>Cryptocurrency Movers</h2> (ONLY crypto assets - BTC, ETH, altcoins)
-   - <h2>Traditional Market Updates</h2> (ONLY stocks, commodities, forex - if relevant)
-   - <h2>Exchange Dynamics</h2> (liquidity, volume, listings)
-   - <h2>Social Sentiment</h2> (LunarCrush data, crowd behavior)
-   - <h2>What's Ahead</h2> (upcoming catalysts)
+**CRITICAL: YOU MUST USE THESE EXACT <h2> HEADINGS IN THIS EXACT ORDER (NO SUBSTITUTIONS):**
+1. <h2>Market Overview</h2>
+2. <h2>Cryptocurrency Movers</h2>
+3. <h2>Traditional Markets</h2>
+4. <h2>Derivatives & Flows</h2>
+5. <h2>Social Sentiment</h2>
+6. <h2>What's Next</h2>
 
-2. NEVER mix crypto and stock terminology:
+**SECTION OUTLINE ENFORCEMENT:**
+- Use ONLY the 6 headings listed above, once each, in that exact order
+- Do NOT create alternative headings or merge sections
+- Each section must have unique content - do NOT repeat analysis from earlier sections
+
+CRITICAL STRUCTURAL RULES (MUST FOLLOW):
+1. NEVER mix crypto and stock terminology:
    - In Cryptocurrency sections: use "token", "coin", "crypto asset", "blockchain"
    - In Traditional Market sections: use "stock", "equity", "share", "NYSE/NASDAQ"
    - NEVER call a stock a "cryptocurrency" or a crypto a "stock"
 
-3. Each asset gets ONE primary analysis in its designated section:
+2. Each asset gets ONE primary analysis in its designated section:
    - First mention: Full context with price and percentage
    - Any later reference: MUST add NEW context (derivatives, social, macro) in ≤15 words
    - NEVER restate price/percentage data already mentioned
 
-4. PARAGRAPH-LEVEL UNIQUENESS (CRITICAL):
+3. PARAGRAPH-LEVEL UNIQUENESS (CRITICAL):
    - NEVER repeat the same paragraph structure between sections
    - Each asset analysis must be written ONCE with unique wording
    - DO NOT copy-paste explanations about exchange dynamics, liquidity patterns, or market behavior
    - If discussing an asset in multiple sections, each mention must offer a DIFFERENT angle
 
-5. BANNED REPETITIONS (do not use more than once):
+4. BANNED REPETITIONS (do not use more than once):
    - "as we peer ahead", "hitting its stride", "keep your eyes peeled", "buckle up", "the takeaway"
    - "what does this mean", "here is what matters", "at the end of the day"
    - Do NOT copy sentences between sections - vary wording completely
@@ -1863,7 +2083,7 @@ const maxRetries = isWeekendBrief ? 1 : 0; // Allow one retry for weekend if und
         let response: Response;
         
         if (useLovableAI) {
-          console.log(`🧠 Using Lovable AI (${isWeekendBrief ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash'}) for ${isWeekendBrief ? 'weekend' : 'daily'} brief...`);
+          console.log(`🧠 Using Lovable AI (Gemini 2.5 Pro) for ${isWeekendBrief ? 'weekend' : 'daily'} brief...`);
           response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -1871,7 +2091,7 @@ const maxRetries = isWeekendBrief ? 1 : 0; // Allow one retry for weekend if und
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: isWeekendBrief ? 'google/gemini-2.5-pro' : 'google/gemini-2.5-flash',
+              model: 'google/gemini-2.5-pro', // Use Pro for both daily and weekly (free until Oct 13, 2025)
               messages: [
                 { 
                   role: 'system', 
@@ -1975,23 +2195,37 @@ UNIQUE CONTENT RULES:
         generatedAnalysis = aiData.choices?.[0]?.message?.content || '';
         modelUsed = lastTriedModel;
         
-        // ENHANCED POST-PROCESSING PIPELINE
-        console.log('🧹 Starting enhanced deduplication pipeline...');
+        // ENHANCED POST-PROCESSING PIPELINE WITH TELEMETRY
+        console.log('🧹 Starting 6-stage anti-repetition pipeline...');
         const originalLength = generatedAnalysis.length;
         
         // Step 1: Scoped sentence dedup (per paragraph/section)
         generatedAnalysis = dedupeSentencesScoped(generatedAnalysis);
-        console.log(`   Step 1 (scoped): ${originalLength} → ${generatedAnalysis.length} chars`);
+        const afterStep1 = generatedAnalysis.length;
+        console.log(`   ✅ Step 1 (scoped): ${originalLength} → ${afterStep1} chars (-${originalLength - afterStep1})`);
         
-        // Step 2: Cross-section similarity guard (NEW)
+        // Step 2: Asset-repeat limiter (NEW - one primary analysis per asset)
+        generatedAnalysis = enforceAssetAnalysisLimit(generatedAnalysis);
+        const afterStep2 = generatedAnalysis.length;
+        console.log(`   ✅ Step 2 (asset-repeat): ${afterStep1} → ${afterStep2} chars (-${afterStep1 - afterStep2})`);
+        
+        // Step 3: Numeric-fact guard (NEW - prevent repeated price/percentage)
+        generatedAnalysis = pruneNumericRepetitions(generatedAnalysis);
+        const afterStep3 = generatedAnalysis.length;
+        console.log(`   ✅ Step 3 (numeric-repeat): ${afterStep2} → ${afterStep3} chars (-${afterStep2 - afterStep3})`);
+        
+        // Step 4: Cross-section similarity guard (fuzzy n-gram matching)
         generatedAnalysis = applyCrossSectionSimilarityGuard(generatedAnalysis);
-        console.log(`   Step 2 (cross-section): ${generatedAnalysis.length} chars`);
+        const afterStep4 = generatedAnalysis.length;
+        console.log(`   ✅ Step 4 (cross-section fuzzy): ${afterStep3} → ${afterStep4} chars (-${afterStep3 - afterStep4})`);
         
-        // Step 3: Global deduplication with per-section resets
+        // Step 5: Global deduplication with per-section resets
         generatedAnalysis = deduplicateContent(generatedAnalysis);
         const dedupedLength = generatedAnalysis.length;
-        console.log(`   Step 3 (global): ${dedupedLength} chars`);
-        console.log(`✅ Total deduplication: ${originalLength} → ${dedupedLength} chars (removed ${originalLength - dedupedLength} chars, ${((1 - dedupedLength / originalLength) * 100).toFixed(1)}%)`);
+        console.log(`   ✅ Step 5 (global dedup): ${afterStep4} → ${dedupedLength} chars (-${afterStep4 - dedupedLength})`);
+        
+        console.log(`🎯 TOTAL PIPELINE RESULTS: ${originalLength} → ${dedupedLength} chars (removed ${originalLength - dedupedLength} chars, ${((1 - dedupedLength / originalLength) * 100).toFixed(1)}%)`);
+        console.log(`📊 Stage breakdown: Scoped=${originalLength - afterStep1}, Asset=${afterStep1 - afterStep2}, Numeric=${afterStep2 - afterStep3}, CrossSec=${afterStep3 - afterStep4}, Global=${afterStep4 - dedupedLength}`);
         
         // Check word count for weekend briefs
         if (isWeekendBrief && generatedAnalysis) {
