@@ -41,16 +41,30 @@ export function useSocialSentiment() {
       
       console.log(`✅ Loaded ${socialData.length} social assets from ${metaData?.source || 'unknown'}`);
       
-      setAssets(socialData.map((asset: any) => ({
-        name: asset.name || asset.symbol,
-        symbol: String(asset.symbol || '').toUpperCase(),
-        galaxy_score: Number(asset.galaxy_score || 0),
-        sentiment: Number(asset.sentiment || 0),
-        social_volume: Number(asset.social_volume || 0),
-        social_dominance: Number(asset.social_dominance || 0),
-        fomo_score: Number(asset.fomo_score || asset.alt_rank || 0),
-        alt_rank: Number(asset.alt_rank || 999)
-      })));
+      setAssets(socialData.map((asset: any) => {
+        // Normalize sentiment to 0-100 scale
+        let normalizedSentiment = Number(asset.sentiment || 0);
+        if (normalizedSentiment >= -1 && normalizedSentiment <= 1) {
+          // Convert from -1..1 to 0..100
+          normalizedSentiment = ((normalizedSentiment + 1) / 2) * 100;
+        } else if (normalizedSentiment >= 0 && normalizedSentiment <= 1) {
+          // Convert from 0..1 to 0..100
+          normalizedSentiment = normalizedSentiment * 100;
+        }
+        // Clamp to 0-100
+        normalizedSentiment = Math.max(0, Math.min(100, normalizedSentiment));
+
+        return {
+          name: asset.name || asset.symbol,
+          symbol: String(asset.symbol || '').toUpperCase(),
+          galaxy_score: Number(asset.galaxy_score || 0),
+          sentiment: normalizedSentiment,
+          social_volume: Number(asset.social_volume || 0),
+          social_dominance: Number(asset.social_dominance || 0),
+          fomo_score: Number(asset.fomo_score || 0),
+          alt_rank: Number(asset.alt_rank || 999)
+        };
+      }));
       
       setMetadata(metaData);
       setLoading(false);

@@ -24,11 +24,17 @@ export function SocialSentimentBoard() {
   };
 
   const getSentimentLabel = (sentiment: number) => {
-    if (sentiment >= 0.6) return 'Very Bullish';
-    if (sentiment >= 0.2) return 'Bullish';
-    if (sentiment >= -0.2) return 'Neutral';
-    if (sentiment >= -0.6) return 'Bearish';
+    if (sentiment >= 70) return 'Very Bullish';
+    if (sentiment >= 55) return 'Bullish';
+    if (sentiment >= 46) return 'Neutral';
+    if (sentiment >= 30) return 'Bearish';
     return 'Very Bearish';
+  };
+
+  const getSentimentColor = (sentiment: number) => {
+    if (sentiment >= 55) return 'text-green-500 border-green-500/20 bg-green-500/10';
+    if (sentiment >= 46) return 'text-yellow-500 border-yellow-500/20 bg-yellow-500/10';
+    return 'text-red-500 border-red-500/20 bg-red-500/10';
   };
 
   const formatSocialVolume = (volume: number) => {
@@ -275,10 +281,7 @@ export function SocialSentimentBoard() {
                       <p className="text-sm text-muted-foreground">Sentiment</p>
                       <Badge 
                         variant="outline" 
-                        className={`${asset.sentiment >= 0 
-                          ? 'text-green-500 border-green-500/20 bg-green-500/10' 
-                          : 'text-red-500 border-red-500/20 bg-red-500/10'
-                        } font-semibold`}
+                        className={`${getSentimentColor(asset.sentiment)} font-semibold`}
                       >
                         {getSentimentLabel(asset.sentiment)}
                       </Badge>
