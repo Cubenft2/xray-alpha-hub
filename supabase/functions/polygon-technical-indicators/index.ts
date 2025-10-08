@@ -123,6 +123,15 @@ serve(async (req) => {
             case 'ema':
               url = `https://api.polygon.io/v1/indicators/ema/${polygonTicker}?${params}&window=${window}&series_type=close`;
               break;
+            case 'bb':
+              url = `https://api.polygon.io/v1/indicators/bbands/${polygonTicker}?${params}&window=20&series_type=close`;
+              break;
+            case 'atr':
+              url = `https://api.polygon.io/v1/indicators/atr/${polygonTicker}?${params}&window=14`;
+              break;
+            case 'stoch':
+              url = `https://api.polygon.io/v1/indicators/stoch/${polygonTicker}?${params}&k_window=14&d_window=3`;
+              break;
             default:
               console.log(`⚠️ Unknown indicator type: ${indicatorType}`);
               continue;
@@ -165,6 +174,25 @@ serve(async (req) => {
             case 'sma':
             case 'ema':
               value = { value: latest.value };
+              break;
+            case 'bb':
+              value = {
+                upper: latest.upper,
+                middle: latest.middle,
+                lower: latest.lower
+              };
+              signal = 'bands';
+              break;
+            case 'atr':
+              value = { value: latest.value };
+              signal = 'volatility';
+              break;
+            case 'stoch':
+              value = {
+                k: latest.k,
+                d: latest.d
+              };
+              signal = latest.k > 80 ? 'overbought' : latest.k < 20 ? 'oversold' : 'neutral';
               break;
           }
 

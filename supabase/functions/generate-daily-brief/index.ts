@@ -355,6 +355,57 @@ function filterDataForSection(dataScope: string[], allData: any): string {
           parts.push(`Exchange Data: ${exchangeSummary}`);
         }
         break;
+      case 'technicalData':
+        if (allData.technicalData && Object.keys(allData.technicalData).length > 0) {
+          const techLines: string[] = [];
+          Object.entries(allData.technicalData).forEach(([ticker, indicators]: any) => {
+            const parts: string[] = [`${ticker}:`];
+            
+            // RSI
+            if (indicators.rsi) {
+              const rsi = indicators.rsi.value.value;
+              const signal = rsi > 70 ? ' (overbought)' : rsi < 30 ? ' (oversold)' : '';
+              parts.push(`RSI ${rsi.toFixed(0)}${signal}`);
+            }
+            
+            // MACD
+            if (indicators.macd) {
+              const macd = indicators.macd;
+              const trend = macd.histogram > 0 ? 'bullish' : 'bearish';
+              parts.push(`MACD ${trend}`);
+            }
+            
+            // Moving Averages
+            if (indicators.sma_50) {
+              parts.push(`50-SMA $${indicators.sma_50.value.value.toFixed(0)}`);
+            }
+            if (indicators.ema_20) {
+              parts.push(`20-EMA $${indicators.ema_20.value.value.toFixed(0)}`);
+            }
+            
+            // Bollinger Bands
+            if (indicators.bb) {
+              const bb = indicators.bb.value;
+              parts.push(`BB [$${bb.lower.toFixed(0)}-$${bb.upper.toFixed(0)}]`);
+            }
+            
+            // ATR
+            if (indicators.atr) {
+              parts.push(`ATR $${indicators.atr.value.value.toFixed(2)}`);
+            }
+            
+            // Stochastic
+            if (indicators.stoch) {
+              const stoch = indicators.stoch.value;
+              const signal = stoch.k > 80 ? ' (overbought)' : stoch.k < 20 ? ' (oversold)' : '';
+              parts.push(`Stoch ${stoch.k.toFixed(0)}${signal}`);
+            }
+            
+            techLines.push(parts.join(' | '));
+          });
+          parts.push(`Technical Indicators:\n${techLines.join('\n')}`);
+        }
+        break;
       case 'lunarcrushData':
         if (allData.lunarcrushData?.data?.length > 0) {
           const social = allData.lunarcrushData.data.slice(0, 5).map((a: any) => 
@@ -769,8 +820,8 @@ serve(async (req) => {
       console.log('📈 Fetching technical indicators...');
       const technicalResponse = await supabase.functions.invoke('polygon-technical-indicators', {
         body: {
-          tickers: ['BTC', 'ETH', 'SOL', 'AAPL', 'TSLA', 'COIN', 'MSTR'],
-          indicators: ['rsi', 'macd', 'sma_50', 'ema_20'],
+          tickers: ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT', 'AAPL', 'TSLA', 'NVDA', 'COIN', 'MSTR'],
+          indicators: ['rsi', 'macd', 'sma_50', 'ema_20', 'bb', 'atr', 'stoch'],
           timeframe: 'daily'
         }
       });
