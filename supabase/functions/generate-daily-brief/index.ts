@@ -720,6 +720,28 @@ serve(async (req) => {
     }
 
     try {
+      console.log('🌙 Fetching LunarCrush social data...');
+      const lunarcrushResponse = await fetch(
+        'https://lunarcrush.com/api4/public/coins/list/v2?limit=100&sort=galaxy_score',
+        {
+          headers: {
+            'Authorization': `Bearer ${lunarcrushApiKey}`,
+            'accept': 'application/json'
+          }
+        }
+      );
+      if (lunarcrushResponse.ok) {
+        const lunarcrushJson = await lunarcrushResponse.json();
+        lunarcrushData = lunarcrushJson || { data: [] };
+        console.log(`✅ Fetched ${lunarcrushData.data?.length || 0} assets from LunarCrush`);
+      } else {
+        console.error(`❌ LunarCrush API error: ${lunarcrushResponse.status} ${lunarcrushResponse.statusText}`);
+      }
+    } catch (err) {
+      console.error('❌ LunarCrush fetch failed:', err);
+    }
+
+    try {
       console.log('📊 Fetching derivatives data...');
       const derivsResponse = await supabase.functions.invoke('derivs', { body: { symbols: ['BTC', 'ETH', 'SOL'] } });
       if (!derivsResponse.error) {
