@@ -670,6 +670,58 @@ serve(async (req) => {
       console.error('❌ News fetch failed:', err);
     }
 
+    // Analyze news sentiment
+    let sentimentBreakdown = { positive: 0, negative: 0, neutral: 0, total: 0 };
+    let topTickersFromNews: string[] = [];
+    let topKeywords: string[] = [];
+    
+    try {
+      const allNews = [...newsData.crypto, ...newsData.stocks];
+      sentimentBreakdown.total = allNews.length;
+      
+      // Extract sentiment
+      const tickerMap = new Map<string, number>();
+      const keywordMap = new Map<string, number>();
+      
+      allNews.forEach((article: any) => {
+        if (article.sentiment === 'positive') sentimentBreakdown.positive++;
+        else if (article.sentiment === 'negative') sentimentBreakdown.negative++;
+        else sentimentBreakdown.neutral++;
+        
+        // Count tickers
+        if (article.tickers && Array.isArray(article.tickers)) {
+          article.tickers.forEach((ticker: string) => {
+            tickerMap.set(ticker, (tickerMap.get(ticker) || 0) + 1);
+          });
+        }
+        
+        // Count keywords
+        if (article.keywords && Array.isArray(article.keywords)) {
+          article.keywords.forEach((keyword: string) => {
+            if (keyword && keyword.length > 3) {
+              keywordMap.set(keyword, (keywordMap.get(keyword) || 0) + 1);
+            }
+          });
+        }
+      });
+      
+      // Get top 10 tickers
+      topTickersFromNews = Array.from(tickerMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([ticker]) => ticker);
+      
+      // Get top 10 keywords
+      topKeywords = Array.from(keywordMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([keyword]) => keyword);
+      
+      console.log('📊 News analysis:', sentimentBreakdown, 'Top tickers:', topTickersFromNews.slice(0, 5));
+    } catch (err) {
+      console.error('❌ News sentiment analysis failed:', err);
+    }
+
     try {
       console.log('🌍 Fetching CoinGecko global market data...');
       let globalResponse = await fetch(`https://api.coingecko.com/api/v3/global`, {
@@ -717,6 +769,23 @@ serve(async (req) => {
       }
     } catch (err) {
       console.error('❌ Fear & Greed fetch failed:', err);
+    }
+
+    try {
+      console.log('🌙 Fetching LunarCrush social data...');
+      const lunarcrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY');
+      if (lunarcrushApiKey) {
+        const lunarcrushResponse = await fetch(
+          'https://lunarcrush.com/api4/public/coins/list/v2?limit=50&sort=galaxy_score',
+          { headers: { 'Authorization': `Bearer ${lunarcrushApiKey}` } }
+        );
+        if (lunarcrushResponse.ok) {
+          lunarcrushData = await lunarcrushResponse.json();
+          console.log(`✅ LunarCrush: Got ${lunarcrushData.data?.length || 0} assets with social data`);
+        }
+      }
+    } catch (err) {
+      console.error('❌ LunarCrush fetch failed:', err);
     }
 
     try {
@@ -880,13 +949,51 @@ serve(async (req) => {
     const estTime = toZonedTime(new Date(), 'America/New_York');
     const slug = `${briefType}-${format(estTime, 'yyyy-MM-dd', { timeZone: 'America/New_York' })}`;
     
+    // Prepare social sentiment data for widgets
+    const socialSentimentForWidget = lunarcrushData.data?.slice(0, 10).map((asset: LunarCrushAsset) => ({
+      name: asset.name || asset.symbol,
+      symbol: asset.symbol,
+      galaxy_score: asset.galaxy_score || 0,
+      sentiment: asset.sentiment || 0,
+      social_volume: asset.social_volume || 0,
+      social_dominance: asset.social_dominance || 0,
+      fomo_score: asset.alt_rank || 0
+    })) || [];
+
     const briefData = {
       slug,
       brief_type: briefType,
       title: briefTitle,
       executive_summary: `Market analysis for ${format(estTime, 'MMMM d, yyyy')}`,
       content_sections: {
-        ai_generated_content: editedContent
+        ai_generated_content: editedContent,
+        market_data: {
+          fear_greed_index: currentFearGreed.value,
+          fear_greed_label: currentFearGreed.value_classification,
+          top_gainers: topGainers.map(coin => ({
+            name: coin.name,
+            symbol: coin.symbol,
+            price: coin.current_price,
+            change_24h: coin.price_change_percentage_24h
+          })),
+          top_losers: topLosers.map(coin => ({
+            name: coin.name,
+            symbol: coin.symbol,
+            price: coin.current_price,
+            change_24h: coin.price_change_percentage_24h
+          })),
+          social_sentiment: socialSentimentForWidget
+        },
+        polygon_analysis: {
+          sentiment_breakdown: sentimentBreakdown,
+          top_tickers: topTickersFromNews,
+          top_keywords: topKeywords
+        },
+        social_data: {
+          top_social_assets: lunarcrushData.data?.slice(0, 10).map((a: LunarCrushAsset) => a.symbol) || [],
+          avg_galaxy_score: lunarcrushData.data?.reduce((sum: number, a: LunarCrushAsset) => sum + (a.galaxy_score || 0), 0) / (lunarcrushData.data?.length || 1) || 0,
+          total_social_volume: lunarcrushData.data?.reduce((sum: number, a: LunarCrushAsset) => sum + (a.social_volume || 0), 0) || 0
+        }
       },
       market_data: {
         total_market_cap: totalMarketCap,
