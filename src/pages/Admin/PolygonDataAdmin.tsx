@@ -66,8 +66,8 @@ export function PolygonDataAdmin() {
       
       const { data, error } = await supabase.functions.invoke('polygon-technical-indicators', {
         body: {
-          tickers: ['BTC', 'ETH', 'SOL', 'AAPL', 'TSLA', 'COIN', 'MSTR', 'XRP', 'ADA'],
-          indicators: ['rsi', 'macd', 'sma_50', 'ema_20'],
+          tickers: ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT'],
+          indicators: ['rsi', 'macd', 'sma_50', 'ema_20', 'bb', 'atr', 'stoch'],
           timeframe: 'daily'
         }
       });
@@ -195,13 +195,13 @@ export function PolygonDataAdmin() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <p className="font-medium">Default Tickers:</p>
+            <p className="font-medium">Default Tickers (Crypto Only):</p>
             <p className="text-sm text-muted-foreground">
-              BTC, ETH, SOL, AAPL, TSLA, COIN, MSTR, XRP, ADA
+              BTC, ETH, SOL, XRP, BNB, ADA, DOGE, AVAX, LINK, DOT
             </p>
             <p className="font-medium mt-3">Indicators:</p>
             <p className="text-sm text-muted-foreground">
-              RSI (14), MACD (12,26,9), SMA (50), EMA (20)
+              RSI (14), MACD (12,26,9), SMA (50), EMA (20), Bollinger Bands, ATR, Stochastic
             </p>
           </div>
 

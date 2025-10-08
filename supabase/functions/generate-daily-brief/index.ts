@@ -828,7 +828,7 @@ serve(async (req) => {
       console.log('📈 Fetching technical indicators...');
       const technicalResponse = await supabase.functions.invoke('polygon-technical-indicators', {
         body: {
-          tickers: ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT', 'AAPL', 'TSLA', 'NVDA', 'COIN', 'MSTR'],
+          tickers: ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT'],
           indicators: ['rsi', 'macd', 'sma_50', 'ema_20', 'bb', 'atr', 'stoch'],
           timeframe: 'daily'
         }
