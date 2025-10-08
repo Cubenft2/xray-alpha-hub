@@ -833,6 +833,271 @@ function enforceAssetAnalysisLimit(text: string): string {
   return processedSections.join('\n\n');
 }
 
+// ============= BRIEF QA BOT =============
+// Final quality assurance layer before publishing
+async function briefQaBot(html: string, briefType: string): Promise<{
+  cleaned_brief_html: string;
+  qa_log: string[];
+}> {
+  const log: string[] = [];
+  let cleaned = html;
+  
+  // 1. Remove duplicate or near-duplicate sentences
+  const beforeDedup = cleaned.length;
+  const sentences = cleaned.split(/([.!?]+\s*)/);
+  const seenSentences = new Map<string, number>();
+  const uniqueSentences: string[] = [];
+  let duplicatesRemoved = 0;
+  
+  for (let i = 0; i < sentences.length; i += 2) {
+    const sentence = sentences[i] || '';
+    const punct = sentences[i + 1] || '';
+    
+    if (sentence.trim().length < 20) {
+      uniqueSentences.push(sentence + punct);
+      continue;
+    }
+    
+    // Create fingerprint (normalized, ignore minor variations)
+    const fingerprint = sentence
+      .toLowerCase()
+      .replace(/\d+\.?\d*/g, 'NUM')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    const count = seenSentences.get(fingerprint) || 0;
+    if (count === 0) {
+      seenSentences.set(fingerprint, 1);
+      uniqueSentences.push(sentence + punct);
+    } else {
+      duplicatesRemoved++;
+    }
+  }
+  
+  cleaned = uniqueSentences.join('');
+  if (duplicatesRemoved > 0) {
+    log.push(`Removed ${duplicatesRemoved} duplicate sentences (${beforeDedup - cleaned.length} chars)`);
+  }
+  
+  // 2. Ensure section headers appear exactly once in correct order
+  const expectedSections = [
+    'Market Overview',
+    'Crypto Movers',
+    'Traditional Market Movers',
+    'Exchange Insights',
+    'Social & Sentiment',
+    "What's Ahead",
+    'Quote of the Day'
+  ];
+  
+  const sectionMap = new Map<string, string[]>();
+  const h2Pattern = /<h2>(.*?)<\/h2>/g;
+  const sections = cleaned.split(h2Pattern);
+  
+  // Extract existing sections
+  for (let i = 1; i < sections.length; i += 2) {
+    const headerText = sections[i].trim();
+    const content = sections[i + 1] || '';
+    
+    if (!sectionMap.has(headerText)) {
+      sectionMap.set(headerText, []);
+    }
+    sectionMap.get(headerText)!.push(content);
+  }
+  
+  // Rebuild with correct sections
+  let rebuilt = sections[0] || ''; // Content before first h2
+  let sectionsFixed = 0;
+  
+  for (const expectedHeader of expectedSections) {
+    // Find matching section (fuzzy match)
+    let matchedContent: string[] = [];
+    for (const [header, contents] of sectionMap.entries()) {
+      if (header.toLowerCase().includes(expectedHeader.toLowerCase()) ||
+          expectedHeader.toLowerCase().includes(header.toLowerCase())) {
+        matchedContent.push(...contents);
+        sectionMap.delete(header);
+      }
+    }
+    
+    rebuilt += `<h2>${expectedHeader}</h2>`;
+    
+    if (matchedContent.length > 0) {
+      // Merge all content for this section
+      rebuilt += matchedContent.join('\n\n').trim();
+    } else {
+      // Empty section handling (step 5)
+      rebuilt += `\n\nNo material updates in this section today.\n\n`;
+      sectionsFixed++;
+    }
+    
+    rebuilt += '\n\n';
+  }
+  
+  cleaned = rebuilt;
+  if (sectionsFixed > 0) {
+    log.push(`Fixed ${sectionsFixed} section headers and added placeholders for empty sections`);
+  }
+  
+  // 3. Keep crypto assets only in crypto sections and stocks only in traditional sections
+  const cryptoSections = ['Market Overview', 'Crypto Movers', 'Exchange Insights', 'Social & Sentiment'];
+  const stockSections = ['Traditional Market Movers'];
+  
+  // Known stock suffixes and crypto indicators
+  const stockIndicators = /\b(NYSE|NASDAQ|stock|equity|share|shares)\b/i;
+  const cryptoIndicators = /\b(token|coin|crypto|blockchain|DeFi|NFT)\b/i;
+  
+  const finalSections = cleaned.split(/(<h2>.*?<\/h2>)/g);
+  let assetSegregationFixes = 0;
+  
+  for (let i = 0; i < finalSections.length; i++) {
+    const section = finalSections[i];
+    
+    // Check if this is a header
+    const headerMatch = section.match(/<h2>(.*?)<\/h2>/);
+    if (!headerMatch) continue;
+    
+    const headerText = headerMatch[1];
+    const content = finalSections[i + 1] || '';
+    
+    // Determine if this is a crypto or stock section
+    const isCryptoSection = cryptoSections.some(s => headerText.includes(s));
+    const isStockSection = stockSections.some(s => headerText.includes(s));
+    
+    if (!isCryptoSection && !isStockSection) continue;
+    
+    // Check for misplaced terminology
+    if (isCryptoSection && stockIndicators.test(content)) {
+      // Remove stock terminology from crypto sections
+      finalSections[i + 1] = content.replace(stockIndicators, '');
+      assetSegregationFixes++;
+    } else if (isStockSection && cryptoIndicators.test(content)) {
+      // Remove crypto terminology from stock sections
+      finalSections[i + 1] = content.replace(cryptoIndicators, '');
+      assetSegregationFixes++;
+    }
+  }
+  
+  cleaned = finalSections.join('');
+  if (assetSegregationFixes > 0) {
+    log.push(`Fixed ${assetSegregationFixes} crypto/stock terminology misplacements`);
+  }
+  
+  // 4. Limit each asset to one full mention (price / % / reason)
+  const assetMentions = new Map<string, number>();
+  const assetPattern = /\(([A-Z0-9_]{2,10})\)/g;
+  const limitedSections: string[] = [];
+  let assetMentionsLimited = 0;
+  
+  for (const section of cleaned.split(/(<h2>.*?<\/h2>)/g)) {
+    if (section.startsWith('<h2>')) {
+      limitedSections.push(section);
+      continue;
+    }
+    
+    const sectionSentences = section.split(/([.!?]+\s*)/);
+    const keptSentences: string[] = [];
+    
+    for (let i = 0; i < sectionSentences.length; i += 2) {
+      const sentence = sectionSentences[i] || '';
+      const punct = sectionSentences[i + 1] || '';
+      
+      // Find all asset mentions in this sentence
+      const matches = Array.from(sentence.matchAll(assetPattern));
+      
+      if (matches.length === 0) {
+        keptSentences.push(sentence + punct);
+        continue;
+      }
+      
+      // Check if any assets have been mentioned before
+      let shouldKeep = true;
+      for (const match of matches) {
+        const symbol = match[1];
+        const count = assetMentions.get(symbol) || 0;
+        
+        if (count >= 1) {
+          // Already had full mention, only keep if it adds new context
+          const hasNewContext = /\b(derivatives?|funding|open interest|on-chain|macro|technical|social|sentiment)\b/i.test(sentence);
+          if (!hasNewContext) {
+            shouldKeep = false;
+            assetMentionsLimited++;
+            break;
+          }
+        }
+        
+        assetMentions.set(symbol, count + 1);
+      }
+      
+      if (shouldKeep) {
+        keptSentences.push(sentence + punct);
+      }
+    }
+    
+    limitedSections.push(keptSentences.join(''));
+  }
+  
+  cleaned = limitedSections.join('');
+  if (assetMentionsLimited > 0) {
+    log.push(`Limited ${assetMentionsLimited} redundant asset mentions`);
+  }
+  
+  // 6. Throttle filler phrases (max one per article)
+  const fillerPhrases = [
+    'made waves',
+    'as we head into',
+    'buckle up',
+    'strap in',
+    'the bottom line',
+    'the takeaway',
+    'at the end of the day',
+    'hitting its stride',
+    'as we peer ahead'
+  ];
+  
+  let fillersThrottled = 0;
+  for (const phrase of fillerPhrases) {
+    const regex = new RegExp(phrase, 'gi');
+    const matches = cleaned.match(regex);
+    
+    if (matches && matches.length > 1) {
+      // Keep only the first occurrence
+      let count = 0;
+      cleaned = cleaned.replace(regex, (match) => {
+        count++;
+        if (count > 1) {
+          fillersThrottled++;
+          return '';
+        }
+        return match;
+      });
+    }
+  }
+  
+  if (fillersThrottled > 0) {
+    log.push(`Throttled ${fillersThrottled} filler phrases to one per article`);
+  }
+  
+  // Clean up any double spaces or excessive newlines
+  cleaned = cleaned
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  
+  // Final quality check
+  const finalWordCount = cleaned.split(/\s+/).length;
+  log.push(`Final word count: ${finalWordCount} words`);
+  
+  if (cleaned.length < 500) {
+    log.push('⚠️ CRITICAL: Content too short after QA processing');
+  }
+  
+  return {
+    cleaned_brief_html: cleaned,
+    qa_log: log
+  };
+}
+
 // NEW: Numeric-fact repetition guard per symbol
 function pruneNumericRepetitions(text: string): string {
   console.log('🔍 Running numeric-fact repetition guard...');
@@ -2455,9 +2720,59 @@ What's next: watch liquidity into US hours, policy headlines, and any unusually 
       console.log('ℹ️ No ticker symbols found in content');
     }
 
+    // ============= BRIEF QA BOT =============
+    // Final quality assurance before publishing
+    console.log('🤖 Running Brief QA Bot validation...');
+    let qaLog: string[] = [];
+    let qaRetries = 0;
+    const maxQaRetries = 1;
+    
+    while (qaRetries <= maxQaRetries) {
+      try {
+        const qaResult = await briefQaBot(generatedAnalysis, briefType);
+        generatedAnalysis = qaResult.cleaned_brief_html;
+        qaLog = qaResult.qa_log;
+        
+        console.log('✅ Brief QA Bot validation complete:');
+        qaLog.forEach(log => console.log(`   - ${log}`));
+        
+        // Check if validation was successful (no critical issues)
+        const hasCriticalIssues = qaLog.some(log => 
+          log.includes('CRITICAL') || 
+          log.includes('Failed to fix')
+        );
+        
+        if (!hasCriticalIssues || qaRetries >= maxQaRetries) {
+          break;
+        }
+        
+        console.warn(`⚠️ Critical QA issues found, retrying... (attempt ${qaRetries + 1}/${maxQaRetries})`);
+        qaRetries++;
+      } catch (qaError) {
+        console.error('❌ Brief QA Bot failed:', qaError);
+        qaLog.push(`QA Bot Error: ${qaError instanceof Error ? qaError.message : 'Unknown error'}`);
+        
+        if (qaRetries >= maxQaRetries) {
+          console.warn('⚠️ QA Bot retries exhausted, proceeding with last valid content');
+          break;
+        }
+        qaRetries++;
+      }
+    }
+
     // ============= ADMIN AUDIT BLOCK =============
     // Build admin audit section with detailed capability information
     let adminAuditBlock = '';
+    
+    // Add QA Log to admin audit
+    if (qaLog.length > 0) {
+      adminAuditBlock += '\n\n**[ADMIN] Brief QA Bot Report**\n\n';
+      qaLog.forEach(log => {
+        adminAuditBlock += `- ${log}\n`;
+      });
+      adminAuditBlock += '\n---\n';
+    }
+    
     if (auditData.length > 0) {
       adminAuditBlock = '\n\n---\n\n**[ADMIN] Symbol Intelligence Audit**\n\n';
       adminAuditBlock += 'Symbol | Display | Normalized | Source | Price | TV | Derivs | Social | Confidence\n';
