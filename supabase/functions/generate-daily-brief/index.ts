@@ -86,7 +86,7 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'What\'s Next',
-    guidelines: 'Forward-looking: upcoming events, key levels to watch, potential catalysts. End with the Stoic quote. 1-2 paragraphs + quote.',
+    guidelines: 'Forward-looking: upcoming events, key levels to watch, potential catalysts. 1-2 paragraphs.',
     dataScope: ['economicCalendar', 'upcomingEvents'],
     minWords: 80
   }
@@ -149,7 +149,7 @@ const WEEKLY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'Closing Thoughts',
-    guidelines: 'Wrap up the week with perspective and wisdom. End with the Stoic quote. 1-2 paragraphs + quote.',
+    guidelines: 'Wrap up the week with perspective and wisdom. 1-2 paragraphs.',
     dataScope: ['all'],
     minWords: 100
   }
@@ -451,9 +451,9 @@ async function editBriefContent(
 **CRITICAL RULES:**
 - If content is repetitive, REPHRASE to add new angle rather than delete
 - Preserve all <h2> section headings
-- Keep the Stoic quote at the end
 - Maintain asset type classification (crypto vs stock)
 - DO NOT change the core analysis or data points
+- DO NOT append any quotes at the end (handled separately)
 
 **DRAFT TO EDIT:**
 ${draftContent}

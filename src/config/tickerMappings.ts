@@ -172,6 +172,9 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   // Explicit mappings to prevent NASDAQ defaults
   'ADX': { symbol: 'MEXC:ADXUSDT', displayName: 'Ambire AdEx (ADX)', type: 'crypto' },
   'CORN': { symbol: 'MEXC:CORNUSDT', displayName: 'CORN (CORN)', type: 'crypto' },
+  // DeFi assets
+  'DEFI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
+  'DE-FI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
 };
 
 // Index and Forex tickers

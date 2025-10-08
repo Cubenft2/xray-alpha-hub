@@ -20,19 +20,32 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     if (!stoicQuote || !content) return content;
     
     // Create regex pattern to match the quote at the end of content
-    // Handle various formats: plain text, with <em> tags, with author attribution
+    // Handle various formats: plain text, with <em> tags, with author attribution, with or without quotes
     const quoteText = stoicQuote.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special chars
     const authorText = stoicQuoteAuthor ? stoicQuoteAuthor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
     
-    // Match patterns like:
-    // "quote text" - Author
-    // <em>"quote text"</em> - Author
-    // "quote text" Author
+    // Match patterns at the end including:
+    // - With or without <em> tags
+    // - With or without quotes around the text
+    // - With or without author attribution
+    // - With or without dash separators
+    // - May be in a paragraph or standalone
     const patterns = [
+      // With <em> and quotes
+      new RegExp(`<p>\\s*<em>["']${quoteText}["']<\\/em>\\s*[-–—]?\\s*${authorText}\\s*<\\/p>\\s*$`, 'i'),
       new RegExp(`<em>["']${quoteText}["']<\\/em>\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
+      // With quotes only
+      new RegExp(`<p>\\s*["']${quoteText}["']\\s*[-–—]?\\s*${authorText}\\s*<\\/p>\\s*$`, 'i'),
       new RegExp(`["']${quoteText}["']\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
+      // With <em> without quotes
+      new RegExp(`<p>\\s*<em>${quoteText}<\\/em>\\s*[-–—]?\\s*${authorText}\\s*<\\/p>\\s*$`, 'i'),
       new RegExp(`<em>${quoteText}<\\/em>\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
+      // Plain text with author
+      new RegExp(`<p>\\s*${quoteText}\\s*[-–—]?\\s*${authorText}\\s*<\\/p>\\s*$`, 'i'),
       new RegExp(`${quoteText}\\s*[-–—]?\\s*${authorText}\\s*$`, 'i'),
+      // Just the quote text alone
+      new RegExp(`<p>\\s*${quoteText}\\s*<\\/p>\\s*$`, 'i'),
+      new RegExp(`${quoteText}\\s*$`, 'i'),
     ];
     
     let result = content;
