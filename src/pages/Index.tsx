@@ -8,6 +8,7 @@ import { NewsSection } from '@/components/NewsSection';
 import { FinancialDisclaimer } from '@/components/FinancialDisclaimer';
 import { PolygonTicker } from '@/components/PolygonTicker';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
+import { TopAssetsSentiment } from '@/components/TopAssetsSentiment';
 
 const Index = () => {
   const [searchParams] = useSearchParams();
@@ -279,6 +280,16 @@ const Index = () => {
                 Your ultimate crypto & stocks dashboard. Real-time charts, live news, 
                 and community support - all in one place! ☢️
               </p>
+            </div>
+
+            {/* Top Assets Sentiment */}
+            <div className="xr-card p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">
+                  📊 Top Assets by News Sentiment
+                </h2>
+              </div>
+              <TopAssetsSentiment />
             </div>
           </div>
         </div>

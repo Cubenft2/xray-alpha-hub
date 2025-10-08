@@ -227,6 +227,22 @@ serve(async (req) => {
   stockItems = stockItems.slice(0, Math.min(50, max));
   trumpItems = trumpItems.slice(0, Math.min(50, max));
 
+  // Trigger asset sentiment calculation in background
+  if (polygonNews.length > 0) {
+    console.log('🔄 Triggering asset sentiment calculation...');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    
+    fetch(`${supabaseUrl}/functions/v1/calculate-asset-sentiment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${supabaseAnonKey}`
+      },
+      body: JSON.stringify({ polygonArticles: polygonNews })
+    }).catch(err => console.error('Asset sentiment calculation error:', err));
+  }
+
   return new Response(JSON.stringify({ crypto: cryptoItems, stocks: stockItems, trump: trumpItems }), {
     headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS },
   });

@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      asset_sentiment_snapshots: {
+        Row: {
+          asset_name: string
+          asset_symbol: string
+          asset_type: string | null
+          created_at: string | null
+          id: string
+          negative_count: number
+          neutral_count: number
+          polygon_articles_count: number | null
+          positive_count: number
+          score_change: number | null
+          sentiment_label: string
+          sentiment_score: number
+          timestamp: string
+          top_keywords: string[] | null
+          total_articles: number
+          trend_direction: string | null
+        }
+        Insert: {
+          asset_name: string
+          asset_symbol: string
+          asset_type?: string | null
+          created_at?: string | null
+          id?: string
+          negative_count?: number
+          neutral_count?: number
+          polygon_articles_count?: number | null
+          positive_count?: number
+          score_change?: number | null
+          sentiment_label: string
+          sentiment_score: number
+          timestamp?: string
+          top_keywords?: string[] | null
+          total_articles?: number
+          trend_direction?: string | null
+        }
+        Update: {
+          asset_name?: string
+          asset_symbol?: string
+          asset_type?: string | null
+          created_at?: string | null
+          id?: string
+          negative_count?: number
+          neutral_count?: number
+          polygon_articles_count?: number | null
+          positive_count?: number
+          score_change?: number | null
+          sentiment_label?: string
+          sentiment_score?: number
+          timestamp?: string
+          top_keywords?: string[] | null
+          total_articles?: number
+          trend_direction?: string | null
+        }
+        Relationships: []
+      }
       cache_kv: {
         Row: {
           created_at: string
@@ -875,6 +932,10 @@ export type Database = {
         Returns: number
       }
       cleanup_expired_cache: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_old_asset_sentiments: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
