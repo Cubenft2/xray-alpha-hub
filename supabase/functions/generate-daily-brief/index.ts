@@ -774,6 +774,8 @@ serve(async (req) => {
     try {
       console.log('🌙 Fetching LunarCrush social data...');
       const lunarcrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY');
+      let useFallback = false;
+      
       if (lunarcrushApiKey) {
         const lunarcrushResponse = await fetch(
           'https://lunarcrush.com/api4/public/coins/list/v2?limit=50&sort=galaxy_score',
@@ -789,37 +791,56 @@ serve(async (req) => {
           console.error(`❌ LunarCrush API error: ${lunarcrushResponse.status}`);
           const errorText = await lunarcrushResponse.text();
           console.error(`Response: ${errorText}`);
+          console.warn('⚠️ LunarCrush unavailable, using CoinGecko fallback');
+          useFallback = true; // Trigger fallback on API error (e.g., 402 subscription required)
         }
       } else {
-        console.warn('⚠️ LUNARCRUSH_API_KEY not configured, using CoinGecko social metrics fallback');
-        // Fallback: Use CoinGecko community data as proxy for social sentiment
+        console.warn('⚠️ LUNARCRUSH_API_KEY not configured');
+        useFallback = true;
+      }
+      
+      // Use CoinGecko fallback if LunarCrush failed or not configured
+      if (useFallback) {
+        console.log('🔁 Building social metrics from CoinGecko trending data...');
         lunarcrushData = {
           data: coingeckoData.slice(0, 20).map(coin => ({
+            id: coin.id,
             symbol: coin.symbol.toUpperCase(),
             name: coin.name,
-            galaxy_score: Math.min(100, Math.round((coin.market_cap_rank ? (100 - coin.market_cap_rank) : 50) + (coin.price_change_percentage_24h || 0))),
-            sentiment: coin.sentiment_votes_up_percentage || 50,
-            social_volume: coin.community_data?.twitter_followers || 0,
+            galaxy_score: Math.max(0, Math.min(100, Math.round(
+              (100 - (coin.market_cap_rank || 50)) + 
+              (coin.price_change_percentage_24h || 0)
+            ))),
+            alt_rank: coin.market_cap_rank || 999,
+            social_volume: Math.round((coin.total_volume || 0) / 1000),
             social_dominance: 0,
-            alt_rank: coin.market_cap_rank || 999
+            sentiment: (coin.price_change_percentage_24h || 0) >= 0 ? 0.6 : 0.4,
+            fomo_score: Math.max(0, Math.min(100, Math.round(50 + (coin.price_change_percentage_24h || 0))))
           }))
         };
-        console.log(`✅ Using CoinGecko fallback: ${lunarcrushData.data.length} assets with estimated metrics`);
+        console.log(`✅ CoinGecko fallback: Generated social metrics for ${lunarcrushData.data.length} assets`);
       }
     } catch (err) {
       console.error('❌ LunarCrush fetch failed:', err);
-      // Fallback on error
+      // Final fallback on exception
+      console.log('🔁 Using CoinGecko error fallback...');
       lunarcrushData = {
         data: coingeckoData.slice(0, 20).map(coin => ({
+          id: coin.id,
           symbol: coin.symbol.toUpperCase(),
           name: coin.name,
-          galaxy_score: Math.min(100, Math.round((coin.market_cap_rank ? (100 - coin.market_cap_rank) : 50))),
-          sentiment: 50,
-          social_volume: 0,
+          galaxy_score: Math.max(0, Math.min(100, Math.round(
+            (100 - (coin.market_cap_rank || 50)) + 
+            (coin.price_change_percentage_24h || 0)
+          ))),
+          alt_rank: coin.market_cap_rank || 999,
+          social_volume: Math.round((coin.total_volume || 0) / 1000),
           social_dominance: 0,
-          alt_rank: coin.market_cap_rank || 999
+          sentiment: (coin.price_change_percentage_24h || 0) >= 0 ? 0.6 : 0.4,
+          fomo_score: Math.max(0, Math.min(100, Math.round(50 + (coin.price_change_percentage_24h || 0))))
         }))
       };
+      console.log(`✅ CoinGecko error fallback: ${lunarcrushData.data.length} assets`);
     }
 
     try {
