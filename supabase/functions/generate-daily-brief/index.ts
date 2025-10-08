@@ -782,10 +782,44 @@ serve(async (req) => {
         if (lunarcrushResponse.ok) {
           lunarcrushData = await lunarcrushResponse.json();
           console.log(`✅ LunarCrush: Got ${lunarcrushData.data?.length || 0} assets with social data`);
+          if (lunarcrushData.data && lunarcrushData.data.length > 0) {
+            console.log(`🌟 Sample Galaxy Scores: ${lunarcrushData.data.slice(0, 3).map((a: any) => `${a.symbol}:${a.galaxy_score}`).join(', ')}`);
+          }
+        } else {
+          console.error(`❌ LunarCrush API error: ${lunarcrushResponse.status}`);
+          const errorText = await lunarcrushResponse.text();
+          console.error(`Response: ${errorText}`);
         }
+      } else {
+        console.warn('⚠️ LUNARCRUSH_API_KEY not configured, using CoinGecko social metrics fallback');
+        // Fallback: Use CoinGecko community data as proxy for social sentiment
+        lunarcrushData = {
+          data: coingeckoData.slice(0, 20).map(coin => ({
+            symbol: coin.symbol.toUpperCase(),
+            name: coin.name,
+            galaxy_score: Math.min(100, Math.round((coin.market_cap_rank ? (100 - coin.market_cap_rank) : 50) + (coin.price_change_percentage_24h || 0))),
+            sentiment: coin.sentiment_votes_up_percentage || 50,
+            social_volume: coin.community_data?.twitter_followers || 0,
+            social_dominance: 0,
+            alt_rank: coin.market_cap_rank || 999
+          }))
+        };
+        console.log(`✅ Using CoinGecko fallback: ${lunarcrushData.data.length} assets with estimated metrics`);
       }
     } catch (err) {
       console.error('❌ LunarCrush fetch failed:', err);
+      // Fallback on error
+      lunarcrushData = {
+        data: coingeckoData.slice(0, 20).map(coin => ({
+          symbol: coin.symbol.toUpperCase(),
+          name: coin.name,
+          galaxy_score: Math.min(100, Math.round((coin.market_cap_rank ? (100 - coin.market_cap_rank) : 50))),
+          sentiment: 50,
+          social_volume: 0,
+          social_dominance: 0,
+          alt_rank: coin.market_cap_rank || 999
+        }))
+      };
     }
 
     try {
@@ -810,6 +844,49 @@ serve(async (req) => {
       console.error('❌ Exchange data fetch failed:', err);
     }
 
+    // ============= ASSET CLASSIFICATION SYSTEM =============
+    console.log('🏷️ Building asset classification map...');
+    const assetClassifications = new Map<string, any>();
+    
+    // Classify all cryptos from CoinGecko
+    coingeckoData.forEach(coin => {
+      const symbol = coin.symbol.toUpperCase();
+      assetClassifications.set(symbol, {
+        type: 'crypto',
+        tradingview_symbol: `${symbol}USD`,
+        coingecko_id: coin.id,
+        display_name: coin.name,
+        is_crypto: true
+      });
+    });
+    
+    // Fetch and classify from ticker_mappings table
+    try {
+      const { data: mappings } = await supabase
+        .from('ticker_mappings')
+        .select('symbol, type, tradingview_symbol, coingecko_id, polygon_ticker, display_name')
+        .eq('is_active', true);
+      
+      mappings?.forEach((m: any) => {
+        const symbol = m.symbol.toUpperCase();
+        assetClassifications.set(symbol, {
+          type: m.type,
+          tradingview_symbol: m.tradingview_symbol,
+          coingecko_id: m.coingecko_id,
+          polygon_ticker: m.polygon_ticker,
+          display_name: m.display_name,
+          is_crypto: m.type === 'crypto'
+        });
+      });
+    } catch (err) {
+      console.error('⚠️ Failed to fetch ticker_mappings:', err);
+    }
+    
+    console.log(`🏷️ Asset Classification Complete: ${assetClassifications.size} assets classified`);
+    console.log(`  - Crypto: ${Array.from(assetClassifications.values()).filter(a => a.type === 'crypto').length}`);
+    console.log(`  - Stocks: ${Array.from(assetClassifications.values()).filter(a => a.type === 'stock').length}`);
+    console.log(`  - Others: ${Array.from(assetClassifications.values()).filter(a => a.type !== 'crypto' && a.type !== 'stock').length}`);
+    
     // Quote selection
     let selectedQuote = "The market is a device for transferring money from the impatient to the patient.";
     let selectedAuthor = "Warren Buffett";
@@ -967,6 +1044,15 @@ serve(async (req) => {
       executive_summary: `Market analysis for ${format(estTime, 'MMMM d, yyyy')}`,
       content_sections: {
         ai_generated_content: editedContent,
+        asset_classifications: Object.fromEntries(assetClassifications),
+        trending_coins: trendingData.coins?.slice(0, 7).map((item: any) => ({
+          name: item.item.name,
+          symbol: item.item.symbol.toUpperCase(),
+          market_cap_rank: item.item.market_cap_rank,
+          price: item.item.data?.price,
+          change_24h: item.item.data?.price_change_percentage_24h?.usd,
+          thumb: item.item.thumb
+        })) || [],
         market_data: {
           fear_greed_index: currentFearGreed.value,
           fear_greed_label: currentFearGreed.value_classification,

@@ -11,6 +11,11 @@ interface MiniChartProps {
   polygonTicker?: string;
   showFallback?: boolean; // Whether to show fallback sparkline
   assetType?: 'crypto' | 'stock' | 'index' | 'forex'; // Asset type for smart defaults
+  assetClassification?: { // Most authoritative classification from brief data
+    type: string;
+    tradingview_symbol?: string;
+    is_crypto?: boolean;
+  };
 }
 
 export function MiniChart({ 
@@ -21,7 +26,8 @@ export function MiniChart({
   coingeckoId,
   polygonTicker,
   showFallback = true,
-  assetType
+  assetType,
+  assetClassification
 }: MiniChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [widgetLoadFailed, setWidgetLoadFailed] = React.useState(false);
@@ -33,19 +39,29 @@ export function MiniChart({
       return rawSymbol;
     }
 
-    // For crypto, append USD if not already there
-    if (assetType === 'crypto' || coingeckoId || polygonTicker?.startsWith('X:')) {
-      return rawSymbol.endsWith('USD') ? rawSymbol : `${rawSymbol}USD`;
+    // PRIORITY 1: Use classification from brief data (most authoritative)
+    if (assetClassification?.tradingview_symbol) {
+      console.log(`🏷️ Using brief classification for ${rawSymbol}: ${assetClassification.tradingview_symbol}`);
+      return assetClassification.tradingview_symbol;
     }
 
-    // For stocks without exchange, prepend NASDAQ as safe default
-    if (assetType === 'stock' || (!assetType && !coingeckoId)) {
-      console.log(`📊 Adding NASDAQ prefix to ${rawSymbol}`);
+    // PRIORITY 2: Detect crypto by coingecko_id, X: prefix, or is_crypto flag
+    if (assetClassification?.is_crypto || coingeckoId || polygonTicker?.startsWith('X:') || assetType === 'crypto') {
+      const cryptoSymbol = rawSymbol.endsWith('USD') ? rawSymbol : `${rawSymbol}USD`;
+      console.log(`💎 Crypto detected for ${rawSymbol}: ${cryptoSymbol}`);
+      return cryptoSymbol;
+    }
+
+    // PRIORITY 3: Stock - add NASDAQ prefix
+    if (assetType === 'stock' || assetClassification?.type === 'stock') {
+      console.log(`📊 Stock detected for ${rawSymbol}: NASDAQ:${rawSymbol}`);
       return `NASDAQ:${rawSymbol}`;
     }
 
-    // For indices/forex, use as-is (they usually have proper format)
-    return rawSymbol;
+    // PRIORITY 4: Default to crypto if no clear classification
+    const defaultSymbol = rawSymbol.endsWith('USD') ? rawSymbol : `${rawSymbol}USD`;
+    console.log(`❓ No classification for ${rawSymbol}, defaulting to crypto: ${defaultSymbol}`);
+    return defaultSymbol;
   };
 
   const formattedSymbol = formatTradingViewSymbol(symbol);
