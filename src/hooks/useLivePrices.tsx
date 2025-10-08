@@ -41,7 +41,7 @@ export function useLivePrices(tickers: string[] = []) {
       // Normalize and de-duplicate symbols
       const symbols = [...new Set(tickerList.map((s) => s.toUpperCase().trim()))];
 
-      // Fetch via Supabase Edge Function to avoid CORS/rate limits
+      // Fetch via Supabase Edge Function - it handles all fallbacks internally
       const { data, error } = await supabase.functions.invoke('quotes', {
         body: { symbols }
       });
@@ -62,71 +62,6 @@ export function useLivePrices(tickers: string[] = []) {
             symbol: sym,
             name: sym
           };
-        }
-      }
-
-      // Fallback: fetch missing symbols directly from CoinGecko (simple/price)
-      const missingSymbols = symbols.filter((s) => !transformedPrices[s.toUpperCase()]);
-      if (missingSymbols.length > 0) {
-        try {
-          const ids = [...new Set(missingSymbols.map((s) => mapSymbolToCoinId(s)))].filter(Boolean).join(',');
-          if (ids.length > 0) {
-            const resp = await fetch(
-              `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids)}&vs_currencies=usd&include_24hr_change=true`
-            );
-            if (resp.ok) {
-              const cg: Record<string, { usd?: number; usd_24h_change?: number }> = await resp.json();
-              for (const [coinId, v] of Object.entries(cg)) {
-                const sym = mapCoinIdToSymbol(coinId);
-                if (!transformedPrices[sym] && typeof v.usd === 'number') {
-                  transformedPrices[sym] = {
-                    price: v.usd,
-                    change_24h: typeof v.usd_24h_change === 'number' ? v.usd_24h_change : 0,
-                    symbol: sym,
-                    name: sym,
-                  };
-                }
-              }
-            } else {
-              console.warn('CoinGecko fallback non-200:', resp.status);
-            }
-          }
-        } catch (e) {
-          console.warn('CoinGecko fallback failed:', e);
-        }
-      }
-
-      // Final fallback: use exchange-data-aggregator for still missing symbols
-      const stillMissing = symbols.filter((s) => !transformedPrices[s.toUpperCase()]);
-      if (stillMissing.length > 0) {
-        try {
-          console.log('🔄 Fetching from exchange-data-aggregator for:', stillMissing);
-          const { data: aggResp, error: aggError } = await supabase.functions.invoke('exchange-data-aggregator', {
-            body: { symbols: stillMissing }
-          });
-
-          if (!aggError && aggResp) {
-            // Response has structure: { success: true, data: [...] }
-            const aggData = Array.isArray(aggResp?.data) ? aggResp.data : (Array.isArray(aggResp) ? aggResp : []);
-            
-            for (const item of aggData) {
-              const sym = (item.symbol || '').toUpperCase();
-              const price = Number(item.current_price);
-              const change = Number(item.weighted_change_24h ?? 0);
-              
-              if (sym && !isNaN(price) && price > 0) {
-                transformedPrices[sym] = {
-                  price,
-                  change_24h: change,
-                  symbol: sym,
-                  name: item.name || sym
-                };
-                console.log(`✅ Got ${sym} from aggregator: $${price.toFixed(4)} (${item.exchange_count} exchanges)`);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Exchange aggregator fallback failed:', e);
         }
       }
 
@@ -339,10 +274,10 @@ export function useLivePrices(tickers: string[] = []) {
     // Initial fetch
     fetchPrices(symbols);
 
-    // Set up polling every 2 minutes for live updates
+    // Set up polling every 5 minutes for live updates
     intervalRef.current = setInterval(() => {
       fetchPrices(symbols);
-    }, 120000);
+    }, 5 * 60 * 1000); // 5 minutes
 
     return () => {
       if (intervalRef.current) {

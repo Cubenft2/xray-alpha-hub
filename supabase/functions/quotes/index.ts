@@ -139,7 +139,16 @@ async function searchCoinGecko(query: string): Promise<string | null> {
   }
 }
 
+// In-memory cache with 60s TTL to reduce DB hits
+const memoryCache = new Map<string, { data: any; expiresAt: number }>();
+
 async function getCachedData(key: string): Promise<any | null> {
+  // Check memory cache first (60s TTL)
+  const cached = memoryCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+  
   try {
     const { data, error } = await supabase
       .from('cache_kv')
@@ -157,6 +166,14 @@ async function getCachedData(key: string): Promise<any | null> {
       return null;
     }
     
+    // Store in memory cache for 60s
+    if (data.v) {
+      memoryCache.set(key, {
+        data: data.v,
+        expiresAt: Date.now() + 60000
+      });
+    }
+    
     return data.v;
   } catch (error) {
     console.error('Cache read error:', error);
@@ -166,6 +183,12 @@ async function getCachedData(key: string): Promise<any | null> {
 
 async function setCachedData(key: string, value: any, ttlSeconds: number): Promise<void> {
   try {
+    // Store in memory cache (max 60s)
+    memoryCache.set(key, {
+      data: value,
+      expiresAt: Date.now() + Math.min(60000, ttlSeconds * 1000)
+    });
+    
     const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
     
     await supabase
