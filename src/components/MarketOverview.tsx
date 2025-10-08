@@ -145,23 +145,23 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
               <TrendingUp className="w-5 h-5 text-yellow-500" />
               <div>
                 <p className="text-sm text-muted-foreground">Biggest Mover</p>
-                {data.biggest_mover ? (
+                {biggestMoverData ? (
                   <>
                     <div className="space-y-1">
                       <p className="text-lg font-bold text-[#00e5ff]">
-                        {data.biggest_mover.name}
+                        {biggestMoverData.name}
                       </p>
                       <div className="flex items-center gap-2">
-                        {data.biggest_mover.change_24h && (
+                        {typeof biggestMoverData.change_24h === 'number' && (
                           <Badge 
                             variant="outline" 
-                            className={`${data.biggest_mover.change_24h > 0 
+                            className={`${biggestMoverData.change_24h > 0 
                               ? 'text-[#22c55e] border-[#22c55e]/20 bg-[#22c55e]/10' 
                               : 'text-[#ef4444] border-[#ef4444]/20 bg-[#ef4444]/10'
                             } font-bold text-xs`}
                           >
-                            {data.biggest_mover.change_24h > 0 ? '+' : ''}
-                            {data.biggest_mover.change_24h.toFixed(2)}%
+                            {biggestMoverData.change_24h > 0 ? '+' : ''}
+                            {biggestMoverData.change_24h.toFixed(2)}%
                           </Badge>
                         )}
                       </div>
