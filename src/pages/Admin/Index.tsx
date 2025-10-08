@@ -4,6 +4,7 @@ import { SymbolAdmin } from './SymbolAdmin';
 import { PendingTickerMappings } from './PendingTickerMappings';
 import { GenerateBrief } from './GenerateBrief';
 import { PolygonSync } from './PolygonSync';
+import { PolygonDataAdmin } from './PolygonDataAdmin';
 
 export default function AdminIndex() {
   return (
@@ -16,6 +17,7 @@ export default function AdminIndex() {
           <TabsTrigger value="missing-tickers">Missing Tickers</TabsTrigger>
           <TabsTrigger value="symbol-intelligence">Symbol Intelligence</TabsTrigger>
           <TabsTrigger value="polygon-sync">Polygon Sync</TabsTrigger>
+          <TabsTrigger value="polygon-data">Polygon Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="generate-brief">
@@ -32,6 +34,10 @@ export default function AdminIndex() {
 
         <TabsContent value="polygon-sync">
           <PolygonSync />
+        </TabsContent>
+
+        <TabsContent value="polygon-data">
+          <PolygonDataAdmin />
         </TabsContent>
       </Tabs>
     </div>

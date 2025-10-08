@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.polygon-price-relay]
 verify_jwt = false
+
+[functions.polygon-historical-data]
+verify_jwt = false
+
+[functions.polygon-technical-indicators]
+verify_jwt = false

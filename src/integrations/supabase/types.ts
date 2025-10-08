@@ -529,6 +529,48 @@ export type Database = {
         }
         Relationships: []
       }
+      price_history: {
+        Row: {
+          asset_type: string
+          close: number
+          created_at: string
+          high: number
+          low: number
+          open: number
+          ticker: string
+          timeframe: string
+          timestamp: string
+          updated_at: string
+          volume: number
+        }
+        Insert: {
+          asset_type: string
+          close: number
+          created_at?: string
+          high: number
+          low: number
+          open: number
+          ticker: string
+          timeframe: string
+          timestamp: string
+          updated_at?: string
+          volume: number
+        }
+        Update: {
+          asset_type?: string
+          close?: number
+          created_at?: string
+          high?: number
+          low?: number
+          open?: number
+          ticker?: string
+          timeframe?: string
+          timestamp?: string
+          updated_at?: string
+          volume?: number
+        }
+        Relationships: []
+      }
       price_sync_leader: {
         Row: {
           heartbeat_at: string
@@ -673,6 +715,39 @@ export type Database = {
           id?: string
           is_active?: boolean
           received_at?: string
+        }
+        Relationships: []
+      }
+      technical_indicators: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          indicator_type: string
+          ticker: string
+          timeframe: string
+          timestamp: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          indicator_type: string
+          ticker: string
+          timeframe?: string
+          timestamp: string
+          value: Json
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          indicator_type?: string
+          ticker?: string
+          timeframe?: string
+          timestamp?: string
+          value?: Json
         }
         Relationships: []
       }

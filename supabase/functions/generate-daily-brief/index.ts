@@ -74,8 +74,8 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'Derivatives & Flows',
-    guidelines: 'Funding rates, liquidations, open interest, exchange flows. Technical analysis only - no price repetition from earlier sections. 1-2 paragraphs.',
-    dataScope: ['derivsData', 'exchangeData'],
+    guidelines: 'Funding rates, liquidations, open interest, exchange flows. Include technical indicators (RSI, MACD, SMA) when available. Technical analysis only - no price repetition from earlier sections. 1-2 paragraphs.',
+    dataScope: ['derivsData', 'exchangeData', 'technicalData'],
     minWords: 100
   },
   {
@@ -763,6 +763,25 @@ serve(async (req) => {
       console.error('❌ Exchange data fetch failed:', err);
     }
 
+    // Technical Indicators (Priority 2)
+    let technicalData: any = {};
+    try {
+      console.log('📈 Fetching technical indicators...');
+      const technicalResponse = await supabase.functions.invoke('polygon-technical-indicators', {
+        body: {
+          tickers: ['BTC', 'ETH', 'SOL', 'AAPL', 'TSLA', 'COIN', 'MSTR'],
+          indicators: ['rsi', 'macd', 'sma_50', 'ema_20'],
+          timeframe: 'daily'
+        }
+      });
+      if (!technicalResponse.error && technicalResponse.data) {
+        technicalData = technicalResponse.data.data || {};
+        console.log(`✅ Fetched technical indicators for ${Object.keys(technicalData).length} tickers`);
+      }
+    } catch (err) {
+      console.error('❌ Technical indicators fetch failed:', err);
+    }
+
     // Quote selection
     let selectedQuote = "The market is a device for transferring money from the impatient to the patient.";
     let selectedAuthor = "Warren Buffett";
@@ -846,6 +865,7 @@ serve(async (req) => {
       lunarcrushData,
       derivsData,
       exchangeData,
+      technicalData,
       newsData,
       economicCalendar,
       isWeekly: isWeekendBrief
