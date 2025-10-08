@@ -18,9 +18,18 @@ export function MarketOverview({ marketData }: MarketOverviewProps) {
 
   const data = marketData.content_sections.market_data;
   
+  // Derive biggest mover if not provided
+  const biggestMoverData = data.biggest_mover || (() => {
+    const candidates = [...(data.top_gainers || []), ...(data.top_losers || [])];
+    if (!candidates.length) return null;
+    return candidates
+      .slice()
+      .sort((a: any, b: any) => Math.abs((b.change_24h || 0)) - Math.abs((a.change_24h || 0)))[0];
+  })();
+  
   // Hide if all key metrics are zero/empty
-  const hasData = data.total_market_cap > 0 || data.total_volume > 0 || 
-                  data.fear_greed_index > 0 || data.biggest_mover;
+  const hasData = (data.total_market_cap || 0) > 0 || (data.total_volume || 0) > 0 || 
+                  (data.fear_greed_index || 0) > 0 || !!biggestMoverData;
   
   if (!hasData) {
     return (

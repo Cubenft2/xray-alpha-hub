@@ -1045,6 +1045,7 @@ serve(async (req) => {
       content_sections: {
         ai_generated_content: editedContent,
         asset_classifications: Object.fromEntries(assetClassifications),
+        // Keep top-level trending for backward compatibility
         trending_coins: trendingData.coins?.slice(0, 7).map((item: any) => ({
           name: item.item.name,
           symbol: item.item.symbol.toUpperCase(),
@@ -1054,8 +1055,17 @@ serve(async (req) => {
           thumb: item.item.thumb
         })) || [],
         market_data: {
+          // Add core metrics so UI cards can render
+          total_market_cap: totalMarketCap,
+          total_volume: totalVolume,
           fear_greed_index: currentFearGreed.value,
           fear_greed_label: currentFearGreed.value_classification,
+          // Biggest mover for the overview widget
+          biggest_mover: biggestMover ? {
+            name: biggestMover.name,
+            symbol: biggestMover.symbol.toUpperCase(),
+            change_24h: (biggestMover as any)[changeField] || 0
+          } : null,
           top_gainers: topGainers.map(coin => ({
             name: coin.name,
             symbol: coin.symbol,
@@ -1068,6 +1078,15 @@ serve(async (req) => {
             price: coin.current_price,
             change_24h: coin.price_change_percentage_24h
           })),
+          // Mirror trending coins here for the Trending widget
+          trending_coins: trendingData.coins?.slice(0, 7).map((item: any) => ({
+            name: item.item.name,
+            symbol: item.item.symbol.toUpperCase(),
+            market_cap_rank: item.item.market_cap_rank,
+            price: item.item.data?.price,
+            change_24h: item.item.data?.price_change_percentage_24h?.usd,
+            thumb: item.item.thumb
+          })) || [],
           social_sentiment: socialSentimentForWidget
         },
         polygon_analysis: {

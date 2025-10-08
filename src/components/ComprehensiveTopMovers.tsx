@@ -38,7 +38,7 @@ export function ComprehensiveTopMovers({ marketData }: ComprehensiveTopMoversPro
   const data = marketData.content_sections.market_data;
   const gainers: TopMover[] = data.top_gainers || [];
   const losers: TopMover[] = data.top_losers || [];
-  const trending: TrendingCoin[] = data.trending_coins || [];
+  const trending: TrendingCoin[] = data.trending_coins || marketData.content_sections?.trending_coins || [];
 
   // Live prices for trending coins
   const trendingSymbols = Array.from(
