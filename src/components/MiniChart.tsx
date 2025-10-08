@@ -47,13 +47,20 @@ export function MiniChart({
     const isCrypto = assetType === 'crypto'
       || endsWithCryptoPair
       || (!!polygonTicker && polygonTicker.startsWith('X:'))
-      || /^(BTC|ETH|SOL|DOGE|ADA|XRP|DOT|LINK|MATIC|ATOM|UNI|LTC|BCH|TRX|TON|NEAR|APT|RNDR|INJ|STX|FTM|ALGO|SAND|MANA|AAVE|EOS|XTZ|THETA|AXS|FLOW|SUI|HYPE|ASTR|ASTER|XMR|DASH|ZEC|IMX|HBAR|VET|MKR|OP|ARB|GRT|RUNE|FIL|LISTA|CVE|TRU|XAU)$/i.test(input);
+      || /^(BTC|ETH|SOL|DOGE|ADA|XRP|DOT|LINK|MATIC|ATOM|UNI|LTC|BCH|TRX|TON|NEAR|APT|RNDR|INJ|STX|FTM|ALGO|SAND|MANA|AAVE|EOS|XTZ|THETA|AXS|FLOW|SUI|HYPE|ASTR|ASTER|XMR|DASH|ZEC|IMX|HBAR|VET|MKR|OP|ARB|GRT|RUNE|FIL|LISTA|XAU)$/i.test(input);
 
     if (isCrypto) {
       return /USDT?$/.test(input) ? input : `${input}USD`;
     }
 
     // 3) Stocks only - must NOT end with USD/USDT
+    // Check for known NYSE stocks
+    const NYSE_STOCKS = ['TRU', 'CVE', 'BAC', 'JPM', 'WMT', 'KO', 'PFE', 'DIS', 'NKE', 'V', 'MA', 'UNH'];
+    if (NYSE_STOCKS.includes(input)) {
+      console.log(`📊 Adding NYSE prefix to ${input}`);
+      return `NYSE:${input}`;
+    }
+    
     console.log(`📊 Adding NASDAQ prefix to ${input}`);
     return `NASDAQ:${input}`;
   };
