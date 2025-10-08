@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { useSocialSentiment } from '@/hooks/useSocialSentiment';
 
 interface SocialAsset {
   name: string;
@@ -26,44 +26,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
   const navigate = useNavigate();
   
 
-  const primaryAssets = marketData?.content_sections?.market_data?.social_sentiment as SocialAsset[] | undefined;
-  let socialAssets: SocialAsset[] = Array.isArray(primaryAssets) ? primaryAssets : [];
-
-  // Fallback 1: use aggregated social_data.top_social_assets if detailed list is empty
-  if (socialAssets.length === 0) {
-    const sd = (marketData as any)?.content_sections?.social_data;
-    const top = Array.isArray(sd?.top_social_assets) ? sd.top_social_assets : [];
-    if (top.length > 0) {
-      const avgScore = Math.round(sd?.avg_galaxy_score || 0);
-      socialAssets = top.map((sym: string) => ({
-        name: sym.toUpperCase(),
-        symbol: sym,
-        galaxy_score: avgScore,
-        alt_rank: 0,
-        sentiment: 0,
-        social_volume: 0,
-        social_dominance: 0,
-        fomo_score: 0,
-      }));
-    }
-  }
-
-  // Fallback 2: derive from top gainers/losers if still empty
-  if (socialAssets.length === 0) {
-    const md = (marketData as any)?.content_sections?.market_data;
-    const movers = [ ...(md?.top_gainers || []), ...(md?.top_losers || []) ];
-    const fromMovers = movers.slice(0, 6).map((a: any) => ({
-      name: a.name || (a.symbol || '').toUpperCase(),
-      symbol: (a.symbol || '').toUpperCase(),
-      galaxy_score: 0,
-      alt_rank: 0,
-      sentiment: typeof a.change_24h === 'number' ? (a.change_24h > 0 ? 0.25 : -0.25) : 0,
-      social_volume: 0,
-      social_dominance: 0,
-      fomo_score: typeof a.change_24h === 'number' ? Math.max(0, Math.min(100, 50 + a.change_24h)) : 0,
-    }));
-    if (fromMovers.length > 0) socialAssets = fromMovers;
-  }
+  const { assets: socialAssets } = useSocialSentiment(marketData);
 
   const handleTokenClick = (symbol: string) => {
     // Navigate to crypto page with the token symbol
@@ -99,29 +62,6 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     if (volume >= 1000) return `${(volume / 1000).toFixed(1)}K`;
     return volume.toString();
   };
-
-  // Live fallback: fetch galaxy scores if none are present in the brief
-  const [fetchedAssets, setFetchedAssets] = React.useState<SocialAsset[]>([]);
-  React.useEffect(() => {
-    if (Array.isArray(primaryAssets) && primaryAssets.length > 0) return;
-    let active = true;
-    (async () => {
-      try {
-        const { data: resp, error } = await supabase.functions.invoke('social-sentiment', { body: {} });
-        if (!error && active) {
-          const arr = Array.isArray((resp as any)?.data) ? (resp as any).data : (Array.isArray(resp) ? resp : []);
-          setFetchedAssets(arr as any);
-        }
-      } catch (e) {
-        console.warn('SocialSentimentBoard: social-sentiment fallback failed', e);
-      }
-    })();
-    return () => { active = false; };
-  }, [primaryAssets]);
-
-  if (socialAssets.length === 0 && fetchedAssets.length > 0) {
-    socialAssets = fetchedAssets;
-  }
 
   return (
     <div className="space-y-6">
