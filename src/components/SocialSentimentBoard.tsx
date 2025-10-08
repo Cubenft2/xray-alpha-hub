@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink, Loader2, RefreshCw, Clock, AlertCircle } from 'lucide-react';
 import { useSocialSentiment } from '@/hooks/useSocialSentiment';
 
 export function SocialSentimentBoard() {
   const navigate = useNavigate();
-  const { assets, loading, error } = useSocialSentiment();
+  const { assets, metadata, loading, error, refetch } = useSocialSentiment();
 
   const handleTokenClick = (symbol: string) => {
     navigate(`/crypto?symbol=${symbol.toUpperCase()}`);
@@ -36,6 +37,35 @@ export function SocialSentimentBoard() {
     return volume.toString();
   };
 
+  const getDataFreshness = () => {
+    if (!metadata?.last_updated) return null;
+    
+    const lastUpdate = new Date(metadata.last_updated);
+    const now = new Date();
+    const diffMs = now.getTime() - lastUpdate.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    
+    if (diffHours < 1.5) return { color: 'text-green-500', label: 'Fresh', status: 'fresh' };
+    if (diffHours < 3) return { color: 'text-yellow-500', label: 'Recent', status: 'recent' };
+    return { color: 'text-red-500', label: 'Stale', status: 'stale' };
+  };
+
+  const formatLastUpdated = () => {
+    if (!metadata?.last_updated) return 'Unknown';
+    
+    const lastUpdate = new Date(metadata.last_updated);
+    const now = new Date();
+    const diffMs = now.getTime() - lastUpdate.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMins / 60);
+    
+    if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+    return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+  };
+
+  const freshness = getDataFreshness();
+  const isStale = freshness?.status === 'stale';
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -48,7 +78,16 @@ export function SocialSentimentBoard() {
     return (
       <Card className="xr-card">
         <CardContent className="py-12 text-center">
-          <p className="text-destructive">Error: {error}</p>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Failed to load social sentiment data: {error}
+            </AlertDescription>
+          </Alert>
+          <Button onClick={refetch} className="mt-4" variant="outline">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Try Again
+          </Button>
         </CardContent>
       </Card>
     );
@@ -56,6 +95,47 @@ export function SocialSentimentBoard() {
 
   return (
     <div className="space-y-6">
+      {/* Data Freshness Header */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Clock className="h-5 w-5 text-muted-foreground" />
+          <div className="text-sm">
+            <span className="text-muted-foreground">Last updated: </span>
+            <span className="font-medium">{formatLastUpdated()}</span>
+            {freshness && (
+              <>
+                <span className="mx-2">•</span>
+                <span className={`font-medium ${freshness.color}`}>
+                  ● {freshness.label}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            ({metadata?.source || 'unknown'})
+          </div>
+        </div>
+        <Button 
+          onClick={refetch} 
+          variant="outline" 
+          size="sm"
+          disabled={loading}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Stale Data Warning */}
+      {isStale && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Data is more than 3 hours old. Check your LunarCrush AI Agent webhook delivery.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Overview Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="xr-card">
