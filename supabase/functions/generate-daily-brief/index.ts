@@ -80,7 +80,7 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'Social Sentiment',
-    guidelines: 'Trending coins, social volume, LunarCrush data, community buzz. NEW ANGLES ONLY - don\'t rehash prices. 1-2 paragraphs.',
+    guidelines: 'SOCIAL METRICS ONLY: Social volume, trending rankings, community sentiment scores, LunarCrush galaxy scores. DO NOT mention price changes or movements—those were covered in earlier sections. Focus on: What are people talking about? Why is it trending? Community sentiment shifts. 1-2 paragraphs.',
     dataScope: ['lunarcrushData', 'trendingData', 'socialData'],
     minWords: 100
   },
@@ -202,12 +202,17 @@ async function generateSection(
     ? `\nAssets already analyzed in previous sections: ${previousAssets}. If mentioning these again, add NEW context only (derivatives/social/macro) in ≤15 words.`
     : '';
   
+  // Special case for Social Sentiment section - extra strict anti-repetition
+  const socialSentimentNote = sectionDef.title === 'Social Sentiment' && previousAssets
+    ? `\n\n⚠️ CRITICAL: ${previousAssets} were already analyzed. DO NOT repeat their price movements or gains/losses. ONLY discuss social metrics: trending scores, social volume changes, community sentiment, and why they're buzzing on social media.`
+    : '';
+  
   // Construct section prompt
   const sectionPrompt = `${XRAYCRYPTO_PERSONA}
 
 **SECTION TO WRITE:** <h2>${sectionDef.title}</h2>
 
-**SECTION GUIDELINES:** ${sectionDef.guidelines}
+**SECTION GUIDELINES:** ${sectionDef.guidelines}${socialSentimentNote}
 
 **CONTEXT:** This is section ${sectionDef.title} of a ${isWeekly ? 'weekly' : 'daily'} market brief.${contextNote}
 
