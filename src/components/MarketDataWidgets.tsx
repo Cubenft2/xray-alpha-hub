@@ -13,7 +13,7 @@ export function MarketDataWidgets({ marketData }: MarketDataWidgetsProps) {
   }
 
   const data = marketData.content_sections.market_data;
-  const { assets: socialAssets } = useSocialSentiment(marketData);
+  const { assets: socialAssets, loading } = useSocialSentiment();
 
   return (
     <div className="space-y-6">
@@ -21,7 +21,7 @@ export function MarketDataWidgets({ marketData }: MarketDataWidgetsProps) {
       <SentimentGauge 
         fearGreedValue={data.fear_greed_index || 50}
         fearGreedLabel={data.fear_greed_label || 'Neutral'}
-        socialSentiment={Array.isArray(socialAssets) ? socialAssets.slice(0, 4) : []}
+        socialSentiment={loading ? [] : socialAssets.slice(0, 4)}
       />
       
       {/* Top Movers */}

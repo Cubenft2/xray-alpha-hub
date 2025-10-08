@@ -749,15 +749,13 @@ const { theme } = useTheme();
             )}
 
             {/* Social Sentiment Section */}
-            {briefData?.content_sections?.market_data && (
-              <div className="border-t border-border pt-6 mb-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Users className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
-                </div>
-                <SocialSentimentBoard marketData={briefData} />
+            <div className="border-t border-border pt-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Users className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Social Sentiment Analysis</h3>
               </div>
-            )}
+              <SocialSentimentBoard />
+            </div>
             
             {/* News Sentiment Overview Section */}
             {briefData?.content_sections?.polygon_analysis && (

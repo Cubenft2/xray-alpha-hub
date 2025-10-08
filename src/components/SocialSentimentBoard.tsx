@@ -1,35 +1,16 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink } from 'lucide-react';
+import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink, Loader2 } from 'lucide-react';
 import { useSocialSentiment } from '@/hooks/useSocialSentiment';
 
-interface SocialAsset {
-  name: string;
-  symbol: string;
-  galaxy_score: number;
-  alt_rank: number;
-  sentiment: number;
-  social_volume: number;
-  social_dominance: number;
-  fomo_score: number;
-}
-
-interface SocialSentimentBoardProps {
-  marketData: any;
-}
-
-export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) {
+export function SocialSentimentBoard() {
   const navigate = useNavigate();
-  
-
-  const { assets: socialAssets } = useSocialSentiment(marketData);
+  const { assets, loading, error } = useSocialSentiment();
 
   const handleTokenClick = (symbol: string) => {
-    // Navigate to crypto page with the token symbol
     navigate(`/crypto?symbol=${symbol.toUpperCase()}`);
   };
 
@@ -39,14 +20,6 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     if (score >= 40) return 'text-yellow-500';
     if (score >= 20) return 'text-orange-500';
     return 'text-red-500';
-  };
-
-  const getScoreBadgeColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-500 border-emerald-500/20 bg-emerald-500/10';
-    if (score >= 60) return 'text-green-500 border-green-500/20 bg-green-500/10';
-    if (score >= 40) return 'text-yellow-500 border-yellow-500/20 bg-yellow-500/10';
-    if (score >= 20) return 'text-orange-500 border-orange-500/20 bg-orange-500/10';
-    return 'text-red-500 border-red-500/20 bg-red-500/10';
   };
 
   const getSentimentLabel = (sentiment: number) => {
@@ -63,17 +36,35 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     return volume.toString();
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="xr-card">
+        <CardContent className="py-12 text-center">
+          <p className="text-destructive">Error: {error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Overview Cards - Hidden on desktop to avoid redundancy */}
-      <div className="grid grid-cols-2 lg:hidden gap-4">
+      {/* Overview Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="xr-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
               <div>
                 <p className="text-sm text-muted-foreground">Assets Tracked</p>
-                <p className="text-2xl font-bold">{socialAssets.length}</p>
+                <p className="text-2xl font-bold">{assets.length}</p>
               </div>
             </div>
           </CardContent>
@@ -86,8 +77,8 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
               <div>
                 <p className="text-sm text-muted-foreground">Avg Galaxy Score</p>
                 <p className="text-2xl font-bold">
-                  {socialAssets.length > 0 
-                    ? Math.round(socialAssets.reduce((sum, asset) => sum + (asset.galaxy_score || 0), 0) / socialAssets.length)
+                  {assets.length > 0 
+                    ? Math.round(assets.reduce((sum, a) => sum + a.galaxy_score, 0) / assets.length)
                     : 0
                   }
                 </p>
@@ -103,7 +94,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
               <div>
                 <p className="text-sm text-muted-foreground">Total Social Vol</p>
                 <p className="text-2xl font-bold">
-                  {formatSocialVolume(socialAssets.reduce((sum, asset) => sum + (asset.social_volume || 0), 0))}
+                  {formatSocialVolume(assets.reduce((sum, a) => sum + a.social_volume, 0))}
                 </p>
               </div>
             </div>
@@ -115,9 +106,9 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
             <div className="flex items-center gap-2">
               <Target className="w-5 h-5 text-purple-500" />
               <div>
-                <p className="text-sm text-muted-foreground">High FOMO Assets</p>
+                <p className="text-sm text-muted-foreground">High FOMO</p>
                 <p className="text-2xl font-bold">
-                  {socialAssets.filter(asset => (asset.fomo_score || 0) > 60).length}
+                  {assets.filter(a => a.fomo_score > 60).length}
                 </p>
               </div>
             </div>
@@ -125,25 +116,31 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
         </Card>
       </div>
 
-      {/* Detailed Social Sentiment Table */}
+      {/* Detailed Table */}
       <Card className="xr-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
-            Social Sentiment Analysis (LunarCrush)
+            Social Sentiment Analysis
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {socialAssets.length > 0 ? (
-              socialAssets.map((asset, index) => (
-                <div key={asset.symbol} className="border border-border/30 rounded-lg p-4 space-y-3 hover:bg-accent/10 transition-colors cursor-pointer group" onClick={() => handleTokenClick(asset.symbol)}>
+            {assets.length > 0 ? (
+              assets.map((asset, index) => (
+                <div 
+                  key={asset.symbol} 
+                  className="border border-border/30 rounded-lg p-4 space-y-3 hover:bg-accent/10 transition-colors cursor-pointer group" 
+                  onClick={() => handleTokenClick(asset.symbol)}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="text-lg font-bold text-muted-foreground">#{index + 1}</span>
-                      <div className="flex-1">
+                      <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">{asset.name}</h3>
+                          <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                            {asset.name}
+                          </h3>
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -153,7 +150,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                               handleTokenClick(asset.symbol);
                             }}
                           >
-                            {asset.symbol.toUpperCase()}
+                            {asset.symbol}
                             <ExternalLink className="w-3 h-3 ml-1" />
                           </Button>
                         </div>
@@ -162,36 +159,35 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                         </p>
                       </div>
                     </div>
-                    {/* Right-side visuals removed to reduce redundancy */}
                   </div>
 
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Galaxy Score Progress */}
+                    {/* Galaxy Score */}
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Galaxy Score</span>
-                        <span className={`${getScoreColor(asset.galaxy_score || 0)} font-semibold`}>
-                          {asset.galaxy_score || 0}/100
+                        <span className={`${getScoreColor(asset.galaxy_score)} font-semibold`}>
+                          {asset.galaxy_score}/100
                         </span>
                       </div>
-                      <Progress value={asset.galaxy_score || 0} className="h-2" />
+                      <Progress value={asset.galaxy_score} className="h-2" />
                     </div>
 
                     {/* FOMO Score */}
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>FOMO Score</span>
-                        <span className={`${getScoreColor(asset.fomo_score || 0)} font-semibold`}>
-                          {asset.fomo_score?.toFixed(0) || 0}
+                        <span className={`${getScoreColor(asset.fomo_score)} font-semibold`}>
+                          {Math.round(asset.fomo_score)}
                         </span>
                       </div>
-                      <Progress value={asset.fomo_score || 0} className="h-2" />
+                      <Progress value={asset.fomo_score} className="h-2" />
                     </div>
 
                     {/* Social Volume */}
                     <div>
                       <p className="text-sm text-muted-foreground">Social Volume</p>
-                      <p className="font-bold text-foreground">{formatSocialVolume(asset.social_volume || 0)}</p>
+                      <p className="font-bold">{formatSocialVolume(asset.social_volume)}</p>
                     </div>
 
                     {/* Sentiment */}
@@ -204,13 +200,13 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                           : 'text-red-500 border-red-500/20 bg-red-500/10'
                         } font-semibold`}
                       >
-                        {getSentimentLabel(asset.sentiment || 0)}
+                        {getSentimentLabel(asset.sentiment)}
                       </Badge>
                     </div>
                   </div>
 
                   {/* Social Dominance */}
-                  {asset.social_dominance && (
+                  {asset.social_dominance > 0 && (
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Social Dominance</span>
