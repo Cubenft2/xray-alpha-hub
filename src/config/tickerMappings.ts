@@ -77,6 +77,10 @@ export const STOCK_TICKERS: Record<string, TickerMapping> = {
   'SQ': { symbol: 'NASDAQ:SQ', displayName: 'Block/Square (SQ)', type: 'stock' },
   'SQUARE': { symbol: 'NASDAQ:SQ', displayName: 'Block/Square (SQ)', type: 'stock' },
   'PUBM': { symbol: 'NASDAQ:PUBM', displayName: 'PubMatic (PUBM)', type: 'stock' },
+  'VZ': { symbol: 'NYSE:VZ', displayName: 'Verizon Communications (VZ)', type: 'stock' },
+  'VERIZON': { symbol: 'NYSE:VZ', displayName: 'Verizon Communications (VZ)', type: 'stock' },
+  'FRSX': { symbol: 'NASDAQ:FRSX', displayName: 'Foresight Autonomous Holdings (FRSX)', type: 'stock' },
+  'FORESIGHT': { symbol: 'NASDAQ:FRSX', displayName: 'Foresight Autonomous Holdings (FRSX)', type: 'stock' },
   
   // ETFs
   'SPY': { symbol: 'AMEX:SPY', displayName: 'S&P 500 ETF (SPY)', type: 'stock' },
@@ -175,6 +179,10 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   // DeFi assets
   'DEFI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
   'DE-FI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
+  // SX Network
+  'SX': { symbol: 'BYBIT:SXUSDT', displayName: 'SX Network (SX)', type: 'crypto' },
+  'SXNETWORK': { symbol: 'BYBIT:SXUSDT', displayName: 'SX Network (SX)', type: 'crypto' },
+  'SX NETWORK': { symbol: 'BYBIT:SXUSDT', displayName: 'SX Network (SX)', type: 'crypto' },
 };
 
 // Index and Forex tickers
