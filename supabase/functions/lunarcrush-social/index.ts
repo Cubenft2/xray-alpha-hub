@@ -65,86 +65,68 @@ serve(async (req) => {
       );
     }
 
-    console.log('📡 Fetching fresh data from LunarCrush MCP...');
+    console.log('📡 Fetching fresh data from LunarCrush MCP (SSE streaming)...');
 
-    // Multiple strategies to avoid 406 and auth issues
-    const strategies = [
-      {
-        name: 'GET ?key=... Accept: application/json',
-        request: () => fetch(`https://lunarcrush.ai/mcp?key=${encodeURIComponent(lunarcrushMcpKey!)}`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'User-Agent': 'xraycrypto-edge/1.0'
-          }
-        })
-      },
-      {
-        name: 'GET Authorization: Bearer',
-        request: () => fetch('https://lunarcrush.ai/mcp', {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${lunarcrushMcpKey}`,
-            'User-Agent': 'xraycrypto-edge/1.0'
-          }
-        })
-      },
-      {
-        name: 'POST JSON body',
-        request: () => fetch('https://lunarcrush.ai/mcp', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'User-Agent': 'xraycrypto-edge/1.0'
-          },
-          body: JSON.stringify({ key: lunarcrushMcpKey })
-        })
-      },
-      {
-        name: 'GET ?key=... Accept */*',
-        request: () => fetch(`https://lunarcrush.ai/mcp?key=${encodeURIComponent(lunarcrushMcpKey!)}`, {
-          method: 'GET',
-          headers: {
-            'Accept': '*/*',
-            'User-Agent': 'xraycrypto-edge/1.0'
-          }
-        })
+    // LunarCrush MCP uses Server-Sent Events (SSE), not regular HTTP JSON
+    const mcpUrl = `https://lunarcrush.ai/mcp?key=${encodeURIComponent(lunarcrushMcpKey)}`;
+    
+    const response = await fetch(mcpUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
       }
-    ];
+    });
 
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ LunarCrush MCP error: ${response.status}`, errorText.slice(0, 300));
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to fetch LunarCrush data', 
+          status: response.status,
+          details: errorText.slice(0, 300)
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse SSE stream
+    const responseText = await response.text();
+    console.log(`📦 Received SSE data (${responseText.length} bytes)`);
+
+    // SSE format: "data: {json}\n\n"
+    // Extract JSON from SSE events
+    const lines = responseText.split('\n');
     let lunarcrushJson: any = null;
-    let lastError: any = null;
 
-    for (const strat of strategies) {
-      try {
-        console.log(`🔄 Trying LunarCrush MCP strategy: ${strat.name}`);
-        const res = await strat.request();
-        const text = await res.text();
-        if (!res.ok) {
-          console.error(`❌ Strategy failed (${strat.name}) status=${res.status} body=${text.slice(0, 300)}`);
-          lastError = { status: res.status, body: text.slice(0, 300) };
-          continue;
-        }
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
         try {
-          lunarcrushJson = JSON.parse(text);
+          const jsonStr = line.substring(6); // Remove "data: " prefix
+          const parsed = JSON.parse(jsonStr);
+          
+          // Check if this is the data event we want (not error or metadata)
+          if (parsed.data && Array.isArray(parsed.data)) {
+            lunarcrushJson = parsed;
+            console.log(`✅ Parsed SSE event with ${parsed.data.length} assets`);
+            break;
+          }
         } catch (e) {
-          console.error(`❌ Strategy returned non-JSON (${strat.name}) body=${text.slice(0, 200)}`);
-          lastError = { parseError: true, body: text.slice(0, 200) };
+          // Skip non-JSON lines or metadata events
           continue;
         }
-        console.log(`✅ Strategy succeeded: ${strat.name}`);
-        break;
-      } catch (err) {
-        console.error(`❌ Strategy threw error (${strat.name}):`, err);
-        lastError = err instanceof Error ? err.message : String(err);
       }
     }
 
-    if (!lunarcrushJson) {
+    if (!lunarcrushJson || !lunarcrushJson.data) {
+      console.error('❌ No valid data found in SSE stream');
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch LunarCrush data', details: lastError }),
+        JSON.stringify({ 
+          error: 'No valid data in LunarCrush SSE stream',
+          sample: responseText.slice(0, 500)
+        }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
