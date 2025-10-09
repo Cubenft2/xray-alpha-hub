@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink, Wifi } from 'lucide-react';
+import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink, Wifi, ChevronDown, ChevronUp } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
@@ -26,6 +26,7 @@ interface SocialSentimentBoardProps {
 
 export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) {
   const navigate = useNavigate();
+  const [showAll, setShowAll] = useState(false);
 
   // Fetch LunarCrush Universe data (refreshes every 15 minutes)
   const { data: universeData, isLoading } = useQuery({
@@ -130,8 +131,10 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     return volume.toString();
   };
 
+  const displayedAssets = showAll ? socialAssets : socialAssets.slice(0, 10);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Live Data Badge */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Wifi className="h-4 w-4 text-green-500 animate-pulse" />
@@ -141,9 +144,9 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
       </div>
 
       {/* Overview Cards - Hidden on desktop to avoid redundancy */}
-      <div className="grid grid-cols-2 lg:hidden gap-4">
+      <div className="grid grid-cols-2 lg:hidden gap-2">
         <Card className="xr-card">
-          <CardContent className="p-4">
+          <CardContent className="p-2">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
               <div>
@@ -155,7 +158,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
         </Card>
 
         <Card className="xr-card">
-          <CardContent className="p-4">
+          <CardContent className="p-2">
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-yellow-500" />
               <div>
@@ -172,7 +175,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
         </Card>
 
         <Card className="xr-card">
-          <CardContent className="p-4">
+          <CardContent className="p-2">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-blue-500" />
               <div>
@@ -186,7 +189,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
         </Card>
 
         <Card className="xr-card">
-          <CardContent className="p-4">
+          <CardContent className="p-2">
             <div className="flex items-center gap-2">
               <Target className="w-5 h-5 text-purple-500" />
               <div>
@@ -209,16 +212,16 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {socialAssets.length > 0 ? (
-              socialAssets.map((asset, index) => (
-                <div key={asset.symbol} className="border border-border/30 rounded-lg p-4 space-y-3 hover:bg-accent/10 transition-colors cursor-pointer group" onClick={() => handleTokenClick(asset.symbol)}>
+          <div className="space-y-2">
+            {displayedAssets.length > 0 ? (
+              displayedAssets.map((asset, index) => (
+                <div key={asset.symbol} className="border border-border/30 rounded-lg p-3 space-y-2 hover:bg-accent/10 transition-colors cursor-pointer group" onClick={() => handleTokenClick(asset.symbol)}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="text-lg font-bold text-muted-foreground">#{index + 1}</span>
+                      <span className="text-sm font-bold text-muted-foreground">#{index + 1}</span>
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors">{asset.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-base text-foreground group-hover:text-primary transition-colors">{asset.name}</h3>
                           <Button 
                             variant="ghost" 
                             size="sm" 
@@ -232,15 +235,11 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                             <ExternalLink className="w-3 h-3 ml-1" />
                           </Button>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          AltRank #{asset.alt_rank || 'N/A'}
-                        </p>
                       </div>
                     </div>
-                    {/* Right-side visuals removed to reduce redundancy */}
                   </div>
 
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                     {/* Galaxy Score Progress */}
                     <div>
                       <div className="flex justify-between text-sm mb-1">
@@ -284,8 +283,8 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     </div>
                   </div>
 
-                  {/* Social Dominance */}
-                  {asset.social_dominance && (
+                  {/* Social Dominance - only show if significant */}
+                  {asset.social_dominance > 1 && (
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span>Social Dominance</span>
@@ -300,6 +299,28 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
               <div className="text-center py-8">
                 <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">No social sentiment data available</p>
+              </div>
+            )}
+
+            {/* Show More Button */}
+            {socialAssets.length > 10 && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAll(!showAll)}
+                  className="gap-2"
+                >
+                  {showAll ? (
+                    <>
+                      Show Less <ChevronUp className="w-4 h-4" />
+                    </>
+                  ) : (
+                    <>
+                      Show {socialAssets.length - 10} More <ChevronDown className="w-4 h-4" />
+                    </>
+                  )}
+                </Button>
               </div>
             )}
           </div>
