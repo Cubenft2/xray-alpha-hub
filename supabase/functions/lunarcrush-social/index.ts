@@ -65,30 +65,22 @@ serve(async (req) => {
       );
     }
 
-    console.log('📡 Fetching fresh data from LunarCrush SSE endpoint...');
+    console.log('📡 Fetching fresh data from LunarCrush REST API v4...');
 
-    // LunarCrush MCP uses Server-Sent Events (SSE)
-    const sseUrl = 'https://lunarcrush.ai/sse';
+    // Use REST API v4 endpoint
+    const apiUrl = 'https://lunarcrush.com/api4/public/coins/list';
     
-    const response = await fetch(sseUrl, {
+    const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
-        'Accept': 'text/event-stream',
         'Authorization': `Bearer ${lunarcrushMcpKey}`,
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
+        'Accept': 'application/json'
       }
     });
 
     if (!response.ok) {
-      let errorText = '';
-      try {
-        // Try to read error body, but don't crash if connection is closed
-        errorText = await response.text();
-      } catch (e) {
-        errorText = `Unable to read error body: ${e.message}`;
-      }
-      console.error(`❌ LunarCrush MCP error: ${response.status}`, errorText.slice(0, 300));
+      const errorText = await response.text().catch(() => 'Unable to read error');
+      console.error(`❌ LunarCrush API error: ${response.status}`, errorText.slice(0, 300));
       return new Response(
         JSON.stringify({ 
           error: 'Failed to fetch LunarCrush data', 
@@ -99,201 +91,16 @@ serve(async (req) => {
       );
     }
 
-    console.log(`✅ SSE connection established: ${response.status}`);
-    console.log(`📋 Content-Type: ${response.headers.get('content-type')}`);
-
-    // Step 1: Parse initial SSE stream to get session endpoint
-    console.log('📡 Reading initial SSE stream for session endpoint...');
+    console.log(`✅ REST API response: ${response.status}`);
     
-    const reader = response.body?.getReader();
-    if (!reader) {
-      console.error('❌ No readable stream available');
-      return new Response(
-        JSON.stringify({ error: 'No readable stream from LunarCrush SSE endpoint' }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let sessionEndpoint: string | null = null;
-    const timeout = 5000; // 5 second timeout
-    const startTime = Date.now();
-
-    try {
-      while (Date.now() - startTime < timeout) {
-        const { done, value } = await reader.read();
-        
-        if (done) {
-          console.log('📭 Initial stream ended');
-          break;
-        }
-        
-        buffer += decoder.decode(value, { stream: true });
-        
-        // Process complete SSE events (ending with \n\n)
-        const events = buffer.split('\n\n');
-        buffer = events.pop() || ''; // Keep incomplete event in buffer
-        
-        for (const event of events) {
-          const lines = event.split('\n');
-          let isEndpointEvent = false;
-          
-          for (const line of lines) {
-            console.log(`📨 SSE line: ${line.slice(0, 100)}`);
-            
-            // Look for endpoint event
-            if (line === 'event: endpoint') {
-              isEndpointEvent = true;
-            }
-            
-            // Extract session endpoint from data line
-            if (isEndpointEvent && line.startsWith('data: ')) {
-              sessionEndpoint = line.substring(6).trim();
-              console.log(`🎯 Found session endpoint: ${sessionEndpoint}`);
-              await reader.cancel(); // Close the stream
-              break;
-            }
-          }
-          if (sessionEndpoint) break;
-        }
-        if (sessionEndpoint) break;
-      }
-
-      // Cleanup: cancel reader if still open
-      if (!sessionEndpoint) {
-        await reader.cancel();
-        console.error(`❌ Timeout: No session endpoint received within ${timeout}ms`);
-        console.log(`Buffer sample: ${buffer.slice(0, 500)}`);
-      }
-    } catch (streamError) {
-      console.error('❌ Error reading initial SSE stream:', streamError);
-      try {
-        await reader.cancel();
-      } catch (e) {
-        // Ignore cancel errors
-      }
-    }
-
-    if (!sessionEndpoint) {
-      console.error('❌ No session endpoint found in initial SSE stream');
-      return new Response(
-        JSON.stringify({ 
-          error: 'No session endpoint in LunarCrush SSE stream',
-          sample: buffer.slice(0, 500)
-        }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Step 2: Connect to session endpoint to get actual crypto data
-    console.log(`📡 Connecting to session endpoint: https://lunarcrush.ai${sessionEndpoint}`);
+    const lunarcrushJson = await response.json();
     
-    const sessionResponse = await fetch(`https://lunarcrush.ai${sessionEndpoint}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'text/event-stream',
-        'Authorization': `Bearer ${lunarcrushMcpKey}`,
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
-      }
-    });
-
-    if (!sessionResponse.ok) {
-      let errorText = '';
-      try {
-        errorText = await sessionResponse.text();
-      } catch (e) {
-        errorText = `Unable to read error body: ${e.message}`;
-      }
-      console.error(`❌ Session endpoint error: ${sessionResponse.status}`, errorText.slice(0, 300));
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to connect to session endpoint', 
-          status: sessionResponse.status,
-          details: errorText.slice(0, 300)
-        }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('📡 Reading crypto data from session stream...');
-    
-    const sessionReader = sessionResponse.body?.getReader();
-    if (!sessionReader) {
-      console.error('❌ No readable stream from session endpoint');
-      return new Response(
-        JSON.stringify({ error: 'No readable stream from session endpoint' }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    let sessionBuffer = '';
-    let lunarcrushJson: any = null;
-    const sessionStartTime = Date.now();
-
-    try {
-      while (Date.now() - sessionStartTime < timeout) {
-        const { done, value } = await sessionReader.read();
-        
-        if (done) {
-          console.log('📭 Session stream ended');
-          break;
-        }
-        
-        sessionBuffer += decoder.decode(value, { stream: true });
-        
-        // Process complete SSE events
-        const events = sessionBuffer.split('\n\n');
-        sessionBuffer = events.pop() || '';
-        
-        for (const event of events) {
-          const lines = event.split('\n');
-          for (const line of lines) {
-            console.log(`📦 Session data: ${line.slice(0, 100)}`);
-            
-            if (line.startsWith('data: ')) {
-              try {
-                const jsonStr = line.substring(6);
-                const parsed = JSON.parse(jsonStr);
-                
-                // Check if this is crypto asset data
-                if (parsed.data && Array.isArray(parsed.data)) {
-                  lunarcrushJson = parsed;
-                  console.log(`✅ Parsed crypto data with ${parsed.data.length} assets`);
-                  await sessionReader.cancel();
-                  break;
-                }
-              } catch (e) {
-                console.log('⚠️ Skipping invalid JSON in session stream');
-              }
-            }
-          }
-          if (lunarcrushJson) break;
-        }
-        if (lunarcrushJson) break;
-      }
-
-      if (!lunarcrushJson) {
-        await sessionReader.cancel();
-        console.error(`❌ Timeout: No crypto data received within ${timeout}ms`);
-        console.log(`Session buffer sample: ${sessionBuffer.slice(0, 500)}`);
-      }
-    } catch (streamError) {
-      console.error('❌ Error reading session SSE stream:', streamError);
-      try {
-        await sessionReader.cancel();
-      } catch (e) {
-        // Ignore cancel errors
-      }
-    }
-
     if (!lunarcrushJson || !lunarcrushJson.data) {
-      console.error('❌ No valid crypto data found in session stream');
+      console.error('❌ No valid crypto data in API response');
       return new Response(
         JSON.stringify({ 
-          error: 'No valid crypto data in session stream',
-          sample: sessionBuffer.slice(0, 500)
+          error: 'No valid crypto data in API response',
+          sample: JSON.stringify(lunarcrushJson).slice(0, 500)
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
