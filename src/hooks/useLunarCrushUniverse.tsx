@@ -49,6 +49,8 @@ export function useLunarCrushUniverse() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<keyof CoinData>('market_cap_rank');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
   const { toast } = useToast();
 
   const [filters, setFilters] = useState<Filters>({
@@ -137,11 +139,23 @@ export function useLunarCrushUniverse() {
       setSortKey(key);
       setSortDirection('asc');
     }
+    setCurrentPage(1); // Reset to first page on sort
+  };
+
+  const totalPages = Math.ceil(filteredAndSortedCoins.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, filteredAndSortedCoins.length);
+  const paginatedCoins = filteredAndSortedCoins.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return {
-    coins: filteredAndSortedCoins,
+    coins: paginatedCoins,
     allCoins: coins,
+    filteredCoins: filteredAndSortedCoins,
     metadata,
     loading,
     error,
@@ -151,5 +165,13 @@ export function useLunarCrushUniverse() {
     sortDirection,
     handleSort,
     refetch: fetchCoins,
+    currentPage,
+    totalPages,
+    pageSize,
+    setPageSize,
+    handlePageChange,
+    startIndex,
+    endIndex,
+    totalFilteredItems: filteredAndSortedCoins.length,
   };
 }

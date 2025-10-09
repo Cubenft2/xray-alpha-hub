@@ -15,7 +15,12 @@ export default function CryptoUniverse() {
     sortKey,
     sortDirection,
     handleSort,
-    refetch,
+    currentPage,
+    totalPages,
+    handlePageChange,
+    startIndex,
+    endIndex,
+    totalFilteredItems,
   } = useLunarCrushUniverse();
 
   return (
@@ -52,19 +57,18 @@ export default function CryptoUniverse() {
       {loading ? (
         <Skeleton className="h-96 w-full" />
       ) : (
-        <>
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">
-              Showing {coins.length} of {allCoins.length} assets
-            </p>
-          </div>
-          <CryptoUniverseTable
-            coins={coins}
-            sortKey={sortKey}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-          />
-        </>
+        <CryptoUniverseTable
+          coins={coins}
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          totalItems={totalFilteredItems}
+        />
       )}
     </div>
   );

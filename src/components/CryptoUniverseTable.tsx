@@ -11,6 +11,15 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { CoinData } from '@/hooks/useLunarCrushUniverse';
 
 interface CryptoUniverseTableProps {
@@ -18,6 +27,12 @@ interface CryptoUniverseTableProps {
   sortKey: keyof CoinData;
   sortDirection: 'asc' | 'desc';
   onSort: (key: keyof CoinData) => void;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  startIndex: number;
+  endIndex: number;
+  totalItems: number;
 }
 
 export function CryptoUniverseTable({
@@ -25,6 +40,12 @@ export function CryptoUniverseTable({
   sortKey,
   sortDirection,
   onSort,
+  currentPage,
+  totalPages,
+  onPageChange,
+  startIndex,
+  endIndex,
+  totalItems,
 }: CryptoUniverseTableProps) {
   const navigate = useNavigate();
 
@@ -61,6 +82,26 @@ export function CryptoUniverseTable({
     ) : (
       <ArrowDown className="h-4 w-4 ml-1" />
     );
+  };
+
+  const getPageNumbers = () => {
+    const pages: (number | 'ellipsis')[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('ellipsis', totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1, 'ellipsis');
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1, 'ellipsis');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('ellipsis', totalPages);
+      }
+    }
+    return pages;
   };
 
   return (
@@ -143,15 +184,15 @@ export function CryptoUniverseTable({
                 className="cursor-pointer"
                 onClick={() => navigate(`/crypto-universe/${coin.symbol}`)}
               >
-                <TableCell className="font-medium text-muted-foreground sticky left-0 bg-card">
-                  {index + 1}
+                <TableCell className="py-2 font-medium text-muted-foreground sticky left-0 bg-card">
+                  {startIndex + index + 1}
                 </TableCell>
-                <TableCell className="font-bold sticky left-12 bg-card">{coin.symbol}</TableCell>
-                <TableCell>{coin.name}</TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="py-2 font-bold sticky left-12 bg-card">{coin.symbol}</TableCell>
+                <TableCell className="py-2">{coin.name}</TableCell>
+                <TableCell className="py-2 text-right font-mono">
                   {formatCurrency(coin.price)}
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="py-2 text-right">
                   <div
                     className={`flex items-center justify-end gap-1 ${
                       coin.percent_change_24h > 0 ? 'text-green-500' : 'text-red-500'
@@ -165,19 +206,19 @@ export function CryptoUniverseTable({
                     {formatPercent(coin.percent_change_24h)}
                   </div>
                 </TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="py-2 text-right font-mono">
                   {formatCurrency(coin.market_cap)}
                 </TableCell>
-                <TableCell className="text-right font-mono hidden md:table-cell">
+                <TableCell className="py-2 text-right font-mono hidden md:table-cell">
                   {formatCurrency(coin.volume_24h)}
                 </TableCell>
-                <TableCell>
+                <TableCell className="py-2">
                   <div className="flex items-center gap-2">
                     <Progress value={coin.galaxy_score} className="w-16" />
                     <span className="text-sm font-medium">{coin.galaxy_score}</span>
                   </div>
                 </TableCell>
-                <TableCell className="hidden lg:table-cell">{getAltRankBadge(coin.alt_rank)}</TableCell>
+                <TableCell className="py-2 hidden lg:table-cell">{getAltRankBadge(coin.alt_rank)}</TableCell>
               </TableRow>
             ))}
             {coins.length === 0 && (
@@ -191,6 +232,50 @@ export function CryptoUniverseTable({
         </Table>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-3 border-t">
+          <div className="text-sm text-muted-foreground">
+            Showing {startIndex + 1}-{endIndex} of {totalItems} assets
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
+                  className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+
+              {getPageNumbers().map((page, idx) =>
+                page === 'ellipsis' ? (
+                  <PaginationItem key={`ellipsis-${idx}`}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => onPageChange(page as number)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
+              )}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
+                  className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }
