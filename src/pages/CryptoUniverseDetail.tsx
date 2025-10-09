@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { TradingViewChart } from '@/components/TradingViewChart';
+import { useTickerMappings } from '@/hooks/useTickerMappings';
 
 interface CoinDetail {
   id: number;
@@ -43,6 +44,7 @@ export default function CryptoUniverseDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { getMapping } = useTickerMappings();
   const [coin, setCoin] = useState<CoinDetail | null>(null);
   const [analysis, setAnalysis] = useState<CoinAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,9 +55,9 @@ export default function CryptoUniverseDetail() {
 
       try {
         setLoading(true);
-        const { data, error } = await supabase.functions.invoke('lunarcrush-coin-detail', {
-          body: { coin: symbol },
-        });
+        const { data, error } = await supabase.functions.invoke(
+          `lunarcrush-coin-detail?coin=${symbol}`
+        );
 
         if (error) throw error;
         if (!data?.success) throw new Error(data?.error || 'Failed to fetch coin detail');
@@ -158,7 +160,10 @@ export default function CryptoUniverseDetail() {
       {/* TradingView Chart */}
       <Card>
         <CardContent className="p-0">
-          <TradingViewChart symbol={`CRYPTO:${coin.symbol}USD`} height="500" />
+          <TradingViewChart 
+            symbol={getMapping(coin.symbol)?.tradingview_symbol || `CRYPTO:${coin.symbol}USD`} 
+            height="500" 
+          />
         </CardContent>
       </Card>
 
