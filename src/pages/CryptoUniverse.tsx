@@ -1,5 +1,3 @@
-import { RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CryptoUniverseTable } from '@/components/CryptoUniverseTable';
 import { CryptoUniverseInsights } from '@/components/CryptoUniverseInsights';
@@ -21,35 +19,29 @@ export default function CryptoUniverse() {
   } = useLunarCrushUniverse();
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <div className="container mx-auto px-4 py-6 space-y-3">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-            🌙 Crypto Universe
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Powered by LunarCrush • Updated Hourly
-          </p>
-        </div>
-        <Button onClick={refetch} disabled={loading} variant="outline">
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+      <div>
+        <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+          🌙 Crypto Universe
+        </h1>
+        <p className="text-muted-foreground mt-1 text-sm">
+          Powered by LunarCrush • Updated Hourly
+        </p>
       </div>
 
       {/* Filters */}
       {loading ? (
-        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-14 w-full" />
       ) : (
         <CryptoUniverseFilters filters={filters} setFilters={setFilters} />
       )}
 
       {/* Insights */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-40" />
+            <Skeleton key={i} className="h-32" />
           ))}
         </div>
       ) : (

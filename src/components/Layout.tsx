@@ -4,6 +4,7 @@ import { XRHeader } from './XRHeader';
 import { XRTicker } from './XRTicker';
 import { PolygonTicker } from './PolygonTicker';
 import { XRFooter } from './XRFooter';
+import { ScrollToTop } from './ScrollToTop';
 
 interface LayoutContextType {
   onSearch: (term: string) => void;
@@ -70,6 +71,9 @@ export const Layout = ({ children }: LayoutProps) => {
 
         {/* Persistent Footer */}
         <XRFooter />
+
+        {/* Scroll to Top Button */}
+        <ScrollToTop />
       </div>
     </LayoutContext.Provider>
   );

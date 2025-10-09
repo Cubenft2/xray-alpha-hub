@@ -28,15 +28,15 @@ export function CryptoUniverseInsights({ coins, metadata }: CryptoUniverseInsigh
     .slice(0, 5);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       {/* Market Overview */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Market Overview</CardTitle>
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
+        <CardContent className="py-3">
+          <div className="space-y-1.5">
             <div>
               <div className="text-xs text-muted-foreground">Total Market Cap</div>
               <div className="text-2xl font-bold">
@@ -63,8 +63,8 @@ export function CryptoUniverseInsights({ coins, metadata }: CryptoUniverseInsigh
           <CardTitle className="text-sm font-medium">Top Gainers (24h)</CardTitle>
           <TrendingUp className="h-4 w-4 text-green-500" />
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
+        <CardContent className="py-3">
+          <div className="space-y-1.5">
             {topGainers.map((coin) => (
               <div key={coin.id} className="flex justify-between items-center">
                 <span className="text-sm font-medium">{coin.symbol}</span>
@@ -83,8 +83,8 @@ export function CryptoUniverseInsights({ coins, metadata }: CryptoUniverseInsigh
           <CardTitle className="text-sm font-medium">Top Losers (24h)</CardTitle>
           <TrendingDown className="h-4 w-4 text-red-500" />
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
+        <CardContent className="py-3">
+          <div className="space-y-1.5">
             {topLosers.map((coin) => (
               <div key={coin.id} className="flex justify-between items-center">
                 <span className="text-sm font-medium">{coin.symbol}</span>
@@ -103,8 +103,8 @@ export function CryptoUniverseInsights({ coins, metadata }: CryptoUniverseInsigh
           <CardTitle className="text-sm font-medium">Galaxy Score Leaders</CardTitle>
           <Star className="h-4 w-4 text-yellow-500" />
         </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
+        <CardContent className="py-3">
+          <div className="space-y-1.5">
             {topGalaxyScores.map((coin) => (
               <div key={coin.id} className="flex justify-between items-center">
                 <span className="text-sm font-medium">{coin.symbol}</span>

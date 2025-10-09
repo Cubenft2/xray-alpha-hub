@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { CoinData } from '@/hooks/useLunarCrushUniverse';
 
 interface CryptoUniverseTableProps {
@@ -64,129 +65,132 @@ export function CryptoUniverseTable({
 
   return (
     <div className="rounded-lg border bg-card">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">#</TableHead>
-            <TableHead>
-              <button
-                onClick={() => onSort('symbol')}
-                className="flex items-center hover:text-foreground"
-              >
-                Symbol
-                <SortIcon column="symbol" />
-              </button>
-            </TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead className="text-right">
-              <button
-                onClick={() => onSort('price')}
-                className="flex items-center ml-auto hover:text-foreground"
-              >
-                Price
-                <SortIcon column="price" />
-              </button>
-            </TableHead>
-            <TableHead className="text-right">
-              <button
-                onClick={() => onSort('percent_change_24h')}
-                className="flex items-center ml-auto hover:text-foreground"
-              >
-                24h %
-                <SortIcon column="percent_change_24h" />
-              </button>
-            </TableHead>
-            <TableHead className="text-right">
-              <button
-                onClick={() => onSort('market_cap')}
-                className="flex items-center ml-auto hover:text-foreground"
-              >
-                Market Cap
-                <SortIcon column="market_cap" />
-              </button>
-            </TableHead>
-            <TableHead className="text-right">
-              <button
-                onClick={() => onSort('volume_24h')}
-                className="flex items-center ml-auto hover:text-foreground"
-              >
-                Volume 24h
-                <SortIcon column="volume_24h" />
-              </button>
-            </TableHead>
-            <TableHead>
-              <button
-                onClick={() => onSort('galaxy_score')}
-                className="flex items-center hover:text-foreground"
-              >
-                Galaxy Score
-                <SortIcon column="galaxy_score" />
-              </button>
-            </TableHead>
-            <TableHead>
-              <button
-                onClick={() => onSort('alt_rank')}
-                className="flex items-center hover:text-foreground"
-              >
-                AltRank
-                <SortIcon column="alt_rank" />
-              </button>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {coins.map((coin, index) => (
-            <TableRow
-              key={coin.id}
-              className="cursor-pointer"
-              onClick={() => navigate(`/crypto-universe/${coin.symbol}`)}
-            >
-              <TableCell className="font-medium text-muted-foreground">
-                {index + 1}
-              </TableCell>
-              <TableCell className="font-bold">{coin.symbol}</TableCell>
-              <TableCell>{coin.name}</TableCell>
-              <TableCell className="text-right font-mono">
-                {formatCurrency(coin.price)}
-              </TableCell>
-              <TableCell className="text-right">
-                <div
-                  className={`flex items-center justify-end gap-1 ${
-                    coin.percent_change_24h > 0 ? 'text-green-500' : 'text-red-500'
-                  }`}
-                >
-                  {coin.percent_change_24h > 0 ? (
-                    <TrendingUp className="h-4 w-4" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4" />
-                  )}
-                  {formatPercent(coin.percent_change_24h)}
-                </div>
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {formatCurrency(coin.market_cap)}
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {formatCurrency(coin.volume_24h)}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Progress value={coin.galaxy_score} className="w-16" />
-                  <span className="text-sm font-medium">{coin.galaxy_score}</span>
-                </div>
-              </TableCell>
-              <TableCell>{getAltRankBadge(coin.alt_rank)}</TableCell>
-            </TableRow>
-          ))}
-          {coins.length === 0 && (
+      <ScrollArea className="w-full">
+        <Table className="min-w-[900px]">
+          <TableHeader>
             <TableRow>
-              <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                No coins found matching your filters
-              </TableCell>
+              <TableHead className="w-12 sticky left-0 bg-card z-10">#</TableHead>
+              <TableHead className="sticky left-12 bg-card z-10">
+                <button
+                  onClick={() => onSort('symbol')}
+                  className="flex items-center hover:text-foreground"
+                >
+                  Symbol
+                  <SortIcon column="symbol" />
+                </button>
+              </TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead className="text-right">
+                <button
+                  onClick={() => onSort('price')}
+                  className="flex items-center ml-auto hover:text-foreground"
+                >
+                  Price
+                  <SortIcon column="price" />
+                </button>
+              </TableHead>
+              <TableHead className="text-right">
+                <button
+                  onClick={() => onSort('percent_change_24h')}
+                  className="flex items-center ml-auto hover:text-foreground"
+                >
+                  24h %
+                  <SortIcon column="percent_change_24h" />
+                </button>
+              </TableHead>
+              <TableHead className="text-right">
+                <button
+                  onClick={() => onSort('market_cap')}
+                  className="flex items-center ml-auto hover:text-foreground"
+                >
+                  Market Cap
+                  <SortIcon column="market_cap" />
+                </button>
+              </TableHead>
+              <TableHead className="text-right hidden md:table-cell">
+                <button
+                  onClick={() => onSort('volume_24h')}
+                  className="flex items-center ml-auto hover:text-foreground"
+                >
+                  Volume 24h
+                  <SortIcon column="volume_24h" />
+                </button>
+              </TableHead>
+              <TableHead>
+                <button
+                  onClick={() => onSort('galaxy_score')}
+                  className="flex items-center hover:text-foreground"
+                >
+                  Galaxy Score
+                  <SortIcon column="galaxy_score" />
+                </button>
+              </TableHead>
+              <TableHead className="hidden lg:table-cell">
+                <button
+                  onClick={() => onSort('alt_rank')}
+                  className="flex items-center hover:text-foreground"
+                >
+                  AltRank
+                  <SortIcon column="alt_rank" />
+                </button>
+              </TableHead>
             </TableRow>
-          )}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {coins.map((coin, index) => (
+              <TableRow
+                key={coin.id}
+                className="cursor-pointer"
+                onClick={() => navigate(`/crypto-universe/${coin.symbol}`)}
+              >
+                <TableCell className="font-medium text-muted-foreground sticky left-0 bg-card">
+                  {index + 1}
+                </TableCell>
+                <TableCell className="font-bold sticky left-12 bg-card">{coin.symbol}</TableCell>
+                <TableCell>{coin.name}</TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatCurrency(coin.price)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div
+                    className={`flex items-center justify-end gap-1 ${
+                      coin.percent_change_24h > 0 ? 'text-green-500' : 'text-red-500'
+                    }`}
+                  >
+                    {coin.percent_change_24h > 0 ? (
+                      <TrendingUp className="h-4 w-4" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4" />
+                    )}
+                    {formatPercent(coin.percent_change_24h)}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatCurrency(coin.market_cap)}
+                </TableCell>
+                <TableCell className="text-right font-mono hidden md:table-cell">
+                  {formatCurrency(coin.volume_24h)}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Progress value={coin.galaxy_score} className="w-16" />
+                    <span className="text-sm font-medium">{coin.galaxy_score}</span>
+                  </div>
+                </TableCell>
+                <TableCell className="hidden lg:table-cell">{getAltRankBadge(coin.alt_rank)}</TableCell>
+              </TableRow>
+            ))}
+            {coins.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  No coins found matching your filters
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
     </div>
   );
 }
