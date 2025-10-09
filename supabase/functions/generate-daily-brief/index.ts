@@ -170,6 +170,17 @@ interface FactTracker {
 }
 
 /**
+ * Calculate similarity between two strings (0-1 range)
+ */
+function calculateSimilarity(str1: string, str2: string): number {
+  const words1 = new Set(str1.toLowerCase().split(/\s+/));
+  const words2 = new Set(str2.toLowerCase().split(/\s+/));
+  const intersection = new Set([...words1].filter(x => words2.has(x)));
+  const union = new Set([...words1, ...words2]);
+  return intersection.size / union.size;
+}
+
+/**
  * Deduplicate and format asset-focused sections (per-asset paragraphs)
  */
 function cleanAssetSection(text: string, sectionTitle: string): string {
@@ -179,12 +190,14 @@ function cleanAssetSection(text: string, sectionTitle: string): string {
   const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0);
   const seen = new Set<string>();
   const normalized = new Map<string, string>();
+  let duplicateCount = 0;
   
-  // Detect duplicates (case-insensitive, normalized)
+  // Detect exact duplicates (case-insensitive, normalized)
   const uniqueSentences = sentences.filter(sentence => {
     const norm = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
     if (seen.has(norm)) {
-      console.log(`  ❌ Removed duplicate: "${sentence.substring(0, 50)}..."`);
+      console.log(`  ❌ Removed exact duplicate: "${sentence.substring(0, 50)}..."`);
+      duplicateCount++;
       return false;
     }
     seen.add(norm);
@@ -192,11 +205,28 @@ function cleanAssetSection(text: string, sectionTitle: string): string {
     return true;
   });
   
+  // Detect near-duplicates using similarity threshold (85%)
+  const deduplicatedSentences: string[] = [];
+  for (const sentence of uniqueSentences) {
+    let isDuplicate = false;
+    for (const existing of deduplicatedSentences) {
+      if (calculateSimilarity(sentence, existing) > 0.85) {
+        console.log(`  ⚠️ Removed near-duplicate (${Math.round(calculateSimilarity(sentence, existing) * 100)}% similar): "${sentence.substring(0, 50)}..."`);
+        duplicateCount++;
+        isDuplicate = true;
+        break;
+      }
+    }
+    if (!isDuplicate) {
+      deduplicatedSentences.push(sentence);
+    }
+  }
+  
   // Group by asset or theme (detect "AssetName (SYM):" or "Theme:" pattern)
   const assetParagraphs = new Map<string, string[]>();
   let currentAsset: string | null = null;
   
-  uniqueSentences.forEach(sentence => {
+  deduplicatedSentences.forEach(sentence => {
     // Match "AssetName (SYM):" or "Exchange:" or "Theme:"
     const assetMatch = sentence.match(/^([A-Za-z0-9\s]+)\s*\(([A-Z0-9]+)\):/);
     const themeMatch = sentence.match(/^(Exchange|Theme):/i);
@@ -219,15 +249,33 @@ function cleanAssetSection(text: string, sectionTitle: string): string {
     }
   });
   
+  // Merge duplicate asset entries
+  const mergedParagraphs = new Map<string, string[]>();
+  assetParagraphs.forEach((sentences, key) => {
+    if (!mergedParagraphs.has(key)) {
+      mergedParagraphs.set(key, sentences);
+    } else {
+      // Asset mentioned multiple times - merge sentences
+      const existing = mergedParagraphs.get(key)!;
+      sentences.forEach(s => {
+        // Only add if not similar to existing sentences
+        const isUnique = !existing.some(e => calculateSimilarity(s, e) > 0.85);
+        if (isUnique) {
+          existing.push(s);
+        }
+      });
+    }
+  });
+  
   // Build final output: one paragraph per asset/theme, max 3 sentences, blank line between
   const paragraphs: string[] = [];
-  assetParagraphs.forEach((sentences, key) => {
+  mergedParagraphs.forEach((sentences, key) => {
     const para = sentences.slice(0, 3).join('. ') + '.';
     paragraphs.push(para);
     console.log(`  ✅ ${key}: ${sentences.length} sentence(s) → kept first ${Math.min(3, sentences.length)}`);
   });
   
-  console.log(`  📊 Result: ${assetParagraphs.size} items, ${paragraphs.length} paragraphs`);
+  console.log(`  📊 ${sectionTitle} cleaned: ${duplicateCount} duplicates removed, ${mergedParagraphs.size} unique items`);
   return '<p>' + paragraphs.join('</p>\n\n<p>') + '</p>';
 }
 
@@ -304,7 +352,7 @@ Write the section content now:`;
           { role: 'system', content: XRAYCRYPTO_PERSONA },
           { role: 'user', content: sectionPrompt }
         ],
-        temperature: 0.8,
+        temperature: 0.6,
         max_tokens: 1000
       }),
     });
@@ -574,6 +622,69 @@ function updateFactTracker(content: string, tracker: FactTracker): void {
 }
 
 /**
+ * Global deduplication across entire brief
+ */
+function deduplicateEntireBrief(content: string): string {
+  console.log('\n🔍 Running global deduplication across entire brief...');
+  
+  // Extract all sentences from the entire brief
+  const allSentences: string[] = [];
+  const sections = content.split(/(<h2>.*?<\/h2>)/g);
+  
+  // Track sentences we've seen
+  const seenExact = new Set<string>();
+  const seenSimilar: string[] = [];
+  let totalRemoved = 0;
+  
+  // Process each section
+  const deduplicatedSections = sections.map(section => {
+    if (section.startsWith('<h2>')) {
+      return section; // Keep headers as-is
+    }
+    
+    // Extract sentences from this section
+    const sentences = section.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
+    const uniqueSentences: string[] = [];
+    
+    sentences.forEach(sentence => {
+      const normalized = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
+      
+      // Check for exact duplicates
+      if (seenExact.has(normalized)) {
+        console.log(`  🗑️ Removed exact duplicate: "${sentence.substring(0, 60)}..."`);
+        totalRemoved++;
+        return;
+      }
+      
+      // Check for near-duplicates (>85% similar)
+      let isDuplicate = false;
+      for (const existing of seenSimilar) {
+        if (calculateSimilarity(sentence, existing) > 0.85) {
+          console.log(`  🗑️ Removed similar (${Math.round(calculateSimilarity(sentence, existing) * 100)}%): "${sentence.substring(0, 60)}..."`);
+          totalRemoved++;
+          isDuplicate = true;
+          break;
+        }
+      }
+      
+      if (!isDuplicate) {
+        uniqueSentences.push(sentence);
+        seenExact.add(normalized);
+        seenSimilar.push(sentence);
+      }
+    });
+    
+    // Rebuild section with unique sentences
+    return uniqueSentences.length > 0 ? uniqueSentences.join('. ') + '.' : '';
+  });
+  
+  const result = deduplicatedSections.filter(s => s.trim()).join('\n\n');
+  console.log(`✅ Global deduplication complete: ${totalRemoved} duplicates removed across entire brief`);
+  
+  return result;
+}
+
+/**
  * Editorial review bot - polishes assembled brief
  */
 async function editBriefContent(
@@ -675,6 +786,34 @@ async function validateBriefContent(
   const sections = content.split(/(<h2>.*?<\/h2>)/g).filter(s => s.trim());
   metrics.totalSections = sections.filter(s => s.startsWith('<h2>')).length;
   
+  // Detect duplicate sentences across sections
+  const allSentences: string[] = [];
+  const duplicateMap = new Map<string, number>();
+  
+  sections.forEach(section => {
+    if (section.startsWith('<h2>')) return;
+    const sentences = section.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
+    sentences.forEach(sentence => {
+      const normalized = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
+      allSentences.push(sentence);
+      duplicateMap.set(normalized, (duplicateMap.get(normalized) || 0) + 1);
+    });
+  });
+  
+  // Flag exact duplicates
+  let duplicateCount = 0;
+  duplicateMap.forEach((count, normalized) => {
+    if (count > 1) {
+      duplicateCount += count - 1;
+      issues.push(`🔁 Duplicate sentence found ${count} times`);
+    }
+  });
+  
+  if (duplicateCount > 0) {
+    console.warn(`⚠️ Found ${duplicateCount} duplicate sentences across sections`);
+    metrics.sectionsWithIssues++;
+  }
+  
   // Fetch ticker mappings for type validation
   const { data: tickerMappings } = await supabase
     .from('ticker_mappings')
@@ -724,7 +863,7 @@ async function validateBriefContent(
   console.log(`✅ Validation complete: ${issues.length} issues found`);
   
   return {
-    passed: metrics.assetMisclassifications === 0,
+    passed: metrics.assetMisclassifications === 0 && duplicateCount === 0,
     issues,
     metrics
   };
@@ -1044,10 +1183,16 @@ serve(async (req) => {
     const editedContent = await editBriefContent(fullBriefContent, sections, briefType);
     
     // ===================================================================
+    // GLOBAL DEDUPLICATION
+    // ===================================================================
+    
+    const deduplicatedContent = deduplicateEntireBrief(editedContent);
+    
+    // ===================================================================
     // VALIDATION
     // ===================================================================
     
-    const validation = await validateBriefContent(editedContent, briefType, supabase);
+    const validation = await validateBriefContent(deduplicatedContent, briefType, supabase);
     
     if (validation.issues.length > 0) {
       console.warn(`⚠️ Validation found ${validation.issues.length} issues:`);
@@ -1067,7 +1212,7 @@ serve(async (req) => {
       title: briefTitle,
       executive_summary: `Market analysis for ${format(estTime, 'MMMM d, yyyy')}`,
       content_sections: {
-        ai_generated_content: editedContent
+        ai_generated_content: deduplicatedContent
       },
       market_data: {
         total_market_cap: totalMarketCap,
