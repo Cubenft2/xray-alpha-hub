@@ -65,15 +65,16 @@ serve(async (req) => {
       );
     }
 
-    console.log('📡 Fetching fresh data from LunarCrush MCP (SSE streaming)...');
+    console.log('📡 Fetching fresh data from LunarCrush SSE endpoint...');
 
-    // LunarCrush MCP uses Server-Sent Events (SSE), not regular HTTP JSON
-    const mcpUrl = `https://lunarcrush.ai/mcp?key=${encodeURIComponent(lunarcrushMcpKey)}`;
+    // LunarCrush MCP uses Server-Sent Events (SSE)
+    const sseUrl = 'https://lunarcrush.ai/sse';
     
-    const response = await fetch(mcpUrl, {
+    const response = await fetch(sseUrl, {
       method: 'GET',
       headers: {
         'Accept': 'text/event-stream',
+        'Authorization': `Bearer ${lunarcrushMcpKey}`,
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive'
       }
