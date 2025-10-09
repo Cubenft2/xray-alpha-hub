@@ -27,42 +27,36 @@ interface SocialSentimentBoardProps {
 export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) {
   const navigate = useNavigate();
 
-  // Fetch exchange data from social_sentiment table (refreshes every 5 minutes)
-  const { data: exchangeData, isLoading } = useQuery({
-    queryKey: ['exchange-sentiment'],
+  // Fetch LunarCrush Universe data (refreshes every 15 minutes)
+  const { data: universeData, isLoading } = useQuery({
+    queryKey: ['lunarcrush-universe-social'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('social_sentiment')
-        .select('*')
-        .not('weighted_price', 'is', null)
-        .order('total_volume', { ascending: false })
-        .limit(25);
-      
+      const { data, error } = await supabase.functions.invoke('lunarcrush-universe');
       if (error) throw error;
       
-      // Map exchange data to SocialAsset format
-      return data?.map((item: any) => ({
-        name: item.name || item.symbol.toUpperCase(),
-        symbol: item.symbol,
-        // Create synthetic scores from exchange metrics
-        galaxy_score: Math.min(100, Math.round(
-          (item.data_sources * 15) + // More exchanges = higher score
-          (Math.min(50, (item.total_volume / 1000000))) + // Volume contribution
-          (item.market_dominance * 2) // Market dominance contribution
-        )),
-        alt_rank: 0,
-        sentiment: item.weighted_change || 0,
-        social_volume: Math.round(item.total_volume || 0),
-        social_dominance: item.market_dominance || 0,
-        fomo_score: Math.min(100, Math.max(0, 50 + (item.weighted_change * 2))) // FOMO based on price change
+      // Filter and sort by galaxy_score to get top social assets
+      const topSocial = data?.data
+        ?.filter((coin: any) => coin.galaxy_score > 50) // Only high-scoring assets
+        ?.sort((a: any, b: any) => (b.galaxy_score || 0) - (a.galaxy_score || 0))
+        ?.slice(0, 25); // Top 25 assets
+      
+      return topSocial?.map((coin: any) => ({
+        name: coin.name,
+        symbol: coin.symbol,
+        galaxy_score: coin.galaxy_score || 0,
+        alt_rank: coin.alt_rank || 0,
+        sentiment: coin.sentiment || 0,
+        social_volume: coin.social_volume || 0,
+        social_dominance: coin.social_dominance || 0,
+        fomo_score: Math.min(100, Math.max(0, 50 + ((coin.percent_change_24h || 0) * 2)))
       })) || [];
     },
-    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
-    staleTime: 4 * 60 * 1000, // Consider stale after 4 minutes
+    refetchInterval: 15 * 60 * 1000, // Refresh every 15 minutes
+    staleTime: 14 * 60 * 1000, // Consider stale after 14 minutes
   });
 
-  // Use exchange data if available, otherwise fall back to brief snapshot
-  const dataSource = exchangeData || marketData?.content_sections?.market_data?.social_sentiment;
+  // Use universe data if available, otherwise fall back to brief snapshot
+  const dataSource = universeData || marketData?.content_sections?.market_data?.social_sentiment;
   let socialAssets: SocialAsset[] = Array.isArray(dataSource) ? dataSource : [];
 
   // Fallback 1: use aggregated social_data.top_social_assets if detailed list is empty
@@ -142,7 +136,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Wifi className="h-4 w-4 text-green-500 animate-pulse" />
         <span>
-          {isLoading ? 'Loading exchange data...' : `Live exchange data • ${socialAssets.length} assets tracked`}
+          {isLoading ? 'Loading social data...' : `Live LunarCrush data • ${socialAssets.length} assets tracked`}
         </span>
       </div>
 
@@ -211,7 +205,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
-            Market Intelligence (Multi-Exchange Data)
+            Social Sentiment Intelligence (LunarCrush)
           </CardTitle>
         </CardHeader>
         <CardContent>
