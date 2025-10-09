@@ -22,6 +22,8 @@ import Privacy from "./pages/Privacy";
 import NotFound from "./pages/NotFound";
 import AdminIndex from "./pages/Admin/Index";
 import Auth from "./pages/Auth";
+import CryptoUniverse from "./pages/CryptoUniverse";
+import CryptoUniverseDetail from "./pages/CryptoUniverseDetail";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -56,6 +58,8 @@ const App = () => (
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/crypto-universe" element={<CryptoUniverse />} />
+                <Route path="/crypto-universe/:symbol" element={<CryptoUniverseDetail />} />
                 <Route path="/admin" element={
                   <ProtectedRoute requireAdmin={true}>
                     <AdminIndex />

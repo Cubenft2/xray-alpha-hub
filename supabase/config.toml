@@ -53,3 +53,9 @@ verify_jwt = false
 
 [functions.lunarcrush-news]
 verify_jwt = false
+
+[functions.lunarcrush-universe]
+verify_jwt = false
+
+[functions.lunarcrush-coin-detail]
+verify_jwt = false
