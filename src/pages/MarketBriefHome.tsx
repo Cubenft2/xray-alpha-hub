@@ -135,7 +135,7 @@ export default function MarketBriefHome() {
   }, []);
 
   // Function to map ticker symbols to TradingView format for charts
-  // Priority: DB mapping > Capabilities > Local config > Smart heuristic
+  // Priority: DB mapping > Capabilities > Overrides > Local config > Smart heuristic
   const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
     const upperTicker = ticker.toUpperCase().trim();
     
@@ -155,18 +155,22 @@ export default function MarketBriefHome() {
       
       // If TV is supported and we have a symbol, use it
       if (dbMap.tradingview_supported && dbMap.tradingview_symbol) {
+        console.log('🎯 Using DB mapping for', upperTicker, '->', dbMap.tradingview_symbol);
         return { symbol: dbMap.tradingview_symbol, displayName };
       }
       
       // If TV is not supported, return plain ticker (MiniChart will use fallback)
       if (dbMap.tradingview_supported === false) {
+        console.log('🧩 DB says TV unsupported for', upperTicker, '— using fallback');
         return { symbol: upperTicker, displayName };
       }
       
       // If we have type info but no TV symbol, apply smart default
       if (dbMap.type === 'stock') {
+        console.log('ℹ️ DB type=stock but no TV symbol for', upperTicker, '— defaulting to NASDAQ');
         return { symbol: `NASDAQ:${upperTicker}`, displayName };
       }
+      console.log('ℹ️ DB type=crypto (or unknown) for', upperTicker, '— defaulting to USD pair');
       return { symbol: `${upperTicker}USD`, displayName };
     }
 
@@ -176,30 +180,48 @@ export default function MarketBriefHome() {
       const displayName = cap.display_name || upperTicker;
       
       if (cap.has_tv && cap.tradingview_symbol) {
+        console.log('🎯 Using capabilities TV symbol for', upperTicker, '->', cap.tradingview_symbol);
         return { symbol: cap.tradingview_symbol, displayName };
       }
       
       if (cap.asset_type === 'stock') {
+        console.log('ℹ️ Cap type=stock for', upperTicker, '— defaulting to NASDAQ');
         return { symbol: `NASDAQ:${upperTicker}`, displayName };
       }
       
       if (cap.asset_type === 'crypto') {
+        console.log('ℹ️ Cap type=crypto for', upperTicker, '— defaulting to USD pair');
         return { symbol: `${upperTicker}USD`, displayName };
       }
     }
 
-    // 3) Local mapping config
+    // 3) Explicit overrides for known edge cases
+    const OVERRIDES: Record<string, { symbol: string; displayName?: string }> = {
+      QTWO: { symbol: 'NYSE:QTWO' },
+      COAI: { symbol: 'COAIUSDT' },
+    };
+    const ov = OVERRIDES[upperTicker];
+    if (ov) {
+      const displayName = ov.displayName || upperTicker;
+      console.log('🎯 Using override mapping for', upperTicker, '->', ov.symbol);
+      return { symbol: ov.symbol, displayName };
+    }
+
+    // 4) Local mapping config
     const localMapping = getTickerMapping(upperTicker);
     if (localMapping) {
+      console.log('📘 Using local mapping for', upperTicker, '->', localMapping.symbol);
       return { symbol: localMapping.symbol, displayName: localMapping.displayName };
     }
 
-    // 4) Smart heuristic: short tickers (2-5 letters) not in crypto list = likely stock
+    // 5) Smart heuristic: short tickers (2-5 letters) not in crypto list = likely stock
     if (/^[A-Z]{2,5}$/.test(upperTicker) && !KNOWN_CRYPTO.has(upperTicker)) {
+      console.log('🧠 Heuristic chose stock for', upperTicker, '-> NASDAQ');
       return { symbol: `NASDAQ:${upperTicker}`, displayName: upperTicker };
     }
 
-    // 5) Final fallback: assume crypto
+    // 6) Final fallback: assume crypto
+    console.log('🧠 Heuristic chose crypto for', upperTicker, '-> USD pair');
     return {
       symbol: `${upperTicker}USD`,
       displayName: upperTicker
