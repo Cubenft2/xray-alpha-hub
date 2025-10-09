@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     );
 
     const cacheKey = `lunarcrush:coin:${coinIdentifier.toLowerCase()}`;
-    const cacheTTL = 900; // 15 minutes
+    const cacheTTL = 1800; // 30 minutes
 
     // Check cache
     const { data: cachedData } = await supabase

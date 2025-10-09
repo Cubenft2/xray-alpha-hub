@@ -120,8 +120,8 @@ serve(async (req) => {
 
     console.log(`✅ Fetched ${assets.length} assets from LunarCrush`);
 
-    // Cache for 15 minutes
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    // Cache for 30 minutes
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
     await supabase
       .from('cache_kv')
       .upsert({

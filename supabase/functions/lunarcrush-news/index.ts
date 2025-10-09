@@ -43,7 +43,7 @@ interface NewsItem {
 }
 
 const CACHE_KEY = 'lunarcrush_news_cache';
-const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
 const TOPICS = ['bitcoin', 'ethereum', 'solana', 'crypto', 'stocks'];
 

@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     );
 
     const cacheKey = 'lunarcrush:universe:v1';
-    const cacheTTL = 3600; // 1 hour
+    const cacheTTL = 14400; // 4 hours
 
     // Check cache
     const { data: cachedData } = await supabase
