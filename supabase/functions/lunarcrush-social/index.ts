@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const lunarcrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY')!;
+const lunarcrushMcpUrl = 'https://lunarcrush.ai/mcp?key=faa6tt93zhhvfrrwsdbneqlsfimgjm6gwuwet02rt';
 
 interface LunarCrushAsset {
   name: string;
@@ -53,18 +53,14 @@ serve(async (req) => {
       );
     }
 
-    console.log('📡 Fetching fresh data from LunarCrush...');
+    console.log('📡 Fetching fresh data from LunarCrush MCP...');
 
-    // Fetch top 50 coins from LunarCrush
-    const response = await fetch(
-      'https://lunarcrush.com/api4/public/coins/list/v2?limit=50&sort=galaxy_score',
-      {
-        headers: {
-          'Authorization': `Bearer ${lunarcrushApiKey}`,
-          'accept': 'application/json'
-        }
+    // Fetch data from LunarCrush MCP endpoint
+    const response = await fetch(lunarcrushMcpUrl, {
+      headers: {
+        'accept': 'application/json'
       }
-    );
+    });
 
     if (!response.ok) {
       console.error(`❌ LunarCrush API error: ${response.status}`);
@@ -75,14 +71,14 @@ serve(async (req) => {
     }
 
     const lunarcrushJson = await response.json();
-    const assets: LunarCrushAsset[] = lunarcrushJson.data.slice(0, 50).map((coin: any) => ({
+    const assets: LunarCrushAsset[] = (lunarcrushJson.data || []).map((coin: any) => ({
       name: coin.name,
       symbol: coin.symbol,
-      galaxy_score: coin.galaxy_score,
-      alt_rank: coin.alt_rank,
-      social_volume: coin.social_volume,
-      social_dominance: coin.social_dominance,
-      sentiment: coin.sentiment,
+      galaxy_score: coin.galaxy_score || 0,
+      alt_rank: coin.alt_rank || 0,
+      social_volume: coin.social_volume || 0,
+      social_dominance: coin.social_dominance || 0,
+      sentiment: coin.sentiment || 0,
       fomo_score: coin.fomo_score || 0
     }));
 
