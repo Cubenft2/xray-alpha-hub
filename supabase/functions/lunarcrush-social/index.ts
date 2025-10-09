@@ -81,7 +81,13 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
+      let errorText = '';
+      try {
+        // Try to read error body, but don't crash if connection is closed
+        errorText = await response.text();
+      } catch (e) {
+        errorText = `Unable to read error body: ${e.message}`;
+      }
       console.error(`❌ LunarCrush MCP error: ${response.status}`, errorText.slice(0, 300));
       return new Response(
         JSON.stringify({ 
@@ -92,6 +98,9 @@ serve(async (req) => {
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`✅ SSE connection established: ${response.status}`);
+    console.log(`📋 Content-Type: ${response.headers.get('content-type')}`);
 
     // Parse SSE stream with timeout (SSE streams are long-lived, we just need the first data event)
     console.log('📡 Reading SSE stream...');
@@ -129,6 +138,7 @@ serve(async (req) => {
         for (const event of events) {
           const lines = event.split('\n');
           for (const line of lines) {
+            console.log(`📨 SSE line: ${line.slice(0, 100)}`); // Debug: log first 100 chars
             if (line.startsWith('data: ')) {
               try {
                 const jsonStr = line.substring(6);
