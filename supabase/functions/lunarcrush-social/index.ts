@@ -93,31 +93,77 @@ serve(async (req) => {
       );
     }
 
-    // Parse SSE stream
-    const responseText = await response.text();
-    console.log(`📦 Received SSE data (${responseText.length} bytes)`);
+    // Parse SSE stream with timeout (SSE streams are long-lived, we just need the first data event)
+    console.log('📡 Reading SSE stream...');
+    
+    const reader = response.body?.getReader();
+    if (!reader) {
+      console.error('❌ No readable stream available');
+      return new Response(
+        JSON.stringify({ error: 'No readable stream from LunarCrush SSE endpoint' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // SSE format: "data: {json}\n\n"
-    // Extract JSON from SSE events
-    const lines = responseText.split('\n');
+    const decoder = new TextDecoder();
+    let buffer = '';
     let lunarcrushJson: any = null;
+    const timeout = 5000; // 5 second timeout
+    const startTime = Date.now();
 
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        try {
-          const jsonStr = line.substring(6); // Remove "data: " prefix
-          const parsed = JSON.parse(jsonStr);
-          
-          // Check if this is the data event we want (not error or metadata)
-          if (parsed.data && Array.isArray(parsed.data)) {
-            lunarcrushJson = parsed;
-            console.log(`✅ Parsed SSE event with ${parsed.data.length} assets`);
-            break;
-          }
-        } catch (e) {
-          // Skip non-JSON lines or metadata events
-          continue;
+    try {
+      while (Date.now() - startTime < timeout) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          console.log('📭 Stream ended');
+          break;
         }
+        
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process complete SSE events (ending with \n\n)
+        const events = buffer.split('\n\n');
+        buffer = events.pop() || ''; // Keep incomplete event in buffer
+        
+        for (const event of events) {
+          const lines = event.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.substring(6);
+                const parsed = JSON.parse(jsonStr);
+                
+                // Check if this is the data event we want (not error or metadata)
+                if (parsed.data && Array.isArray(parsed.data)) {
+                  lunarcrushJson = parsed;
+                  console.log(`✅ Parsed SSE event with ${parsed.data.length} assets`);
+                  await reader.cancel(); // Close the stream
+                  break;
+                }
+              } catch (e) {
+                // Skip invalid JSON
+                console.log('⚠️ Skipping invalid JSON in SSE event');
+              }
+            }
+          }
+          if (lunarcrushJson) break;
+        }
+        if (lunarcrushJson) break;
+      }
+
+      // Cleanup: cancel reader if still open
+      if (!lunarcrushJson) {
+        await reader.cancel();
+        console.error(`❌ Timeout: No valid data received within ${timeout}ms`);
+        console.log(`Buffer sample: ${buffer.slice(0, 500)}`);
+      }
+    } catch (streamError) {
+      console.error('❌ Error reading SSE stream:', streamError);
+      try {
+        await reader.cancel();
+      } catch (e) {
+        // Ignore cancel errors
       }
     }
 
@@ -126,7 +172,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'No valid data in LunarCrush SSE stream',
-          sample: responseText.slice(0, 500)
+          sample: buffer.slice(0, 500)
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
