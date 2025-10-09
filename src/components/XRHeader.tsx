@@ -95,7 +95,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   return (
     <>
       <header className="xr-header relative overflow-visible">
-        <div className="container mx-auto flex h-14 items-center justify-between">
+        <div className="container mx-auto flex h-14 items-center justify-between gap-2 px-2 sm:px-4">
           {/* XRay Dog Logo & Brand */}
           <Link 
             to="/"
@@ -130,13 +130,13 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-3">
-            {navigation.map((item) => (
+          <nav className="hidden lg:flex items-center space-x-1">
+            {navigation.slice(0, 7).map((item) => (
               <Link key={item.name} to={item.href}>
                   <Button
                     variant={location.pathname === item.href ? "default" : "ghost"}
                     size="sm"
-                    className={`xr-nav-text ${location.pathname === item.href ? "btn-hero" : ""}`}
+                    className={`xr-nav-text px-2 text-xs ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
                   {item.href === '/support' ? (
                     <Heart className="w-3.5 h-3.5 text-red-500 animate-pulse" fill="currentColor" />
@@ -146,42 +146,54 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 </Button>
               </Link>
             ))}
+            {/* Show remaining items only on xl screens */}
+            <div className="hidden xl:flex items-center space-x-1">
+              {navigation.slice(7).map((item) => (
+                <Link key={item.name} to={item.href}>
+                  <Button
+                    variant={location.pathname === item.href ? "default" : "ghost"}
+                    size="sm"
+                    className={`xr-nav-text px-2 text-xs ${location.pathname === item.href ? "btn-hero" : ""}`}
+                  >
+                    {item.name}
+                  </Button>
+                </Link>
+              ))}
+            </div>
           </nav>
 
           {/* Search & Theme Toggle */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
             {(location.pathname === '/crypto' || location.pathname === '/markets') && (
-              <div className="flex items-center space-x-2">
-                <Search className="w-4 h-4 text-muted-foreground" />
+              <div className="flex items-center space-x-1">
+                <Search className="w-3.5 h-3.5 text-muted-foreground" />
                 <Input
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchSubmit}
-                  placeholder={location.pathname === '/crypto' ? "Crypto..." : "Stocks..."}
-                  className="w-24 md:w-32"
+                  placeholder={location.pathname === '/crypto' ? "Search..." : "Search..."}
+                  className="w-20 md:w-28 text-xs"
                 />
               </div>
             )}
 
             {/* Auth Buttons */}
             {user ? (
-              <div className="hidden md:flex items-center space-x-2">
+              <div className="hidden md:flex items-center space-x-1">
                 {isAdmin && (
                   <Link to="/admin">
-                    <Button variant="outline" size="sm" className="space-x-1">
-                      <Shield className="w-4 h-4" />
-                      <span>Admin</span>
+                    <Button variant="outline" size="sm" className="px-2">
+                      <Shield className="w-3.5 h-3.5" />
                     </Button>
                   </Link>
                 )}
-                <Button variant="ghost" size="sm" onClick={handleLogout} className="space-x-1">
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
+                <Button variant="ghost" size="sm" onClick={handleLogout} className="px-2">
+                  <LogOut className="w-3.5 h-3.5" />
                 </Button>
               </div>
             ) : (
               <Link to="/auth" className="hidden md:block">
-                <Button variant="outline" size="sm">Login</Button>
+                <Button variant="outline" size="sm" className="text-xs px-2">Login</Button>
               </Link>
             )}
             
