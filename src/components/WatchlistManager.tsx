@@ -105,7 +105,19 @@ export function WatchlistManager() {
 
   const handleChartClick = (item: WatchlistItem) => {
     if (item.type === 'crypto') {
-      navigate(`/crypto?symbol=${encodeURIComponent(item.symbol)}`);
+      // Extract the base symbol (remove exchange prefix and trading pair)
+      let baseSymbol = item.symbol;
+      
+      // If it has an exchange prefix (e.g., BINANCE:SOLUSDT), extract just the base
+      if (baseSymbol.includes(':')) {
+        baseSymbol = baseSymbol.split(':')[1];
+      }
+      
+      // Remove USD/USDT suffix to get the base coin symbol
+      baseSymbol = baseSymbol.replace(/(USD|USDT)$/i, '');
+      
+      // Navigate to CryptoUniverseDetail page
+      navigate(`/crypto-universe/${baseSymbol.toLowerCase()}`);
     } else {
       navigate(`/markets?symbol=${encodeURIComponent(item.symbol)}`);
     }

@@ -162,7 +162,7 @@ export default function CryptoUniverseDetail() {
         <CardContent className="p-0">
           <TradingViewChart 
             symbol={getMapping(coin.symbol)?.tradingview_symbol || `CRYPTO:${coin.symbol}USD`} 
-            height="500" 
+            height="500px" 
           />
         </CardContent>
       </Card>
