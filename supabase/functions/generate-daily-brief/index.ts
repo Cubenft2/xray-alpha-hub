@@ -865,22 +865,16 @@ serve(async (req) => {
     }
 
     try {
-      console.log('🌙 Fetching LunarCrush social data...');
-      const lunarcrushResponse = await fetch(
-        'https://lunarcrush.com/api4/public/coins/list/v2?limit=100&sort=galaxy_score',
-        {
-          headers: {
-            'Authorization': `Bearer ${lunarcrushApiKey}`,
-            'accept': 'application/json'
-          }
-        }
-      );
-      if (lunarcrushResponse.ok) {
-        const lunarcrushJson = await lunarcrushResponse.json();
-        lunarcrushData = lunarcrushJson || { data: [] };
+      console.log('🌙 Fetching LunarCrush social data via edge function...');
+      const { data: lunarcrushResponse, error: lunarcrushError } = await supabase.functions.invoke('lunarcrush-social');
+      
+      if (lunarcrushError) {
+        console.error('❌ LunarCrush edge function error:', lunarcrushError);
+      } else if (lunarcrushResponse?.data) {
+        lunarcrushData = { data: lunarcrushResponse.data };
         console.log(`✅ Fetched ${lunarcrushData.data?.length || 0} assets from LunarCrush`);
       } else {
-        console.error(`❌ LunarCrush API error: ${lunarcrushResponse.status} ${lunarcrushResponse.statusText}`);
+        console.warn('⚠️ No data returned from LunarCrush edge function');
       }
     } catch (err) {
       console.error('❌ LunarCrush fetch failed:', err);
