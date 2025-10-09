@@ -27,20 +27,42 @@ interface SocialSentimentBoardProps {
 export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) {
   const navigate = useNavigate();
 
-  // Fetch live LunarCrush data (refreshes every 15 minutes)
-  const { data: liveData, isLoading } = useQuery({
-    queryKey: ['lunarcrush-social'],
+  // Fetch exchange data from social_sentiment table (refreshes every 5 minutes)
+  const { data: exchangeData, isLoading } = useQuery({
+    queryKey: ['exchange-sentiment'],
     queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke('lunarcrush-social');
+      const { data, error } = await supabase
+        .from('social_sentiment')
+        .select('*')
+        .not('weighted_price', 'is', null)
+        .order('total_volume', { ascending: false })
+        .limit(25);
+      
       if (error) throw error;
-      return data;
+      
+      // Map exchange data to SocialAsset format
+      return data?.map((item: any) => ({
+        name: item.name || item.symbol.toUpperCase(),
+        symbol: item.symbol,
+        // Create synthetic scores from exchange metrics
+        galaxy_score: Math.min(100, Math.round(
+          (item.data_sources * 15) + // More exchanges = higher score
+          (Math.min(50, (item.total_volume / 1000000))) + // Volume contribution
+          (item.market_dominance * 2) // Market dominance contribution
+        )),
+        alt_rank: 0,
+        sentiment: item.weighted_change || 0,
+        social_volume: Math.round(item.total_volume || 0),
+        social_dominance: item.market_dominance || 0,
+        fomo_score: Math.min(100, Math.max(0, 50 + (item.weighted_change * 2))) // FOMO based on price change
+      })) || [];
     },
-    refetchInterval: 15 * 60 * 1000, // Refresh every 15 minutes
-    staleTime: 14 * 60 * 1000, // Consider stale after 14 minutes
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
+    staleTime: 4 * 60 * 1000, // Consider stale after 4 minutes
   });
 
-  // Use live data if available, otherwise fall back to brief snapshot
-  const dataSource = liveData?.data || marketData?.content_sections?.market_data?.social_sentiment;
+  // Use exchange data if available, otherwise fall back to brief snapshot
+  const dataSource = exchangeData || marketData?.content_sections?.market_data?.social_sentiment;
   let socialAssets: SocialAsset[] = Array.isArray(dataSource) ? dataSource : [];
 
   // Fallback 1: use aggregated social_data.top_social_assets if detailed list is empty
@@ -120,8 +142,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Wifi className="h-4 w-4 text-green-500 animate-pulse" />
         <span>
-          {liveData?.cached !== false ? 'Live data' : 'Loading...'}
-          {liveData?.age_seconds && ` • Updated ${formatDistanceToNow(new Date(Date.now() - liveData.age_seconds * 1000))} ago`}
+          {isLoading ? 'Loading exchange data...' : `Live exchange data • ${socialAssets.length} assets tracked`}
         </span>
       </div>
 
@@ -190,7 +211,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
-            Social Sentiment Analysis (LunarCrush)
+            Market Intelligence (Multi-Exchange Data)
           </CardTitle>
         </CardHeader>
         <CardContent>
