@@ -9,7 +9,7 @@ import { MiniChart } from '@/components/MiniChart';
 import { MarketOverview } from '@/components/MarketOverview';
 import { EnhancedBriefRenderer } from '@/components/EnhancedBriefRenderer';
 import { ComprehensiveTopMovers } from '@/components/ComprehensiveTopMovers';
-import { SocialSentimentBoard } from '@/components/SocialSentimentBoard';
+
 import { StoicQuote } from '@/components/StoicQuote';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
@@ -814,19 +814,6 @@ export default function MarketBriefHome() {
               </div>
             )}
 
-            {/* Social Sentiment Section */}
-            <div className="border-2 border-primary/20 rounded-lg p-6 bg-primary/5 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-primary" />
-                <div>
-                  <h3 className="text-lg font-semibold">Social Sentiment Intelligence</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Real-time social metrics from LunarCrush • Updates every 15 minutes
-                  </p>
-                </div>
-              </div>
-              <SocialSentimentBoard marketData={briefData} />
-            </div>
             
             {/* News Sentiment Overview Section */}
             {briefData?.content_sections?.polygon_analysis && (
