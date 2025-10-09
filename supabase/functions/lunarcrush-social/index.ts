@@ -8,7 +8,11 @@ const corsHeaders = {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const lunarcrushMcpUrl = 'https://lunarcrush.ai/mcp?key=faa6tt93zhhvfrrwsdbneqlsfimgjm6gwuwet02rt';
+const lunarcrushMcpKey = Deno.env.get('LUNARCRUSH_MCP_KEY') ?? Deno.env.get('LUNARCRUSH_API_KEY');
+if (!lunarcrushMcpKey) {
+  console.warn('⚠️ Missing LUNARCRUSH_MCP_KEY and LUNARCRUSH_API_KEY in environment');
+}
+
 
 interface LunarCrushAsset {
   name: string;
@@ -53,24 +57,99 @@ serve(async (req) => {
       );
     }
 
-    console.log('📡 Fetching fresh data from LunarCrush MCP...');
-
-    // Fetch data from LunarCrush MCP endpoint
-    const response = await fetch(lunarcrushMcpUrl, {
-      headers: {
-        'accept': 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      console.error(`❌ LunarCrush API error: ${response.status}`);
+    // Key guard
+    if (!lunarcrushMcpKey) {
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch LunarCrush data' }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Missing LunarCrush API key. Please set LUNARCRUSH_MCP_KEY or LUNARCRUSH_API_KEY in Supabase secrets.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const lunarcrushJson = await response.json();
+    console.log('📡 Fetching fresh data from LunarCrush MCP...');
+
+    // Multiple strategies to avoid 406 and auth issues
+    const strategies = [
+      {
+        name: 'GET ?key=... Accept: application/json',
+        request: () => fetch(`https://lunarcrush.ai/mcp?key=${encodeURIComponent(lunarcrushMcpKey!)}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'User-Agent': 'xraycrypto-edge/1.0'
+          }
+        })
+      },
+      {
+        name: 'GET Authorization: Bearer',
+        request: () => fetch('https://lunarcrush.ai/mcp', {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${lunarcrushMcpKey}`,
+            'User-Agent': 'xraycrypto-edge/1.0'
+          }
+        })
+      },
+      {
+        name: 'POST JSON body',
+        request: () => fetch('https://lunarcrush.ai/mcp', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'xraycrypto-edge/1.0'
+          },
+          body: JSON.stringify({ key: lunarcrushMcpKey })
+        })
+      },
+      {
+        name: 'GET ?key=... Accept */*',
+        request: () => fetch(`https://lunarcrush.ai/mcp?key=${encodeURIComponent(lunarcrushMcpKey!)}`, {
+          method: 'GET',
+          headers: {
+            'Accept': '*/*',
+            'User-Agent': 'xraycrypto-edge/1.0'
+          }
+        })
+      }
+    ];
+
+    let lunarcrushJson: any = null;
+    let lastError: any = null;
+
+    for (const strat of strategies) {
+      try {
+        console.log(`🔄 Trying LunarCrush MCP strategy: ${strat.name}`);
+        const res = await strat.request();
+        const text = await res.text();
+        if (!res.ok) {
+          console.error(`❌ Strategy failed (${strat.name}) status=${res.status} body=${text.slice(0, 300)}`);
+          lastError = { status: res.status, body: text.slice(0, 300) };
+          continue;
+        }
+        try {
+          lunarcrushJson = JSON.parse(text);
+        } catch (e) {
+          console.error(`❌ Strategy returned non-JSON (${strat.name}) body=${text.slice(0, 200)}`);
+          lastError = { parseError: true, body: text.slice(0, 200) };
+          continue;
+        }
+        console.log(`✅ Strategy succeeded: ${strat.name}`);
+        break;
+      } catch (err) {
+        console.error(`❌ Strategy threw error (${strat.name}):`, err);
+        lastError = err instanceof Error ? err.message : String(err);
+      }
+    }
+
+    if (!lunarcrushJson) {
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch LunarCrush data', details: lastError }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    
     const assets: LunarCrushAsset[] = (lunarcrushJson.data || []).map((coin: any) => ({
       name: coin.name,
       symbol: coin.symbol,
