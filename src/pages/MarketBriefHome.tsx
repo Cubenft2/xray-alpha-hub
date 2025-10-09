@@ -18,6 +18,7 @@ import { toZonedTime } from 'date-fns-tz';
 import { format } from 'date-fns';
 import { NewsSentimentOverview } from '@/components/NewsSentimentOverview';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
+import { useSymbolValidation } from '@/hooks/useSymbolValidation';
 
 interface MarketBrief {
   slug: string;
@@ -42,12 +43,14 @@ export default function MarketBriefHome() {
   const [generating, setGenerating] = useState(false);
   const [extractedTickers, setExtractedTickers] = useState<string[]>([]);
   const [quotesTimestamp, setQuotesTimestamp] = useState<string | null>(null);
+  const [capabilities, setCapabilities] = useState<Record<string, any>>({});
   
   const [imageLoaded, setImageLoaded] = useState(false);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const { toast } = useToast();
-const { theme } = useTheme();
+  const { theme } = useTheme();
   const { getMapping: getDbMapping } = useTickerMappings();
+  const { validateSymbols, isValidating } = useSymbolValidation();
 
   // Memoize tickers array to prevent page reloads
   const allTickers = useMemo(() => [
@@ -61,14 +64,54 @@ const { theme } = useTheme();
 
   const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
 
+  // Validate symbols when extracted tickers change
+  useEffect(() => {
+    if (extractedTickers.length > 0) {
+      validateSymbols(extractedTickers).then((result) => {
+        if (result?.found) {
+          const capMap: Record<string, any> = {};
+          result.found.forEach((item) => {
+            capMap[item.normalized.toUpperCase()] = item;
+          });
+          setCapabilities(capMap);
+          console.log('📊 Symbol capabilities loaded:', capMap);
+        }
+      });
+    }
+  }, [extractedTickers, validateSymbols]);
+
   // Helper to get asset metadata for MiniChart
   const getAssetMetadata = (ticker: string) => {
-    const dbMap = getDbMapping(ticker.toUpperCase());
+    const upperTicker = ticker.toUpperCase();
+    const cap = capabilities[upperTicker];
+    const dbMap = getDbMapping(upperTicker);
+    
+    // Prefer capabilities data from symbol-intelligence
+    if (cap) {
+      return {
+        assetType: cap.asset_type as 'crypto' | 'stock' | 'index' | 'forex' | undefined,
+        coingeckoId: cap.coingecko_id || undefined,
+        polygonTicker: cap.polygon_ticker || undefined,
+        tvOk: cap.has_tv ?? true
+      };
+    }
+    
+    // Fallback to DB mapping
+    if (dbMap) {
+      return {
+        assetType: dbMap.type as 'crypto' | 'stock' | 'index' | 'forex' | undefined,
+        coingeckoId: dbMap.coingecko_id || undefined,
+        polygonTicker: dbMap.polygon_ticker || undefined,
+        tvOk: dbMap.tradingview_supported ?? true
+      };
+    }
+    
+    // Default
     return {
-      assetType: dbMap?.type as 'crypto' | 'stock' | 'index' | 'forex' | undefined,
-      coingeckoId: dbMap?.coingecko_id || undefined,
-      polygonTicker: dbMap?.polygon_ticker || undefined,
-      tvOk: dbMap?.tradingview_supported ?? true
+      assetType: undefined,
+      coingeckoId: undefined,
+      polygonTicker: undefined,
+      tvOk: true
     };
   };
 
@@ -91,35 +134,72 @@ const { theme } = useTheme();
     fetchQuotesTimestamp();
   }, []);
 
-// Function to map ticker symbols to TradingView format for charts
-  // Resolves from database first, then local config, then sensible crypto fallback
+  // Function to map ticker symbols to TradingView format for charts
+  // Priority: DB mapping > Capabilities > Local config > Smart heuristic
   const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
     const upperTicker = ticker.toUpperCase().trim();
+    
+    // Known crypto tickers to avoid stock prefixes
+    const KNOWN_CRYPTO = new Set([
+      'BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'USDC', 'XRP', 'ADA', 'AVAX', 'DOGE',
+      'TRX', 'TON', 'LINK', 'SHIB', 'DOT', 'MATIC', 'UNI', 'LTC', 'BCH', 'NEAR',
+      'ICP', 'APT', 'FIL', 'ARB', 'OP', 'HBAR', 'VET', 'MKR', 'ATOM', 'IMX',
+      'RNDR', 'STX', 'INJ', 'GRT', 'RUNE', 'FTM', 'ALGO', 'SAND', 'MANA', 'AAVE',
+      'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER', 'SX'
+    ]);
 
-    // 1) Database mapping (authoritative)
+    // 1) Database mapping (highest priority)
     const dbMap = getDbMapping(upperTicker);
     if (dbMap) {
-      const tvSymbol = dbMap.tradingview_symbol || undefined;
       const displayName = dbMap.display_name || upperTicker;
-      if (tvSymbol) {
-        return { symbol: tvSymbol, displayName };
+      
+      // If TV is supported and we have a symbol, use it
+      if (dbMap.tradingview_supported && dbMap.tradingview_symbol) {
+        return { symbol: dbMap.tradingview_symbol, displayName };
       }
-      // If DB knows the asset but no TV symbol, fall back to local mapping or crypto default
-      const local = getTickerMapping(upperTicker);
-      if (local) return { symbol: local.symbol, displayName: local.displayName };
-      return {
-        symbol: dbMap.type === 'stock' ? `NASDAQ:${upperTicker}` : `${upperTicker}USD`,
-        displayName
-      };
+      
+      // If TV is not supported, return plain ticker (MiniChart will use fallback)
+      if (dbMap.tradingview_supported === false) {
+        return { symbol: upperTicker, displayName };
+      }
+      
+      // If we have type info but no TV symbol, apply smart default
+      if (dbMap.type === 'stock') {
+        return { symbol: `NASDAQ:${upperTicker}`, displayName };
+      }
+      return { symbol: `${upperTicker}USD`, displayName };
     }
 
-    // 2) Local mapping config
+    // 2) Capabilities from symbol-intelligence
+    const cap = capabilities[upperTicker];
+    if (cap) {
+      const displayName = cap.display_name || upperTicker;
+      
+      if (cap.has_tv && cap.tradingview_symbol) {
+        return { symbol: cap.tradingview_symbol, displayName };
+      }
+      
+      if (cap.asset_type === 'stock') {
+        return { symbol: `NASDAQ:${upperTicker}`, displayName };
+      }
+      
+      if (cap.asset_type === 'crypto') {
+        return { symbol: `${upperTicker}USD`, displayName };
+      }
+    }
+
+    // 3) Local mapping config
     const localMapping = getTickerMapping(upperTicker);
     if (localMapping) {
       return { symbol: localMapping.symbol, displayName: localMapping.displayName };
     }
 
-    // 3) Sensible fallback: prefer crypto formatting to avoid wrong NASDAQ default
+    // 4) Smart heuristic: short tickers (2-5 letters) not in crypto list = likely stock
+    if (/^[A-Z]{2,5}$/.test(upperTicker) && !KNOWN_CRYPTO.has(upperTicker)) {
+      return { symbol: `NASDAQ:${upperTicker}`, displayName: upperTicker };
+    }
+
+    // 5) Final fallback: assume crypto
     return {
       symbol: `${upperTicker}USD`,
       displayName: upperTicker
