@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.lunarcrush-social]
 verify_jwt = false
+
+[functions.lunarcrush-news]
+verify_jwt = false

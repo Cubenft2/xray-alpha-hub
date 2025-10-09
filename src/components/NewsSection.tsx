@@ -20,6 +20,16 @@ interface NewsItem {
   keywords?: string[];
   imageUrl?: string;
   author?: string;
+  // LunarCrush social engagement data
+  socialEngagement?: {
+    interactions24h: number;
+    interactionsTotal: number;
+    creatorFollowers: number;
+    creatorName: string;
+    creatorDisplayName?: string;
+    creatorAvatar?: string;
+    postSentiment: number;
+  };
 }
 
 interface NewsSectionProps {
@@ -37,6 +47,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [newItemsCount, setNewItemsCount] = useState({ crypto: 0, stocks: 0, trump: 0 });
   const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const [viewMode, setViewMode] = useState<'all' | 'trending'>('all');
   const [polygonAlert, setPolygonAlert] = useState<{
     count: number;
     latestHeadline: string;
@@ -49,28 +60,47 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const fetchNews = async () => {
     console.log('🐕 XRay: Starting fetchNews function...');
     setIsLoading(true);
-    console.log('🐕 XRay: Fetching news via edge function...');
+    console.log('🐕 XRay: Fetching news via edge functions...');
 
     try {
-      console.log('🐕 XRay: About to invoke supabase function...');
-      const { data, error } = await supabase.functions.invoke('news-fetch', {
-        body: { limit: 100 }
-      });
+      // Fetch both regular news and LunarCrush social news in parallel
+      const [regularNewsResult, socialNewsResult] = await Promise.all([
+        supabase.functions.invoke('news-fetch', { body: { limit: 100 } }),
+        supabase.functions.invoke('lunarcrush-news', { body: {} })
+      ]);
 
-      console.log('🐕 XRay: Supabase function response:', { data, error });
+      console.log('🐕 XRay: Regular news response:', regularNewsResult);
+      console.log('🐕 XRay: LunarCrush news response:', socialNewsResult);
 
-      if (error) {
-        console.error('🐕 XRay: Supabase function error:', error);
-        throw error;
+      if (regularNewsResult.error) {
+        console.error('🐕 XRay: Regular news error:', regularNewsResult.error);
+        throw regularNewsResult.error;
       }
-      if (!data) {
-        console.error('🐕 XRay: No data from edge function');
-        throw new Error('No data from edge function');
+      if (!regularNewsResult.data) {
+        throw new Error('No data from news-fetch');
       }
 
-      const cryptoItems: NewsItem[] = Array.isArray(data.crypto) ? data.crypto : [];
-      const stocksItems: NewsItem[] = Array.isArray(data.stocks) ? data.stocks : [];
-      const trumpItems: NewsItem[] = Array.isArray(data.trump) ? data.trump : [];
+      const cryptoItems: NewsItem[] = Array.isArray(regularNewsResult.data.crypto) ? regularNewsResult.data.crypto : [];
+      const stocksItems: NewsItem[] = Array.isArray(regularNewsResult.data.stocks) ? regularNewsResult.data.stocks : [];
+      const trumpItems: NewsItem[] = Array.isArray(regularNewsResult.data.trump) ? regularNewsResult.data.trump : [];
+
+      // Merge with LunarCrush social news if available
+      if (socialNewsResult.data && !socialNewsResult.error) {
+        const socialCrypto: NewsItem[] = Array.isArray(socialNewsResult.data.crypto) ? socialNewsResult.data.crypto : [];
+        const socialStocks: NewsItem[] = Array.isArray(socialNewsResult.data.stocks) ? socialNewsResult.data.stocks : [];
+        
+        // Merge by URL to avoid duplicates, prioritize social news
+        const mergeNews = (regular: NewsItem[], social: NewsItem[]) => {
+          const urlSet = new Set(social.map(item => item.url));
+          const uniqueRegular = regular.filter(item => !urlSet.has(item.url));
+          return [...social, ...uniqueRegular];
+        };
+
+        cryptoItems.push(...mergeNews([], socialCrypto));
+        stocksItems.push(...mergeNews([], socialStocks));
+        
+        console.log(`✅ Merged LunarCrush social news: ${socialCrypto.length} crypto, ${socialStocks.length} stocks`);
+      }
 
       console.log('🐕 XRay: Parsed news items:', {
         cryptoCount: cryptoItems.length,
@@ -193,6 +223,12 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     return `${Math.floor(hours / 24)}d ago`;
   };
 
+  const formatEngagement = (num: number) => {
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+  };
+
   const NewsCard = ({ item, isNew = false }: { item: NewsItem; isNew?: boolean }) => {
     const isBlockedSite = (() => {
       try {
@@ -226,13 +262,36 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     return (
       <div className={`border border-border rounded-lg overflow-hidden hover-glow-news cursor-pointer transition-all duration-500 ${
         isNew ? 'animate-slide-in-top bg-primary/5 border-primary/30' : ''
-      }`}>
+      } ${item.socialEngagement ? 'border-orange-500/30' : ''}`}>
         {item.imageUrl && (
           <div className="hidden">
             <img src={item.imageUrl} alt={item.title} loading="lazy" />
           </div>
         )}
         <div className="p-4">
+          {item.socialEngagement && (
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/50">
+              {item.socialEngagement.creatorAvatar && (
+                <img 
+                  src={item.socialEngagement.creatorAvatar} 
+                  alt={item.socialEngagement.creatorName}
+                  className="w-6 h-6 rounded-full"
+                  loading="lazy"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium truncate">
+                  {item.socialEngagement.creatorDisplayName || item.socialEngagement.creatorName}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {formatEngagement(item.socialEngagement.creatorFollowers)} followers
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-orange-500">
+                🔥 {formatEngagement(item.socialEngagement.interactions24h)}
+              </div>
+            </div>
+          )}
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-start gap-2 flex-1">
               {isNew && (
@@ -348,6 +407,21 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const filteredStocksNews = filterNews(stocksNews);
   const filteredTrumpNews = filterNews(trumpNews);
 
+  // Apply trending filter
+  const applyTrendingFilter = (news: NewsItem[]) => {
+    if (viewMode === 'all') return news;
+    // Show only items with social engagement and sort by interactions
+    return news
+      .filter(item => item.socialEngagement && item.socialEngagement.interactions24h > 0)
+      .sort((a, b) => 
+        (b.socialEngagement?.interactions24h || 0) - (a.socialEngagement?.interactions24h || 0)
+      );
+  };
+
+  const displayCryptoNews = applyTrendingFilter(filteredCryptoNews);
+  const displayStocksNews = applyTrendingFilter(filteredStocksNews);
+  const displayTrumpNews = applyTrendingFilter(filteredTrumpNews);
+
   return (
     <div className="xr-card p-4" ref={newsTopRef}>
       {polygonAlert.show && (
@@ -383,18 +457,42 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         </div>
       </div>
 
+      <div className="flex items-center gap-2 mb-4">
+        <Button
+          variant={viewMode === 'all' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewMode('all')}
+          className="h-8"
+        >
+          All Sources
+        </Button>
+        <Button
+          variant={viewMode === 'trending' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewMode('trending')}
+          className="h-8"
+        >
+          🔥 Trending
+        </Button>
+        {viewMode === 'trending' && (
+          <span className="text-xs text-muted-foreground">
+            Sorted by social engagement
+          </span>
+        )}
+      </div>
+
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="crypto" className="text-xs hover-glow-tab transition-all duration-300">
-            <span className="hidden sm:inline">🚀 Crypto ({filteredCryptoNews.length})</span>
+            <span className="hidden sm:inline">🚀 Crypto ({displayCryptoNews.length})</span>
             <span className="sm:hidden">🚀 Crypto</span>
           </TabsTrigger>
           <TabsTrigger value="stocks" className="text-xs hover-glow-tab transition-all duration-300">
-            <span className="hidden sm:inline">📈 Markets ({filteredStocksNews.length})</span>
+            <span className="hidden sm:inline">📈 Markets ({displayStocksNews.length})</span>
             <span className="sm:hidden">📈 Stock</span>
           </TabsTrigger>
           <TabsTrigger value="trump" className="text-xs hover-glow-tab transition-all duration-300">
-            <span className="hidden sm:inline">🇺🇸 Trump ({filteredTrumpNews.length})</span>
+            <span className="hidden sm:inline">🇺🇸 Trump ({displayTrumpNews.length})</span>
             <span className="sm:hidden">🇺🇸 Trump</span>
           </TabsTrigger>
         </TabsList>
@@ -406,8 +504,8 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                 <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
                 Loading crypto news...
               </div>
-            ) : filteredCryptoNews.length > 0 ? (
-              filteredCryptoNews.map((item, index) => (
+            ) : displayCryptoNews.length > 0 ? (
+              displayCryptoNews.map((item, index) => (
                 <NewsCard 
                   key={item.url || item.title} 
                   item={item} 
@@ -416,7 +514,8 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
               ))
             ) : (
               <div className="text-center text-muted-foreground py-4">
-                {searchTerm ? `No crypto news found for "${searchTerm}"` : 'No crypto news available'}
+                {viewMode === 'trending' ? 'No trending crypto news available' :
+                 searchTerm ? `No crypto news found for "${searchTerm}"` : 'No crypto news available'}
               </div>
             )}
           </div>
@@ -429,8 +528,8 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                 <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
                 Loading market news...
               </div>
-            ) : filteredStocksNews.length > 0 ? (
-              filteredStocksNews.map((item, index) => (
+            ) : displayStocksNews.length > 0 ? (
+              displayStocksNews.map((item, index) => (
                 <NewsCard 
                   key={item.url || item.title} 
                   item={item} 
@@ -439,7 +538,8 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
               ))
             ) : (
               <div className="text-center text-muted-foreground py-4">
-                {searchTerm ? `No market news found for "${searchTerm}"` : 'No market news available'}
+                {viewMode === 'trending' ? 'No trending market news available' :
+                 searchTerm ? `No market news found for "${searchTerm}"` : 'No market news available'}
               </div>
             )}
           </div>
@@ -452,8 +552,8 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                 <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
                 Loading Trump news...
               </div>
-            ) : filteredTrumpNews.length > 0 ? (
-              filteredTrumpNews.map((item, index) => (
+            ) : displayTrumpNews.length > 0 ? (
+              displayTrumpNews.map((item, index) => (
                 <NewsCard 
                   key={item.url || item.title} 
                   item={item} 
@@ -462,7 +562,8 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
               ))
             ) : (
               <div className="text-center text-muted-foreground py-4">
-                {searchTerm ? `No Trump news found for "${searchTerm}"` : 'No Trump news available'}
+                {viewMode === 'trending' ? 'No trending Trump news available' :
+                 searchTerm ? `No Trump news found for "${searchTerm}"` : 'No Trump news available'}
               </div>
             )}
           </div>
