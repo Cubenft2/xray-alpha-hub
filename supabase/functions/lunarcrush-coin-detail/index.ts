@@ -27,9 +27,9 @@ Deno.serve(async (req) => {
     );
 
     const cacheKey = `lunarcrush:coin:${coinIdentifier.toLowerCase()}`;
-    const cacheTTL = 1800; // 30 minutes
+    const cacheTTL = 21600; // 6 hours (crypto details don't change that often)
 
-    // Check cache
+    // Check cache (fresh)
     const { data: cachedData } = await supabase
       .from('cache_kv')
       .select('value, expires_at')
@@ -38,11 +38,18 @@ Deno.serve(async (req) => {
       .single();
 
     if (cachedData?.value) {
-      console.log(`Returning cached data for ${coinIdentifier}`);
+      console.log(`✅ Returning cached data for ${coinIdentifier}`);
       return new Response(JSON.stringify(cachedData.value), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Also get expired cache as fallback for rate limiting
+    const { data: expiredCache } = await supabase
+      .from('cache_kv')
+      .select('value, expires_at')
+      .eq('key', cacheKey)
+      .single();
 
     // Fetch fresh data
     console.log(`Fetching fresh data for ${coinIdentifier}...`);
@@ -56,6 +63,13 @@ Deno.serve(async (req) => {
     );
 
     if (!response.ok) {
+      // If rate limited and we have expired cache, return that instead
+      if (response.status === 429 && expiredCache?.value) {
+        console.log(`⚠️ Rate limited! Returning expired cache for ${coinIdentifier}`);
+        return new Response(JSON.stringify(expiredCache.value), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       throw new Error(`LunarCrush API error: ${response.status} ${response.statusText}`);
     }
 
