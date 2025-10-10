@@ -146,8 +146,34 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Get platforms data for this coin
-        const platforms = platformsMap.get(mapping.coingecko_id);
+    // Get platforms data for this coin
+    const cgData = cgMaster?.find(c => c.cg_id === mapping.coingecko_id);
+    const platforms = platformsMap.get(mapping.coingecko_id);
+    
+    // Skip if coin enrichment failed or has no platforms
+    if (cgData?.enrichment_status === 'no_platforms') {
+      console.log(`⏭️ Skipping ${mapping.symbol} - marked as no_platforms in enrichment`);
+      stats.skipped++;
+      stats.skipReasons.nativeCoin++;
+      stats.details.push({
+        symbol: mapping.symbol,
+        action: 'skipped',
+        reason: 'No platforms (native coin or non-ERC token)'
+      });
+      continue;
+    }
+    
+    if (cgData?.enrichment_status === 'error') {
+      console.log(`⚠️ ${mapping.symbol} - enrichment error: ${cgData.enrichment_error}`);
+      stats.skipped++;
+      stats.skipReasons.noValidAddress++;
+      stats.details.push({
+        symbol: mapping.symbol,
+        action: 'skipped',
+        reason: `Enrichment error: ${cgData.enrichment_error}`
+      });
+      continue;
+    }
         
         // Skip native coins ONLY if they also have no platform data
         if (NATIVE_COINS.includes(mapping.symbol) && 

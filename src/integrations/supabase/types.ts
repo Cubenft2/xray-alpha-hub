@@ -96,6 +96,9 @@ export type Database = {
         Row: {
           cg_id: string
           created_at: string | null
+          enriched_at: string | null
+          enrichment_error: string | null
+          enrichment_status: string | null
           id: string
           name: string
           platforms: Json | null
@@ -105,6 +108,9 @@ export type Database = {
         Insert: {
           cg_id: string
           created_at?: string | null
+          enriched_at?: string | null
+          enrichment_error?: string | null
+          enrichment_status?: string | null
           id?: string
           name: string
           platforms?: Json | null
@@ -114,6 +120,9 @@ export type Database = {
         Update: {
           cg_id?: string
           created_at?: string | null
+          enriched_at?: string | null
+          enrichment_error?: string | null
+          enrichment_status?: string | null
           id?: string
           name?: string
           platforms?: Json | null

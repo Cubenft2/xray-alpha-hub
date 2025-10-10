@@ -5,6 +5,7 @@ import { PendingTickerMappings } from './PendingTickerMappings';
 import { GenerateBrief } from './GenerateBrief';
 import { PolygonSync } from './PolygonSync';
 import { PolygonDataAdmin } from './PolygonDataAdmin';
+import { CoinGeckoEnrich } from './CoinGeckoEnrich';
 
 export default function AdminIndex() {
   return (
@@ -16,6 +17,7 @@ export default function AdminIndex() {
           <TabsTrigger value="generate-brief">Generate Brief</TabsTrigger>
           <TabsTrigger value="missing-tickers">Missing Tickers</TabsTrigger>
           <TabsTrigger value="symbol-intelligence">Symbol Intelligence</TabsTrigger>
+          <TabsTrigger value="coingecko-enrich">CoinGecko Enrich</TabsTrigger>
           <TabsTrigger value="polygon-sync">Polygon Sync</TabsTrigger>
           <TabsTrigger value="polygon-data">Polygon Data</TabsTrigger>
         </TabsList>
@@ -30,6 +32,10 @@ export default function AdminIndex() {
 
         <TabsContent value="symbol-intelligence">
           <SymbolAdmin />
+        </TabsContent>
+
+        <TabsContent value="coingecko-enrich">
+          <CoinGeckoEnrich />
         </TabsContent>
 
         <TabsContent value="polygon-sync">
