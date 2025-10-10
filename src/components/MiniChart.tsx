@@ -76,11 +76,11 @@ export function MiniChart({
     // Clear previous widget
     containerRef.current.innerHTML = '';
 
-    // Set 8-second timeout for widget load
+    // Set 5-second timeout for widget load (faster fallback)
     const loadTimeout = setTimeout(() => {
-      console.warn(`TradingView widget timeout for ${symbol}`);
+      console.warn(`⚠️ TradingView widget timeout for ${symbol} (${formattedSymbol}) - falling back to sparkline`);
       setWidgetLoadFailed(true);
-    }, 8000);
+    }, 5000);
 
     console.log(`📈 Loading TradingView chart for ${formattedSymbol} (original: ${symbol})`);
 
