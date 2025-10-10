@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -43,10 +44,6 @@ export interface Filters {
 }
 
 export function useLunarCrushUniverse() {
-  const [coins, setCoins] = useState<CoinData[]>([]);
-  const [metadata, setMetadata] = useState<UniverseMetadata | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<keyof CoinData>('market_cap_rank');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -63,36 +60,38 @@ export function useLunarCrushUniverse() {
   });
 
   const fetchCoins = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    const { data, error: funcError } = await supabase.functions.invoke('lunarcrush-universe');
 
-      const { data, error: funcError } = await supabase.functions.invoke('lunarcrush-universe');
+    if (funcError) throw funcError;
+    if (!data?.success) throw new Error(data?.error || 'Failed to fetch data');
 
-      if (funcError) throw funcError;
-      if (!data?.success) throw new Error(data?.error || 'Failed to fetch data');
-
-      setCoins(data.data || []);
-      setMetadata(data.metadata || null);
-    } catch (err: any) {
-      console.error('Error fetching LunarCrush universe:', err);
-      setError(err.message);
-      toast({
-        title: 'Error Loading Data',
-        description: 'Failed to fetch crypto universe data. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+    return {
+      coins: data.data || [],
+      metadata: data.metadata || null,
+    };
   };
 
-  useEffect(() => {
-    fetchCoins();
-    // Auto-refresh every hour
-    const interval = setInterval(fetchCoins, 60 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['lunarcrush-universe'],
+    queryFn: fetchCoins,
+    staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache
+    refetchOnWindowFocus: false, // Don't refetch on tab switch
+    refetchInterval: 60 * 60 * 1000, // Auto-refresh every hour
+    retry: 2,
+  });
+
+  // Show toast on error
+  if (error) {
+    toast({
+      title: 'Error Loading Data',
+      description: 'Failed to fetch crypto universe data. Please try again.',
+      variant: 'destructive',
+    });
+  }
+
+  const coins = data?.coins || [];
+  const metadata = data?.metadata || null;
 
   const filteredAndSortedCoins = useMemo(() => {
     let result = [...coins];
@@ -157,14 +156,14 @@ export function useLunarCrushUniverse() {
     allCoins: coins,
     filteredCoins: filteredAndSortedCoins,
     metadata,
-    loading,
-    error,
+    loading: isLoading,
+    error: error?.message || null,
     filters,
     setFilters,
     sortKey,
     sortDirection,
     handleSort,
-    refetch: fetchCoins,
+    refetch,
     currentPage,
     totalPages,
     pageSize,
