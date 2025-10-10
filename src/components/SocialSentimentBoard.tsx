@@ -131,7 +131,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     return volume.toString();
   };
 
-  const displayedAssets = showAll ? socialAssets : socialAssets.slice(0, 10);
+  const displayedAssets = showAll ? socialAssets : socialAssets.slice(0, 5);
 
   return (
     <div className="space-y-3">
@@ -303,7 +303,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
             )}
 
             {/* Show More Button */}
-            {socialAssets.length > 10 && (
+            {socialAssets.length > 5 && (
               <div className="flex justify-center pt-2">
                 <Button
                   variant="outline"
@@ -317,7 +317,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     </>
                   ) : (
                     <>
-                      Show {socialAssets.length - 10} More <ChevronDown className="w-4 h-4" />
+                      Show {socialAssets.length - 5} More <ChevronDown className="w-4 h-4" />
                     </>
                   )}
                 </Button>
