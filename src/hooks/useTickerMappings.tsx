@@ -10,6 +10,8 @@ interface TickerMapping {
   tradingview_supported?: boolean;
   coingecko_id?: string | null;
   polygon_ticker?: string | null;
+  dex_address?: string | null;
+  dex_chain?: string | null;
 }
 
 export function useTickerMappings() {
@@ -21,7 +23,7 @@ export function useTickerMappings() {
       try {
         const { data, error } = await supabase
           .from('ticker_mappings')
-          .select('symbol, display_name, tradingview_symbol, type, aliases, tradingview_supported, coingecko_id, polygon_ticker')
+          .select('symbol, display_name, tradingview_symbol, type, aliases, tradingview_supported, coingecko_id, polygon_ticker, dex_address, dex_chain')
           .eq('is_active', true);
 
         if (error) throw error;

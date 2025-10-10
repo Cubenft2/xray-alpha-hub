@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Copy, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -101,6 +101,27 @@ export default function CryptoUniverseDetail() {
     ) : (
       <TrendingDown className="h-4 w-4 text-red-500" />
     );
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: 'Copied!',
+      description: 'Token address copied to clipboard',
+    });
+  };
+
+  const getExplorerUrl = (address: string, chain: string) => {
+    const explorers: Record<string, string> = {
+      ethereum: `https://etherscan.io/token/${address}`,
+      bsc: `https://bscscan.com/token/${address}`,
+      polygon: `https://polygonscan.com/token/${address}`,
+      arbitrum: `https://arbiscan.io/token/${address}`,
+      optimism: `https://optimistic.etherscan.io/token/${address}`,
+      avalanche: `https://snowtrace.io/token/${address}`,
+      base: `https://basescan.org/token/${address}`,
+    };
+    return explorers[chain.toLowerCase()] || null;
   };
 
   if (loading) {
@@ -252,6 +273,57 @@ export default function CryptoUniverseDetail() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Token Information - Only show if dex_address exists */}
+        {getMapping(coin.symbol)?.dex_address && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Token Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <span className="text-muted-foreground text-sm">Blockchain</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="outline" className="capitalize">
+                    {getMapping(coin.symbol)?.dex_chain || 'Unknown'}
+                  </Badge>
+                </div>
+              </div>
+              
+              <div>
+                <span className="text-muted-foreground text-sm">Contract Address</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="flex-1 px-3 py-2 bg-muted rounded text-xs font-mono break-all">
+                    {getMapping(coin.symbol)?.dex_address}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(getMapping(coin.symbol)?.dex_address || '')}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  {getMapping(coin.symbol)?.dex_chain && 
+                   getExplorerUrl(getMapping(coin.symbol)?.dex_address || '', getMapping(coin.symbol)?.dex_chain || '') && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        const url = getExplorerUrl(
+                          getMapping(coin.symbol)?.dex_address || '', 
+                          getMapping(coin.symbol)?.dex_chain || ''
+                        );
+                        if (url) window.open(url, '_blank');
+                      }}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
