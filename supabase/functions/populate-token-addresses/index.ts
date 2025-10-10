@@ -42,13 +42,20 @@ const CHAIN_DISPLAY_NAMES: Record<string, string> = {
   'fuse': 'Fuse',
 };
 
-// Native coins that don't have contract addresses
-const NATIVE_COINS = ['BTC', 'ETH', 'BNB', 'SOL', 'DOT', 'AVAX', 'MATIC', 'FTM', 'ONE', 'MOVR', 'GLMR', 'CRO', 'NEAR'];
+// Native coins that don't have contract addresses (only truly native coins)
+const NATIVE_COINS = ['BTC', 'SOL'];
 
 interface UpdateStats {
   total: number;
   updated: number;
   skipped: number;
+  skipReasons: {
+    alreadyHasAddress: number;
+    nativeCoin: number;
+    noPlatformData: number;
+    emptyPlatforms: number;
+    noValidAddress: number;
+  };
   errors: number;
   details: Array<{
     symbol: string;
@@ -112,6 +119,13 @@ Deno.serve(async (req) => {
       total: mappings.length,
       updated: 0,
       skipped: 0,
+      skipReasons: {
+        alreadyHasAddress: 0,
+        nativeCoin: 0,
+        noPlatformData: 0,
+        emptyPlatforms: 0,
+        noValidAddress: 0
+      },
       errors: 0,
       details: []
     };
@@ -123,6 +137,7 @@ Deno.serve(async (req) => {
         if (mapping.dex_address && mapping.dex_chain) {
           console.log(`⏭️ Skipping ${mapping.symbol} - already has address`);
           stats.skipped++;
+          stats.skipReasons.alreadyHasAddress++;
           stats.details.push({
             symbol: mapping.symbol,
             action: 'skipped',
@@ -131,27 +146,45 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Skip native coins
-        if (NATIVE_COINS.includes(mapping.symbol)) {
-          console.log(`⏭️ Skipping ${mapping.symbol} - native coin`);
+        // Get platforms data for this coin
+        const platforms = platformsMap.get(mapping.coingecko_id);
+        
+        // Skip native coins ONLY if they also have no platform data
+        if (NATIVE_COINS.includes(mapping.symbol) && 
+            (!platforms || typeof platforms !== 'object' || Object.keys(platforms).length === 0)) {
+          console.log(`⏭️ Skipping ${mapping.symbol} - native coin without contract`);
           stats.skipped++;
+          stats.skipReasons.nativeCoin++;
           stats.details.push({
             symbol: mapping.symbol,
             action: 'skipped',
-            reason: 'Native coin'
+            reason: 'Native coin without contract'
           });
           continue;
         }
 
-        // Get platforms data for this coin
-        const platforms = platformsMap.get(mapping.coingecko_id);
-        if (!platforms || typeof platforms !== 'object' || Object.keys(platforms).length === 0) {
+        // Skip if no platform data
+        if (!platforms) {
           console.log(`⚠️ No platform data for ${mapping.symbol} (${mapping.coingecko_id})`);
           stats.skipped++;
+          stats.skipReasons.noPlatformData++;
           stats.details.push({
             symbol: mapping.symbol,
             action: 'skipped',
             reason: 'No platform data'
+          });
+          continue;
+        }
+
+        // Skip if platforms is not an object or is empty
+        if (typeof platforms !== 'object' || Object.keys(platforms).length === 0) {
+          console.log(`⚠️ Empty platforms object for ${mapping.symbol} (${mapping.coingecko_id})`);
+          stats.skipped++;
+          stats.skipReasons.emptyPlatforms++;
+          stats.details.push({
+            symbol: mapping.symbol,
+            action: 'skipped',
+            reason: 'Empty platforms object'
           });
           continue;
         }
@@ -187,6 +220,7 @@ Deno.serve(async (req) => {
         if (!bestChain || !bestAddress) {
           console.log(`⚠️ No valid address found for ${mapping.symbol}`);
           stats.skipped++;
+          stats.skipReasons.noValidAddress++;
           stats.details.push({
             symbol: mapping.symbol,
             action: 'skipped',
@@ -243,6 +277,11 @@ Deno.serve(async (req) => {
     console.log(`Total processed: ${stats.total}`);
     console.log(`✅ Updated: ${stats.updated}`);
     console.log(`⏭️ Skipped: ${stats.skipped}`);
+    console.log(`   - Already has address: ${stats.skipReasons.alreadyHasAddress}`);
+    console.log(`   - Native coin (no platforms): ${stats.skipReasons.nativeCoin}`);
+    console.log(`   - No platform data: ${stats.skipReasons.noPlatformData}`);
+    console.log(`   - Empty platforms: ${stats.skipReasons.emptyPlatforms}`);
+    console.log(`   - No valid address: ${stats.skipReasons.noValidAddress}`);
     console.log(`❌ Errors: ${stats.errors}`);
 
     return new Response(
