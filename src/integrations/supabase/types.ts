@@ -253,7 +253,7 @@ export type Database = {
       exchange_ticker_data: {
         Row: {
           asset_symbol: string
-          change_24h: number
+          change_24h: number | null
           exchange: string
           high_24h: number | null
           id: string
@@ -261,11 +261,12 @@ export type Database = {
           low_24h: number | null
           price: number
           timestamp: string
+          updated_at: string | null
           volume_24h: number
         }
         Insert: {
           asset_symbol: string
-          change_24h?: number
+          change_24h?: number | null
           exchange: string
           high_24h?: number | null
           id?: string
@@ -273,11 +274,12 @@ export type Database = {
           low_24h?: number | null
           price: number
           timestamp?: string
+          updated_at?: string | null
           volume_24h?: number
         }
         Update: {
           asset_symbol?: string
-          change_24h?: number
+          change_24h?: number | null
           exchange?: string
           high_24h?: number | null
           id?: string
@@ -285,6 +287,7 @@ export type Database = {
           low_24h?: number | null
           price?: number
           timestamp?: string
+          updated_at?: string | null
           volume_24h?: number
         }
         Relationships: []
