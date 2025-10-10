@@ -85,6 +85,10 @@ export default function MarketBriefHome() {
     const upperTicker = ticker.toUpperCase();
     const cap = capabilities[upperTicker];
     const dbMap = getDbMapping(upperTicker);
+    const localMap = getTickerMapping(upperTicker);
+    
+    // If we have a local mapping with exchange-qualified symbol, prefer TradingView
+    const hasLocalExchangeSymbol = localMap?.symbol && /^[A-Z]+:/.test(localMap.symbol);
     
     // Prefer capabilities data from symbol-intelligence
     if (cap) {
@@ -92,7 +96,7 @@ export default function MarketBriefHome() {
         assetType: cap.asset_type as 'crypto' | 'stock' | 'index' | 'forex' | undefined,
         coingeckoId: cap.coingecko_id || undefined,
         polygonTicker: cap.polygon_ticker || undefined,
-        tvOk: cap.has_tv ?? true
+        tvOk: hasLocalExchangeSymbol || (cap.has_tv ?? true)
       };
     }
     
@@ -102,16 +106,16 @@ export default function MarketBriefHome() {
         assetType: dbMap.type as 'crypto' | 'stock' | 'index' | 'forex' | undefined,
         coingeckoId: dbMap.coingecko_id || undefined,
         polygonTicker: dbMap.polygon_ticker || undefined,
-        tvOk: dbMap.tradingview_supported ?? true
+        tvOk: hasLocalExchangeSymbol || (dbMap.tradingview_supported ?? true)
       };
     }
     
-    // Default
+    // Default - if we have a local mapping, try TradingView
     return {
       assetType: undefined,
       coingeckoId: undefined,
       polygonTicker: undefined,
-      tvOk: true
+      tvOk: hasLocalExchangeSymbol || true
     };
   };
 

@@ -126,7 +126,7 @@ export function FallbackSparkline({
         return;
       }
       
-      setError('Failed to load chart');
+      setError('No data available');
     } finally {
       setLoading(false);
       setRetryCount(attempt);
@@ -171,8 +171,14 @@ export function FallbackSparkline({
   const strokeColor = isPositive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
 
   return (
-    <div className={`relative ${className}`}>
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+    <div className={`w-full h-full flex items-center justify-center ${className}`}>
+      <svg 
+        width="100%" 
+        height="100%" 
+        viewBox={`0 0 ${width} ${height}`} 
+        preserveAspectRatio="xMidYMid meet"
+        className="max-w-full max-h-full"
+      >
         <path
           d={pathD}
           fill="none"

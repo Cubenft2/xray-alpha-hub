@@ -175,9 +175,11 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'APEPEUSD': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
   // Explicit mappings for requested assets
   'WAL': { symbol: 'BINANCE:WALUSDT', displayName: 'Walrus (WAL)', type: 'crypto' },
+  'WALRUS': { symbol: 'BINANCE:WALUSDT', displayName: 'Walrus (WAL)', type: 'crypto' },
   'WALUSDT': { symbol: 'BINANCE:WALUSDT', displayName: 'Walrus (WAL)', type: 'crypto' },
   'USELESS': { symbol: 'MEXC:USELESSUSDT', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
   'USELESS COIN': { symbol: 'MEXC:USELESSUSDT', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
+  'USELESSCOIN': { symbol: 'MEXC:USELESSUSDT', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
   'USELESSUSDT': { symbol: 'MEXC:USELESSUSDT', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
   // Explicit mappings to prevent NASDAQ defaults
   'ADX': { symbol: 'MEXC:ADXUSDT', displayName: 'Ambire AdEx (ADX)', type: 'crypto' },

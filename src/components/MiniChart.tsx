@@ -24,7 +24,7 @@ export function MiniChart({
   assetType
 }: MiniChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [widgetLoadFailed, setWidgetLoadFailed] = React.useState(false);
+  const [renderMode, setRenderMode] = React.useState<'tv' | 'fallback' | 'none'>('tv');
 
   // Smart symbol formatting: add exchange prefix if missing
   const formatTradingViewSymbol = (rawSymbol: string): string => {
@@ -66,31 +66,43 @@ export function MiniChart({
     return `NASDAQ:${input}`;
   };
 
-const mapped = getTickerMapping(symbol);
-const formattedSymbol = mapped?.symbol ?? formatTradingViewSymbol(symbol);
-  const forceFallback = React.useMemo(() => {
-    const s = formattedSymbol.toUpperCase();
-    // Force fallback for known invalid TV mappings
-    return (
-      s.includes('KRAKEN:WALUSDT') ||
-      s.includes('KRAKEN:USELESSUSDT') ||
-      s.includes('KRAKEN:USELESSUSD')
-    );
-  }, [formattedSymbol]);
+  const mapped = getTickerMapping(symbol);
+  const formattedSymbol = mapped?.symbol ?? formatTradingViewSymbol(symbol);
+  
+  // Determine effective tvOk: if we have a local mapping with exchange:pair, prefer TradingView
+  const effectiveTvOk = React.useMemo(() => {
+    if (mapped?.symbol && /^[A-Z]+:/.test(mapped.symbol)) {
+      return true;
+    }
+    return tvOk;
+  }, [mapped, tvOk]);
+
+  // Initialize render mode based on effectiveTvOk and available fallbacks
+  React.useEffect(() => {
+    if (!effectiveTvOk && showFallback && (coingeckoId || polygonTicker)) {
+      setRenderMode('fallback');
+    } else if (!effectiveTvOk) {
+      setRenderMode('none');
+    } else {
+      setRenderMode('tv');
+    }
+  }, [effectiveTvOk, showFallback, coingeckoId, polygonTicker]);
 
   useEffect(() => {
-    if (!containerRef.current || !tvOk || forceFallback) return;
+    if (!containerRef.current || renderMode !== 'tv') return;
 
-    setWidgetLoadFailed(false);
-    
     // Clear previous widget
     containerRef.current.innerHTML = '';
 
-    // Set 5-second timeout for widget load (faster fallback)
+    // Set 9-second timeout for widget load
     const loadTimeout = setTimeout(() => {
-      console.warn(`⚠️ TradingView widget timeout for ${symbol} (${formattedSymbol}) - falling back to sparkline`);
-      setWidgetLoadFailed(true);
-    }, 5000);
+      console.warn(`⚠️ TradingView widget timeout for ${symbol} (${formattedSymbol}) - falling back`);
+      if (showFallback && (coingeckoId || polygonTicker)) {
+        setRenderMode('fallback');
+      } else {
+        setRenderMode('none');
+      }
+    }, 9000);
 
     console.log(`📈 Loading TradingView chart for ${formattedSymbol} (original: ${symbol})`);
 
@@ -133,11 +145,15 @@ const formattedSymbol = mapped?.symbol ?? formatTradingViewSymbol(symbol);
       const text = widgetContainer.textContent || '';
       if (/Invalid symbol|Symbol not found/i.test(text)) {
         clearTimeout(loadTimeout);
-        console.warn(`⚠️ TradingView reported invalid symbol for ${formattedSymbol} - falling back to sparkline`);
-        setWidgetLoadFailed(true);
+        console.warn(`⚠️ TradingView reported invalid symbol for ${formattedSymbol} - falling back`);
         observer.disconnect();
         if (containerRef.current) {
           containerRef.current.innerHTML = '';
+        }
+        if (showFallback && (coingeckoId || polygonTicker)) {
+          setRenderMode('fallback');
+        } else {
+          setRenderMode('none');
         }
       }
     });
@@ -152,7 +168,11 @@ const formattedSymbol = mapped?.symbol ?? formatTradingViewSymbol(symbol);
     script.onerror = () => {
       clearTimeout(loadTimeout);
       console.error(`❌ TradingView widget failed to load for ${formattedSymbol}`);
-      setWidgetLoadFailed(true);
+      if (showFallback && (coingeckoId || polygonTicker)) {
+        setRenderMode('fallback');
+      } else {
+        setRenderMode('none');
+      }
     };
 
     return () => {
@@ -165,49 +185,32 @@ const formattedSymbol = mapped?.symbol ?? formatTradingViewSymbol(symbol);
         widgetContainer.removeEventListener('click', onClick);
       }
     };
-  }, [formattedSymbol, theme, onClick, tvOk, forceFallback]);
+  }, [formattedSymbol, theme, onClick, renderMode, showFallback, coingeckoId, polygonTicker]);
 
-  // Show fallback if widget failed to load or is forced and fallback is available
-  if ((widgetLoadFailed || forceFallback) && showFallback && (coingeckoId || polygonTicker)) {
+  // Render based on mode
+  if (renderMode === 'fallback' && (coingeckoId || polygonTicker)) {
     return (
-      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
+      <div key="fallback" style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', overflow: 'hidden' }}>
         <Suspense fallback={<div className="text-sm text-muted-foreground">Loading chart...</div>}>
           <FallbackSparkline 
             symbol={symbol}
             coingeckoId={coingeckoId}
             polygonTicker={polygonTicker}
             timespan="7D"
-            className="w-full"
+            className="w-full h-full"
           />
         </Suspense>
       </div>
     );
   }
 
-  if (!tvOk) {
-    // Show fallback sparkline if data sources are available
-    if (showFallback && (coingeckoId || polygonTicker)) {
-      return (
-        <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
-          <Suspense fallback={<div className="text-sm text-muted-foreground">Loading chart...</div>}>
-            <FallbackSparkline 
-              symbol={symbol}
-              coingeckoId={coingeckoId}
-              polygonTicker={polygonTicker}
-              timespan="7D"
-              className="w-full"
-            />
-          </Suspense>
-        </div>
-      );
-    }
-    
+  if (renderMode === 'none') {
     return (
-      <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
-        <p className="text-sm text-muted-foreground">Chart not available</p>
+      <div key="none" style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+        <p className="text-sm text-muted-foreground">Chart unavailable</p>
       </div>
     );
   }
 
-  return <div ref={containerRef} style={{ height: '100%', width: '100%' }} />;
+  return <div key="tv" ref={containerRef} style={{ height: '100%', width: '100%', overflow: 'hidden', position: 'relative' }} />;
 }
