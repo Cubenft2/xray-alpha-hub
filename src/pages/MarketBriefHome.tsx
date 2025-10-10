@@ -975,6 +975,20 @@ export default function MarketBriefHome() {
                   </CardContent>
                 </Card>
 
+                {/* ZCASH */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Zcash (ZEC)</div>
+                    <div className="h-36">
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('ZEC').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('ZEC')}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Add S&P 500 for market context */}
                 <Card className="h-48">
                   <CardContent className="p-3">
