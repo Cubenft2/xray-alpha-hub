@@ -880,16 +880,19 @@ serve(async (req) => {
 
   try {
     const requestBody = await req.json().catch(() => ({}));
-    const providedCronSecret = requestBody.cron_secret;
     const briefType = requestBody.briefType || 'morning';
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Authentication
+    // Authentication - check both header and body for cron secret
+    const cronSecretFromHeader = req.headers.get('x-cron-secret');
+    const cronSecretFromBody = requestBody.cron_secret;
+    const providedCronSecret = cronSecretFromHeader || cronSecretFromBody;
     const isCronCall = cronSecret && providedCronSecret === cronSecret;
     
     if (isCronCall) {
-      console.log('✅ Authenticated via CRON_SECRET');
+      const authSource = cronSecretFromHeader ? 'header (x-cron-secret)' : 'body (cron_secret)';
+      console.log(`✅ Authenticated via CRON_SECRET from ${authSource}`);
     } else {
       const authHeader = req.headers.get('authorization');
       if (!authHeader) {
