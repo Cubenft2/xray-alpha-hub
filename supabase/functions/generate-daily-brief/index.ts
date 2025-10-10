@@ -80,8 +80,8 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'What\'s Next',
-    guidelines: 'Forward-looking: upcoming events, key levels to watch, potential catalysts. 1-2 paragraphs.',
-    dataScope: ['economicCalendar', 'upcomingEvents'],
+    guidelines: 'Forward-looking: upcoming events, key levels to watch, potential catalysts. CRITICAL: USE ACTUAL CURRENT PRICES from the data when mentioning crypto support/resistance levels - calculate them based on current prices (e.g., if BTC=$121k, mention $120k or $125k levels). NEVER use outdated or generic levels like $30k for BTC or $2k for ETH. For stocks, mention themes/catalysts but DO NOT mention specific price levels (we don\'t have real-time stock data). 1-2 paragraphs.',
+    dataScope: ['economicCalendar', 'upcomingEvents', 'btc', 'eth', 'marketCap', 'coingeckoData'],
     minWords: 80
   }
 ];
