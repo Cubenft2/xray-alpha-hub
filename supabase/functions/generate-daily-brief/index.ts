@@ -326,6 +326,9 @@ async function generateSection(
 
 **CONTEXT:** This is section ${sectionDef.title} of a ${isWeekly ? 'weekly' : 'daily'} market brief.${contextNote}
 
+**ASSETS ALREADY ANALYZED:** ${Array.from(factTracker.assetPrimaryAnalyses).join(', ') || 'None yet'}
+⚠️ For these assets, you MUST add NEW angles ONLY (derivatives, social sentiment, technical patterns, on-chain data, exchange flows)
+
 **RELEVANT DATA FOR THIS SECTION:**
 ${relevantData}
 
@@ -333,8 +336,16 @@ ${relevantData}
 - Write ONLY the content for this section (do NOT include the heading, it will be added automatically)
 - ${sectionDef.minWords}+ words minimum
 - Focus on unique insights for THIS section
-- Do NOT repeat analysis from previous sections
-- If you mention an asset analyzed earlier, add NEW information only
+
+🚨 CRITICAL ANTI-REPETITION REQUIREMENTS:
+- NEVER repeat the same price/percentage change mentioned in earlier sections
+- If an asset was analyzed before, you MUST provide DIFFERENT context (e.g., on-chain metrics, social sentiment, technical indicators, derivatives)
+- Each asset mention must contain NEW information - do NOT restate facts already covered
+- Vary your language completely - avoid reusing phrases or sentence structures from prior sections
+- When in doubt, skip repeating an asset rather than risk redundancy
+
+✅ CORRECT: "Bitcoin (BTC): On-chain data shows accumulation by whales..."
+❌ WRONG: "Bitcoin (BTC) rose 3.2% to $121,000" (if already mentioned in Market Overview)
 
 Write the section content now:`;
 
