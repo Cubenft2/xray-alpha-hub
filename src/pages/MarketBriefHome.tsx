@@ -139,7 +139,7 @@ export default function MarketBriefHome() {
   }, []);
 
   // Function to map ticker symbols to TradingView format for charts
-  // Priority: DB mapping > Capabilities > Overrides > Local config > Smart heuristic
+  // Priority: OVERRIDES FIRST > DB mapping > Capabilities > Local config > Smart heuristic
   const mapTickerToTradingView = (ticker: string): { symbol: string; displayName: string } => {
     const upperTicker = ticker.toUpperCase().trim();
     
@@ -152,7 +152,30 @@ export default function MarketBriefHome() {
       'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER', 'SX'
     ]);
 
-    // 1) Database mapping (highest priority)
+    // 1) EXPLICIT OVERRIDES (HIGHEST PRIORITY - RUNS FIRST)
+    const OVERRIDES: Record<string, { symbol: string; displayName?: string }> = {
+      // User-requested exact TradingView symbols
+      WAL: { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)' },
+      WALRUS: { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)' },
+      WALUSDT: { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)' },
+      WALRUSUSDT: { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)' },
+      USELESS: { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)' },
+      'USELESS COIN': { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)' },
+      USELESSCOIN: { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)' },
+      USELESSUSD: { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)' },
+      USELESSUSDT: { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)' },
+      // Other known edge cases
+      QTWO: { symbol: 'NYSE:QTWO' },
+      COAI: { symbol: 'COAIUSDT' },
+    };
+    const ov = OVERRIDES[upperTicker];
+    if (ov) {
+      const displayName = ov.displayName || upperTicker;
+      console.log('🎯 Using override mapping for', upperTicker, '->', ov.symbol);
+      return { symbol: ov.symbol, displayName };
+    }
+
+    // 2) Database mapping
     const dbMap = getDbMapping(upperTicker);
     if (dbMap) {
       const displayName = dbMap.display_name || upperTicker;
@@ -178,7 +201,7 @@ export default function MarketBriefHome() {
       return { symbol: `${upperTicker}USD`, displayName };
     }
 
-    // 2) Capabilities from symbol-intelligence
+    // 3) Capabilities from symbol-intelligence
     const cap = capabilities[upperTicker];
     if (cap) {
       const displayName = cap.display_name || upperTicker;
@@ -199,18 +222,6 @@ export default function MarketBriefHome() {
       }
     }
 
-    // 3) Explicit overrides for known edge cases
-    const OVERRIDES: Record<string, { symbol: string; displayName?: string }> = {
-      QTWO: { symbol: 'NYSE:QTWO' },
-      COAI: { symbol: 'COAIUSDT' },
-    };
-    const ov = OVERRIDES[upperTicker];
-    if (ov) {
-      const displayName = ov.displayName || upperTicker;
-      console.log('🎯 Using override mapping for', upperTicker, '->', ov.symbol);
-      return { symbol: ov.symbol, displayName };
-    }
-
     // 4) Local mapping config
     const localMapping = getTickerMapping(upperTicker);
     if (localMapping) {
@@ -218,13 +229,13 @@ export default function MarketBriefHome() {
       return { symbol: localMapping.symbol, displayName: localMapping.displayName };
     }
 
-    // 5) Smart heuristic: short tickers (2-5 letters) not in crypto list = likely stock
+    // 6) Smart heuristic: short tickers (2-5 letters) not in crypto list = likely stock
     if (/^[A-Z]{2,5}$/.test(upperTicker) && !KNOWN_CRYPTO.has(upperTicker)) {
       console.log('🧠 Heuristic chose stock for', upperTicker, '-> NASDAQ');
       return { symbol: `NASDAQ:${upperTicker}`, displayName: upperTicker };
     }
 
-    // 6) Final fallback: assume crypto
+    // 7) Final fallback: assume crypto
     console.log('🧠 Heuristic chose crypto for', upperTicker, '-> USD pair');
     return {
       symbol: `${upperTicker}USD`,

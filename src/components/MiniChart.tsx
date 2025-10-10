@@ -66,13 +66,31 @@ export function MiniChart({
     return `NASDAQ:${input}`;
   };
 
-  const baseSymbol = React.useMemo(() => {
+  // Get ticker mapping if available
+  const mapped = React.useMemo(() => {
     const s = symbol.trim().toUpperCase();
-    return s.includes(':') ? s.split(':')[1] : s;
+    return getTickerMapping(s);
   }, [symbol]);
 
-  const mapped = getTickerMapping(baseSymbol);
-  const formattedSymbol = mapped?.symbol ?? formatTradingViewSymbol(symbol);
+  // If symbol already has exchange prefix or ends with USD/USDT, use as-is
+  const formattedSymbol = React.useMemo(() => {
+    const s = symbol.trim().toUpperCase();
+    
+    // If already qualified (e.g., BYBIT:WALRUSUSDT) or ends with USD/USDT (e.g., USELESSUSD), use as-is
+    if (s.includes(':') || /USD(T)?$/.test(s)) {
+      console.log('✅ Using explicit symbol as-is:', s);
+      return s;
+    }
+    
+    // Otherwise, check for mapping
+    if (mapped?.symbol) {
+      console.log('📘 Using mapped symbol:', mapped.symbol, 'for', s);
+      return mapped.symbol;
+    }
+    
+    // Fallback to smart formatting
+    return formatTradingViewSymbol(symbol);
+  }, [symbol, mapped]);
   
   // Determine effective tvOk: if we have a local mapping with exchange:pair, prefer TradingView
   const effectiveTvOk = React.useMemo(() => {

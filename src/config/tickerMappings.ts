@@ -173,14 +173,16 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'APEPE': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
   'APEPEUSDT': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
   'APEPEUSD': { symbol: 'MEXC:APEPEUSDT', displayName: 'Ape and Pepe (APEPE)', type: 'crypto' },
-  // Explicit mappings for requested assets
-  'WAL': { symbol: 'MEXC:WALRUSUSDT', displayName: 'Walrus (WALRUS)', type: 'crypto' },
-  'WALRUS': { symbol: 'MEXC:WALRUSUSDT', displayName: 'Walrus (WALRUS)', type: 'crypto' },
-  'WALUSDT': { symbol: 'MEXC:WALRUSUSDT', displayName: 'Walrus (WALRUS)', type: 'crypto' },
-  'WALRUSUSDT': { symbol: 'MEXC:WALRUSUSDT', displayName: 'Walrus (WALRUS)', type: 'crypto' },
-  'USELESS': { symbol: 'MEXC:USELESSUSDT', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
-  'USELESS COIN': { symbol: 'MEXC:USELESSUSDT', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
-  'USELESSCOIN': { symbol: 'MEXC:USELESSUSDT', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
+  // Explicit mappings for requested assets - USE TRADINGVIEW SYMBOLS
+  'WAL': { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)', type: 'crypto' },
+  'WALRUS': { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)', type: 'crypto' },
+  'WALUSDT': { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)', type: 'crypto' },
+  'WALRUSUSDT': { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)', type: 'crypto' },
+  'USELESS': { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
+  'USELESS COIN': { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
+  'USELESSCOIN': { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
+  'USELESSUSD': { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
+  'USELESSUSDT': { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)', type: 'crypto' },
 
   // Explicit mappings to prevent NASDAQ defaults
   'ADX': { symbol: 'MEXC:ADXUSDT', displayName: 'Ambire AdEx (ADX)', type: 'crypto' },
