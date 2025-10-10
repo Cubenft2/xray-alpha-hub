@@ -66,7 +66,12 @@ export function MiniChart({
     return `NASDAQ:${input}`;
   };
 
-  const mapped = getTickerMapping(symbol);
+  const baseSymbol = React.useMemo(() => {
+    const s = symbol.trim().toUpperCase();
+    return s.includes(':') ? s.split(':')[1] : s;
+  }, [symbol]);
+
+  const mapped = getTickerMapping(baseSymbol);
   const formattedSymbol = mapped?.symbol ?? formatTradingViewSymbol(symbol);
   
   // Determine effective tvOk: if we have a local mapping with exchange:pair, prefer TradingView
