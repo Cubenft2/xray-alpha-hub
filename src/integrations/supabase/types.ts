@@ -250,6 +250,45 @@ export type Database = {
         }
         Relationships: []
       }
+      exchange_ticker_data: {
+        Row: {
+          asset_symbol: string
+          change_24h: number
+          exchange: string
+          high_24h: number | null
+          id: string
+          last_updated: string
+          low_24h: number | null
+          price: number
+          timestamp: string
+          volume_24h: number
+        }
+        Insert: {
+          asset_symbol: string
+          change_24h?: number
+          exchange: string
+          high_24h?: number | null
+          id?: string
+          last_updated?: string
+          low_24h?: number | null
+          price: number
+          timestamp?: string
+          volume_24h?: number
+        }
+        Update: {
+          asset_symbol?: string
+          change_24h?: number
+          exchange?: string
+          high_24h?: number | null
+          id?: string
+          last_updated?: string
+          low_24h?: number | null
+          price?: number
+          timestamp?: string
+          volume_24h?: number
+        }
+        Relationships: []
+      }
       live_prices: {
         Row: {
           change24h: number

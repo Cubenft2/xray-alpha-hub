@@ -35,7 +35,7 @@ export function FallbackSparkline({
     setError(null);
 
     try {
-      // Try CoinGecko first if available (public API, no key required)
+      // Priority 1: Try CoinGecko if available
       if (coingeckoId) {
         const days = timespan === '1D' ? 1 : timespan === '7D' ? 7 : timespan === '30D' ? 30 : timespan === '90D' ? 90 : 365;
         
@@ -55,12 +55,12 @@ export function FallbackSparkline({
             setLoading(false);
             return;
           }
-        } else {
+        } else if (response.status !== 429) {
           console.warn(`⚠️ CoinGecko API error for ${symbol}: ${response.status}`);
         }
       }
 
-      // Try price_history table as fallback for Polygon data
+      // Priority 2: Try price_history table with polygon_ticker
       if (polygonTicker) {
         console.log(`📊 Fetching price history for ${symbol} (${polygonTicker})`);
         const days = timespan === '1D' ? 1 : timespan === '7D' ? 7 : timespan === '30D' ? 30 : timespan === '90D' ? 90 : 365;
@@ -83,13 +83,32 @@ export function FallbackSparkline({
           setLoading(false);
           return;
         } else {
-          console.warn(`⚠️ No price history found for ${symbol}`);
+          console.warn(`⚠️ No price history found for ${symbol} (${polygonTicker})`);
         }
+      }
+
+      // Priority 3: Try exchange data as fallback
+      const { data: exchangeData, error: exchangeError } = await supabase
+        .from('exchange_ticker_data')
+        .select('price, timestamp')
+        .eq('asset_symbol', symbol)
+        .order('timestamp', { ascending: true })
+        .limit(100);
+
+      if (!exchangeError && exchangeData && exchangeData.length > 0) {
+        const points = exchangeData.map((r: any) => ({
+          time: new Date(r.timestamp).getTime(),
+          price: parseFloat(r.price)
+        }));
+        console.log(`✅ Exchange data loaded for ${symbol}: ${points.length} points`);
+        setData(points);
+        setLoading(false);
+        return;
       }
 
       // Retry logic with exponential backoff (max 2 retries)
       if (attempt < 2) {
-        const delay = Math.pow(2, attempt) * 2000; // 2s, 4s
+        const delay = Math.pow(2, attempt) * 2000;
         console.log(`Retrying sparkline fetch for ${symbol} in ${delay}ms (attempt ${attempt + 1}/2)`);
         setTimeout(() => fetchSparklineData(attempt + 1), delay);
         return;

@@ -479,14 +479,33 @@ serve(async (req) => {
     if (validResults.length > 0) {
       for (const tokenData of validResults) {
         try {
+          // Store individual exchange prices
+          for (const exchangeData of tokenData.exchanges) {
+            await supabase
+              .from('exchange_ticker_data')
+              .upsert({
+                asset_symbol: tokenData.symbol,
+                exchange: exchangeData.exchange,
+                price: exchangeData.price,
+                volume_24h: exchangeData.volume_24h,
+                change_24h: exchangeData.change_24h,
+                high_24h: exchangeData.high_24h,
+                low_24h: exchangeData.low_24h,
+                timestamp: new Date().toISOString(),
+              }, {
+                onConflict: 'asset_symbol,exchange'
+              });
+          }
+
+          // Also keep social_sentiment for compatibility
           await supabase
             .from('social_sentiment')
             .upsert({
               asset_symbol: tokenData.symbol,
               asset_name: tokenData.name,
-              sentiment_score: 0.5, // Neutral default
-              social_volume: Math.floor(tokenData.total_volume_24h / 1000000), // Convert to millions
-              galaxy_score: tokenData.exchange_count * 10, // Simple scoring based on exchange availability
+              sentiment_score: 0.5,
+              social_volume: Math.floor(tokenData.total_volume_24h / 1000000),
+              galaxy_score: tokenData.exchange_count * 10,
               trending_rank: null,
               viral_posts: [],
               top_influencers: [],

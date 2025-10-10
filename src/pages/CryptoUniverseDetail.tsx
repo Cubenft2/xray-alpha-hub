@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { PageTransition } from '@/components/PageTransition';
 import { TradingViewChart } from '@/components/TradingViewChart';
+import { ExchangePriceComparison } from '@/components/ExchangePriceComparison';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
 
 interface CoinDetail {
@@ -43,7 +45,6 @@ interface CoinAnalysis {
 export default function CryptoUniverseDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { getMapping } = useTickerMappings();
   const [coin, setCoin] = useState<CoinDetail | null>(null);
   const [analysis, setAnalysis] = useState<CoinAnalysis | null>(null);
@@ -66,18 +67,14 @@ export default function CryptoUniverseDetail() {
         setAnalysis(data.analysis);
       } catch (err: any) {
         console.error('Error fetching coin detail:', err);
-        toast({
-          title: 'Error',
-          description: 'Failed to load coin details. Please try again.',
-          variant: 'destructive',
-        });
+        toast.error('Failed to load coin details. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchCoinDetail();
-  }, [symbol, toast]);
+  }, [symbol]);
 
   const formatCurrency = (value: number) => {
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
@@ -105,10 +102,7 @@ export default function CryptoUniverseDetail() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({
-      title: 'Copied!',
-      description: 'Token address copied to clipboard',
-    });
+    toast.success('Token address copied to clipboard');
   };
 
   const getExplorerUrl = (address: string, chain: string) => {
@@ -324,6 +318,11 @@ export default function CryptoUniverseDetail() {
             </CardContent>
           </Card>
         )}
+
+        {/* Exchange Price Comparison - Full Width */}
+        <div className="lg:col-span-3">
+          <ExchangePriceComparison symbol={coin.symbol} />
+        </div>
       </div>
     </div>
   );

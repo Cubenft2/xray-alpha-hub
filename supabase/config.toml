@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.lunarcrush-coin-detail]
 verify_jwt = false
+
+[functions.backfill-crypto-history]
+verify_jwt = false
