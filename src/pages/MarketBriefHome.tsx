@@ -879,7 +879,7 @@ export default function MarketBriefHome() {
                             </a>
                           ) : (
                             <MiniChart 
-                              symbol={mapTickerToTradingView(symbol).symbol} 
+                              symbol={symbol} 
                               theme={theme}
                               assetType={metadata.assetType}
                               coingeckoId={metadata.coingeckoId}

@@ -66,9 +66,7 @@ export function MiniChart({
     return `NASDAQ:${input}`;
   };
 
-  // Prefer mapping using exchange-stripped key to avoid wrong venues (e.g., KRAKEN)
-  const baseKey = symbol.includes(':') ? symbol.split(':')[1] : symbol;
-  const mapped = getTickerMapping(baseKey) || getTickerMapping(symbol);
+  const mapped = getTickerMapping(symbol);
   const formattedSymbol = mapped?.symbol ?? formatTradingViewSymbol(symbol);
   
   // Determine effective tvOk: if we have a local mapping with exchange:pair, prefer TradingView
