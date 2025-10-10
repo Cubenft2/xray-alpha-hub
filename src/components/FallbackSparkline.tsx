@@ -35,39 +35,11 @@ export function FallbackSparkline({
     setError(null);
 
     try {
-      // Try Polygon first if we have a ticker
-      if (polygonTicker) {
-        const polygonApiKey = import.meta.env.VITE_POLYGON_API_KEY;
-        if (polygonApiKey) {
-          const days = timespan === '1D' ? 1 : timespan === '7D' ? 7 : timespan === '30D' ? 30 : timespan === '90D' ? 90 : 365;
-          const multiplier = timespan === '1D' ? 1 : 1;
-          const timeunit = timespan === '1D' ? 'hour' : 'day';
-          
-          const fromDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-          const toDate = new Date().toISOString().split('T')[0];
-          
-          const url = `https://api.polygon.io/v2/aggs/ticker/${polygonTicker}/range/${multiplier}/${timeunit}/${fromDate}/${toDate}?apiKey=${polygonApiKey}`;
-          const response = await fetch(url);
-          
-          if (response.ok) {
-            const json = await response.json();
-            if (json.results && json.results.length > 0) {
-              const points = json.results.map((r: any) => ({
-                time: r.t,
-                price: r.c
-              }));
-              setData(points);
-              setLoading(false);
-              return;
-            }
-          }
-        }
-      }
-
-      // Fallback to CoinGecko if available
+      // Try CoinGecko first if available (public API, no key required)
       if (coingeckoId) {
         const days = timespan === '1D' ? 1 : timespan === '7D' ? 7 : timespan === '30D' ? 30 : timespan === '90D' ? 90 : 365;
         
+        console.log(`📈 Fetching CoinGecko data for ${symbol} (${coingeckoId}), ${days} days`);
         const url = `https://api.coingecko.com/api/v3/coins/${coingeckoId}/market_chart?vs_currency=usd&days=${days}`;
         const response = await fetch(url);
         
@@ -78,10 +50,40 @@ export function FallbackSparkline({
               time,
               price
             }));
+            console.log(`✅ CoinGecko data loaded for ${symbol}: ${points.length} points`);
             setData(points);
             setLoading(false);
             return;
           }
+        } else {
+          console.warn(`⚠️ CoinGecko API error for ${symbol}: ${response.status}`);
+        }
+      }
+
+      // Try price_history table as fallback for Polygon data
+      if (polygonTicker) {
+        console.log(`📊 Fetching price history for ${symbol} (${polygonTicker})`);
+        const days = timespan === '1D' ? 1 : timespan === '7D' ? 7 : timespan === '30D' ? 30 : timespan === '90D' ? 90 : 365;
+        const fromDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+        
+        const { data: historyData, error: historyError } = await supabase
+          .from('price_history')
+          .select('timestamp, close')
+          .eq('ticker', polygonTicker)
+          .gte('timestamp', fromDate)
+          .order('timestamp', { ascending: true });
+
+        if (!historyError && historyData && historyData.length > 0) {
+          const points = historyData.map((r: any) => ({
+            time: new Date(r.timestamp).getTime(),
+            price: parseFloat(r.close)
+          }));
+          console.log(`✅ Price history loaded for ${symbol}: ${points.length} points`);
+          setData(points);
+          setLoading(false);
+          return;
+        } else {
+          console.warn(`⚠️ No price history found for ${symbol}`);
         }
       }
 
