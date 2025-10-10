@@ -155,10 +155,10 @@ export default function MarketBriefHome() {
     // 1) EXPLICIT OVERRIDES (HIGHEST PRIORITY - RUNS FIRST)
     const OVERRIDES: Record<string, { symbol: string; displayName?: string }> = {
       // User-requested exact TradingView symbols
-      WAL: { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)' },
-      WALRUS: { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)' },
-      WALUSDT: { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)' },
-      WALRUSUSDT: { symbol: 'BYBIT:WALRUSUSDT', displayName: 'Walrus (WALRUS)' },
+      WAL: { symbol: 'WALUSD', displayName: 'Walrus (WALRUS)' },
+      WALRUS: { symbol: 'WALUSD', displayName: 'Walrus (WALRUS)' },
+      WALUSDT: { symbol: 'WALUSD', displayName: 'Walrus (WALRUS)' },
+      WALRUSUSDT: { symbol: 'WALUSD', displayName: 'Walrus (WALRUS)' },
       USELESS: { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)' },
       'USELESS COIN': { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)' },
       USELESSCOIN: { symbol: 'USELESSUSD', displayName: 'Useless Coin (USELESS)' },
