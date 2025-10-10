@@ -13,6 +13,7 @@ export function SymbolAdmin() {
     exchange: false,
     polygon: false,
     tickerMappings: false,
+    tokenAddresses: false,
   });
 
   const handleCoinGeckoSync = async () => {
@@ -97,6 +98,24 @@ export function SymbolAdmin() {
     }
   };
 
+  const handleTokenAddressesPopulate = async () => {
+    setSyncing({ ...syncing, tokenAddresses: true });
+    try {
+      const { data, error } = await supabase.functions.invoke('populate-token-addresses');
+      
+      if (error) throw error;
+      
+      toast.success(
+        `Token addresses populated! Updated: ${data.stats.updated}, Skipped: ${data.stats.skipped}`
+      );
+    } catch (error) {
+      console.error('Token address population error:', error);
+      toast.error('Failed to populate token addresses');
+    } finally {
+      setSyncing({ ...syncing, tokenAddresses: false });
+    }
+  };
+
   return (
     <div className="container mx-auto p-8">
       <h1 className="text-3xl font-bold mb-8">Symbol Intelligence Admin</h1>
@@ -108,6 +127,15 @@ export function SymbolAdmin() {
         </TabsList>
 
         <TabsContent value="sync">
+          <div className="mb-6 p-4 bg-muted/50 rounded-lg border border-primary/20">
+            <h3 className="font-semibold text-sm mb-2">📋 Recommended Sync Order:</h3>
+            <ol className="text-sm text-muted-foreground space-y-1 ml-4 list-decimal">
+              <li><strong>CoinGecko Sync</strong> - Gets platform data and coin list</li>
+              <li><strong>Ticker Mappings Sync</strong> - Creates mappings with CoinGecko IDs</li>
+              <li><strong>Populate Token Addresses</strong> - Fills in blockchain addresses</li>
+            </ol>
+          </div>
+
           <Card className="mb-6 border-primary/50">
             <CardHeader>
               <CardTitle className="text-xl">🎯 Ticker Mappings Sync</CardTitle>
@@ -137,6 +165,40 @@ export function SymbolAdmin() {
                 </ul>
                 <p className="text-xs italic mt-3">
                   Expected to add 3,000-4,000 new mappings automatically
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="mb-6 border-green-500/50">
+            <CardHeader>
+              <CardTitle className="text-xl">🔗 Populate Token Addresses</CardTitle>
+              <CardDescription>
+                Auto-fill blockchain addresses for crypto tokens from CoinGecko platform data
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={handleTokenAddressesPopulate} 
+                disabled={syncing.tokenAddresses}
+                className="w-full"
+                size="lg"
+                variant="secondary"
+              >
+                {syncing.tokenAddresses && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {syncing.tokenAddresses ? 'Populating Addresses...' : 'Populate Token Addresses'}
+              </Button>
+              <div className="mt-4 space-y-2 text-sm text-muted-foreground">
+                <p className="font-medium">This will:</p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>Find all crypto tokens with a CoinGecko ID in ticker_mappings</li>
+                  <li>Retrieve blockchain platform data from cg_master table</li>
+                  <li>Prioritize: Ethereum → BSC → Polygon → Arbitrum → Base → Solana</li>
+                  <li>Automatically fill dex_address and dex_chain fields</li>
+                  <li>Skip tokens that already have addresses or are native coins</li>
+                </ul>
+                <p className="text-xs italic mt-3 text-green-600 dark:text-green-400">
+                  ⚠️ Run this AFTER CoinGecko Sync and Ticker Mappings Sync for best results
                 </p>
               </div>
             </CardContent>
