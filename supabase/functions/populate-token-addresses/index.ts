@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
         }
 
     // Get platforms data for this coin
-    const cgData = cgMaster?.find(c => c.cg_id === mapping.coingecko_id);
+    const cgData = cgData.find(c => c.cg_id === mapping.coingecko_id);
     const platforms = platformsMap.get(mapping.coingecko_id);
     
     // Skip if coin enrichment failed or has no platforms

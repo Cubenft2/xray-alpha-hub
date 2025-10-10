@@ -11,10 +11,12 @@ import { useQuery } from "@tanstack/react-query";
 
 export function CoinGeckoEnrich() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isPopulating, setIsPopulating] = useState(false);
   const [batchSize, setBatchSize] = useState(50);
   const [forceUpdate, setForceUpdate] = useState(false);
   const [priorityMappings, setPriorityMappings] = useState(true);
   const [result, setResult] = useState<any>(null);
+  const [populateResult, setPopulateResult] = useState<any>(null);
   const { toast } = useToast();
 
   // Fetch enrichment statistics
@@ -45,6 +47,28 @@ export function CoinGeckoEnrich() {
       return statusCounts;
     },
     refetchInterval: 30000 // Refresh every 30s
+  });
+
+  // Fetch ticker mapping address statistics
+  const { data: addressStats, refetch: refetchAddressStats } = useQuery({
+    queryKey: ['ticker-address-stats'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ticker_mappings')
+        .select('dex_address, coingecko_id')
+        .eq('type', 'crypto')
+        .eq('is_active', true);
+
+      if (error) throw error;
+
+      return {
+        total: data?.length || 0,
+        withAddress: data?.filter(t => t.dex_address).length || 0,
+        withoutAddress: data?.filter(t => !t.dex_address).length || 0,
+        withCoingeckoId: data?.filter(t => t.coingecko_id).length || 0
+      };
+    },
+    refetchInterval: 30000
   });
 
   const handleEnrich = async () => {
@@ -78,6 +102,34 @@ export function CoinGeckoEnrich() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handlePopulateAddresses = async () => {
+    setIsPopulating(true);
+    setPopulateResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('populate-token-addresses');
+
+      if (error) throw error;
+
+      setPopulateResult(data);
+      refetchAddressStats();
+
+      toast({
+        title: "Address Population Complete",
+        description: `✅ Updated ${data.stats.updated} addresses, ${data.stats.skipped} skipped.`,
+      });
+    } catch (error: any) {
+      console.error('Error populating addresses:', error);
+      toast({
+        title: "Population Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsPopulating(false);
     }
   };
 
@@ -258,6 +310,139 @@ export function CoinGeckoEnrich() {
         </CardContent>
       </Card>
 
+      {/* Step 2: Populate Token Addresses */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Step 2: Populate Token Addresses
+          </CardTitle>
+          <CardDescription>
+            Transfer enriched platform/contract addresses from cg_master to ticker_mappings.
+            Run this AFTER enriching coins above.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Address Statistics */}
+          {addressStats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">{addressStats.total.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">Total Crypto Tickers</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold text-green-600">{addressStats.withAddress.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">With Address</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold text-red-600">{addressStats.withoutAddress.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">Missing Address</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold text-blue-600">{addressStats.withCoingeckoId.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">Has CoinGecko ID</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Action Button */}
+          <Button 
+            onClick={handlePopulateAddresses}
+            disabled={isPopulating}
+            className="w-full"
+            size="lg"
+            variant="secondary"
+          >
+            {isPopulating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Populating Addresses...
+              </>
+            ) : (
+              <>
+                <Database className="mr-2 h-4 w-4" />
+                Populate Token Addresses from Enriched Data
+              </>
+            )}
+          </Button>
+
+          {/* Populate Results */}
+          {populateResult && (
+            <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+              <CardContent className="pt-6">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-blue-600" />
+                    <span className="font-semibold">Population Complete!</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <div className="font-bold text-lg">{populateResult.stats?.updated || 0}</div>
+                      <div className="text-muted-foreground">Updated</div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-lg">{populateResult.stats?.skipped || 0}</div>
+                      <div className="text-muted-foreground">Skipped</div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-lg">{populateResult.stats?.errors || 0}</div>
+                      <div className="text-muted-foreground">Errors</div>
+                    </div>
+                    <div>
+                      <div className="font-bold text-lg">{populateResult.stats?.total || 0}</div>
+                      <div className="text-muted-foreground">Processed</div>
+                    </div>
+                  </div>
+
+                  {populateResult.stats?.skipReasons && (
+                    <div className="mt-4 text-xs space-y-1">
+                      <p className="font-semibold">Skip Reasons:</p>
+                      <p>• Already has address: {populateResult.stats.skipReasons.alreadyHasAddress}</p>
+                      <p>• Native coin: {populateResult.stats.skipReasons.nativeCoin}</p>
+                      <p>• No platform data: {populateResult.stats.skipReasons.noPlatformData}</p>
+                      <p>• Empty platforms: {populateResult.stats.skipReasons.emptyPlatforms}</p>
+                      <p>• No valid address: {populateResult.stats.skipReasons.noValidAddress}</p>
+                    </div>
+                  )}
+
+                  {populateResult.stats?.details && populateResult.stats.details.length > 0 && (
+                    <details className="mt-4">
+                      <summary className="cursor-pointer font-semibold">View Details</summary>
+                      <div className="mt-2 max-h-64 overflow-y-auto space-y-1">
+                        {populateResult.stats.details.map((detail: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs py-1 border-b border-blue-200 dark:border-blue-800">
+                            {detail.action === 'updated' && <CheckCircle className="h-3 w-3 text-green-600" />}
+                            {detail.action === 'skipped' && <AlertCircle className="h-3 w-3 text-yellow-600" />}
+                            {detail.action === 'error' && <XCircle className="h-3 w-3 text-red-600" />}
+                            <span className="font-mono">{detail.symbol}</span>
+                            {detail.chain && <span className="text-blue-600">{detail.chain}</span>}
+                            {detail.address && (
+                              <span className="ml-auto font-mono text-muted-foreground">{detail.address.substring(0, 10)}...</span>
+                            )}
+                            {detail.reason && (
+                              <span className="ml-auto text-muted-foreground">{detail.reason}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Information Cards */}
       <div className="grid md:grid-cols-2 gap-4">
         <Card>
@@ -265,11 +450,14 @@ export function CoinGeckoEnrich() {
             <CardTitle className="text-sm">How It Works</CardTitle>
           </CardHeader>
           <CardContent className="text-sm space-y-2">
-            <p>1. Queries <code>cg_master</code> for coins needing enrichment</p>
-            <p>2. Calls CoinGecko <code>/coins/{'{id}'}</code> API for each coin</p>
-            <p>3. Extracts full platform/contract address data</p>
-            <p>4. Updates database with enriched data</p>
-            <p>5. Respects rate limits (150ms delay between calls)</p>
+            <p><strong>Step 1 (Enrichment):</strong></p>
+            <p>• Queries <code>cg_master</code> for coins needing enrichment</p>
+            <p>• Calls CoinGecko <code>/coins/{'{id}'}</code> API</p>
+            <p>• Stores platform data in <code>cg_master</code></p>
+            <p><strong>Step 2 (Population):</strong></p>
+            <p>• Reads enriched data from <code>cg_master</code></p>
+            <p>• Matches with <code>ticker_mappings</code> by coingecko_id</p>
+            <p>• Updates dex_address and dex_chain</p>
           </CardContent>
         </Card>
 
@@ -278,11 +466,11 @@ export function CoinGeckoEnrich() {
             <CardTitle className="text-sm">Best Practices</CardTitle>
           </CardHeader>
           <CardContent className="text-sm space-y-2">
-            <p>• Start with small batches (50 coins) to test</p>
-            <p>• Use Priority Mappings for immediate ticker needs</p>
+            <p>• Run Step 1 first to enrich coins</p>
+            <p>• Then run Step 2 to populate addresses</p>
+            <p>• Start with small enrichment batches (50 coins)</p>
+            <p>• Use Priority Mappings for ticker needs</p>
             <p>• Monitor rate limits and API usage</p>
-            <p>• Run during off-peak hours for large batches</p>
-            <p>• Check error details if failures occur</p>
           </CardContent>
         </Card>
       </div>
