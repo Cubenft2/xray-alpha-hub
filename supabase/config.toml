@@ -1,5 +1,8 @@
 project_id = "odncvfiuzliyohxrsigc"
 
+[functions.populate-token-addresses]
+verify_jwt = false
+
 [functions.exchange-data-aggregator]
 verify_jwt = false
 
