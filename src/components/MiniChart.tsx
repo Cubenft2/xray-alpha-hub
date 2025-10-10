@@ -67,9 +67,18 @@ export function MiniChart({
   };
 
   const formattedSymbol = formatTradingViewSymbol(symbol);
+  const forceFallback = React.useMemo(() => {
+    const s = formattedSymbol.toUpperCase();
+    // Force fallback for known invalid TV mappings
+    return (
+      s.includes('KRAKEN:WALUSDT') ||
+      s.includes('KRAKEN:USELESSUSDT') ||
+      s.includes('KRAKEN:USELESSUSD')
+    );
+  }, [formattedSymbol]);
 
   useEffect(() => {
-    if (!containerRef.current || !tvOk) return;
+    if (!containerRef.current || !tvOk || forceFallback) return;
 
     setWidgetLoadFailed(false);
     
@@ -118,6 +127,21 @@ export function MiniChart({
     widgetContainer.appendChild(script);
     containerRef.current.appendChild(widgetContainer);
 
+    // Detect TradingView "Invalid symbol" and fallback automatically
+    const observer = new MutationObserver(() => {
+      const text = widgetContainer.textContent || '';
+      if (/Invalid symbol|Symbol not found/i.test(text)) {
+        clearTimeout(loadTimeout);
+        console.warn(`⚠️ TradingView reported invalid symbol for ${formattedSymbol} - falling back to sparkline`);
+        setWidgetLoadFailed(true);
+        observer.disconnect();
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+        }
+      }
+    });
+    observer.observe(widgetContainer, { childList: true, subtree: true, characterData: true });
+
     // Clear timeout if widget loads successfully
     script.onload = () => {
       clearTimeout(loadTimeout);
@@ -135,14 +159,15 @@ export function MiniChart({
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
+      try { observer.disconnect(); } catch {}
       if (onClick) {
         widgetContainer.removeEventListener('click', onClick);
       }
     };
-  }, [formattedSymbol, theme, onClick]);
+  }, [formattedSymbol, theme, onClick, tvOk, forceFallback]);
 
-  // Show fallback if widget failed to load and fallback is available
-  if (widgetLoadFailed && showFallback && (coingeckoId || polygonTicker)) {
+  // Show fallback if widget failed to load or is forced and fallback is available
+  if ((widgetLoadFailed || forceFallback) && showFallback && (coingeckoId || polygonTicker)) {
     return (
       <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px' }}>
         <Suspense fallback={<div className="text-sm text-muted-foreground">Loading chart...</div>}>
