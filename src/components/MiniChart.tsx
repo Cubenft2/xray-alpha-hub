@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, lazy, Suspense } from 'react';
+import { getTickerMapping } from '@/config/tickerMappings';
 
 const FallbackSparkline = lazy(() => import('./FallbackSparkline').then(module => ({ default: module.FallbackSparkline })));
-
 interface MiniChartProps {
   symbol: string;
   theme?: string;
@@ -66,7 +66,8 @@ export function MiniChart({
     return `NASDAQ:${input}`;
   };
 
-  const formattedSymbol = formatTradingViewSymbol(symbol);
+const mapped = getTickerMapping(symbol);
+const formattedSymbol = mapped?.symbol ?? formatTradingViewSymbol(symbol);
   const forceFallback = React.useMemo(() => {
     const s = formattedSymbol.toUpperCase();
     // Force fallback for known invalid TV mappings
