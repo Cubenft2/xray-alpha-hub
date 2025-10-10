@@ -148,6 +148,8 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   '0G': { symbol: 'CRYPTO:0GUSD', displayName: '0G (0G)', type: 'crypto' },
   'ATH': { symbol: 'COINBASE:ATHUSD', displayName: 'Aethir (ATH)', type: 'crypto' },
   'AETHIR': { symbol: 'COINBASE:ATHUSD', displayName: 'Aethir (ATH)', type: 'crypto' },
+  'MERL': { symbol: 'OKX:MERLUSDT', displayName: 'Merlin Chain (MERL)', type: 'crypto' },
+  'MERLIN': { symbol: 'OKX:MERLUSDT', displayName: 'Merlin Chain (MERLIN)', type: 'crypto' },
   'XPL': { symbol: 'BINANCE:XPLUSDT', displayName: 'Plasma (XPL)', type: 'crypto' },
   'PLASMA': { symbol: 'BINANCE:XPLUSDT', displayName: 'Plasma (XPL)', type: 'crypto' },
   // Added to resolve admin audit missing mappings
