@@ -26,6 +26,11 @@ All secrets managed in Supabase dashboard:
 - OPENAI_API_KEY
 - Other API keys
 
+**Note**: Ticker mappings and chart overrides are stored in code:
+- `src/config/tickerMappings.ts` - Global symbol mappings
+- `src/pages/MarketBriefHome.tsx` - Runtime overrides (lines 155-176)
+- No environment variables needed for these configurations
+
 ## Production Checklist
 
 - [ ] Custom domain configured

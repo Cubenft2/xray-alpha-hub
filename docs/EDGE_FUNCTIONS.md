@@ -290,7 +290,7 @@ extractEntities(articleText) {
 **File**: `supabase/functions/symbol-intelligence/index.ts`
 
 ### Purpose
-Use OpenAI to intelligently validate and resolve unknown symbols.
+Use OpenAI to intelligently validate and resolve unknown symbols. AI-validated symbols with high confidence integrate directly into the chart rendering system.
 
 ### Trigger
 - **Automatic**: When unknown symbol detected in brief generation
@@ -305,9 +305,10 @@ Use OpenAI to intelligently validate and resolve unknown symbols.
    - Correct symbol format
    - CoinGecko ID (if crypto)
    - Polygon ticker (if stock)
+   - TradingView symbol (for charts)
    - Display name
    - Confidence score (0-1)
-4. If confidence > 0.8, auto-create mapping
+4. If confidence > 0.8, auto-create mapping → Used in MiniChart
 5. If confidence < 0.8, add to pending review
 ```
 
@@ -325,10 +326,17 @@ Determine:
 4. Trading platforms/exchanges
 5. CoinGecko ID (if crypto)
 6. Polygon ticker (if stock)
+7. TradingView symbol (for charting)
 
 Return JSON with your analysis and confidence score.
 `;
 ```
+
+### Chart Integration
+Symbols validated with **confidence > 0.8** are:
+- Automatically added to `ticker_mappings` table
+- Immediately available for MiniChart rendering
+- Include `tradingview_symbol` field for chart display
 
 ---
 
@@ -362,7 +370,31 @@ Validate symbols against known databases without AI (faster than symbol-intellig
   "display_name": "Bitcoin",
   "type": "crypto",
   "coingecko_id": "bitcoin",
-  "tradingview_symbol": "BINANCE:BTCUSDT"
+  "polygon_ticker": null,
+  "tradingview_symbol": "BINANCE:BTCUSDT",
+  "has_tv": true,
+  "capabilities": {
+    "price_supported": true,
+    "chart_supported": true,
+    "social_supported": true
+  }
+}
+```
+
+### Chart System Integration
+This endpoint is called during brief rendering to populate chart capabilities:
+- `tradingview_symbol`: Used directly by MiniChart component
+- `has_tv`: Determines if TradingView chart is available
+- `coingecko_id`: Used for fallback price sparkline
+- `polygon_ticker`: Used for stock price data
+
+Example usage in MiniChart:
+```typescript
+const validation = await symbolValidation(symbol);
+if (validation.has_tv && validation.tradingview_symbol) {
+  renderTradingViewChart(validation.tradingview_symbol);
+} else if (validation.coingecko_id) {
+  renderFallbackSparkline(validation.coingecko_id);
 }
 ```
 

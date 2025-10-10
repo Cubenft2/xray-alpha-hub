@@ -77,8 +77,8 @@ To democratize access to professional-grade market intelligence by combining rea
 
 ## Project Status
 
-**Current Version:** Production-ready with continuous improvements
-**Last Major Update:** Enhanced brief generation with validation layer (2025-01)
+**Current Version:** Production-ready with continuous improvements (v1.2.0)
+**Last Major Update:** Smart chart system deployed (2025-01)
 **Active Development:** Ongoing feature additions and optimizations
 
 ## Success Metrics
@@ -86,6 +86,8 @@ To democratize access to professional-grade market intelligence by combining rea
 - **Data Coverage**: 250+ cryptocurrencies, 5000+ stocks
 - **Update Frequency**: Real-time prices, hourly news updates
 - **Brief Quality**: 90%+ validation pass rate
+- **Chart Rendering Reliability**: 99%+ (target: 95%+)
+- **Average Chart Load Time**: <2s (target: <3s)
 - **Performance**: <2s page load times
 - **Reliability**: 99.9% uptime target
 

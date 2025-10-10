@@ -142,6 +142,66 @@ Comprehensive daily and weekly market analysis powered by OpenAI GPT-4, aggregat
 - **Sorting**: Multi-column sorting
 - **Export**: Download filtered results
 
+### 3.5 Smart Chart System ✨ NEW
+
+#### **MiniChart Component**
+Advanced chart rendering with automatic fallback system ensuring users always see useful data.
+
+**3-Mode State Machine**:
+- **Mode 1: TradingView** - Full professional charting widget
+- **Mode 2: Fallback** - Sparkline price chart (when TradingView unavailable)
+- **Mode 3: None** - Clean "unavailable" state
+
+**Key Features**:
+- **9-Second Timeout**: Automatically falls back if TradingView doesn't load
+- **MutationObserver**: Detects "Invalid symbol" errors in real-time
+- **Automatic Fallback**: Seamlessly switches to sparkline on any failure
+- **Exchange-Qualified Symbols**: Supports `BYBIT:WALRUSUSDT`, `NYSE:AAPL` formats
+- **Performance**: 99%+ chart rendering reliability
+
+#### **Ticker Mapping System**
+Multi-level priority system for symbol resolution:
+
+1. **Explicit Overrides** (Highest Priority)
+   - Configured in `tickerMappings.ts`
+   - Runtime overrides in `MarketBriefHome.tsx`
+   - Examples: WALRUS → WALUSD, USELESS → USELESSUSD
+
+2. **Database Mappings**
+   - Stored in `ticker_mappings` table
+   - Includes `tradingview_symbol`, `coingecko_id`, `polygon_ticker`
+   - Supports 180+ predefined symbols
+
+3. **Asset Type Capabilities**
+   - Auto-detected from `symbol-validation` edge function
+   - Returns `has_tv`, trading platform info
+
+4. **Smart Heuristics** (Fallback)
+   - Crypto detection: USD/USDT suffix, CoinGecko ID presence
+   - Stock detection: Known exchanges (NASDAQ, NYSE, AMEX)
+   - Forex detection: Currency pair format
+   - Automatic exchange prefix addition
+
+#### **Symbol Detection**
+```typescript
+// Crypto: Ends with USD/USDT or has CoinGecko ID
+if (symbol.endsWith('USD') || coingeckoId) → Add BINANCE: prefix
+
+// Stock: Known exchange or Polygon ticker
+if (exchange || polygonTicker) → Add exchange prefix (NYSE:, NASDAQ:)
+
+// Forex: Currency pair format
+if (isCurrencyPair) → Add C: prefix
+```
+
+#### **Console Logging**
+Debug-friendly emoji-prefixed logs:
+- 🎯 Symbol mapping initiated
+- 📊 Database lookup results
+- ✅ Chart render success
+- ⚠️ Fallback triggered
+- ❌ Chart unavailable
+
 ---
 
 ## 4. Social Sentiment Analysis

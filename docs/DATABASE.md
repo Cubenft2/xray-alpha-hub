@@ -106,6 +106,56 @@ CREATE INDEX idx_ticker_mappings_active ON ticker_mappings(is_active);
 }
 ```
 
+### Usage in Charts
+
+The `ticker_mappings` table is central to the chart rendering system:
+
+#### **MiniChart Component Consumption**
+```typescript
+// 1. Check explicit overrides first
+const override = OVERRIDES[symbol.toUpperCase()];
+if (override) return override.symbol;
+
+// 2. Query ticker_mappings table
+const mapping = await supabase
+  .from('ticker_mappings')
+  .select('tradingview_symbol, coingecko_id, polygon_ticker')
+  .eq('symbol', symbol)
+  .single();
+
+// 3. Use tradingview_symbol for chart rendering
+if (mapping.tradingview_symbol) {
+  renderTradingViewChart(mapping.tradingview_symbol);
+}
+```
+
+#### **TradingView Symbol Field**
+The `tradingview_symbol` field stores exchange-qualified symbols:
+- **Crypto**: `BINANCE:BTCUSDT`, `BYBIT:ETHUSD`, `COINBASE:ETHUSD`
+- **Stocks**: `NASDAQ:AAPL`, `NYSE:TSLA`, `AMEX:SPY`
+- **Forex**: `FX:EURUSD`, `OANDA:GBPUSD`
+
+#### **Fallback Behavior**
+When `tradingview_supported: false`:
+- MiniChart automatically uses sparkline fallback
+- Uses `coingecko_id` or `polygon_ticker` for price data
+- No TradingView widget is rendered
+
+#### **Override Examples**
+Special cases requiring explicit overrides:
+```json
+{
+  "symbol": "WAL",
+  "tradingview_symbol": "WALUSD",
+  "note": "Direct TradingView symbol, no exchange prefix needed"
+},
+{
+  "symbol": "USELESS",
+  "tradingview_symbol": "USELESSUSD",
+  "note": "Custom TradingView symbol format"
+}
+```
+
 ---
 
 ### 2. live_prices

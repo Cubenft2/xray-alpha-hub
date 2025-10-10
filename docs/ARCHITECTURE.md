@@ -109,6 +109,53 @@ export function useLivePrices(tickers: string[]) {
 </ProtectedRoute>
 ```
 
+#### 4. **Symbol Resolution Pattern**
+Multi-level priority system for mapping asset symbols to TradingView charts:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant MiniChart
+    participant Override
+    participant DB
+    participant SymbolVal
+    participant TradingView
+    
+    User->>MiniChart: View asset (e.g., "WALRUS")
+    MiniChart->>Override: Check explicit overrides
+    Override-->>MiniChart: WALUSD (found)
+    
+    alt Override Found
+        MiniChart->>TradingView: Render WALUSD
+        TradingView-->>MiniChart: Success/Failure
+    else No Override
+        MiniChart->>DB: Query ticker_mappings
+        DB-->>MiniChart: tradingview_symbol
+        MiniChart->>SymbolVal: Get capabilities
+        SymbolVal-->>MiniChart: has_tv, exchange info
+        MiniChart->>MiniChart: Apply smart heuristics
+        MiniChart->>TradingView: Render symbol
+    end
+    
+    alt TradingView Success
+        TradingView-->>User: Display chart
+    else TradingView Failure
+        MiniChart->>MiniChart: Fallback to sparkline
+        MiniChart-->>User: Display fallback chart
+    end
+```
+
+**Priority Order**:
+1. **Explicit Overrides**: `tickerMappings.ts` and `MarketBriefHome.tsx` (WAL→WALUSD)
+2. **Database Mappings**: `ticker_mappings` table with `tradingview_symbol` field
+3. **Symbol Capabilities**: From `symbol-validation` edge function (has_tv, coingecko_id)
+4. **Local Config**: `tickerMappings.ts` fallback config
+5. **Smart Heuristics**: Auto-detection based on symbol format (USD suffix = crypto)
+
+**Edge Function Integration**:
+- `symbol-intelligence`: AI-validated symbols feed into the chart system (confidence > 0.8)
+- `symbol-validation`: Returns `has_tv`, `tradingview_symbol`, `coingecko_id`, `polygon_ticker`
+
 ## Backend Architecture
 
 ### Supabase Configuration
