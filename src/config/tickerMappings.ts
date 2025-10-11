@@ -124,7 +124,7 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'RENDER': { symbol: 'GEMINI:RNDRUSD', displayName: 'Render Token (RNDR)', type: 'crypto' },
   'FLR': { symbol: 'FLRUSD', displayName: 'Flare (FLR)', type: 'crypto' },
   'FLARE': { symbol: 'FLRUSD', displayName: 'Flare (FLR)', type: 'crypto' },
-  'MERL': { symbol: 'OKX:MERLUSDT', displayName: 'Merlin Chain (MERL)', type: 'crypto' },
+ 
   // Added mappings to fix missing mini-cards
   'BNB': { symbol: 'BINANCE:BNBUSDT', displayName: 'BNB (BNB)', type: 'crypto' },
   'WETH': { symbol: 'COINBASE:ETHUSD', displayName: 'Wrapped ETH (WETH)', type: 'crypto' },
