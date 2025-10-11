@@ -84,7 +84,16 @@ Deno.serve(async (req) => {
     }
 
     const apiData = await response.json();
-    const coins: CoinData[] = apiData.data || [];
+    const rawCoins = apiData.data || [];
+    
+    // Map API fields to our interface, including social_volume from interactions_24h
+    const coins: CoinData[] = rawCoins.map((coin: any) => ({
+      ...coin,
+      social_volume: coin.interactions_24h || coin.social_volume || 0,
+      sentiment: coin.sentiment || 0,
+    }));
+
+    console.log(`📊 Sample coin data:`, JSON.stringify(coins[0], null, 2));
 
     // Calculate metadata
     const metadata = {
