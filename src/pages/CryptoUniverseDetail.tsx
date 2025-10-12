@@ -17,19 +17,19 @@ interface CoinDetail {
   id: number;
   name: string;
   symbol: string;
-  price: number;
-  price_btc: number;
-  market_cap: number;
-  percent_change_24h: number;
-  percent_change_7d: number;
-  percent_change_30d: number;
-  volume_24h: number;
+  price: number | null;
+  price_btc: number | null;
+  market_cap: number | null;
+  percent_change_24h: number | null;
+  percent_change_7d: number | null;
+  percent_change_30d: number | null;
+  volume_24h: number | null;
   max_supply: number | null;
-  circulating_supply: number;
-  galaxy_score: number;
-  alt_rank: number;
-  volatility: number;
-  market_cap_rank: number;
+  circulating_supply: number | null;
+  galaxy_score: number | null;
+  alt_rank: number | null;
+  volatility: number | null;
+  market_cap_rank: number | null;
 }
 
 interface CoinAnalysis {
@@ -129,7 +129,8 @@ export default function CryptoUniverseDetail() {
     fetchCgPlatforms();
   }, [symbol, coinDetailData]);
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value === null || value === undefined || isNaN(value)) return 'N/A';
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
     if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
     return `$${value.toFixed(2)}`;
@@ -256,11 +257,11 @@ export default function CryptoUniverseDetail() {
           <div className="flex items-center gap-4 mt-2">
             <span className="text-3xl font-bold">{formatCurrency(coin.price)}</span>
             <Badge
-              variant={coin.percent_change_24h > 0 ? 'default' : 'destructive'}
+              variant={(coin.percent_change_24h ?? 0) > 0 ? 'default' : 'destructive'}
               className="text-base"
             >
-              {coin.percent_change_24h > 0 ? '+' : ''}
-              {coin.percent_change_24h.toFixed(2)}% (24h)
+              {(coin.percent_change_24h ?? 0) > 0 ? '+' : ''}
+              {coin.percent_change_24h?.toFixed(2) ?? 'N/A'}% (24h)
             </Badge>
           </div>
         </div>
@@ -398,7 +399,7 @@ export default function CryptoUniverseDetail() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Circulating Supply</span>
               <span className="font-semibold">
-                {coin.circulating_supply.toLocaleString()}
+                {coin.circulating_supply?.toLocaleString() ?? 'N/A'}
               </span>
             </div>
           </CardContent>
@@ -412,17 +413,17 @@ export default function CryptoUniverseDetail() {
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Galaxy Score</span>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-lg">{coin.galaxy_score}</span>
-                <Badge variant="outline">{analysis?.galaxy_score_interpretation}</Badge>
+                <span className="font-bold text-lg">{coin.galaxy_score ?? 'N/A'}</span>
+                <Badge variant="outline">{analysis?.galaxy_score_interpretation ?? 'N/A'}</Badge>
               </div>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">AltRank</span>
-              <span className="font-semibold">#{coin.alt_rank}</span>
+              <span className="font-semibold">#{coin.alt_rank ?? 'N/A'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Volatility</span>
-              <span className="font-semibold">{(coin.volatility * 100).toFixed(2)}%</span>
+              <span className="font-semibold">{coin.volatility ? (coin.volatility * 100).toFixed(2) + '%' : 'N/A'}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Risk Level</span>
@@ -442,21 +443,21 @@ export default function CryptoUniverseDetail() {
               <span className="text-muted-foreground">Short-term (24h)</span>
               <div className="flex items-center gap-2">
                 {getTrendIcon(analysis?.trends.short_term || 'BEARISH')}
-                <span className="font-semibold">{coin.percent_change_24h.toFixed(2)}%</span>
+                <span className="font-semibold">{coin.percent_change_24h?.toFixed(2) ?? 'N/A'}%</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Medium-term (7d)</span>
               <div className="flex items-center gap-2">
                 {getTrendIcon(analysis?.trends.medium_term || 'BEARISH')}
-                <span className="font-semibold">{coin.percent_change_7d.toFixed(2)}%</span>
+                <span className="font-semibold">{coin.percent_change_7d?.toFixed(2) ?? 'N/A'}%</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Long-term (30d)</span>
               <div className="flex items-center gap-2">
                 {getTrendIcon(analysis?.trends.long_term || 'BEARISH')}
-                <span className="font-semibold">{coin.percent_change_30d.toFixed(2)}%</span>
+                <span className="font-semibold">{coin.percent_change_30d?.toFixed(2) ?? 'N/A'}%</span>
               </div>
             </div>
           </CardContent>
