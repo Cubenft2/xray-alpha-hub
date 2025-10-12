@@ -67,16 +67,49 @@ export default function CryptoUniverseDetail() {
         setCoin(data.data);
         setAnalysis(data.analysis);
 
-        // Fetch CoinGecko platform data
-        const { data: cgData } = await supabase
+        // Fetch CoinGecko platform data with disambiguation
+        const { data: cgDataArray } = await supabase
           .from('cg_master')
-          .select('platforms')
+          .select('cg_id, platforms')
           .eq('symbol', symbol.toUpperCase())
-          .not('platforms', 'is', null)
-          .single();
+          .not('platforms', 'is', null);
 
-        if (cgData?.platforms && typeof cgData.platforms === 'object' && Object.keys(cgData.platforms).length > 0) {
-          setCgPlatforms(cgData.platforms as Record<string, string>);
+        // If we have multiple matches, try to pick the best one
+        let bestMatch = null;
+        if (cgDataArray && cgDataArray.length > 0) {
+          if (cgDataArray.length === 1) {
+            // Only one match - use it
+            bestMatch = cgDataArray[0];
+          } else {
+            // Multiple matches - use disambiguation logic
+            console.warn(`⚠️ Multiple CoinGecko entries found for ${symbol}:`, 
+              cgDataArray.map(row => ({
+                cg_id: row.cg_id,
+                platforms: Object.keys(row.platforms || {}).length
+              }))
+            );
+            
+            // Priority 1: Match cg_id from LunarCrush data (if available)
+            if (data?.data?.id) {
+              bestMatch = cgDataArray.find(row => row.cg_id === data.data.id);
+            }
+            
+            // Priority 2: Pick the one with most platform addresses
+            if (!bestMatch) {
+              bestMatch = cgDataArray.reduce((best, current) => {
+                const bestCount = Object.keys(best.platforms || {}).length;
+                const currentCount = Object.keys(current.platforms || {}).length;
+                return currentCount > bestCount ? current : best;
+              });
+            }
+          }
+          
+          if (bestMatch?.platforms && 
+              typeof bestMatch.platforms === 'object' && 
+              Object.keys(bestMatch.platforms).length > 0) {
+            console.log(`✅ Using CoinGecko data for ${symbol} (${bestMatch.cg_id}) with ${Object.keys(bestMatch.platforms).length} chains`);
+            setCgPlatforms(bestMatch.platforms as Record<string, string>);
+          }
         }
       } catch (err: any) {
         console.error('Error fetching coin detail:', err);
