@@ -13,6 +13,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!;
 const coingeckoApiKey = Deno.env.get('COINGECKO_API_KEY')!;
 const lunarcrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY')!;
+const polygonApiKey = Deno.env.get('POLYGON_API_KEY')!;
 const cronSecret = Deno.env.get('CRON_SECRET');
 
 interface CoinGeckoData {
@@ -80,7 +81,7 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'What\'s Next',
-    guidelines: 'Forward-looking: upcoming events, key levels to watch, potential catalysts. CRITICAL: USE ACTUAL CURRENT PRICES from the data when mentioning crypto support/resistance levels - calculate them based on current prices (e.g., if BTC=$121k, mention $120k or $125k levels). NEVER use outdated or generic levels like $30k for BTC or $2k for ETH. For stocks, mention themes/catalysts but DO NOT mention specific price levels (we don\'t have real-time stock data). 1-2 paragraphs.',
+    guidelines: 'Forward-looking: upcoming events, key levels to watch, potential catalysts. CRITICAL PRICE REQUIREMENTS: 1) Use EXACT CURRENT PRICES from the data (BTC current price will be provided). 2) Calculate support as current * 0.95 and resistance as current * 1.05. 3) NEVER use generic/outdated levels. 4) If BTC is below $100k, DO NOT mention $120k+ levels. 5) Verify any price you mention against the provided data. For stocks, mention themes/catalysts but DO NOT mention specific price levels (we don\'t have real-time stock data). 1-2 paragraphs.',
     dataScope: ['economicCalendar', 'upcomingEvents', 'btc', 'eth', 'marketCap', 'coingeckoData'],
     minWords: 80
   }
@@ -881,6 +882,231 @@ async function validateBriefContent(
 }
 
 // ===================================================================
+// POLYGON.IO PRICE FALLBACK SYSTEM
+// ===================================================================
+
+interface PriceDataResult {
+  price: number | null;
+  source: 'polygon' | 'coingecko' | 'live_prices' | 'cached' | 'failed';
+  timestamp: string;
+  isStale: boolean;
+  freshnessMinutes: number;
+  metadata?: any;
+}
+
+/**
+ * Fetch crypto prices with multi-source fallback system
+ * Priority: Polygon.io -> CoinGecko -> live_prices table -> cached brief data
+ */
+async function fetchCryptoDataWithFallbacks(
+  supabase: any,
+  symbols: string[] = ['BTC', 'ETH', 'SOL']
+): Promise<Map<string, PriceDataResult>> {
+  console.log(`\n💰 Starting multi-source price fetch for: ${symbols.join(', ')}`);
+  const results = new Map<string, PriceDataResult>();
+  const now = new Date();
+  
+  // ===================================================================
+  // 1. TRY POLYGON.IO CRYPTO SNAPSHOT (PRIMARY SOURCE)
+  // ===================================================================
+  try {
+    console.log('📡 [1/4] Trying Polygon.io crypto snapshot...');
+    const polygonUrl = `https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers?apiKey=${polygonApiKey}`;
+    const polygonResponse = await fetch(polygonUrl);
+    
+    if (polygonResponse.ok) {
+      const polygonData = await polygonResponse.json();
+      
+      if (polygonData.status === 'OK' && polygonData.tickers) {
+        symbols.forEach(symbol => {
+          // Match Polygon ticker format (e.g., X:BTCUSD)
+          const ticker = polygonData.tickers.find((t: any) => 
+            t.ticker === `X:${symbol}USD` || 
+            t.ticker === `${symbol}USD` ||
+            t.ticker.includes(symbol)
+          );
+          
+          if (ticker && ticker.lastTrade?.p) {
+            const timestamp = new Date(ticker.lastTrade.t / 1000000); // Polygon uses nanoseconds
+            const freshnessMinutes = Math.floor((now.getTime() - timestamp.getTime()) / 60000);
+            
+            results.set(symbol, {
+              price: ticker.lastTrade.p,
+              source: 'polygon',
+              timestamp: timestamp.toISOString(),
+              isStale: freshnessMinutes > 30,
+              freshnessMinutes,
+              metadata: {
+                volume: ticker.day?.v,
+                change: ticker.todaysChangePerc,
+                high: ticker.day?.h,
+                low: ticker.day?.l
+              }
+            });
+            console.log(`  ✅ ${symbol}: $${ticker.lastTrade.p.toFixed(2)} from Polygon (${freshnessMinutes}min old)`);
+          }
+        });
+        
+        console.log(`✅ Polygon.io fetched ${results.size}/${symbols.length} prices successfully`);
+      }
+    } else {
+      console.warn(`⚠️ Polygon.io returned ${polygonResponse.status}`);
+    }
+  } catch (error) {
+    console.error('❌ Polygon.io fetch failed:', error instanceof Error ? error.message : 'Unknown error');
+  }
+  
+  // ===================================================================
+  // 2. TRY COINGECKO FOR MISSING PRICES
+  // ===================================================================
+  const missingSymbols = symbols.filter(s => !results.has(s));
+  if (missingSymbols.length > 0) {
+    try {
+      console.log(`📡 [2/4] Trying CoinGecko for missing symbols: ${missingSymbols.join(', ')}...`);
+      const coinGeckoMap: { [key: string]: string } = {
+        'BTC': 'bitcoin',
+        'ETH': 'ethereum',
+        'SOL': 'solana',
+        'XRP': 'ripple',
+        'ADA': 'cardano',
+        'DOGE': 'dogecoin'
+      };
+      
+      const coinIds = missingSymbols.map(s => coinGeckoMap[s] || s.toLowerCase()).join(',');
+      const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${coinIds}&vs_currencies=usd&include_24hr_change=true&include_last_updated_at=true`;
+      const cgResponse = await fetch(cgUrl, {
+        headers: { 'x-cg-pro-api-key': coingeckoApiKey }
+      });
+      
+      if (cgResponse.ok) {
+        const cgData = await cgResponse.json();
+        
+        missingSymbols.forEach(symbol => {
+          const coinId = coinGeckoMap[symbol] || symbol.toLowerCase();
+          if (cgData[coinId]?.usd) {
+            const timestamp = cgData[coinId].last_updated_at 
+              ? new Date(cgData[coinId].last_updated_at * 1000) 
+              : now;
+            const freshnessMinutes = Math.floor((now.getTime() - timestamp.getTime()) / 60000);
+            
+            results.set(symbol, {
+              price: cgData[coinId].usd,
+              source: 'coingecko',
+              timestamp: timestamp.toISOString(),
+              isStale: freshnessMinutes > 30,
+              freshnessMinutes,
+              metadata: {
+                change24h: cgData[coinId].usd_24h_change
+              }
+            });
+            console.log(`  ✅ ${symbol}: $${cgData[coinId].usd.toFixed(2)} from CoinGecko (${freshnessMinutes}min old)`);
+          }
+        });
+        
+        console.log(`✅ CoinGecko fetched ${results.size - (symbols.length - missingSymbols.length)}/${missingSymbols.length} additional prices`);
+      }
+    } catch (error) {
+      console.error('❌ CoinGecko fetch failed:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+  
+  // ===================================================================
+  // 3. TRY LIVE_PRICES TABLE FOR STILL-MISSING PRICES
+  // ===================================================================
+  const stillMissing = symbols.filter(s => !results.has(s));
+  if (stillMissing.length > 0) {
+    try {
+      console.log(`📡 [3/4] Trying live_prices table for: ${stillMissing.join(', ')}...`);
+      const { data: livePrices } = await supabase
+        .from('live_prices')
+        .select('ticker, price, updated_at')
+        .in('ticker', stillMissing);
+      
+      if (livePrices && livePrices.length > 0) {
+        livePrices.forEach((row: any) => {
+          const timestamp = new Date(row.updated_at);
+          const freshnessMinutes = Math.floor((now.getTime() - timestamp.getTime()) / 60000);
+          
+          results.set(row.ticker, {
+            price: row.price,
+            source: 'live_prices',
+            timestamp: row.updated_at,
+            isStale: freshnessMinutes > 60,
+            freshnessMinutes
+          });
+          console.log(`  ✅ ${row.ticker}: $${row.price.toFixed(2)} from live_prices table (${freshnessMinutes}min old)`);
+        });
+        
+        console.log(`✅ live_prices table provided ${livePrices.length}/${stillMissing.length} additional prices`);
+      }
+    } catch (error) {
+      console.error('❌ live_prices table fetch failed:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+  
+  // ===================================================================
+  // 4. LAST RESORT: TRY CACHED BRIEF DATA
+  // ===================================================================
+  const finalMissing = symbols.filter(s => !results.has(s));
+  if (finalMissing.length > 0) {
+    try {
+      console.log(`📡 [4/4] Last resort: checking cached brief data for: ${finalMissing.join(', ')}...`);
+      const { data: latestBrief } = await supabase
+        .from('market_briefs')
+        .select('market_data, created_at')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (latestBrief?.market_data) {
+        finalMissing.forEach(symbol => {
+          const priceKey = symbol === 'BTC' ? 'btc_price' : symbol === 'ETH' ? 'eth_price' : null;
+          if (priceKey && latestBrief.market_data[priceKey]) {
+            const timestamp = new Date(latestBrief.created_at);
+            const freshnessMinutes = Math.floor((now.getTime() - timestamp.getTime()) / 60000);
+            
+            results.set(symbol, {
+              price: latestBrief.market_data[priceKey],
+              source: 'cached',
+              timestamp: latestBrief.created_at,
+              isStale: freshnessMinutes > 120,
+              freshnessMinutes
+            });
+            console.log(`  ⚠️ ${symbol}: $${latestBrief.market_data[priceKey].toFixed(2)} from cached brief (${freshnessMinutes}min old)`);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('❌ Cached brief fetch failed:', error instanceof Error ? error.message : 'Unknown error');
+    }
+  }
+  
+  // ===================================================================
+  // SUMMARY
+  // ===================================================================
+  const failed = symbols.filter(s => !results.has(s));
+  if (failed.length > 0) {
+    console.error(`❌ FAILED to fetch prices for: ${failed.join(', ')}`);
+    failed.forEach(symbol => {
+      results.set(symbol, {
+        price: null,
+        source: 'failed',
+        timestamp: now.toISOString(),
+        isStale: true,
+        freshnessMinutes: 9999
+      });
+    });
+  }
+  
+  console.log(`\n📊 Final price fetch summary:`);
+  console.log(`  ✅ Success: ${results.size - failed.length}/${symbols.length}`);
+  console.log(`  ❌ Failed: ${failed.length}/${symbols.length}`);
+  
+  return results;
+}
+
+// ===================================================================
 // MAIN SERVER LOGIC
 // ===================================================================
 
@@ -958,6 +1184,14 @@ serve(async (req) => {
     let globalMarketData: any = null;
     let economicCalendar = 'No major events scheduled';
     
+    // Price data tracking
+    let priceDataResults: Map<string, PriceDataResult> | null = null;
+    let btcPriceSource: string = 'unknown';
+    let btcPriceTimestamp: string = new Date().toISOString();
+    let dataFreshnessMinutes: number = 0;
+    let dataWarnings: string[] = [];
+    let polygonUsed: boolean = false;
+    
     try {
       console.log('📰 Fetching news data...');
       const newsResponse = await supabase.functions.invoke('news-fetch', { body: { limit: 50 } });
@@ -981,6 +1215,34 @@ serve(async (req) => {
       console.error('❌ Global market data fetch failed:', err);
     }
 
+    // ===================================================================
+    // PHASE 1: FETCH PRICES WITH POLYGON.IO FALLBACK SYSTEM
+    // ===================================================================
+    try {
+      console.log('💰 Fetching crypto prices with Polygon.io fallback system...');
+      priceDataResults = await fetchCryptoDataWithFallbacks(supabase, ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE']);
+      
+      const btcResult = priceDataResults.get('BTC');
+      if (btcResult && btcResult.price) {
+        btcPriceSource = btcResult.source;
+        btcPriceTimestamp = btcResult.timestamp;
+        dataFreshnessMinutes = btcResult.freshnessMinutes;
+        polygonUsed = btcResult.source === 'polygon';
+        
+        if (btcResult.isStale) {
+          dataWarnings.push(`BTC price is ${btcResult.freshnessMinutes}min old from ${btcResult.source}`);
+        }
+        
+        console.log(`✅ BTC price: $${btcResult.price.toFixed(2)} from ${btcResult.source} (${btcResult.freshnessMinutes}min old)`);
+      } else {
+        dataWarnings.push('BTC price unavailable from all sources');
+        console.error('❌ CRITICAL: BTC price is null/undefined!');
+      }
+    } catch (err) {
+      console.error('❌ Price fetch with fallbacks failed:', err);
+      dataWarnings.push('Price fetching system failed');
+    }
+
     try {
       console.log('🪙 Fetching CoinGecko market data...');
       const baseUrl = 'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&price_change_percentage=24h,7d,30d';
@@ -989,6 +1251,24 @@ serve(async (req) => {
       });
       if (coingeckoResponse.ok) {
         coingeckoData = await coingeckoResponse.json();
+        
+        // CRITICAL: Override BTC/ETH prices with Polygon data if available
+        if (priceDataResults) {
+          const btcResult = priceDataResults.get('BTC');
+          const ethResult = priceDataResults.get('ETH');
+          
+          coingeckoData = coingeckoData.map(coin => {
+            if (coin.symbol === 'btc' && btcResult?.price) {
+              console.log(`🔄 Overriding BTC price: CoinGecko $${coin.current_price} → Polygon $${btcResult.price}`);
+              return { ...coin, current_price: btcResult.price };
+            }
+            if (coin.symbol === 'eth' && ethResult?.price) {
+              console.log(`🔄 Overriding ETH price: CoinGecko $${coin.current_price} → Polygon $${ethResult.price}`);
+              return { ...coin, current_price: ethResult.price };
+            }
+            return coin;
+          });
+        }
       }
     } catch (err) {
       console.error('❌ CoinGecko fetch failed:', err);
@@ -1105,9 +1385,26 @@ serve(async (req) => {
       console.error('⚠️ Quote fetch failed:', err);
     }
 
-    // Calculate key metrics
+    // Calculate key metrics with validation
     const btcData = coingeckoData.find(coin => coin.symbol === 'btc');
     const ethData = coingeckoData.find(coin => coin.symbol === 'eth');
+    
+    // CRITICAL VALIDATION: Ensure BTC price is available
+    if (!btcData || !btcData.current_price || btcData.current_price === 0) {
+      console.error('❌ CRITICAL ERROR: BTC price is null/undefined/zero after all fallbacks!');
+      dataWarnings.push('CRITICAL: BTC price validation failed');
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'BTC price unavailable', 
+          details: 'All price sources failed to provide valid BTC price',
+          warnings: dataWarnings
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    console.log(`✅ Price validation passed: BTC=$${btcData.current_price.toFixed(2)}, ETH=$${ethData?.current_price?.toFixed(2) || 'N/A'}`);
     
     const changeField = isWeekendBrief ? 'price_change_percentage_7d_in_currency' : 'price_change_percentage_24h';
     
@@ -1232,6 +1529,11 @@ serve(async (req) => {
         total_market_cap: totalMarketCap,
         total_volume: totalVolume,
         btc_price: btcData?.current_price,
+        btc_price_source: btcPriceSource,
+        btc_price_timestamp: btcPriceTimestamp,
+        data_freshness_minutes: dataFreshnessMinutes,
+        data_warnings: dataWarnings,
+        polygon_used: polygonUsed,
         eth_price: ethData?.current_price,
         fear_greed: currentFearGreed.value,
         social_sentiment: lunarcrushData?.data?.slice(0, 20).map((coin: any) => ({
