@@ -926,12 +926,29 @@ async function fetchCryptoDataWithFallbacks(
             t.ticker.includes(symbol)
           );
           
-          if (ticker && ticker.lastTrade?.p) {
-            const timestamp = new Date(ticker.lastTrade.t / 1000000); // Polygon uses nanoseconds
+          // Use day.c (close) or day.vw (volume-weighted avg), fallback to lastTrade.p
+          const price = ticker?.day?.c || ticker?.day?.vw || ticker?.lastTrade?.p;
+          const timestampMs = ticker?.updated || ticker?.day?.t || ticker?.lastTrade?.t;
+          
+          // Sanity check price ranges
+          let priceValid = false;
+          if (price && price > 0) {
+            if (symbol === 'BTC' && price > 10000 && price < 1000000) priceValid = true;
+            else if (symbol === 'ETH' && price > 500 && price < 50000) priceValid = true;
+            else if (price > 0.0001 && price < 100000) priceValid = true; // Other cryptos
+          }
+          
+          if (ticker && priceValid) {
+            const timestamp = new Date(timestampMs); // Polygon uses milliseconds
             const freshnessMinutes = Math.floor((now.getTime() - timestamp.getTime()) / 60000);
             
+            // Warn if data is stale
+            if (freshnessMinutes > 60) {
+              console.warn(`  ⚠️ Polygon price for ${symbol} is ${freshnessMinutes} minutes old`);
+            }
+            
             results.set(symbol, {
-              price: ticker.lastTrade.p,
+              price: price,
               source: 'polygon',
               timestamp: timestamp.toISOString(),
               isStale: freshnessMinutes > 30,
@@ -943,7 +960,9 @@ async function fetchCryptoDataWithFallbacks(
                 low: ticker.day?.l
               }
             });
-            console.log(`  ✅ ${symbol}: $${ticker.lastTrade.p.toFixed(2)} from Polygon (${freshnessMinutes}min old)`);
+            console.log(`  ✅ ${symbol}: $${price.toFixed(2)} from Polygon (${freshnessMinutes}min old)`);
+          } else {
+            console.warn(`  ⚠️ Polygon price for ${symbol} failed sanity check: $${price}`);
           }
         });
         
