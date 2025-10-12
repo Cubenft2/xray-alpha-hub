@@ -49,6 +49,7 @@ export default function CryptoUniverseDetail() {
   const [coin, setCoin] = useState<CoinDetail | null>(null);
   const [analysis, setAnalysis] = useState<CoinAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cgPlatforms, setCgPlatforms] = useState<Record<string, string> | null>(null);
 
   useEffect(() => {
     const fetchCoinDetail = async () => {
@@ -65,6 +66,18 @@ export default function CryptoUniverseDetail() {
 
         setCoin(data.data);
         setAnalysis(data.analysis);
+
+        // Fetch CoinGecko platform data
+        const { data: cgData } = await supabase
+          .from('cg_master')
+          .select('platforms')
+          .eq('symbol', symbol.toUpperCase())
+          .not('platforms', 'is', null)
+          .single();
+
+        if (cgData?.platforms && typeof cgData.platforms === 'object' && Object.keys(cgData.platforms).length > 0) {
+          setCgPlatforms(cgData.platforms as Record<string, string>);
+        }
       } catch (err: any) {
         console.error('Error fetching coin detail:', err);
         toast.error('Failed to load coin details. Please try again.');
@@ -105,15 +118,56 @@ export default function CryptoUniverseDetail() {
     toast.success('Token address copied to clipboard');
   };
 
+  const formatChainName = (cgChainId: string): string => {
+    const chainNames: Record<string, string> = {
+      'ethereum': 'Ethereum',
+      'binance-smart-chain': 'BNB Chain',
+      'polygon-pos': 'Polygon',
+      'solana': 'Solana',
+      'avalanche': 'Avalanche',
+      'arbitrum-one': 'Arbitrum',
+      'optimistic-ethereum': 'Optimism',
+      'base': 'Base',
+      'fantom': 'Fantom',
+      'xrp': 'XRP Ledger',
+      'cardano': 'Cardano',
+      'polkadot': 'Polkadot',
+      'tron': 'Tron',
+      'near-protocol': 'NEAR Protocol',
+      'cosmos': 'Cosmos',
+      'algorand': 'Algorand',
+      'harmony-shard-0': 'Harmony',
+      'moonbeam': 'Moonbeam',
+      'cronos': 'Cronos',
+      'klay-token': 'Klaytn',
+    };
+    
+    return chainNames[cgChainId] || cgChainId.split('-').map(
+      word => word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  };
+
   const getExplorerUrl = (address: string, chain: string) => {
     const explorers: Record<string, string> = {
-      ethereum: `https://etherscan.io/token/${address}`,
-      bsc: `https://bscscan.com/token/${address}`,
-      polygon: `https://polygonscan.com/token/${address}`,
-      arbitrum: `https://arbiscan.io/token/${address}`,
-      optimism: `https://optimistic.etherscan.io/token/${address}`,
-      avalanche: `https://snowtrace.io/token/${address}`,
-      base: `https://basescan.org/token/${address}`,
+      // CoinGecko chain IDs
+      'ethereum': `https://etherscan.io/token/${address}`,
+      'binance-smart-chain': `https://bscscan.com/token/${address}`,
+      'polygon-pos': `https://polygonscan.com/token/${address}`,
+      'solana': `https://solscan.io/token/${address}`,
+      'avalanche': `https://snowtrace.io/token/${address}`,
+      'arbitrum-one': `https://arbiscan.io/token/${address}`,
+      'optimistic-ethereum': `https://optimistic.etherscan.io/token/${address}`,
+      'base': `https://basescan.org/token/${address}`,
+      'fantom': `https://ftmscan.com/token/${address}`,
+      'moonbeam': `https://moonscan.io/token/${address}`,
+      'cronos': `https://cronoscan.com/token/${address}`,
+      'harmony-shard-0': `https://explorer.harmony.one/address/${address}`,
+      'near-protocol': `https://nearblocks.io/token/${address}`,
+      // Legacy chain names from ticker_mappings
+      'bsc': `https://bscscan.com/token/${address}`,
+      'polygon': `https://polygonscan.com/token/${address}`,
+      'arbitrum': `https://arbiscan.io/token/${address}`,
+      'optimism': `https://optimistic.etherscan.io/token/${address}`,
     };
     return explorers[chain.toLowerCase()] || null;
   };
@@ -182,55 +236,102 @@ export default function CryptoUniverseDetail() {
         </CardContent>
       </Card>
 
-      {/* Contract Address Section - Only show if dex_address exists */}
-      {!mappingsLoading && getMapping(coin.symbol)?.dex_address && (
+      {/* Contract Address Section - Show multi-chain addresses from CoinGecko or fallback to ticker_mappings */}
+      {!mappingsLoading && (cgPlatforms || getMapping(coin.symbol)?.dex_address) && (
         <Card>
           <CardHeader>
-            <CardTitle>Contract Address</CardTitle>
+            <CardTitle>Contract Addresses</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Token addresses across different blockchains
+            </p>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <span className="text-sm text-muted-foreground">Blockchain</span>
-              <div className="mt-2">
-                <Badge variant="outline" className="capitalize text-base">
-                  {getMapping(coin.symbol)?.dex_chain || 'Unknown'}
-                </Badge>
+          <CardContent className="space-y-6">
+            {/* CoinGecko Platform Data (if available) */}
+            {cgPlatforms && Object.entries(cgPlatforms).map(([chain, address]) => (
+              <div key={chain} className="space-y-2 pb-4 border-b last:border-0 last:pb-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Blockchain</span>
+                  <Badge variant="outline" className="capitalize text-base">
+                    {formatChainName(chain)}
+                  </Badge>
+                </div>
+                
+                <div>
+                  <span className="text-sm text-muted-foreground block mb-2">Token Address</span>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-4 py-3 bg-muted rounded-lg text-sm font-mono break-all">
+                      {address}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => copyToClipboard(address)}
+                      title="Copy address"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    {getExplorerUrl(address, chain) && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => window.open(getExplorerUrl(address, chain)!, '_blank')}
+                        title="View on explorer"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
             
-            <div>
-              <span className="text-sm text-muted-foreground">Token Address</span>
-              <div className="flex items-center gap-2 mt-2">
-                <code className="flex-1 px-4 py-3 bg-muted rounded-lg text-sm font-mono break-all">
-                  {getMapping(coin.symbol)?.dex_address}
-                </code>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => copyToClipboard(getMapping(coin.symbol)?.dex_address || '')}
-                  title="Copy address"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                {getMapping(coin.symbol)?.dex_chain && 
-                 getExplorerUrl(getMapping(coin.symbol)?.dex_address || '', getMapping(coin.symbol)?.dex_chain || '') && (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      const url = getExplorerUrl(
-                        getMapping(coin.symbol)?.dex_address || '', 
-                        getMapping(coin.symbol)?.dex_chain || ''
-                      );
-                      if (url) window.open(url, '_blank');
-                    }}
-                    title="View on explorer"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                )}
+            {/* Fallback to ticker_mappings if no CoinGecko data */}
+            {!cgPlatforms && getMapping(coin.symbol)?.dex_address && (
+              <div className="space-y-2">
+                <div>
+                  <span className="text-sm text-muted-foreground">Blockchain</span>
+                  <div className="mt-2">
+                    <Badge variant="outline" className="capitalize text-base">
+                      {getMapping(coin.symbol)?.dex_chain || 'Unknown'}
+                    </Badge>
+                  </div>
+                </div>
+                
+                <div>
+                  <span className="text-sm text-muted-foreground">Token Address</span>
+                  <div className="flex items-center gap-2 mt-2">
+                    <code className="flex-1 px-4 py-3 bg-muted rounded-lg text-sm font-mono break-all">
+                      {getMapping(coin.symbol)?.dex_address}
+                    </code>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => copyToClipboard(getMapping(coin.symbol)?.dex_address || '')}
+                      title="Copy address"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                    {getMapping(coin.symbol)?.dex_chain && 
+                     getExplorerUrl(getMapping(coin.symbol)?.dex_address || '', getMapping(coin.symbol)?.dex_chain || '') && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          const url = getExplorerUrl(
+                            getMapping(coin.symbol)?.dex_address || '', 
+                            getMapping(coin.symbol)?.dex_chain || ''
+                          );
+                          if (url) window.open(url, '_blank');
+                        }}
+                        title="View on explorer"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       )}
