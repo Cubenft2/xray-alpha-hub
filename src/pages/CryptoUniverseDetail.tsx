@@ -182,6 +182,59 @@ export default function CryptoUniverseDetail() {
         </CardContent>
       </Card>
 
+      {/* Contract Address Section - Only show if dex_address exists */}
+      {getMapping(coin.symbol)?.dex_address && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Contract Address</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <span className="text-sm text-muted-foreground">Blockchain</span>
+              <div className="mt-2">
+                <Badge variant="outline" className="capitalize text-base">
+                  {getMapping(coin.symbol)?.dex_chain || 'Unknown'}
+                </Badge>
+              </div>
+            </div>
+            
+            <div>
+              <span className="text-sm text-muted-foreground">Token Address</span>
+              <div className="flex items-center gap-2 mt-2">
+                <code className="flex-1 px-4 py-3 bg-muted rounded-lg text-sm font-mono break-all">
+                  {getMapping(coin.symbol)?.dex_address}
+                </code>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => copyToClipboard(getMapping(coin.symbol)?.dex_address || '')}
+                  title="Copy address"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                {getMapping(coin.symbol)?.dex_chain && 
+                 getExplorerUrl(getMapping(coin.symbol)?.dex_address || '', getMapping(coin.symbol)?.dex_chain || '') && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      const url = getExplorerUrl(
+                        getMapping(coin.symbol)?.dex_address || '', 
+                        getMapping(coin.symbol)?.dex_chain || ''
+                      );
+                      if (url) window.open(url, '_blank');
+                    }}
+                    title="View on explorer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
@@ -267,57 +320,6 @@ export default function CryptoUniverseDetail() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Token Information - Only show if dex_address exists */}
-        {getMapping(coin.symbol)?.dex_address && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Token Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <span className="text-muted-foreground text-sm">Blockchain</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className="capitalize">
-                    {getMapping(coin.symbol)?.dex_chain || 'Unknown'}
-                  </Badge>
-                </div>
-              </div>
-              
-              <div>
-                <span className="text-muted-foreground text-sm">Contract Address</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <code className="flex-1 px-3 py-2 bg-muted rounded text-xs font-mono break-all">
-                    {getMapping(coin.symbol)?.dex_address}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => copyToClipboard(getMapping(coin.symbol)?.dex_address || '')}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  {getMapping(coin.symbol)?.dex_chain && 
-                   getExplorerUrl(getMapping(coin.symbol)?.dex_address || '', getMapping(coin.symbol)?.dex_chain || '') && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        const url = getExplorerUrl(
-                          getMapping(coin.symbol)?.dex_address || '', 
-                          getMapping(coin.symbol)?.dex_chain || ''
-                        );
-                        if (url) window.open(url, '_blank');
-                      }}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Exchange Price Comparison - Full Width */}
         <div className="lg:col-span-3">
