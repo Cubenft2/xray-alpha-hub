@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -74,21 +74,26 @@ export function useLunarCrushUniverse() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['lunarcrush-universe'],
     queryFn: fetchCoins,
-    staleTime: 5 * 60 * 1000, // 5 minutes - data is fresh
+    staleTime: 3 * 60 * 1000, // 3 minutes - data is fresh
     gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache
     refetchOnWindowFocus: false, // Don't refetch on tab switch
-    refetchInterval: 60 * 60 * 1000, // Auto-refresh every hour
+    refetchOnMount: false, // Don't refetch when component remounts
+    refetchOnReconnect: false, // Don't refetch on internet reconnect
+    refetchInterval: 3 * 60 * 1000, // Auto-refresh every 3 minutes if page is open
     retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
   });
 
-  // Show toast on error
-  if (error) {
-    toast({
-      title: 'Error Loading Data',
-      description: 'Failed to fetch crypto universe data. Please try again.',
-      variant: 'destructive',
-    });
-  }
+  // Show toast on error (moved to useEffect to prevent infinite re-renders)
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Error Loading Data',
+        description: 'Failed to fetch crypto universe data. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, [error, toast]);
 
   const coins = data?.coins || [];
   const metadata = data?.metadata || null;

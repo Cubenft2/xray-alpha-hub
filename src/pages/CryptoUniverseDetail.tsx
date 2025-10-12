@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Copy, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,42 +47,53 @@ export default function CryptoUniverseDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
   const { getMapping, isLoading: mappingsLoading } = useTickerMappings();
-  const [coin, setCoin] = useState<CoinDetail | null>(null);
-  const [analysis, setAnalysis] = useState<CoinAnalysis | null>(null);
-  const [loading, setLoading] = useState(true);
   const [cgPlatforms, setCgPlatforms] = useState<Record<string, string> | null>(null);
 
+  // Fetch coin detail with React Query caching
+  const { data: coinDetailData, isLoading: loading } = useQuery({
+    queryKey: ['lunarcrush-coin-detail', symbol],
+    queryFn: async () => {
+      if (!symbol) throw new Error('No symbol provided');
+      
+      const { data, error } = await supabase.functions.invoke(
+        `lunarcrush-coin-detail?coin=${symbol}`
+      );
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to fetch coin detail');
+
+      return data;
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: 2 * 60 * 1000, // Auto-refresh every 2 minutes if viewing
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
+    enabled: !!symbol,
+  });
+
+  const coin = coinDetailData?.data || null;
+  const analysis = coinDetailData?.analysis || null;
+
+  // Fetch CoinGecko platform data
   useEffect(() => {
-    const fetchCoinDetail = async () => {
-      if (!symbol) return;
+    const fetchCgPlatforms = async () => {
+      if (!symbol || !coinDetailData) return;
 
       try {
-        setLoading(true);
-        const { data, error } = await supabase.functions.invoke(
-          `lunarcrush-coin-detail?coin=${symbol}`
-        );
-
-        if (error) throw error;
-        if (!data?.success) throw new Error(data?.error || 'Failed to fetch coin detail');
-
-        setCoin(data.data);
-        setAnalysis(data.analysis);
-
-        // Fetch CoinGecko platform data with disambiguation
         const { data: cgDataArray } = await supabase
           .from('cg_master')
           .select('cg_id, platforms')
           .eq('symbol', symbol.toUpperCase())
           .not('platforms', 'is', null);
 
-        // If we have multiple matches, try to pick the best one
         let bestMatch = null;
         if (cgDataArray && cgDataArray.length > 0) {
           if (cgDataArray.length === 1) {
-            // Only one match - use it
             bestMatch = cgDataArray[0];
           } else {
-            // Multiple matches - use disambiguation logic
             console.warn(`⚠️ Multiple CoinGecko entries found for ${symbol}:`, 
               cgDataArray.map(row => ({
                 cg_id: row.cg_id,
@@ -89,12 +101,10 @@ export default function CryptoUniverseDetail() {
               }))
             );
             
-            // Priority 1: Match cg_id from LunarCrush data (if available)
-            if (data?.data?.id) {
-              bestMatch = cgDataArray.find(row => row.cg_id === data.data.id);
+            if (coinDetailData?.data?.id) {
+              bestMatch = cgDataArray.find(row => row.cg_id === coinDetailData.data.id);
             }
             
-            // Priority 2: Pick the one with most platform addresses
             if (!bestMatch) {
               bestMatch = cgDataArray.reduce((best, current) => {
                 const bestCount = Object.keys(best.platforms || {}).length;
@@ -112,15 +122,12 @@ export default function CryptoUniverseDetail() {
           }
         }
       } catch (err: any) {
-        console.error('Error fetching coin detail:', err);
-        toast.error('Failed to load coin details. Please try again.');
-      } finally {
-        setLoading(false);
+        console.error('Error fetching CoinGecko platforms:', err);
       }
     };
 
-    fetchCoinDetail();
-  }, [symbol]);
+    fetchCgPlatforms();
+  }, [symbol, coinDetailData]);
 
   const formatCurrency = (value: number) => {
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;

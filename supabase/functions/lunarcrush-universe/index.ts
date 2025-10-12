@@ -54,19 +54,19 @@ Deno.serve(async (req) => {
     );
 
     const cacheKey = 'lunarcrush:universe:v1';
-    const cacheTTL = 21600; // 6 hours (universe data doesn't change rapidly)
+    const cacheTTL = 600; // 10 minutes - fresh data for users
 
     // Check cache (fresh)
     const { data: cachedData } = await supabase
       .from('cache_kv')
-      .select('value, expires_at')
+      .select('v, expires_at')
       .eq('key', cacheKey)
       .gt('expires_at', new Date().toISOString())
       .single();
 
-    if (cachedData?.value) {
+    if (cachedData?.v) {
       console.log('✅ Returning cached LunarCrush universe data');
-      return new Response(JSON.stringify(cachedData.value), {
+      return new Response(JSON.stringify(cachedData.v), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
     // Also get expired cache as fallback for rate limiting
     const { data: expiredCache } = await supabase
       .from('cache_kv')
-      .select('value, expires_at')
+      .select('v, expires_at')
       .eq('key', cacheKey)
       .single();
 
@@ -88,9 +88,9 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       // If rate limited and we have expired cache, return that instead
-      if (response.status === 429 && expiredCache?.value) {
+      if (response.status === 429 && expiredCache?.v) {
         console.log('⚠️ Rate limited! Returning expired cache for universe data');
-        return new Response(JSON.stringify(expiredCache.value), {
+        return new Response(JSON.stringify(expiredCache.v), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
       .from('cache_kv')
       .upsert({
         key: cacheKey,
-        value: result,
+        v: result,
         expires_at: expiresAt,
       });
 
