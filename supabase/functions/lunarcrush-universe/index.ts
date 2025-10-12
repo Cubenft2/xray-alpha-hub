@@ -34,6 +34,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Get LunarCrush API key from environment
+    const lunarCrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY');
+    
+    if (!lunarCrushApiKey) {
+      console.error('❌ LUNARCRUSH_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'LunarCrush API key not configured' 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -68,7 +82,7 @@ Deno.serve(async (req) => {
     console.log('Fetching fresh LunarCrush universe data...');
     const response = await fetch('https://lunarcrush.com/api4/public/coins/list/v1', {
       headers: {
-        'Authorization': 'Bearer faa6tt93zhhvfrrwsdbneqlsfimgjm6gwuwet02rt',
+        'Authorization': `Bearer ${lunarCrushApiKey}`,
       },
     });
 
