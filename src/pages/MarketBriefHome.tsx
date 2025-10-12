@@ -245,7 +245,7 @@ export default function MarketBriefHome() {
 
   const handleTickersExtracted = (tickers: string[]) => {
     // Filter out common featured assets, sentiment indicators, macro terms, and invalid symbols
-    const NON_TRADABLE = ['BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SPX', 'DXY', 'XAUUSD', 'GOLD', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED', 'USD', 'UDS', 'SX'];
+    const NON_TRADABLE = ['BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SPX', 'DXY', 'XAUUSD', 'GOLD', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED', 'USD', 'UDS', 'SX', 'DAPPS'];
     const filteredTickers = tickers.filter(ticker => 
       !NON_TRADABLE.includes(ticker.toUpperCase())
     );
@@ -855,16 +855,16 @@ export default function MarketBriefHome() {
             )}
 
             {/* All Mentioned Tickers Charts Section */}
-            {extractedTickers.filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED'].includes(t.toUpperCase())).length > 0 && (
+            {extractedTickers.filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED', 'DAPPS'].includes(t.toUpperCase())).length > 0 && (
               <div className="border-t border-border pt-6 mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <BarChart3 className="w-5 h-5 text-primary" />
                   <h3 className="text-lg font-semibold">All Mentioned Assets</h3>
-                  <span className="text-sm text-muted-foreground">({extractedTickers.filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED'].includes(t.toUpperCase())).length} assets)</span>
+                  <span className="text-sm text-muted-foreground">({extractedTickers.filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED', 'DAPPS'].includes(t.toUpperCase())).length} assets)</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {extractedTickers
-                    .filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED'].includes(t.toUpperCase()))
+                    .filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED', 'DAPPS'].includes(t.toUpperCase()))
                     .slice(0, 12)
                     .map((ticker) => {
                     const { symbol, displayName } = mapTickerToTradingView(ticker);
@@ -904,9 +904,9 @@ export default function MarketBriefHome() {
                     );
                   })}
                 </div>
-                {extractedTickers.filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED'].includes(t.toUpperCase())).length > 12 && (
+                {extractedTickers.filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED', 'DAPPS'].includes(t.toUpperCase())).length > 12 && (
                   <p className="text-sm text-muted-foreground mt-4 text-center">
-                    Showing first 12 of {extractedTickers.filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED'].includes(t.toUpperCase())).length} mentioned assets
+                    Showing first 12 of {extractedTickers.filter(t => !['HASH', 'HASHFLOW', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED', 'DAPPS'].includes(t.toUpperCase())).length} mentioned assets
                   </p>
                 )}
               </div>
