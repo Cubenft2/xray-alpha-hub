@@ -149,7 +149,7 @@ export default function MarketBriefHome() {
       'TRX', 'TON', 'LINK', 'SHIB', 'DOT', 'MATIC', 'UNI', 'LTC', 'BCH', 'NEAR',
       'ICP', 'APT', 'FIL', 'ARB', 'OP', 'HBAR', 'VET', 'MKR', 'ATOM', 'IMX',
       'RNDR', 'STX', 'INJ', 'GRT', 'RUNE', 'FTM', 'ALGO', 'SAND', 'MANA', 'AAVE',
-      'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER', 'SX'
+      'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER'
     ]);
 
     // 1) EXPLICIT OVERRIDES (HIGHEST PRIORITY - RUNS FIRST)
@@ -244,8 +244,8 @@ export default function MarketBriefHome() {
   };
 
   const handleTickersExtracted = (tickers: string[]) => {
-    // Filter out common featured assets, sentiment indicators, and macro terms
-    const NON_TRADABLE = ['BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SPX', 'DXY', 'XAUUSD', 'GOLD', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED'];
+    // Filter out common featured assets, sentiment indicators, macro terms, and invalid symbols
+    const NON_TRADABLE = ['BTC', 'BITCOIN', 'ETH', 'ETHEREUM', 'SPX', 'DXY', 'XAUUSD', 'GOLD', 'GREED', 'NEUTRAL', 'FEAR', 'CPI', 'GDP', 'NFP', 'PCE', 'FOMC', 'FED', 'USD', 'UDS', 'SX'];
     const filteredTickers = tickers.filter(ticker => 
       !NON_TRADABLE.includes(ticker.toUpperCase())
     );
@@ -1018,21 +1018,20 @@ export default function MarketBriefHome() {
                   </CardContent>
                 </Card>
 
-                {/* Add DXY when discussing macro */}
-                {brief.article_html?.toLowerCase().includes('dollar') && (
-                  <Card className="h-48">
-                    <CardContent className="p-3">
-                      <div className="text-sm font-medium mb-2 text-center">US Dollar Index</div>
-                      <div className="h-36">
-                        <MiniChart 
-                          symbol={mapTickerToTradingView('DXY').symbol} 
-                          theme={theme}
-                          {...getAssetMetadata('DXY')}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                {/* USD Futures Index - Always show */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">US Dollar Futures</div>
+                    <div className="h-36">
+                      <MiniChart 
+                        symbol="TVC:DXY" 
+                        theme={theme}
+                        assetType="index"
+                        tvOk={true}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Add Gold when discussing safe havens */}
                 {(brief.article_html?.toLowerCase().includes('gold') || brief.article_html?.toLowerCase().includes('safe haven')) && (
