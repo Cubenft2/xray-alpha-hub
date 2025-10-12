@@ -157,8 +157,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     // Sanitize HTML before DOM manipulation to prevent XSS attacks
     const sanitized = DOMPurify.sanitize(enhancedText, {
       ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'ul', 'ol', 'li', 'hr'],
-      ALLOWED_ATTR: ['class', 'data-ticker', 'data-type', 'data-sign', 'data-value', 'data-quote-symbol', 'data-sym', 'onclick', 'style'],
-      ADD_ATTR: ['onclick'],
+      ALLOWED_ATTR: ['class', 'data-ticker', 'data-type', 'data-sign', 'data-value', 'data-quote-symbol', 'data-sym', 'style'],
       KEEP_CONTENT: true,
       RETURN_DOM: false,
       RETURN_DOM_FRAGMENT: false

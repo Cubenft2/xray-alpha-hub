@@ -259,7 +259,7 @@ export type Database = {
           id: string
           last_updated: string
           low_24h: number | null
-          price: number
+          price: number | null
           timestamp: string
           updated_at: string | null
           volume_24h: number
@@ -272,7 +272,7 @@ export type Database = {
           id?: string
           last_updated?: string
           low_24h?: number | null
-          price: number
+          price?: number | null
           timestamp?: string
           updated_at?: string | null
           volume_24h?: number
@@ -285,7 +285,7 @@ export type Database = {
           id?: string
           last_updated?: string
           low_24h?: number | null
-          price?: number
+          price?: number | null
           timestamp?: string
           updated_at?: string | null
           volume_24h?: number

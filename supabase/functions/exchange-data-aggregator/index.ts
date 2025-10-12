@@ -493,7 +493,8 @@ serve(async (req) => {
                 low_24h: exchangeData.low_24h,
                 timestamp: new Date().toISOString(),
               }, {
-                onConflict: 'asset_symbol,exchange'
+                onConflict: 'asset_symbol,exchange,timestamp',
+                ignoreDuplicates: false
               });
           }
 

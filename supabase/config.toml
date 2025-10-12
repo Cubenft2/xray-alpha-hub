@@ -1,13 +1,13 @@
 project_id = "odncvfiuzliyohxrsigc"
 
 [functions.populate-token-addresses]
-verify_jwt = false
+verify_jwt = true
 
 [functions.exchange-data-aggregator]
 verify_jwt = false
 
 [functions.enhance-ticker-data]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-daily-brief]
 verify_jwt = true
@@ -19,16 +19,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.coingecko-sync]
-verify_jwt = false
+verify_jwt = true
 
 [functions.exchange-sync]
-verify_jwt = false
+verify_jwt = true
 
 [functions.symbol-intelligence]
-verify_jwt = false
+verify_jwt = true
 
 [functions.polygon-sync]
-verify_jwt = false
+verify_jwt = true
 
 [functions.quotes]
 verify_jwt = false
@@ -64,4 +64,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.backfill-crypto-history]
+verify_jwt = true
+
+[functions.coingecko-enrich]
+verify_jwt = false
+
+[functions.coingecko-logos]
+verify_jwt = false
+
+[functions.calculate-asset-sentiment]
 verify_jwt = false
