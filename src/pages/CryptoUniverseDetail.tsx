@@ -45,7 +45,7 @@ interface CoinAnalysis {
 export default function CryptoUniverseDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
-  const { getMapping } = useTickerMappings();
+  const { getMapping, isLoading: mappingsLoading } = useTickerMappings();
   const [coin, setCoin] = useState<CoinDetail | null>(null);
   const [analysis, setAnalysis] = useState<CoinAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -183,7 +183,7 @@ export default function CryptoUniverseDetail() {
       </Card>
 
       {/* Contract Address Section - Only show if dex_address exists */}
-      {getMapping(coin.symbol)?.dex_address && (
+      {!mappingsLoading && getMapping(coin.symbol)?.dex_address && (
         <Card>
           <CardHeader>
             <CardTitle>Contract Address</CardTitle>
