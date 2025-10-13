@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.calculate-asset-sentiment]
 verify_jwt = false
+
+[functions.test-polygon-api]
+verify_jwt = false
