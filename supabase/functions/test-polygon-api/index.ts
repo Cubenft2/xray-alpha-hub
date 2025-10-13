@@ -48,8 +48,9 @@ serve(async (req) => {
       if (ticker) {
         const price = ticker?.day?.c || ticker?.day?.vw || ticker?.lastTrade?.p;
         const timestampMs = ticker?.updated || ticker?.day?.t || ticker?.lastTrade?.t;
-        const timestamp = timestampMs ? new Date(timestampMs) : null;
-        const ageMinutes = timestamp ? (Date.now() - timestamp.getTime()) / (1000 * 60) : null;
+        // Validate timestamp before creating Date object to prevent "Invalid time value" errors
+        const timestamp = (timestampMs && timestampMs > 0) ? new Date(timestampMs) : null;
+        const ageMinutes = (timestamp && !isNaN(timestamp.getTime())) ? (Date.now() - timestamp.getTime()) / (1000 * 60) : null;
         
         // Price sanity check
         const priceValid = price && price > 10000 && price < 1000000;
