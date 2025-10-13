@@ -45,7 +45,7 @@ export function RealTimePriceTicker({
             <Activity className='h-3 w-3 text-green-500 animate-pulse' />
             <span className='text-[10px] font-medium text-muted-foreground'>LIVE from Polygon.io</span>
           </div>
-          <Badge variant='outline' className='text-[9px] px-1.5 py-0 h-4'>Updates every 10s</Badge>
+          <Badge variant='outline' className='text-[9px] px-1.5 py-0 h-4'>Updates every 2s</Badge>
         </div>
 
         <div className='grid grid-cols-3 md:grid-cols-6 gap-2'>

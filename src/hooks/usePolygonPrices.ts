@@ -27,7 +27,7 @@ export function usePolygonPrices(symbols: string[]) {
       if (error) throw error;
       return data as PolygonPricesResponse;
     },
-    refetchInterval: 10000,
+    refetchInterval: 2000,
     staleTime: 5000,
     gcTime: 60000,
   });
