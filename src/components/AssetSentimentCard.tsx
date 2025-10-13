@@ -54,54 +54,49 @@ export function AssetSentimentCard({
   const barPosition = ((score + 100) / 200) * 100;
 
   return (
-    <Card className={`p-3 transition-all duration-300 ${getCardClasses()}`}>
-      {/* Header: Symbol + Trend */}
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="font-bold text-base">{symbol}</div>
-        <div className={`flex items-center gap-1 text-xs ${getTrendColor()}`}>
-          {getTrendIcon()}
-          <span>{scoreChange > 0 ? '+' : ''}{scoreChange.toFixed(1)}</span>
+    <Card className={`p-2 transition-all duration-300 ${getCardClasses()}`}>
+      {/* Row 1: Symbol + Score + Trend */}
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <div className="font-bold text-sm">{symbol}</div>
+        <div className="flex items-center gap-1.5">
+          <div className={`text-base font-bold ${getLabelColor()}`}>
+            {score > 0 ? '+' : ''}{score.toFixed(1)}
+          </div>
+          <div className={`text-xs font-medium ${getLabelColor()} capitalize`}>
+            {label}
+          </div>
+          <div className={`flex items-center ${getTrendColor()}`}>
+            {getTrendIcon()}
+          </div>
         </div>
       </div>
 
-      {/* Asset Name */}
-      <div className="text-xs text-muted-foreground mb-2 truncate">{name}</div>
-
-      {/* Sentiment Bar */}
-      <div className="relative h-1.5 bg-gradient-to-r from-destructive via-muted to-success rounded-full mb-2">
+      {/* Row 2: Sentiment Bar */}
+      <div className="relative h-1 bg-gradient-to-r from-destructive via-muted to-success rounded-full mb-1">
         <div 
-          className="absolute w-2.5 h-2.5 bg-primary rounded-full -top-0.5 transition-all duration-1000 shadow-lg"
-          style={{ left: `calc(${barPosition}% - 5px)` }}
+          className="absolute w-2 h-2 bg-primary rounded-full -top-0.5 transition-all duration-1000 shadow-lg"
+          style={{ left: `calc(${barPosition}% - 4px)` }}
         />
       </div>
 
-      {/* Score Display */}
-      <div className="flex items-baseline gap-2 mb-2">
-        <div className={`text-xl font-bold ${getLabelColor()}`}>
-          {score > 0 ? '+' : ''}{score.toFixed(1)}
-        </div>
-        <div className={`text-xs font-medium ${getLabelColor()} capitalize`}>
-          {label}
-        </div>
-      </div>
-
-      {/* Breakdown */}
-      <div className="flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1">
+      {/* Row 3: Asset Name + Breakdown */}
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <div className="text-muted-foreground truncate flex-1">{name}</div>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="flex items-center gap-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-success" />
             {positive}
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
             {negative}
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-0.5">
             <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
             {neutral}
           </span>
+          <span className="text-muted-foreground">({total})</span>
         </div>
-        <span className="text-muted-foreground">({total})</span>
       </div>
     </Card>
   );
