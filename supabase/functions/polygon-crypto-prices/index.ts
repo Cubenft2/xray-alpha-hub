@@ -17,15 +17,15 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const url = new URL(req.url);
-    const symbols = url.searchParams.get('symbols')?.split(',') || ['BTC', 'ETH'];
+    const { symbols } = await req.json();
+    const symbolList = symbols || ['BTC', 'ETH'];
     const polygonApiKey = Deno.env.get('POLYGON_API_KEY');
 
     if (!polygonApiKey) {
       throw new Error('POLYGON_API_KEY not configured');
     }
 
-    const cacheKey = 'polygon:prices:' + symbols.join(',');
+    const cacheKey = 'polygon:prices:' + symbolList.join(',');
     const { data: cached } = await supabaseClient
       .from('cache_kv')
       .select('v, expires_at')
@@ -39,7 +39,7 @@ serve(async (req) => {
       );
     }
 
-    const pricePromises = symbols.map(async (symbol) => {
+    const pricePromises = symbolList.map(async (symbol) => {
       try {
         const response = await fetch(
           'https://api.polygon.io/v2/last/trade/X:' + symbol + 'USD?apiKey=' + polygonApiKey
