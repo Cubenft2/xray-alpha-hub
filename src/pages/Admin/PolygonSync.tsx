@@ -9,6 +9,7 @@ export function PolygonSync() {
   const [mapping, setMapping] = useState(false);
   const [relaying, setRelaying] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const handleMapTickers = async () => {
     setMapping(true);
@@ -73,8 +74,60 @@ export function PolygonSync() {
     }
   };
 
+  const handleSyncPrices = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('manual-price-sync');
+      
+      if (error) throw error;
+      
+      toast.success('Prices synced successfully', {
+        description: `Synced ${data.synced} prices from Polygon (${data.sources.polygon}), CoinGecko (${data.sources.coingecko}), and Exchange (${data.sources.exchange})`
+      });
+    } catch (error: any) {
+      console.error('Error syncing prices:', error);
+      toast.error('Failed to sync prices', {
+        description: error.message
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Sync Prices Now
+          </CardTitle>
+          <CardDescription>
+            Manually sync current prices from Polygon.io and CoinGecko to populate live_prices table
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            This will fetch current prices for the top 100 cryptocurrencies and update the live_prices table.
+            Uses Polygon.io as primary source, with CoinGecko and exchange data as fallbacks.
+          </p>
+          <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-1">
+            <p><strong>💡 Use this when:</strong></p>
+            <p>• Brief generation is failing due to missing price data</p>
+            <p>• The automated price relay is not running</p>
+            <p>• You need fresh prices immediately</p>
+          </div>
+          <Button 
+            onClick={handleSyncPrices} 
+            disabled={syncing}
+            className="w-full"
+          >
+            {syncing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {syncing ? 'Syncing Prices...' : 'Sync Prices Now'}
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
