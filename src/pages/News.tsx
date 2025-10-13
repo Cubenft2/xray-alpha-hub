@@ -11,6 +11,8 @@ export default function News() {
         <p className="text-muted-foreground">Live streams and latest cryptocurrency & market news</p>
       </div>
       
+      <LiveNewsStreams />
+      
       {/* Top Assets Sentiment */}
       <div className="xr-card p-6">
         <div className="flex items-center justify-between mb-6">
@@ -21,7 +23,6 @@ export default function News() {
         <TopAssetsSentiment />
       </div>
       
-      <LiveNewsStreams />
       <NewsSection />
     </div>
   );
