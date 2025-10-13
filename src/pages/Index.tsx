@@ -9,6 +9,7 @@ import { FinancialDisclaimer } from '@/components/FinancialDisclaimer';
 import { PolygonTicker } from '@/components/PolygonTicker';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
 import { TopAssetsSentiment } from '@/components/TopAssetsSentiment';
+import { RealTimePriceTicker } from '@/components/RealTimePriceTicker';
 
 const Index = () => {
   const [searchParams] = useSearchParams();
@@ -292,6 +293,13 @@ const Index = () => {
               <TopAssetsSentiment />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Real-Time Price Ticker */}
+      <div className="w-full mb-6">
+        <div className="container mx-auto">
+          <RealTimePriceTicker symbols={['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'LINK']} />
         </div>
       </div>
 
