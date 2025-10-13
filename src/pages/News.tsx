@@ -14,9 +14,9 @@ export default function News() {
       <LiveNewsStreams />
       
       {/* Top Assets Sentiment */}
-      <div className="xr-card p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold">
+      <div className="xr-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-bold">
             📊 Top Assets by News Sentiment
           </h2>
         </div>
