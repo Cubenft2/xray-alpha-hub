@@ -72,7 +72,7 @@ export function LiveNewsStreams() {
     };
 
     return (
-      <Badge variant={getVariant(category)} className="text-xs">
+      <Badge variant={getVariant(category)} className="text-[9px] px-1.5 py-0 h-4">
         {category}
       </Badge>
     );
@@ -134,16 +134,16 @@ export function LiveNewsStreams() {
             }`}
             onClick={() => toggleChannel(channel.id)}
           >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1 flex-1">
-                  <CardTitle className="text-sm font-medium leading-tight">
+            <CardHeader className="pb-1 pt-3 px-3">
+              <div className="flex items-start justify-between gap-1">
+                <div className="space-y-0.5 flex-1 min-w-0">
+                  <CardTitle className="text-xs font-medium leading-tight">
                     {channel.name}
                   </CardTitle>
                   {channel.live && (
                     <div className="flex items-center space-x-1">
-                      <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                      <Badge variant="destructive" className="text-xs px-1 py-0">
+                      <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></div>
+                      <Badge variant="destructive" className="text-[9px] px-1 py-0 leading-none h-3">
                         LIVE
                       </Badge>
                     </div>
@@ -152,24 +152,24 @@ export function LiveNewsStreams() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 shrink-0"
+                  className="h-6 w-6 p-0 shrink-0"
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleChannel(channel.id);
                   }}
                 >
                   {isPlaying(channel.id) ? (
-                    <Pause className="w-4 h-4" />
+                    <Pause className="w-3 h-3" />
                   ) : (
-                    <Play className="w-4 h-4" />
+                    <Play className="w-3 h-3" />
                   )}
                 </Button>
               </div>
             </CardHeader>
             
-            <CardContent className="pt-0">
-              <div className="space-y-3">
-                <p className="text-xs text-muted-foreground leading-relaxed">
+            <CardContent className="pt-0 px-3 pb-2">
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-muted-foreground leading-tight">
                   {channel.description}
                 </p>
                 
@@ -179,13 +179,13 @@ export function LiveNewsStreams() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-xs"
+                    className="h-5 px-1.5 text-[10px]"
                     onClick={(e) => {
                       e.stopPropagation();
                       window.open(`https://youtube.com/watch?v=${channel.youtubeId}`, '_blank');
                     }}
                   >
-                    <ExternalLink className="w-3 h-3 mr-1" />
+                    <ExternalLink className="w-2.5 h-2.5 mr-0.5" />
                     Watch
                   </Button>
                 </div>
