@@ -63,12 +63,6 @@ export function RealTimePriceTicker({
                   })}
                 </span>
               </div>
-
-              <div className='flex items-center gap-1'>
-                <span className='text-[9px] text-muted-foreground'>
-                  {new Date(priceData.timestamp).toLocaleTimeString()}
-                </span>
-              </div>
             </div>
           ))}
         </div>
