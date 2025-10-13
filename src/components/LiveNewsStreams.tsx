@@ -196,9 +196,9 @@ export function LiveNewsStreams() {
       </div>
 
       {/* Info Section */}
-      <div className="xr-card p-4">
-        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <Volume2 className="w-4 h-4" />
+      <div className="xr-card p-2">
+        <div className="flex items-center space-x-1.5 text-[11px] text-muted-foreground leading-tight">
+          <Volume2 className="w-3 h-3" />
           <span>All channels provide 24/7 live financial news and market coverage. Click any card to start streaming.</span>
         </div>
       </div>
