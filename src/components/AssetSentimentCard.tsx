@@ -27,9 +27,9 @@ export function AssetSentimentCard({
   scoreChange = 0
 }: AssetSentimentCardProps) {
   const getTrendIcon = () => {
-    if (trend === 'up') return <TrendingUp className="w-3 h-3 text-success" />;
-    if (trend === 'down') return <TrendingDown className="w-3 h-3 text-destructive" />;
-    return <Minus className="w-3 h-3 text-muted-foreground" />;
+    if (trend === 'up') return <TrendingUp className="w-2.5 h-2.5 text-success" />;
+    if (trend === 'down') return <TrendingDown className="w-2.5 h-2.5 text-destructive" />;
+    return <Minus className="w-2.5 h-2.5 text-muted-foreground" />;
   };
 
   const getTrendColor = () => {
@@ -54,15 +54,15 @@ export function AssetSentimentCard({
   const barPosition = ((score + 100) / 200) * 100;
 
   return (
-    <Card className={`p-2 transition-all duration-300 ${getCardClasses()}`}>
+    <Card className={`p-1.5 transition-all duration-300 ${getCardClasses()}`}>
       {/* Row 1: Symbol + Score + Trend */}
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <div className="font-bold text-sm">{symbol}</div>
-        <div className="flex items-center gap-1.5">
-          <div className={`text-base font-bold ${getLabelColor()}`}>
+      <div className="flex items-center justify-between gap-2 mb-0.5">
+        <div className="font-bold text-xs">{symbol}</div>
+        <div className="flex items-center gap-1">
+          <div className={`text-sm font-bold ${getLabelColor()}`}>
             {score > 0 ? '+' : ''}{score.toFixed(1)}
           </div>
-          <div className={`text-xs font-medium ${getLabelColor()} capitalize`}>
+          <div className={`text-[10px] font-medium ${getLabelColor()} capitalize`}>
             {label}
           </div>
           <div className={`flex items-center ${getTrendColor()}`}>
@@ -72,27 +72,27 @@ export function AssetSentimentCard({
       </div>
 
       {/* Row 2: Sentiment Bar */}
-      <div className="relative h-1 bg-gradient-to-r from-destructive via-muted to-success rounded-full mb-1">
+      <div className="relative h-0.5 bg-gradient-to-r from-destructive via-muted to-success rounded-full mb-0.5">
         <div 
-          className="absolute w-2 h-2 bg-primary rounded-full -top-0.5 transition-all duration-1000 shadow-lg"
-          style={{ left: `calc(${barPosition}% - 4px)` }}
+          className="absolute w-1.5 h-1.5 bg-primary rounded-full -top-[3px] transition-all duration-1000 shadow-lg"
+          style={{ left: `calc(${barPosition}% - 3px)` }}
         />
       </div>
 
       {/* Row 3: Asset Name + Breakdown */}
-      <div className="flex items-center justify-between gap-2 text-xs">
+      <div className="flex items-center justify-between gap-2 text-[10px]">
         <div className="text-muted-foreground truncate flex-1">{name}</div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <span className="flex items-center gap-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-success" />
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <span className="flex items-center gap-[2px]">
+            <span className="w-1 h-1 rounded-full bg-success" />
             {positive}
           </span>
-          <span className="flex items-center gap-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+          <span className="flex items-center gap-[2px]">
+            <span className="w-1 h-1 rounded-full bg-destructive" />
             {negative}
           </span>
-          <span className="flex items-center gap-0.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+          <span className="flex items-center gap-[2px]">
+            <span className="w-1 h-1 rounded-full bg-muted-foreground" />
             {neutral}
           </span>
           <span className="text-muted-foreground">({total})</span>
