@@ -5,13 +5,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Helper to safely parse Polygon timestamps
+// Helper to safely parse Polygon timestamps (handles seconds, milliseconds, and nanoseconds)
 function safeDate(value: unknown): Date | null {
   if (!value) return null;
   
   if (typeof value === 'number') {
-    // Polygon uses milliseconds for some timestamps, seconds for others
-    const ms = value < 10000000000 ? value * 1000 : value;
+    let ms: number;
+    
+    // Detect timestamp format
+    if (value > 1e15) {
+      // Nanoseconds (e.g., 1760326920000000000)
+      ms = value / 1_000_000;
+    } else if (value < 1e10) {
+      // Seconds (e.g., 1760326920)
+      ms = value * 1000;
+    } else {
+      // Milliseconds (e.g., 1760326920000)
+      ms = value;
+    }
+    
     const d = new Date(ms);
     return isNaN(d.getTime()) ? null : d;
   }
