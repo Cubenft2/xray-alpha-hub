@@ -5,6 +5,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to safely parse Polygon timestamps
+function safeDate(value: unknown): Date | null {
+  if (!value) return null;
+  
+  if (typeof value === 'number') {
+    // Polygon uses milliseconds for some timestamps, seconds for others
+    const ms = value < 10000000000 ? value * 1000 : value;
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  
+  return null;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -48,9 +67,8 @@ serve(async (req) => {
       if (ticker) {
         const price = ticker?.day?.c || ticker?.day?.vw || ticker?.lastTrade?.p;
         const timestampMs = ticker?.updated || ticker?.day?.t || ticker?.lastTrade?.t;
-        // Validate timestamp before creating Date object to prevent "Invalid time value" errors
-        const timestamp = (timestampMs && timestampMs > 0) ? new Date(timestampMs) : null;
-        const ageMinutes = (timestamp && !isNaN(timestamp.getTime())) ? (Date.now() - timestamp.getTime()) / (1000 * 60) : null;
+        const timestamp = safeDate(timestampMs);
+        const ageMinutes = timestamp ? (Date.now() - timestamp.getTime()) / (1000 * 60) : null;
         
         // Price sanity check
         const priceValid = price && price > 10000 && price < 1000000;
@@ -60,7 +78,7 @@ serve(async (req) => {
           passed: priceValid && dataFresh,
           price: price,
           priceValid: priceValid,
-          timestamp: timestamp?.toISOString(),
+          timestamp: timestamp?.toISOString() || null,
           ageMinutes: ageMinutes,
           dataFresh: dataFresh,
           rawTicker: {
@@ -123,16 +141,20 @@ serve(async (req) => {
     if (ethResponse.ok && ethData.status === 'OK') {
       const ethTicker = ethData.tickers?.[0];
       const ethPrice = ethTicker?.day?.c || ethTicker?.day?.vw || ethTicker?.lastTrade?.p;
+      const ethTimestampMs = ethTicker?.updated || ethTicker?.day?.t || ethTicker?.lastTrade?.t;
+      const ethTimestamp = safeDate(ethTimestampMs);
       
       results.tests.eth_snapshot = {
         passed: ethPrice && ethPrice > 500 && ethPrice < 50000,
-        price: ethPrice
+        price: ethPrice,
+        timestamp: ethTimestamp?.toISOString() || null
       };
       console.log(`✅ ETH price: $${ethPrice}`);
     } else {
       results.tests.eth_snapshot = {
         passed: false,
-        error: 'Failed to fetch ETH data'
+        status: ethResponse.status,
+        error: ethData.error || ethData.message || 'Failed to fetch ETH data'
       };
       console.error('❌ ETH snapshot failed');
     }
