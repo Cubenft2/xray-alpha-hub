@@ -53,14 +53,16 @@ Deno.serve(async (req) => {
     const results = [];
     const notFoundSymbols = [];
 
-    // Process in batches to avoid timeouts
-    const BATCH_SIZE = 100;
-    const totalBatches = Math.ceil((unmappedCryptos?.length || 0) / BATCH_SIZE);
+    // Process in batches to avoid timeouts - limit to 200 total to stay within timeout
+    const MAX_PROCESS = 200;
+    const toProcess = unmappedCryptos?.slice(0, MAX_PROCESS) || [];
+    const BATCH_SIZE = 50;
+    const totalBatches = Math.ceil(toProcess.length / BATCH_SIZE);
 
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
       const batchStart = batchIndex * BATCH_SIZE;
-      const batchEnd = Math.min(batchStart + BATCH_SIZE, unmappedCryptos?.length || 0);
-      const batch = unmappedCryptos?.slice(batchStart, batchEnd) || [];
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, toProcess.length);
+      const batch = toProcess.slice(batchStart, batchEnd);
 
       console.log(`📦 Processing batch ${batchIndex + 1}/${totalBatches} (${batch.length} symbols)...`);
 
@@ -134,7 +136,8 @@ Deno.serve(async (req) => {
     console.log(`\n🎉 Mapping complete!`);
     console.log(`   Mapped: ${mappedCount}`);
     console.log(`   Not Found: ${notFoundCount}`);
-    console.log(`   Total Processed: ${unmappedCryptos?.length || 0}`);
+    console.log(`   Total Processed: ${toProcess.length}`);
+    console.log(`   Remaining: ${(unmappedCryptos?.length || 0) - MAX_PROCESS}`);
 
     if (notFoundSymbols.length > 0 && notFoundSymbols.length <= 50) {
       console.log(`\n⚠️ Symbols without Polygon tickers (sample):`, notFoundSymbols.slice(0, 20));
@@ -145,10 +148,15 @@ Deno.serve(async (req) => {
         success: true,
         mapped: mappedCount,
         notFound: notFoundCount,
-        total: unmappedCryptos?.length || 0,
+        processed: toProcess.length,
+        remaining: (unmappedCryptos?.length || 0) - MAX_PROCESS,
+        totalUnmapped: unmappedCryptos?.length || 0,
+        message: (unmappedCryptos?.length || 0) > MAX_PROCESS 
+          ? `Processed ${toProcess.length} of ${unmappedCryptos?.length}. Run again to continue.`
+          : 'All unmapped symbols processed.',
         batchSize: BATCH_SIZE,
-        notFoundSymbols: notFoundSymbols.slice(0, 100), // Return first 100 not found
-        sampleResults: results.slice(0, 20) // Return first 20 mapped
+        notFoundSymbols: notFoundSymbols.slice(0, 50),
+        sampleResults: results.slice(0, 20)
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
