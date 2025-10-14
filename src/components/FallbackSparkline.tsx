@@ -40,7 +40,7 @@ export function FallbackSparkline({
         const days = timespan === '1D' ? 1 : timespan === '7D' ? 7 : timespan === '30D' ? 30 : timespan === '90D' ? 90 : 365;
         
         console.log(`📈 Fetching CoinGecko data for ${symbol} (${coingeckoId}), ${days} days`);
-        const url = `https://api.coingecko.com/api/v3/coins/${coingeckoId}/market_chart?vs_currency=usd&days=${days}`;
+        const url = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/coingecko-chart-data?coinId=${coingeckoId}&days=${days}&vs_currency=usd`;
         const response = await fetch(url);
         
         if (response.ok) {
