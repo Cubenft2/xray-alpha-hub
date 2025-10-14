@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 interface TickerMapping {
   symbol: string;
@@ -12,6 +13,7 @@ interface TickerMapping {
   polygon_ticker?: string | null;
   dex_address?: string | null;
   dex_chain?: string | null;
+  dex_platforms?: Json | null;
 }
 
 export function useTickerMappings() {
@@ -23,7 +25,7 @@ export function useTickerMappings() {
       try {
         const { data, error } = await supabase
           .from('ticker_mappings')
-          .select('symbol, display_name, tradingview_symbol, type, aliases, tradingview_supported, coingecko_id, polygon_ticker, dex_address, dex_chain')
+          .select('symbol, display_name, tradingview_symbol, type, aliases, tradingview_supported, coingecko_id, polygon_ticker, dex_address, dex_chain, dex_platforms')
           .eq('is_active', true);
 
         if (error) throw error;

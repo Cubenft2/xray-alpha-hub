@@ -869,6 +869,7 @@ export type Database = {
           derivs_supported: boolean | null
           dex_address: string | null
           dex_chain: string | null
+          dex_platforms: Json | null
           display_name: string
           display_symbol: string | null
           exchange: string | null
@@ -895,6 +896,7 @@ export type Database = {
           derivs_supported?: boolean | null
           dex_address?: string | null
           dex_chain?: string | null
+          dex_platforms?: Json | null
           display_name: string
           display_symbol?: string | null
           exchange?: string | null
@@ -921,6 +923,7 @@ export type Database = {
           derivs_supported?: boolean | null
           dex_address?: string | null
           dex_chain?: string | null
+          dex_platforms?: Json | null
           display_name?: string
           display_symbol?: string | null
           exchange?: string | null
