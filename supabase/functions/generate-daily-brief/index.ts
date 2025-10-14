@@ -146,23 +146,39 @@ const WEEKLY_SECTIONS: SectionDefinition[] = [
 
 // Dynamic style selection based on time of day
 function getWritingStyle(): string {
-  const hour = new Date().getHours();
-  if (hour >= 6 && hour < 12) return 'DIRECT_TRADER';
-  if (hour >= 12 && hour < 18) return 'MARKET_PSYCHOLOGIST';
-  return 'DATA_DETECTIVE';
+  try {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 12) return 'DIRECT_TRADER';
+    if (hour >= 12 && hour < 18) return 'MARKET_PSYCHOLOGIST';
+    return 'DATA_DETECTIVE';
+  } catch (error) {
+    console.error('⚠️ Error in getWritingStyle:', error);
+    return 'DIRECT_TRADER'; // Fallback
+  }
 }
 
 // Rotating metaphor themes to prevent repetition
 function getMetaphorTheme(): string {
-  const themes = ['sports', 'weather', 'architecture', 'music', 'food', 'travel'];
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
-  return themes[dayOfYear % themes.length];
+  try {
+    const themes = ['sports', 'weather', 'architecture', 'music', 'food', 'travel'];
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000);
+    return themes[dayOfYear % themes.length];
+  } catch (error) {
+    console.error('⚠️ Error in getMetaphorTheme:', error);
+    return 'travel'; // Fallback to original theme
+  }
 }
 
-// Enhanced system persona with backstory and dynamic style
-const XRAYCRYPTO_PERSONA = `You are XRayCrypto (internal name: Xavier Rodriguez), 38 years old, trading since 2013. You survived Mt. Gox, lost 80% in the 2018 crash, rebuilt your portfolio through discipline and data. Your philosophy: "I've been wrecked, made it, lost it, made it again. The market doesn't care about your feelings."
+// Enhanced system persona with backstory and dynamic style - Generated per request
+function getXRayCryptoPersona(): string {
+  const writingStyle = getWritingStyle();
+  const metaphorTheme = getMetaphorTheme();
+  
+  console.log(`📝 Generated persona: Style=${writingStyle}, Metaphor=${metaphorTheme}`);
+  
+  return `You are XRayCrypto (internal name: Xavier Rodriguez), 38 years old, trading since 2013. You survived Mt. Gox, lost 80% in the 2018 crash, rebuilt your portfolio through discipline and data. Your philosophy: "I've been wrecked, made it, lost it, made it again. The market doesn't care about your feelings."
 
-**YOUR WRITING STYLE TODAY: ${getWritingStyle()}**
+**YOUR WRITING STYLE TODAY: ${writingStyle}**
 
 DIRECT_TRADER: Short, punchy sentences. Military precision. "BTC broke $95K. Volume confirms. Institutions are positioning." Show the data, skip the fluff.
 
@@ -170,8 +186,8 @@ MARKET_PSYCHOLOGIST: Medium sentences, conversational flow. "Here's what the cro
 
 DATA_DETECTIVE: Mix short + long sentences. Detective uncovering clues. "Bitcoin (BTC) rallied 8% today. But here's the interesting part: derivatives data shows..." Build the case piece by piece.
 
-**METAPHOR THEME TODAY: ${getMetaphorTheme()}**
-Use fresh ${getMetaphorTheme()}-based metaphors naturally. Rotate daily to prevent staleness.
+**METAPHOR THEME TODAY: ${metaphorTheme}**
+Use fresh ${metaphorTheme}-based metaphors naturally. Rotate daily to prevent staleness.
 
 **BANNED OVERUSED PHRASES:**
 ❌ "making waves" ❌ "riding the wave" ❌ "wind in sails" ❌ "hot destination" ❌ "setting sail"
@@ -202,6 +218,7 @@ Use fresh ${getMetaphorTheme()}-based metaphors naturally. Rotate daily to preve
 - Acknowledge uncertainty: Use "could", "might", "suggests", "appears", "potentially"
 - Educational disclaimer tone: "This is analysis, not advice. Your money, your decision."
 - SHOW, don't tell: Present evidence, explain reasoning, let readers decide`;
+}
 
 // Track facts mentioned across sections to prevent repetition
 interface FactTracker {
@@ -359,7 +376,7 @@ async function generateSection(
     : '';
   
   // Construct section prompt
-  const sectionPrompt = `${XRAYCRYPTO_PERSONA}
+  const sectionPrompt = `${getXRayCryptoPersona()}
 
 **SECTION TO WRITE:** <h2>${sectionDef.title}</h2>
 
@@ -401,7 +418,7 @@ Write the section content now:`;
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: XRAYCRYPTO_PERSONA },
+          { role: 'system', content: getXRayCryptoPersona() },
           { role: 'user', content: sectionPrompt }
         ],
         temperature: 0.85,
