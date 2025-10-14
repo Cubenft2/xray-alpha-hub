@@ -192,6 +192,10 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   // DeFi assets
   'DEFI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
   'DE-FI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
+  // Staked assets
+  'ENAUSD': { symbol: 'ENAUSD', displayName: 'Ethena Staked ENA', type: 'crypto' },
+  'SENA': { symbol: 'ENAUSD', displayName: 'Ethena Staked ENA', type: 'crypto' },
+  'SENAUSD': { symbol: 'ENAUSD', displayName: 'Ethena Staked ENA', type: 'crypto' },
 };
 
 // Index and Forex tickers
