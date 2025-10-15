@@ -48,7 +48,7 @@ export function MiniChart({
       || endsWithCryptoPair
       || (!!polygonTicker && polygonTicker.startsWith('X:'))
       || (!!coingeckoId)
-      || /^(BTC|ETH|SOL|DOGE|ADA|XRP|DOT|LINK|MATIC|ATOM|UNI|LTC|BCH|TRX|TON|NEAR|APT|RNDR|INJ|STX|FTM|ALGO|SAND|MANA|AAVE|EOS|XTZ|THETA|AXS|FLOW|SUI|HYPE|ASTR|ASTER|XMR|DASH|ZEC|IMX|HBAR|VET|MKR|OP|ARB|GRT|RUNE|FIL|LISTA|XAU|DEFI|2Z|CHEEMS)$/i.test(input);
+      || /^(BTC|ETH|SOL|DOGE|ADA|XRP|DOT|LINK|MATIC|ATOM|UNI|LTC|BCH|TRX|TON|NEAR|APT|RNDR|INJ|STX|FTM|ALGO|SAND|MANA|AAVE|EOS|XTZ|THETA|AXS|FLOW|SUI|HYPE|ASTR|ASTER|XMR|DASH|ZEC|IMX|HBAR|VET|MKR|OP|ARB|GRT|RUNE|FIL|LISTA|XAU|DEFI|2Z|CHEEMS|PYUSD)$/i.test(input);
 
     if (isCrypto) {
       return /USDT?$/.test(input) ? input : `${input}USD`;
