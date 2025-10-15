@@ -108,7 +108,16 @@ export function LunarCrushDiagnostics() {
                 <p>✅ Market Cap: ${(result.marketCap / 1e9)?.toFixed(2)}B</p>
                 <p>✅ Galaxy Score: {result.galaxyScore?.toFixed(1)}</p>
                 {result.riskLevel && <p>✅ Risk Level: {result.riskLevel}</p>}
-                {result.trends && <p>✅ Trends: {result.trends}</p>}
+                {result.trends && (
+                  <div>
+                    <p className="font-medium">✅ Trends:</p>
+                    <div className="ml-4 space-y-0.5">
+                      <p>• 24h: {result.trends.short_term}</p>
+                      <p>• 7d: {result.trends.medium_term}</p>
+                      <p>• 30d: {result.trends.long_term}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
