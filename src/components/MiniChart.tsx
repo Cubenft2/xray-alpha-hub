@@ -72,25 +72,43 @@ export function MiniChart({
     return getTickerMapping(s);
   }, [symbol]);
 
-  // If symbol already has exchange prefix or ends with USD/USDT, use as-is
-  const formattedSymbol = React.useMemo(() => {
-    const s = symbol.trim().toUpperCase();
-    
-    // If already qualified (e.g., BYBIT:WALRUSUSDT) or ends with USD/USDT (e.g., USELESSUSD), use as-is
-    if (s.includes(':') || /USD(T)?$/.test(s)) {
-      console.log('✅ Using explicit symbol as-is:', s);
-      return s;
+  // Build candidate symbols and manage retry attempts
+  const [attempt, setAttempt] = React.useState(0);
+
+  const candidates = React.useMemo(() => {
+    const input = symbol.trim().toUpperCase();
+    const mappedSym = mapped?.symbol?.toUpperCase();
+    const base = input.includes(':') ? input.split(':')[1] : input;
+    const endsWithUsd = /USD(T)?$/.test(base);
+
+    const exchanges = ['BINANCE','BYBIT','KUCOIN','MEXC','GATEIO','OKX','KRAKEN','COINBASE','BITSTAMP','CRYPTO'];
+
+    const list: string[] = [];
+    if (mappedSym) list.push(mappedSym);
+    list.push(input);
+    if (endsWithUsd && !input.includes(':')) {
+      exchanges.forEach(ex => list.push(`${ex}:${base}`));
     }
-    
-    // Otherwise, check for mapping
-    if (mapped?.symbol) {
-      console.log('📘 Using mapped symbol:', mapped.symbol, 'for', s);
-      return mapped.symbol;
-    }
-    
-    // Fallback to smart formatting
-    return formatTradingViewSymbol(symbol);
-  }, [symbol, mapped]);
+
+    // Fallback smart formatting as a last resort
+    list.push(formatTradingViewSymbol(symbol));
+
+    // Deduplicate while preserving order
+    const seen = new Set<string>();
+    return list.filter(s => {
+      if (!s) return false;
+      if (seen.has(s)) return false;
+      seen.add(s);
+      return true;
+    });
+  }, [symbol, mapped, assetType]);
+
+  const currentSymbol = candidates[attempt] ?? formatTradingViewSymbol(symbol);
+
+  // Reset attempts when symbol or mapping changes
+  React.useEffect(() => {
+    setAttempt(0);
+  }, [symbol, mapped?.symbol]);
   
   // Determine effective tvOk: if we have a local mapping with exchange:pair, prefer TradingView
   const effectiveTvOk = React.useMemo(() => {
@@ -114,34 +132,47 @@ export function MiniChart({
   useEffect(() => {
     if (!containerRef.current || renderMode !== 'tv') return;
 
+    const sym = currentSymbol;
     // Clear previous widget
     containerRef.current.innerHTML = '';
 
-    // Set 9-second timeout for widget load
-    const loadTimeout = setTimeout(() => {
-      console.warn(`⚠️ TradingView widget timeout for ${symbol} (${formattedSymbol}) - falling back`);
-      if (showFallback && (coingeckoId || polygonTicker)) {
-        setRenderMode('fallback');
-      } else {
-        setRenderMode('none');
-      }
-    }, 9000);
+    let cancelled = false;
 
-    console.log(`📈 Loading TradingView chart for ${formattedSymbol} (original: ${symbol})`);
+    const tryNext = (reason: string) => {
+      if (cancelled) return;
+      const hasNext = attempt + 1 < candidates.length;
+      console.warn(`⚠️ ${reason} for ${sym}. Attempt ${attempt + 1}/${candidates.length}`);
+      if (hasNext) {
+        setAttempt(a => a + 1);
+      } else {
+        if (showFallback && (coingeckoId || polygonTicker)) {
+          setRenderMode('fallback');
+        } else {
+          setRenderMode('none');
+        }
+      }
+    };
+
+    // Shorter timeout per attempt
+    const loadTimeout = setTimeout(() => {
+      tryNext('TradingView widget timeout');
+    }, 4000);
+
+    console.log(`📈 Attempt ${attempt + 1}/${candidates.length}: loading ${sym} (original: ${symbol})`);
 
     const script = document.createElement('script');
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
     script.async = true;
     script.innerHTML = JSON.stringify({
-      symbol: formattedSymbol,
-      width: "100%",
-      height: "100%",
-      locale: "en",
-      dateRange: "12M",
+      symbol: sym,
+      width: '100%',
+      height: '100%',
+      locale: 'en',
+      dateRange: '12M',
       colorTheme: theme === 'dark' ? 'dark' : 'light',
       isTransparent: false,
       autosize: true,
-      largeChartUrl: ""
+      largeChartUrl: ''
     });
 
     const widgetContainer = document.createElement('div');
@@ -163,21 +194,16 @@ export function MiniChart({
     widgetContainer.appendChild(script);
     containerRef.current.appendChild(widgetContainer);
 
-    // Detect TradingView "Invalid symbol" and fallback automatically
+    // Detect TradingView "Invalid symbol" and retry/fallback automatically
     const observer = new MutationObserver(() => {
       const text = widgetContainer.textContent || '';
       if (/Invalid symbol|Symbol not found/i.test(text)) {
         clearTimeout(loadTimeout);
-        console.warn(`⚠️ TradingView reported invalid symbol for ${formattedSymbol} - falling back`);
         observer.disconnect();
         if (containerRef.current) {
           containerRef.current.innerHTML = '';
         }
-        if (showFallback && (coingeckoId || polygonTicker)) {
-          setRenderMode('fallback');
-        } else {
-          setRenderMode('none');
-        }
+        tryNext('TradingView invalid symbol');
       }
     });
     observer.observe(widgetContainer, { childList: true, subtree: true, characterData: true });
@@ -185,20 +211,16 @@ export function MiniChart({
     // Clear timeout if widget loads successfully
     script.onload = () => {
       clearTimeout(loadTimeout);
-      console.log(`✅ TradingView widget loaded for ${formattedSymbol}`);
+      console.log(`✅ TradingView widget loaded for ${sym}`);
     };
 
     script.onerror = () => {
       clearTimeout(loadTimeout);
-      console.error(`❌ TradingView widget failed to load for ${formattedSymbol}`);
-      if (showFallback && (coingeckoId || polygonTicker)) {
-        setRenderMode('fallback');
-      } else {
-        setRenderMode('none');
-      }
+      tryNext('TradingView widget failed to load');
     };
 
     return () => {
+      cancelled = true;
       clearTimeout(loadTimeout);
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
@@ -208,7 +230,7 @@ export function MiniChart({
         widgetContainer.removeEventListener('click', onClick);
       }
     };
-  }, [formattedSymbol, theme, onClick, renderMode, showFallback, coingeckoId, polygonTicker]);
+  }, [currentSymbol, attempt, candidates.length, theme, onClick, renderMode, showFallback, coingeckoId, polygonTicker, symbol]);
 
   // Render based on mode
   if (renderMode === 'fallback' && (coingeckoId || polygonTicker)) {
