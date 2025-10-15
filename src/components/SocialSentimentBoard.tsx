@@ -35,11 +35,18 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
       const { data, error } = await supabase.functions.invoke('lunarcrush-universe');
       if (error) throw error;
       
-      // Filter and sort by galaxy_score to get top social assets
+      // Filter and sort by social_volume to get the most socially active assets
       const topSocial = data?.data
-        ?.filter((coin: any) => coin.galaxy_score > 50) // Only high-scoring assets
-        ?.sort((a: any, b: any) => (b.galaxy_score || 0) - (a.galaxy_score || 0))
-        ?.slice(0, 25); // Top 25 assets
+        ?.filter((coin: any) => (coin.social_volume || 0) > 1000) // Only assets with significant social activity
+        ?.sort((a: any, b: any) => (b.social_volume || 0) - (a.social_volume || 0))
+        ?.slice(0, 25); // Top 25 by social volume
+      
+      // Debug: Log the top 3 coins to verify social_volume data
+      console.log('🔍 Top 3 social coins:', topSocial?.slice(0, 3)?.map((c: any) => ({
+        symbol: c.symbol,
+        social_volume: c.social_volume,
+        galaxy_score: c.galaxy_score
+      })));
       
       return topSocial?.map((coin: any) => ({
         name: coin.name,

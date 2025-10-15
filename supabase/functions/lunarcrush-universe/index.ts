@@ -101,11 +101,25 @@ Deno.serve(async (req) => {
     const rawCoins = apiData.data || [];
     
     // Map API fields to our interface, including social_volume from interactions_24h
-    const coins: CoinData[] = rawCoins.map((coin: any) => ({
-      ...coin,
-      social_volume: coin.interactions_24h || coin.social_volume || 0,
-      sentiment: coin.sentiment || 0,
-    }));
+    const coins: CoinData[] = rawCoins.map((coin: any) => {
+      const social_volume = coin.interactions_24h || coin.social_volume_24h || coin.social_volume || 0;
+      
+      // Debug: Log which field we're using for the first few coins
+      if (rawCoins.indexOf(coin) < 3) {
+        console.log(`📊 ${coin.symbol} social_volume mapping:`, {
+          interactions_24h: coin.interactions_24h,
+          social_volume_24h: coin.social_volume_24h,
+          social_volume: coin.social_volume,
+          final_value: social_volume
+        });
+      }
+      
+      return {
+        ...coin,
+        social_volume,
+        sentiment: coin.sentiment || 0,
+      };
+    });
 
     console.log(`📊 Sample coin data:`, JSON.stringify(coins[0], null, 2));
 
