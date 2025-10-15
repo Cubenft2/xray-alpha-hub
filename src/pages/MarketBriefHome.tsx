@@ -163,6 +163,9 @@ export default function MarketBriefHome() {
 
     // 1) EXPLICIT OVERRIDES (HIGHEST PRIORITY - RUNS FIRST)
     const OVERRIDES: Record<string, { symbol: string; displayName?: string }> = {
+      // Stock tickers that conflict with crypto
+      BAC: { symbol: 'NYSE:BAC', displayName: 'Bank of America' }, // NOT Business Alliance Coin
+      
       // User-requested exact TradingView symbols
       WAL: { symbol: 'WALUSD', displayName: 'Walrus (WALRUS)' },
       WALRUS: { symbol: 'WALUSD', displayName: 'Walrus (WALRUS)' },
