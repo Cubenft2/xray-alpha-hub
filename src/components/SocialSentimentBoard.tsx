@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink, Wifi, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Zap, Target, TrendingUp, MessageSquare, ExternalLink, Wifi, ChevronDown, ChevronUp, Download, Share2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
+import html2canvas from 'html2canvas';
 
 interface SocialAsset {
   name: string;
@@ -26,7 +28,10 @@ interface SocialSentimentBoardProps {
 
 export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const cardRef = useRef<HTMLDivElement>(null);
   const [showAll, setShowAll] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Fetch LunarCrush Universe data (refreshes every 15 minutes)
   const { data: universeData, isLoading } = useQuery({
@@ -138,7 +143,97 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     return volume.toString();
   };
 
-  const displayedAssets = showAll ? socialAssets : socialAssets.slice(0, 5);
+  const handleExportImage = async () => {
+    if (!cardRef.current) return;
+    
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#0a0a0a',
+        scale: 2,
+        logging: false,
+      });
+
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((blob) => resolve(blob!), 'image/png');
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `xraycrypto-social-sentiment-${date}.png`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "✅ Exported Successfully",
+        description: "Social sentiment card saved as image!",
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        title: "❌ Export Failed",
+        description: "Could not export image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!cardRef.current) return;
+
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#0a0a0a',
+        scale: 2,
+        logging: false,
+      });
+
+      const blob = await new Promise<Blob>((resolve) => {
+        canvas.toBlob((blob) => resolve(blob!), 'image/png');
+      });
+
+      const file = new File([blob], 'social-sentiment.png', { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'XRayCrypto Social Sentiment',
+          text: 'Check out the latest crypto social sentiment rankings! 🚀',
+        });
+        toast({
+          title: "✅ Shared Successfully",
+          description: "Social sentiment card shared!",
+        });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+        toast({
+          title: "📋 Copied to Clipboard",
+          description: "Image copied! Paste it anywhere.",
+        });
+      } else {
+        const twitterText = encodeURIComponent('Latest crypto social sentiment rankings from @XRaycryptox 🚀');
+        window.open(`https://twitter.com/intent/tweet?text=${twitterText}`, '_blank');
+      }
+    } catch (error) {
+      console.error('Share failed:', error);
+      toast({
+        title: "⚠️ Share Not Supported",
+        description: "Try exporting as image instead.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const displayedAssets = isExporting ? socialAssets : (showAll ? socialAssets : socialAssets.slice(0, 5));
 
   return (
     <div className="space-y-3">
@@ -211,12 +306,24 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
       </div>
 
       {/* Detailed Social Sentiment Table */}
-      <Card className="xr-card">
+      <Card className="xr-card" ref={cardRef}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            Social Sentiment Intelligence (LunarCrush)
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Social Sentiment Intelligence (LunarCrush)
+            </CardTitle>
+            {!isExporting && (
+              <div className="flex gap-2">
+                <Button onClick={handleExportImage} size="sm" variant="outline" disabled={isExporting}>
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button onClick={handleShare} size="sm" variant="outline" disabled={isExporting}>
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
@@ -310,7 +417,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
             )}
 
             {/* Show More Button */}
-            {socialAssets.length > 5 && (
+            {!isExporting && socialAssets.length > 5 && (
               <div className="flex justify-center pt-2">
                 <Button
                   variant="outline"
@@ -328,6 +435,13 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     </>
                   )}
                 </Button>
+              </div>
+            )}
+
+            {/* Watermark (only visible during export) */}
+            {isExporting && (
+              <div className="text-center pt-4 text-xs font-semibold text-primary opacity-70">
+                XRayCrypto™ • @XRaycryptox
               </div>
             )}
           </div>
