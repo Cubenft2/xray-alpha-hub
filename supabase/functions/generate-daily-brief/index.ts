@@ -964,6 +964,38 @@ async function fetchCryptoDataWithFallbacks(
   const now = new Date();
   
   // ===================================================================
+  // 0. TRY PRICE_CACHE TABLE FIRST (FASTEST)
+  // ===================================================================
+  try {
+    console.log('📡 [0/5] Checking price_cache table...');
+    const { data: cachedPrices } = await supabase
+      .from('price_cache')
+      .select('symbol, price, source, cached_at')
+      .in('symbol', symbols)
+      .gte('expires_at', now.toISOString());
+    
+    if (cachedPrices && cachedPrices.length > 0) {
+      cachedPrices.forEach((row: any) => {
+        const timestamp = new Date(row.cached_at);
+        const freshnessMinutes = Math.floor((now.getTime() - timestamp.getTime()) / 60000);
+        
+        results.set(row.symbol, {
+          price: row.price,
+          source: 'cached',
+          timestamp: row.cached_at,
+          isStale: false,
+          freshnessMinutes
+        });
+        console.log(`  ✅ ${row.symbol}: $${row.price.toFixed(2)} from price_cache (${freshnessMinutes}min old)`);
+      });
+      
+      console.log(`✅ price_cache provided ${cachedPrices.length}/${symbols.length} prices`);
+    }
+  } catch (error) {
+    console.error('❌ price_cache fetch failed:', error instanceof Error ? error.message : 'Unknown error');
+  }
+  
+  // ===================================================================
   // 1. TRY POLYGON.IO CRYPTO SNAPSHOT (PRIMARY SOURCE)
   // ===================================================================
   try {
@@ -1030,6 +1062,28 @@ async function fetchCryptoDataWithFallbacks(
     }
   } catch (error) {
     console.error('❌ Polygon.io fetch failed:', error instanceof Error ? error.message : 'Unknown error');
+  }
+  
+  // Save successful Polygon prices to cache
+  if (results.size > 0) {
+    try {
+      const cachePromises = Array.from(results.entries()).map(([symbol, data]) => {
+        if (data.source === 'polygon' && data.price) {
+          return supabase.from('price_cache').upsert({
+            symbol,
+            price: data.price,
+            source: 'polygon',
+            cached_at: now.toISOString(),
+            expires_at: new Date(now.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour
+            metadata: data.metadata
+          }, { onConflict: 'symbol' });
+        }
+      });
+      await Promise.all(cachePromises);
+      console.log('💾 Cached Polygon prices');
+    } catch (error) {
+      console.error('❌ Failed to cache prices:', error);
+    }
   }
   
   // ===================================================================
@@ -1247,6 +1301,24 @@ serve(async (req) => {
         ? 'Morning Brief' 
         : 'Evening Brief';
 
+    console.log(`\n🚀 ========================================`);
+    console.log(`🚀 BRIEF TYPE: ${briefType.toUpperCase()}`);
+    console.log(`🚀 BRIEF TITLE: ${briefTitle}`);
+    console.log(`🚀 ========================================\n`);
+    
+    // Clear old cache entries before generation
+    try {
+      console.log('🗑️ Clearing expired cache entries...');
+      const { error: cacheCleanupError } = await supabase.rpc('cleanup_expired_cache');
+      if (cacheCleanupError) {
+        console.warn('⚠️ Cache cleanup failed:', cacheCleanupError);
+      } else {
+        console.log('✅ Cache cleanup completed');
+      }
+    } catch (err) {
+      console.warn('⚠️ Cache cleanup error:', err);
+    }
+    
     console.log(`\n🚀 Starting ${briefTitle} generation with MODULAR SYSTEM...`);
     
     // Collect all market data
@@ -1378,15 +1450,21 @@ serve(async (req) => {
       const { data: lunarcrushResponse, error: lunarcrushError } = await supabase.functions.invoke('lunarcrush-social');
       
       if (lunarcrushError) {
-        console.error('❌ LunarCrush edge function error:', lunarcrushError);
-      } else if (lunarcrushResponse?.data) {
+        console.warn('⚠️ LunarCrush edge function error (non-critical):', lunarcrushError);
+        dataWarnings.push('LunarCrush social data unavailable');
+      } else if (lunarcrushResponse?.data && Array.isArray(lunarcrushResponse.data)) {
         lunarcrushData = { data: lunarcrushResponse.data };
         console.log(`✅ Fetched ${lunarcrushData.data?.length || 0} assets from LunarCrush`);
+      } else if (lunarcrushResponse?.warning) {
+        console.warn('⚠️ LunarCrush returned warning:', lunarcrushResponse.warning);
+        dataWarnings.push('LunarCrush social data unavailable');
       } else {
-        console.warn('⚠️ No data returned from LunarCrush edge function');
+        console.warn('⚠️ No data returned from LunarCrush edge function (non-critical)');
+        dataWarnings.push('LunarCrush social data unavailable');
       }
     } catch (err) {
-      console.error('❌ LunarCrush fetch failed:', err);
+      console.warn('⚠️ LunarCrush fetch failed (non-critical):', err);
+      dataWarnings.push('LunarCrush social data unavailable');
     }
 
     try {
@@ -1467,15 +1545,40 @@ serve(async (req) => {
     
     // CRITICAL VALIDATION: Ensure BTC price is available
     if (!btcData || !btcData.current_price || btcData.current_price === 0) {
-      console.error('❌ CRITICAL ERROR: BTC price is null/undefined/zero after all fallbacks!');
-      dataWarnings.push('CRITICAL: BTC price validation failed');
+      console.error(`❌ CRITICAL ERROR: BTC price is null/undefined/zero after all fallbacks!`);
+      console.error(`   Brief Type: ${briefType}`);
+      console.error(`   Price Results: ${JSON.stringify(Array.from(priceDataResults?.entries() || []))}`);
+      console.error(`   Data Warnings: ${dataWarnings.join(', ')}`);
       
-      return new Response(
-        JSON.stringify({ 
-          error: 'BTC price unavailable', 
-          details: 'All price sources failed to provide valid BTC price',
-          warnings: dataWarnings
-        }),
+      // Try one more time with cached price
+      const btcResult = priceDataResults?.get('BTC');
+      if (btcResult?.price && btcResult.price > 0) {
+        console.warn(`⚠️ Using cached BTC price as emergency fallback: $${btcResult.price}`);
+        // Inject it into coingeckoData
+        if (!btcData) {
+          coingeckoData.push({
+            id: 'bitcoin',
+            symbol: 'btc',
+            name: 'Bitcoin',
+            current_price: btcResult.price,
+            market_cap: 0,
+            total_volume: 0,
+            price_change_percentage_24h: 0
+          } as any);
+        } else {
+          btcData.current_price = btcResult.price;
+        }
+      } else {
+        dataWarnings.push('CRITICAL: BTC price validation failed - all sources exhausted');
+        
+        return new Response(
+          JSON.stringify({ 
+            error: 'BTC price unavailable', 
+            details: 'All price sources (Polygon, CoinGecko, cache) failed to provide valid BTC price',
+            briefType: briefType,
+            warnings: dataWarnings,
+            priceResults: Array.from(priceDataResults?.entries() || [])
+          }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

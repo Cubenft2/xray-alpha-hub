@@ -57,98 +57,135 @@ serve(async (req) => {
       );
     }
 
-    // Key guard
+    // Key guard - return empty data instead of error
     if (!lunarcrushMcpKey) {
+      console.warn('⚠️ Missing LunarCrush API key - returning empty data');
       return new Response(
-        JSON.stringify({ error: 'Missing LunarCrush API key. Please set LUNARCRUSH_MCP_KEY or LUNARCRUSH_API_KEY in Supabase secrets.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          data: [],
+          cached: false,
+          warning: 'Missing API key'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('📡 Fetching fresh data from LunarCrush REST API v4...');
 
-    // Use REST API v4 endpoint
+    // Use REST API v4 endpoint with timeout
     const apiUrl = 'https://lunarcrush.com/api4/public/coins/list';
     
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${lunarcrushMcpKey}`,
-        'Accept': 'application/json'
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${lunarcrushMcpKey}`,
+          'Accept': 'application/json'
+        },
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unable to read error');
+        console.error(`❌ LunarCrush API error: ${response.status}`, errorText.slice(0, 300));
+        
+        // Return empty data instead of error - social data is optional
+        return new Response(
+          JSON.stringify({ 
+            data: [],
+            cached: false,
+            warning: `API returned ${response.status}`,
+            details: errorText.slice(0, 300)
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
-    });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unable to read error');
-      console.error(`❌ LunarCrush API error: ${response.status}`, errorText.slice(0, 300));
+      console.log(`✅ REST API response: ${response.status}`);
+      
+      const lunarcrushJson = await response.json();
+      
+      if (!lunarcrushJson || !lunarcrushJson.data) {
+        console.error('❌ No valid crypto data in API response');
+        return new Response(
+          JSON.stringify({ 
+            data: [],
+            cached: false,
+            warning: 'Invalid API response format'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      
+      const assets: LunarCrushAsset[] = (lunarcrushJson.data || []).map((coin: any) => ({
+        name: coin.name,
+        symbol: coin.symbol,
+        galaxy_score: coin.galaxy_score || 0,
+        alt_rank: coin.alt_rank || 0,
+        social_volume: coin.social_volume || 0,
+        social_dominance: coin.social_dominance || 0,
+        sentiment: coin.sentiment || 0,
+        fomo_score: coin.fomo_score || 0
+      }));
+
+      console.log(`✅ Fetched ${assets.length} assets from LunarCrush`);
+
+      // Cache for 30 minutes
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      await supabase
+        .from('cache_kv')
+        .upsert({
+          k: cacheKey,
+          v: assets,
+          expires_at: expiresAt
+        }, { onConflict: 'k' });
+
+      console.log('💾 Cached data for 30 minutes');
+
       return new Response(
-        JSON.stringify({ 
-          error: 'Failed to fetch LunarCrush data', 
-          status: response.status,
-          details: errorText.slice(0, 300)
+        JSON.stringify({
+          data: assets,
+          cached: false,
+          timestamp: new Date().toISOString()
         }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.warn('⚠️ LunarCrush API timeout - returning empty data');
+      } else {
+        console.error('❌ LunarCrush fetch error:', fetchError);
+      }
+      
+      // Return empty data instead of error
+      return new Response(
+        JSON.stringify({
+          data: [],
+          cached: false,
+          warning: 'Fetch failed or timed out'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log(`✅ REST API response: ${response.status}`);
-    
-    const lunarcrushJson = await response.json();
-    
-    if (!lunarcrushJson || !lunarcrushJson.data) {
-      console.error('❌ No valid crypto data in API response');
-      return new Response(
-        JSON.stringify({ 
-          error: 'No valid crypto data in API response',
-          sample: JSON.stringify(lunarcrushJson).slice(0, 500)
-        }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    
-    const assets: LunarCrushAsset[] = (lunarcrushJson.data || []).map((coin: any) => ({
-      name: coin.name,
-      symbol: coin.symbol,
-      galaxy_score: coin.galaxy_score || 0,
-      alt_rank: coin.alt_rank || 0,
-      social_volume: coin.social_volume || 0,
-      social_dominance: coin.social_dominance || 0,
-      sentiment: coin.sentiment || 0,
-      fomo_score: coin.fomo_score || 0
-    }));
-
-    console.log(`✅ Fetched ${assets.length} assets from LunarCrush`);
-
-    // Cache for 30 minutes
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-    await supabase
-      .from('cache_kv')
-      .upsert({
-        k: cacheKey,
-        v: assets,
-        expires_at: expiresAt
-      }, { onConflict: 'k' });
-
-    console.log('💾 Cached data for 15 minutes');
-
-    return new Response(
-      JSON.stringify({
-        data: assets,
-        cached: false,
-        timestamp: new Date().toISOString()
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error) {
     console.error('❌ Error in lunarcrush-social:', error);
+    // Return empty data instead of error - social data is optional
     return new Response(
       JSON.stringify({
-        error: 'Internal server error',
+        data: [],
+        cached: false,
+        warning: 'Internal error',
         details: error instanceof Error ? error.message : 'Unknown error'
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

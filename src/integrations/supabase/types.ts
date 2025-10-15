@@ -637,6 +637,36 @@ export type Database = {
         }
         Relationships: []
       }
+      price_cache: {
+        Row: {
+          cached_at: string
+          expires_at: string
+          id: string
+          metadata: Json | null
+          price: number
+          source: string
+          symbol: string
+        }
+        Insert: {
+          cached_at?: string
+          expires_at?: string
+          id?: string
+          metadata?: Json | null
+          price: number
+          source: string
+          symbol: string
+        }
+        Update: {
+          cached_at?: string
+          expires_at?: string
+          id?: string
+          metadata?: Json | null
+          price?: number
+          source?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
       price_history: {
         Row: {
           asset_type: string
@@ -986,6 +1016,10 @@ export type Database = {
         Returns: number
       }
       cleanup_expired_cache: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_expired_price_cache: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
