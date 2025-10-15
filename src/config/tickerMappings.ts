@@ -191,8 +191,8 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'CORN': { symbol: 'MEXC:CORNUSDT', displayName: 'CORN (CORN)', type: 'crypto' },
   // Crypto overrides to prevent stock misclassification
   'OM': { symbol: 'BINANCE:OMUSDT', displayName: 'MANTRA (OM)', type: 'crypto' },
-  'EDU': { symbol: 'BINANCE:EDUSDT', displayName: 'Open Campus (EDU)', type: 'crypto' },
-  'CLO': { symbol: 'BINANCE:CLOUSDT', displayName: 'Callisto Network (CLO)', type: 'crypto' },
+  'EDU': { symbol: 'BINANCE:EDUUSDT', displayName: 'Open Campus (EDU)', type: 'crypto' },
+  'CLO': { symbol: 'BINANCE:CLOUSDT', displayName: 'YEI Finance (CLO)', type: 'crypto' },
   // DeFi assets
   'DEFI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
   'DE-FI': { symbol: 'BYBIT:DEFIUSDT', displayName: 'DeFi (DEFI)', type: 'crypto' },
