@@ -32,7 +32,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
   const cardRef = useRef<HTMLDivElement>(null);
   const [displayCount, setDisplayCount] = useState(5);
   const [isExporting, setIsExporting] = useState(false);
-  const siteHost = typeof window !== 'undefined' ? window.location.host : '';
+  const siteHost = 'xraycrypto.io';
 
   // Fetch LunarCrush Universe data (refreshes every 15 minutes)
   const { data: universeData, isLoading } = useQuery({
@@ -328,13 +328,25 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
         </CardHeader>
         <CardContent className="relative">
           {!isExporting && (
-            <div className="pointer-events-none select-none absolute bottom-2 right-2 z-10 text-[10px] sm:text-xs text-muted-foreground bg-background/60 backdrop-blur-sm border border-border/50 rounded px-2 py-1 shadow-sm">
-              <span className="font-semibold text-foreground">XRayCrypto™</span>
-              <span className="mx-1">•</span>
-              <span>@XRaycryptox</span>
-              <span className="mx-1">•</span>
-              <span>{siteHost}</span>
-            </div>
+            <>
+              {/* Logo watermark - bottom-left */}
+              <div className="pointer-events-none select-none absolute bottom-2 left-2 z-10">
+                <img 
+                  src="/xray-dog.png" 
+                  alt="XRayCrypto" 
+                  className="w-12 h-12 sm:w-16 sm:h-16 opacity-80"
+                />
+              </div>
+              
+              {/* Text watermark - bottom-right */}
+              <div className="pointer-events-none select-none absolute bottom-2 right-2 z-10 text-[10px] sm:text-xs text-muted-foreground bg-background/60 backdrop-blur-sm border border-border/50 rounded px-2 py-1 shadow-sm">
+                <span className="font-semibold text-foreground">XRayCrypto™</span>
+                <span className="mx-1">•</span>
+                <span>@XRaycryptox</span>
+                <span className="mx-1">•</span>
+                <span>{siteHost}</span>
+              </div>
+            </>
           )}
           <div className="space-y-2">
             {displayedAssets.length > 0 ? (
