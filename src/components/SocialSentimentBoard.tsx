@@ -446,8 +446,18 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
 
             {/* Watermark (only visible during export) */}
             {isExporting && (
-              <div className="text-center pt-4 text-xs font-semibold text-primary opacity-70">
-                XRayCrypto™ • @XRaycryptox
+              <div className="border-t border-border mt-4 pt-3 pb-2">
+                <div className="flex items-center justify-center gap-2">
+                  <div className="text-sm font-bold text-foreground">
+                    XRayCrypto™
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    • @XRaycryptox
+                  </div>
+                </div>
+                <div className="text-xs text-center text-muted-foreground mt-1">
+                  Real-Time Social Sentiment Intelligence
+                </div>
               </div>
             )}
           </div>
