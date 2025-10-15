@@ -1579,8 +1579,9 @@ serve(async (req) => {
             warnings: dataWarnings,
             priceResults: Array.from(priceDataResults?.entries() || [])
           }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
     
     console.log(`✅ Price validation passed: BTC=$${btcData.current_price.toFixed(2)}, ETH=$${ethData?.current_price?.toFixed(2) || 'N/A'}`);
