@@ -314,7 +314,13 @@ export function SocialSentimentShareCard({
           <div className="pt-4 border-t flex items-center justify-between text-xs text-muted-foreground">
             <span>Powered by LunarCrush</span>
             {generatedAt && (
-              <span>Updated {new Date(generatedAt).toLocaleTimeString()}</span>
+              <span>Updated {new Date(generatedAt).toLocaleString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+              })}</span>
             )}
           </div>
 

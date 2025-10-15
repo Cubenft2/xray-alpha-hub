@@ -254,7 +254,14 @@ export function SocialSentimentCard() {
 
           {socialAssets.length > 0 && (
             <div className="text-sm text-muted-foreground text-center">
-              {socialAssets.length} assets loaded • Last updated: {new Date(lastUpdated).toLocaleTimeString()}
+              {socialAssets.length} assets loaded • Updated: {new Date(lastUpdated).toLocaleString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric',
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+              })}
             </div>
           )}
 
