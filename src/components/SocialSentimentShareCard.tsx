@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Download, Share2, TrendingUp, Zap, Users } from 'lucide-react';
+import { Download, Share2, TrendingUp, Zap, Users, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import html2canvas from 'html2canvas';
 
@@ -15,6 +15,8 @@ interface SocialAsset {
   sentiment?: number;
   social_volume?: number;
   social_dominance?: number;
+  token_address?: string;
+  alt_rank?: number;
 }
 
 interface SocialSentimentShareCardProps {
@@ -245,9 +247,30 @@ export function SocialSentimentShareCard({
                   
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <p className="font-semibold">{asset.name}</p>
                         <p className="text-xs text-muted-foreground">{asset.symbol}</p>
+                        {asset.token_address && !isExporting && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <code className="text-[10px] text-muted-foreground">
+                              {asset.token_address.slice(0, 6)}...{asset.token_address.slice(-4)}
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-4 w-4 p-0 hover:bg-transparent"
+                              onClick={() => {
+                                navigator.clipboard.writeText(asset.token_address!);
+                                toast({ 
+                                  title: "📋 Copied!", 
+                                  description: `${asset.symbol} token address copied` 
+                                });
+                              }}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className={`text-sm font-medium ${sentimentInfo.color}`}>
