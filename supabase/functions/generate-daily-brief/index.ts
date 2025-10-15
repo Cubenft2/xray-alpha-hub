@@ -1540,7 +1540,7 @@ serve(async (req) => {
     }
 
     // Calculate key metrics with validation
-    const btcData = coingeckoData.find(coin => coin.symbol === 'btc');
+    let btcData = coingeckoData.find(coin => coin.symbol === 'btc');
     const ethData = coingeckoData.find(coin => coin.symbol === 'eth');
     
     // CRITICAL VALIDATION: Ensure BTC price is available
@@ -1556,7 +1556,7 @@ serve(async (req) => {
         console.warn(`⚠️ Using cached BTC price as emergency fallback: $${btcResult.price}`);
         // Inject it into coingeckoData
         if (!btcData) {
-          coingeckoData.push({
+          const injectedBtc = {
             id: 'bitcoin',
             symbol: 'btc',
             name: 'Bitcoin',
@@ -1564,7 +1564,9 @@ serve(async (req) => {
             market_cap: 0,
             total_volume: 0,
             price_change_percentage_24h: 0
-          } as any);
+          } as any;
+          coingeckoData.push(injectedBtc);
+          btcData = injectedBtc;
         } else {
           btcData.current_price = btcResult.price;
         }
@@ -1584,7 +1586,9 @@ serve(async (req) => {
       }
     }
     
-    console.log(`✅ Price validation passed: BTC=$${btcData.current_price.toFixed(2)}, ETH=$${ethData?.current_price?.toFixed(2) || 'N/A'}`);
+    const btcPriceStr = btcData?.current_price != null ? Number(btcData.current_price).toFixed(2) : 'N/A';
+    const ethPriceStr = ethData?.current_price != null ? Number(ethData.current_price).toFixed(2) : 'N/A';
+    console.log(`✅ Price validation passed: BTC=$${btcPriceStr}, ETH=$${ethPriceStr}`);
     
     const changeField = isWeekendBrief ? 'price_change_percentage_7d_in_currency' : 'price_change_percentage_24h';
     
