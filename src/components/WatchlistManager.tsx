@@ -14,6 +14,7 @@ interface WatchlistItem {
   symbol: string;
   name: string;
   type: 'crypto' | 'stock';
+  coingeckoId?: string | null;
 }
 
 export function WatchlistManager() {
@@ -48,6 +49,7 @@ export function WatchlistManager() {
     let resolvedSymbol = raw;
     let itemType: 'crypto' | 'stock' = 'stock';
     let displayName = raw;
+    let coingeckoId: string | null = null;
 
     if (isExplicitExchange) {
       // Explicit exchange prefix
@@ -61,9 +63,10 @@ export function WatchlistManager() {
         resolvedSymbol = mapping.tradingview_symbol;
         itemType = mapping.type === 'stock' ? 'stock' : 'crypto';
         displayName = mapping.display_name || raw;
+        coingeckoId = mapping.coingecko_id ?? null;
       } else {
         // Fallback heuristics for unmapped symbols
-        const commonCryptos = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'MATIC', 'DOT', 'AVAX', 'LINK'];
+        const commonCryptos = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'MATIC', 'DOT', 'AVAX', 'LINK', 'OM', 'EDU', 'CLO'];
         
         if (commonCryptos.includes(raw)) {
           // Known crypto without mapping
@@ -85,7 +88,8 @@ export function WatchlistManager() {
       id: Date.now().toString(),
       symbol: resolvedSymbol,
       name: displayName,
-      type: itemType
+      type: itemType,
+      coingeckoId: coingeckoId,
     };
 
     if (!watchlist.find(item => item.symbol === newItem.symbol)) {
@@ -195,7 +199,8 @@ export function WatchlistManager() {
                 <div className="relative h-48 rounded-lg overflow-hidden group">
                   <MiniChart 
                     symbol={item.symbol} 
-                    theme={theme} 
+                    theme={theme}
+                    coingeckoId={item.coingeckoId ?? undefined}
                     onClick={() => handleChartClick(item)}
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center opacity-0 group-hover:opacity-100">
