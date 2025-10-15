@@ -70,7 +70,7 @@ export function GenerateBrief() {
       }
       
       // Extract slug from response to navigate directly to the new brief
-      const slug = data?.slug || data?.data?.slug;
+      const slug = data?.brief?.slug ?? data?.slug ?? data?.data?.slug;
       
       if (slug) {
         toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated! Opening...`);

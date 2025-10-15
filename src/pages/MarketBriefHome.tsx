@@ -64,6 +64,15 @@ export default function MarketBriefHome() {
 
   const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
 
+  // Helper to determine appropriate brief type based on current time
+  const deriveBriefType = () => {
+    const now = new Date();
+    const hour = now.getHours();
+    const day = now.getDay(); // 0=Sun, 6=Sat
+    if (day === 6 || day === 0) return 'weekend';
+    return hour < 15 ? 'morning' : 'evening';
+  };
+
   // Validate symbols when extracted tickers change
   useEffect(() => {
     if (extractedTickers.length > 0) {
@@ -468,7 +477,7 @@ export default function MarketBriefHome() {
       console.log('🚀 Generating fresh market brief via edge function...');
 
       const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
-        body: {}
+        body: { briefType: deriveBriefType() }
       });
 
       if (error) {
@@ -509,7 +518,7 @@ export default function MarketBriefHome() {
       console.log('🚀 Generating comprehensive market brief with API keys...');
       
       const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
-        body: {}
+        body: { briefType: deriveBriefType() }
       });
       
       if (error) {
@@ -657,7 +666,7 @@ export default function MarketBriefHome() {
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header Section */}
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <h1 className="text-3xl font-bold xr-gradient-text">Market Brief</h1>
+          <h1 className="text-3xl font-bold xr-gradient-text">{brief.title || 'Market Brief'}</h1>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Regenerate Brief button disabled per request */} {false && (
             <Button 
