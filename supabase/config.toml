@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.test-polygon-api]
 verify_jwt = false
+
+[functions.test-lunarcrush-api]
+verify_jwt = false

@@ -6,6 +6,7 @@ import { GenerateBrief } from './GenerateBrief';
 import { PolygonSync } from './PolygonSync';
 import { PolygonDataAdmin } from './PolygonDataAdmin';
 import { PolygonDiagnostics } from './PolygonDiagnostics';
+import { LunarCrushDiagnostics } from './LunarCrushDiagnostics';
 import { CoinGeckoEnrich } from './CoinGeckoEnrich';
 
 export default function AdminIndex() {
@@ -20,6 +21,7 @@ export default function AdminIndex() {
           <TabsTrigger value="symbol-intelligence">Symbol Intelligence</TabsTrigger>
           <TabsTrigger value="coingecko-enrich">CoinGecko Enrich</TabsTrigger>
           <TabsTrigger value="polygon-diagnostics">Polygon Diagnostics</TabsTrigger>
+          <TabsTrigger value="lunarcrush-diagnostics">🌙 LunarCrush Diagnostics</TabsTrigger>
           <TabsTrigger value="polygon-sync">Polygon Sync</TabsTrigger>
           <TabsTrigger value="polygon-data">Polygon Data</TabsTrigger>
         </TabsList>
@@ -42,6 +44,10 @@ export default function AdminIndex() {
 
         <TabsContent value="polygon-diagnostics">
           <PolygonDiagnostics />
+        </TabsContent>
+
+        <TabsContent value="lunarcrush-diagnostics">
+          <LunarCrushDiagnostics />
         </TabsContent>
 
         <TabsContent value="polygon-sync">
