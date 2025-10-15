@@ -30,7 +30,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
   const navigate = useNavigate();
   const { toast } = useToast();
   const cardRef = useRef<HTMLDivElement>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [displayCount, setDisplayCount] = useState(5);
   const [isExporting, setIsExporting] = useState(false);
 
   // Fetch LunarCrush Universe data (refreshes every 15 minutes)
@@ -233,7 +233,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     }
   };
 
-  const displayedAssets = isExporting ? socialAssets : (showAll ? socialAssets : socialAssets.slice(0, 5));
+  const displayedAssets = isExporting ? socialAssets : socialAssets.slice(0, displayCount);
 
   return (
     <div className="space-y-3">
@@ -422,16 +422,22 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowAll(!showAll)}
+                  onClick={() => {
+                    if (displayCount >= socialAssets.length) {
+                      setDisplayCount(5);
+                    } else {
+                      setDisplayCount(Math.min(displayCount + 5, socialAssets.length));
+                    }
+                  }}
                   className="gap-2"
                 >
-                  {showAll ? (
+                  {displayCount >= socialAssets.length ? (
                     <>
                       Show Less <ChevronUp className="w-4 h-4" />
                     </>
                   ) : (
                     <>
-                      Show {socialAssets.length - 5} More <ChevronDown className="w-4 h-4" />
+                      Show {Math.min(5, socialAssets.length - displayCount)} More ({displayCount + Math.min(5, socialAssets.length - displayCount)} total) <ChevronDown className="w-4 h-4" />
                     </>
                   )}
                 </Button>
