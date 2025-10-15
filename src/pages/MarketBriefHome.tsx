@@ -289,19 +289,40 @@ export default function MarketBriefHome() {
           }
           briefData = data;
         } else {
-          // Fallback: fetch the latest brief when the route param is a placeholder or missing
-          const { data, error } = await supabase
+          // Fetch the appropriate brief type based on current time
+          const expectedBriefType = deriveBriefType();
+          console.log('🐕 XRay: Expected brief type for current time:', expectedBriefType);
+          
+          // Try to get today's brief of the expected type first
+          const today = new Date().toISOString().split('T')[0];
+          const { data: typedBrief, error: typedError } = await supabase
             .from('market_briefs')
             .select('*')
+            .eq('brief_type', expectedBriefType)
+            .gte('created_at', `${today}T00:00:00Z`)
             .order('created_at', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
           
-          if (error || !data) {
-            console.error('🐕 XRay: Brief fetch failed:', error);
-            throw new Error('No market briefs available');
+          if (typedBrief) {
+            console.log('✅ Found', expectedBriefType, 'brief for today');
+            briefData = typedBrief;
+          } else {
+            // Fallback: if no brief of expected type for today, get the most recent brief
+            console.log('⚠️ No', expectedBriefType, 'brief for today, fetching latest available');
+            const { data, error } = await supabase
+              .from('market_briefs')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .single();
+            
+            if (error || !data) {
+              console.error('🐕 XRay: Brief fetch failed:', error);
+              throw new Error('No market briefs available');
+            }
+            briefData = data;
           }
-          briefData = data;
         }
         
         console.log('🐕 XRay: Brief loaded successfully!', briefData);
