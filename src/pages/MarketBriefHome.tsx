@@ -165,6 +165,7 @@ export default function MarketBriefHome() {
     const OVERRIDES: Record<string, { symbol: string; displayName?: string }> = {
       // Stock tickers that conflict with crypto
       BAC: { symbol: 'NYSE:BAC', displayName: 'Bank of America' }, // NOT Business Alliance Coin
+      ORC: { symbol: 'NYSE:ORC', displayName: 'Orchid Island Capital' }, // NYSE stock
       
       // User-requested exact TradingView symbols
       WAL: { symbol: 'WALUSD', displayName: 'Walrus (WALRUS)' },
