@@ -73,7 +73,7 @@ serve(async (req) => {
     console.log('📡 Fetching fresh data from LunarCrush REST API v4...');
 
     // Use REST API v4 endpoint with timeout
-    const apiUrl = 'https://lunarcrush.com/api4/public/coins/list';
+    const apiUrl = 'https://lunarcrush.com/api4/public/coins/list/v1';
     
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
@@ -127,7 +127,7 @@ serve(async (req) => {
         symbol: coin.symbol,
         galaxy_score: coin.galaxy_score || 0,
         alt_rank: coin.alt_rank || 0,
-        social_volume: coin.social_volume || 0,
+        social_volume: coin.interactions_24h ?? coin.social_volume ?? 0,
         social_dominance: coin.social_dominance || 0,
         sentiment: coin.sentiment || 0,
         fomo_score: coin.fomo_score || 0

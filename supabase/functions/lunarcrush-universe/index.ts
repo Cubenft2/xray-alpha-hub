@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
     const { data: cachedData } = await supabase
       .from('cache_kv')
       .select('v, expires_at')
-      .eq('key', cacheKey)
+      .eq('k', cacheKey)
       .gt('expires_at', new Date().toISOString())
       .single();
 
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     const { data: expiredCache } = await supabase
       .from('cache_kv')
       .select('v, expires_at')
-      .eq('key', cacheKey)
+      .eq('k', cacheKey)
       .single();
 
     // Fetch fresh data
@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     await supabase
       .from('cache_kv')
       .upsert({
-        key: cacheKey,
+        k: cacheKey,
         v: result,
         expires_at: expiresAt,
       });

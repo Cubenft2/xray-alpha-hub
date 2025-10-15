@@ -26,7 +26,17 @@ Deno.serve(async (req) => {
     }
 
     const url = new URL(req.url);
-    const coinIdentifier = url.searchParams.get('coin') || url.searchParams.get('symbol');
+    let coinIdentifier = url.searchParams.get('coin') || url.searchParams.get('symbol');
+
+    // Also accept coin from request body
+    if (!coinIdentifier) {
+      try {
+        const body = await req.json();
+        coinIdentifier = body?.coin || body?.symbol;
+      } catch {
+        // Body parsing failed, continue without it
+      }
+    }
 
     if (!coinIdentifier) {
       return new Response(
@@ -47,7 +57,7 @@ Deno.serve(async (req) => {
     const { data: cachedData } = await supabase
       .from('cache_kv')
       .select('v, expires_at')
-      .eq('key', cacheKey)
+      .eq('k', cacheKey)
       .gt('expires_at', new Date().toISOString())
       .single();
 
@@ -62,7 +72,7 @@ Deno.serve(async (req) => {
     const { data: expiredCache } = await supabase
       .from('cache_kv')
       .select('v, expires_at')
-      .eq('key', cacheKey)
+      .eq('k', cacheKey)
       .single();
 
     // Fetch fresh data
@@ -130,7 +140,7 @@ Deno.serve(async (req) => {
     await supabase
       .from('cache_kv')
       .upsert({
-        key: cacheKey,
+        k: cacheKey,
         v: result,
         expires_at: expiresAt,
       });

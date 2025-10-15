@@ -66,6 +66,12 @@ Deno.serve(async (req) => {
       if (socialError) throw socialError;
 
       const assets = socialData?.data || [];
+      
+      // Explicitly fail if dataset is empty
+      if (assets.length === 0) {
+        throw new Error(`Empty dataset from lunarcrush-social. Warning: ${socialData?.warning || 'No data returned'}`);
+      }
+      
       const btcAsset = assets.find((a: any) => a.symbol?.toLowerCase() === 'btc');
       const ethAsset = assets.find((a: any) => a.symbol?.toLowerCase() === 'eth');
 
