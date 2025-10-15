@@ -326,28 +326,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
             )}
           </div>
         </CardHeader>
-        <CardContent className="relative">
-          {!isExporting && (
-            <>
-              {/* Logo watermark - bottom-left */}
-              <div className="pointer-events-none select-none absolute bottom-2 left-2 z-10">
-                <img 
-                  src="/xray-dog.png" 
-                  alt="XRayCrypto" 
-                  className="w-12 h-12 sm:w-16 sm:h-16 opacity-80"
-                />
-              </div>
-              
-              {/* Text watermark - bottom-right */}
-              <div className="pointer-events-none select-none absolute bottom-2 right-2 z-10 text-[10px] sm:text-xs text-muted-foreground bg-background/60 backdrop-blur-sm border border-border/50 rounded px-2 py-1 shadow-sm">
-                <span className="font-semibold text-foreground">XRayCrypto™</span>
-                <span className="mx-1">•</span>
-                <span>@XRaycryptox</span>
-                <span className="mx-1">•</span>
-                <span>{siteHost}</span>
-              </div>
-            </>
-          )}
+        <CardContent>
           <div className="space-y-2">
             {displayedAssets.length > 0 ? (
               displayedAssets.map((asset, index) => (
@@ -465,7 +444,27 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                 </Button>
               </div>
             )}
+          </div>
 
+          {/* Live watermarks - centered below button */}
+          {!isExporting && (
+            <div className="flex items-center justify-center gap-4 mt-4 pt-3 border-t border-border/30">
+              <img 
+                src="/xray-dog.png" 
+                alt="XRayCrypto" 
+                className="w-8 h-8 opacity-70"
+              />
+              <div className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">XRayCrypto™</span>
+                <span className="mx-1">•</span>
+                <span>@XRaycryptox</span>
+                <span className="mx-1">•</span>
+                <span>{siteHost}</span>
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
             {/* Watermark (only visible during export) */}
             {isExporting && (
               <div className="border-t border-border mt-4 pt-3 pb-2">
