@@ -54,16 +54,24 @@ export function MiniChart({
       return /USDT?$/.test(input) ? input : `${input}USD`;
     }
 
-    // 3) Stocks only - must NOT end with USD/USDT
-    // Check for known NYSE stocks
+    // 3) Stocks - only if explicitly marked as stock type AND matches pattern
+    const LOOKS_LIKE_STOCK = /^[A-Z]{1,5}$/.test(input) && !/^\d/.test(input) && input.length <= 5;
     const NYSE_STOCKS = ['TRU', 'CVE', 'BAC', 'JPM', 'WMT', 'KO', 'PFE', 'DIS', 'NKE', 'V', 'MA', 'UNH'];
+    
     if (NYSE_STOCKS.includes(input)) {
-      console.log(`📊 Adding NYSE prefix to ${input}`);
+      console.log(`📊 Known NYSE stock: ${input}`);
       return `NYSE:${input}`;
     }
     
-    console.log(`📊 Adding NASDAQ prefix to ${input}`);
-    return `NASDAQ:${input}`;
+    // Only assume NASDAQ if assetType is explicitly 'stock' or looks like a stock AND not crypto
+    if (LOOKS_LIKE_STOCK && assetType === 'stock') {
+      console.log(`📊 Assuming NASDAQ stock: ${input}`);
+      return `NASDAQ:${input}`;
+    }
+    
+    // 4) Default fallback - assume crypto (safer default than NASDAQ)
+    console.log(`💰 Defaulting to crypto format: ${input}USD`);
+    return `${input}USD`;
   };
 
   // Get ticker mapping if available
