@@ -800,87 +800,47 @@ function updateFactTracker(content: string, tracker: FactTracker): void {
 function deduplicateEntireBrief(content: string): string {
   console.log('\n🔍 Running global deduplication across entire brief...');
   
-  // STEP 1: Split into sections by headers
+  // Split by <h2> headers to get sections
   const sections = content.split(/(<h2>.*?<\/h2>)/g);
   
-  // Track what we've seen
-  const seenParagraphs = new Set<string>();
   const seenSentences = new Set<string>();
-  const seenSimilar: string[] = [];
-  let paragraphsRemoved = 0;
   let sentencesRemoved = 0;
   
-  // Process each section
-  const deduplicatedSections = sections.map(section => {
+  const processedSections = sections.map(section => {
     if (section.startsWith('<h2>')) {
-      return section; // Keep headers as-is
+      return section; // Keep headers unchanged
     }
     
-    // STEP 2: Split section into paragraphs (by <p> tags or double newlines)
-    const paragraphs = section.split(/(?:<\/p>|<p>|\n\n)+/).filter(p => p.trim().length > 20);
-    const uniqueParagraphs: string[] = [];
+    // Split into paragraphs (double newline = paragraph break)
+    const paragraphs = section.split('\n\n').filter(p => p.trim().length > 20);
     
-    paragraphs.forEach(paragraph => {
-      const normalizedPara = paragraph.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    const uniqueParagraphs = paragraphs.map(paragraph => {
+      // Process each sentence within the paragraph
+      const sentences = paragraph.split(/(?<=[.!?])\s+/);
+      const uniqueSentences: string[] = [];
       
-      // Check if we've seen this paragraph before (>85% similar)
-      let isDuplicate = false;
-      for (const seenPara of seenParagraphs) {
-        if (calculateSimilarity(normalizedPara, seenPara) > 0.85) {
-          console.log(`  🗑️ Removed duplicate paragraph (${Math.round(calculateSimilarity(normalizedPara, seenPara) * 100)}%): "${paragraph.substring(0, 60)}..."`);
-          paragraphsRemoved++;
-          isDuplicate = true;
-          break;
-        }
-      }
-      
-      if (!isDuplicate) {
-        uniqueParagraphs.push(paragraph);
-        seenParagraphs.add(normalizedPara);
-      }
-    });
-    
-    // STEP 3: Now do sentence-level deduplication within unique paragraphs
-    const finalSentences: string[] = [];
-    
-    uniqueParagraphs.forEach(paragraph => {
-      const sentences = paragraph.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
-      
-      sentences.forEach(sentence => {
-        const normalized = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
+      for (const sentence of sentences) {
+        const normalized = sentence.toLowerCase().trim().replace(/\s+/g, ' ');
         
-        // Check for exact duplicates
-        if (seenSentences.has(normalized)) {
-          console.log(`  🗑️ Removed exact duplicate sentence: "${sentence.substring(0, 60)}..."`);
-          sentencesRemoved++;
-          return;
-        }
-        
-        // Check for near-duplicates (>85% similar)
-        let isDuplicate = false;
-        for (const existing of seenSimilar) {
-          if (calculateSimilarity(sentence, existing) > 0.85) {
-            console.log(`  🗑️ Removed similar sentence (${Math.round(calculateSimilarity(sentence, existing) * 100)}%): "${sentence.substring(0, 60)}..."`);
-            sentencesRemoved++;
-            isDuplicate = true;
-            break;
-          }
-        }
-        
-        if (!isDuplicate) {
-          finalSentences.push(sentence);
+        if (!seenSentences.has(normalized) && normalized.length > 10) {
           seenSentences.add(normalized);
-          seenSimilar.push(sentence);
+          uniqueSentences.push(sentence);
+        } else if (normalized.length > 10) {
+          console.log(`  🗑️ Removed duplicate: "${sentence.substring(0, 60)}..."`);
+          sentencesRemoved++;
         }
-      });
-    });
+      }
+      
+      // Rejoin sentences within this paragraph
+      return uniqueSentences.join(' ').trim();
+    }).filter(p => p.length > 0);
     
-    // Rebuild section with unique sentences
-    return finalSentences.length > 0 ? finalSentences.join('. ') + '.' : '';
+    // Rejoin paragraphs with double newline (preserves structure)
+    return uniqueParagraphs.join('\n\n');
   });
   
-  const result = deduplicatedSections.filter(s => s.trim()).join('\n\n');
-  console.log(`✅ Global deduplication complete: ${paragraphsRemoved} duplicate paragraphs + ${sentencesRemoved} duplicate sentences removed`);
+  const result = processedSections.join('\n\n');
+  console.log(`✅ Deduplication complete: ${sentencesRemoved} duplicate sentences removed`);
   
   return result;
 }
@@ -1815,7 +1775,14 @@ serve(async (req) => {
     // GLOBAL DEDUPLICATION
     // ===================================================================
     
-    const deduplicatedContent = deduplicateEntireBrief(editedContent);
+    // Apply global deduplication
+    let deduplicatedContent = deduplicateEntireBrief(editedContent);
+    
+    // Ensure proper paragraph spacing (fix any accidental merges)
+    deduplicatedContent = deduplicatedContent
+      .replace(/\n{3,}/g, '\n\n')  // Max 2 newlines
+      .replace(/([.!?])\s+([A-Z])/g, '$1\n\n$2')  // Add breaks before caps after punctuation
+      .trim();
     
     // ===================================================================
     // VALIDATION
