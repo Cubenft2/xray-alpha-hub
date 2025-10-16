@@ -35,7 +35,7 @@ export function MiniChart({
       'MU': 'NASDAQ:MU',
       'BAT': 'KRAKEN:BATUSD',
       'ALPHA': 'KRAKEN:ALPHAUSD',
-      'BAS': 'COINBASE:BASUSD',
+      'BAS': 'KUCOIN:BASUSDT',
       'PAXG': 'COINBASE:PAXUSD',
       'PAX': 'COINBASE:PAXUSD'
     };

@@ -191,7 +191,7 @@ export default function MarketBriefHome() {
       MU: { symbol: 'NASDAQ:MU', displayName: 'Micron Technology' },
       BAT: { symbol: 'KRAKEN:BATUSD', displayName: 'Basic Attention Token' },
       ALPHA: { symbol: 'KRAKEN:ALPHAUSD', displayName: 'Alpha Finance' },
-      BAS: { symbol: 'COINBASE:BASUSD', displayName: 'BNB Attestation Service' },
+      BAS: { symbol: 'KUCOIN:BASUSDT', displayName: 'BNB Attestation Service' },
       PAXG: { symbol: 'COINBASE:PAXUSD', displayName: 'Paxos' },
       PAX: { symbol: 'COINBASE:PAXUSD', displayName: 'Paxos' },
     };
