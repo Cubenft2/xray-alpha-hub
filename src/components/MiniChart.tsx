@@ -34,7 +34,10 @@ export function MiniChart({
     const SPECIFIC_OVERRIDES: Record<string, string> = {
       'MU': 'NASDAQ:MU',
       'BAT': 'KRAKEN:BATUSD',
-      'ALPHA': 'KRAKEN:ALPHAUSD'
+      'ALPHA': 'KRAKEN:ALPHAUSD',
+      'BAS': 'COINBASE:BASUSD',
+      'PAXG': 'COINBASE:PAXUSD',
+      'PAX': 'COINBASE:PAXUSD'
     };
     if (SPECIFIC_OVERRIDES[input]) {
       console.log(`🎯 Specific override for ${input} -> ${SPECIFIC_OVERRIDES[input]}`);
