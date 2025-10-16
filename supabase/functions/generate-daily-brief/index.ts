@@ -244,18 +244,50 @@ function calculateSimilarity(str1: string, str2: string): number {
 function cleanAssetSection(text: string, sectionTitle: string): string {
   console.log(`🧹 Cleaning ${sectionTitle} section...`);
   
-  // Split into sentences and normalize
-  const sentences = text.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0);
+  // STEP 1: Detect and remove paragraph-level duplicates FIRST
+  // Split by asset blocks (e.g., "Bitcoin (BTC): ..." to next asset)
+  const assetBlockRegex = /([A-Za-z0-9\s]+\s*\([A-Z0-9]+\):.*?)(?=(?:[A-Za-z0-9\s]+\s*\([A-Z0-9]+\):)|$)/gs;
+  const assetBlocks = text.match(assetBlockRegex) || [];
+  
+  const seenBlocks = new Set<string>();
+  const uniqueBlocks: string[] = [];
+  let paragraphDuplicates = 0;
+  
+  assetBlocks.forEach(block => {
+    const normalized = block.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+    
+    // Check if we've seen this block before (>90% similar)
+    let isDuplicate = false;
+    for (const seenBlock of seenBlocks) {
+      if (calculateSimilarity(normalized, seenBlock) > 0.90) {
+        console.log(`  🗑️ Removed duplicate paragraph (${Math.round(calculateSimilarity(normalized, seenBlock) * 100)}% similar): "${block.substring(0, 60)}..."`);
+        paragraphDuplicates++;
+        isDuplicate = true;
+        break;
+      }
+    }
+    
+    if (!isDuplicate) {
+      uniqueBlocks.push(block);
+      seenBlocks.add(normalized);
+    }
+  });
+  
+  // Rejoin unique blocks
+  const dedupedText = uniqueBlocks.join(' ');
+  
+  // STEP 2: Now do sentence-level deduplication on the cleaned text
+  const sentences = dedupedText.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 0);
   const seen = new Set<string>();
   const normalized = new Map<string, string>();
-  let duplicateCount = 0;
+  let sentenceDuplicates = 0;
   
   // Detect exact duplicates (case-insensitive, normalized)
   const uniqueSentences = sentences.filter(sentence => {
     const norm = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
     if (seen.has(norm)) {
-      console.log(`  ❌ Removed exact duplicate: "${sentence.substring(0, 50)}..."`);
-      duplicateCount++;
+      console.log(`  ❌ Removed exact duplicate sentence: "${sentence.substring(0, 50)}..."`);
+      sentenceDuplicates++;
       return false;
     }
     seen.add(norm);
@@ -269,8 +301,8 @@ function cleanAssetSection(text: string, sectionTitle: string): string {
     let isDuplicate = false;
     for (const existing of deduplicatedSentences) {
       if (calculateSimilarity(sentence, existing) > 0.85) {
-        console.log(`  ⚠️ Removed near-duplicate (${Math.round(calculateSimilarity(sentence, existing) * 100)}% similar): "${sentence.substring(0, 50)}..."`);
-        duplicateCount++;
+        console.log(`  ⚠️ Removed near-duplicate sentence (${Math.round(calculateSimilarity(sentence, existing) * 100)}% similar): "${sentence.substring(0, 50)}..."`);
+        sentenceDuplicates++;
         isDuplicate = true;
         break;
       }
@@ -333,7 +365,7 @@ function cleanAssetSection(text: string, sectionTitle: string): string {
     console.log(`  ✅ ${key}: ${sentences.length} sentence(s) → kept first ${Math.min(3, sentences.length)}`);
   });
   
-  console.log(`  📊 ${sectionTitle} cleaned: ${duplicateCount} duplicates removed, ${mergedParagraphs.size} unique items`);
+  console.log(`  📊 ${sectionTitle} cleaned: ${paragraphDuplicates} paragraph duplicates + ${sentenceDuplicates} sentence duplicates removed, ${mergedParagraphs.size} unique items`);
   return '<p>' + paragraphs.join('</p>\n\n<p>') + '</p>';
 }
 
@@ -696,14 +728,15 @@ function updateFactTracker(content: string, tracker: FactTracker): void {
 function deduplicateEntireBrief(content: string): string {
   console.log('\n🔍 Running global deduplication across entire brief...');
   
-  // Extract all sentences from the entire brief
-  const allSentences: string[] = [];
+  // STEP 1: Split into sections by headers
   const sections = content.split(/(<h2>.*?<\/h2>)/g);
   
-  // Track sentences we've seen
-  const seenExact = new Set<string>();
+  // Track what we've seen
+  const seenParagraphs = new Set<string>();
+  const seenSentences = new Set<string>();
   const seenSimilar: string[] = [];
-  let totalRemoved = 0;
+  let paragraphsRemoved = 0;
+  let sentencesRemoved = 0;
   
   // Process each section
   const deduplicatedSections = sections.map(section => {
@@ -711,44 +744,71 @@ function deduplicateEntireBrief(content: string): string {
       return section; // Keep headers as-is
     }
     
-    // Extract sentences from this section
-    const sentences = section.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
-    const uniqueSentences: string[] = [];
+    // STEP 2: Split section into paragraphs (by <p> tags or double newlines)
+    const paragraphs = section.split(/(?:<\/p>|<p>|\n\n)+/).filter(p => p.trim().length > 20);
+    const uniqueParagraphs: string[] = [];
     
-    sentences.forEach(sentence => {
-      const normalized = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
+    paragraphs.forEach(paragraph => {
+      const normalizedPara = paragraph.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
       
-      // Check for exact duplicates
-      if (seenExact.has(normalized)) {
-        console.log(`  🗑️ Removed exact duplicate: "${sentence.substring(0, 60)}..."`);
-        totalRemoved++;
-        return;
-      }
-      
-      // Check for near-duplicates (>85% similar)
+      // Check if we've seen this paragraph before (>85% similar)
       let isDuplicate = false;
-      for (const existing of seenSimilar) {
-        if (calculateSimilarity(sentence, existing) > 0.85) {
-          console.log(`  🗑️ Removed similar (${Math.round(calculateSimilarity(sentence, existing) * 100)}%): "${sentence.substring(0, 60)}..."`);
-          totalRemoved++;
+      for (const seenPara of seenParagraphs) {
+        if (calculateSimilarity(normalizedPara, seenPara) > 0.85) {
+          console.log(`  🗑️ Removed duplicate paragraph (${Math.round(calculateSimilarity(normalizedPara, seenPara) * 100)}%): "${paragraph.substring(0, 60)}..."`);
+          paragraphsRemoved++;
           isDuplicate = true;
           break;
         }
       }
       
       if (!isDuplicate) {
-        uniqueSentences.push(sentence);
-        seenExact.add(normalized);
-        seenSimilar.push(sentence);
+        uniqueParagraphs.push(paragraph);
+        seenParagraphs.add(normalizedPara);
       }
     });
     
+    // STEP 3: Now do sentence-level deduplication within unique paragraphs
+    const finalSentences: string[] = [];
+    
+    uniqueParagraphs.forEach(paragraph => {
+      const sentences = paragraph.split(/[.!?]+/).map(s => s.trim()).filter(s => s.length > 20);
+      
+      sentences.forEach(sentence => {
+        const normalized = sentence.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
+        
+        // Check for exact duplicates
+        if (seenSentences.has(normalized)) {
+          console.log(`  🗑️ Removed exact duplicate sentence: "${sentence.substring(0, 60)}..."`);
+          sentencesRemoved++;
+          return;
+        }
+        
+        // Check for near-duplicates (>85% similar)
+        let isDuplicate = false;
+        for (const existing of seenSimilar) {
+          if (calculateSimilarity(sentence, existing) > 0.85) {
+            console.log(`  🗑️ Removed similar sentence (${Math.round(calculateSimilarity(sentence, existing) * 100)}%): "${sentence.substring(0, 60)}..."`);
+            sentencesRemoved++;
+            isDuplicate = true;
+            break;
+          }
+        }
+        
+        if (!isDuplicate) {
+          finalSentences.push(sentence);
+          seenSentences.add(normalized);
+          seenSimilar.push(sentence);
+        }
+      });
+    });
+    
     // Rebuild section with unique sentences
-    return uniqueSentences.length > 0 ? uniqueSentences.join('. ') + '.' : '';
+    return finalSentences.length > 0 ? finalSentences.join('. ') + '.' : '';
   });
   
   const result = deduplicatedSections.filter(s => s.trim()).join('\n\n');
-  console.log(`✅ Global deduplication complete: ${totalRemoved} duplicates removed across entire brief`);
+  console.log(`✅ Global deduplication complete: ${paragraphsRemoved} duplicate paragraphs + ${sentencesRemoved} duplicate sentences removed`);
   
   return result;
 }
