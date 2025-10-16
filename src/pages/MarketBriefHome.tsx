@@ -187,6 +187,10 @@ export default function MarketBriefHome() {
       TRAC: { symbol: 'TRACUSD', displayName: 'OriginTrail' },
       BLESS: { symbol: 'KRAKEN:BLESSUSD', displayName: 'Bless' },
       AKI: { symbol: 'AKIUSD', displayName: 'AKI' },
+      // User-reported specific symbols
+      MU: { symbol: 'NASDAQ:MU', displayName: 'Micron Technology' },
+      BAT: { symbol: 'KRAKEN:BATUSD', displayName: 'Basic Attention Token' },
+      ALPHA: { symbol: 'KRAKEN:ALPHAUSD', displayName: 'Alpha Finance' },
     };
     const ov = OVERRIDES[upperTicker];
     if (ov) {

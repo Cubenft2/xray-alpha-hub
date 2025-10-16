@@ -30,6 +30,17 @@ export function MiniChart({
   const formatTradingViewSymbol = (rawSymbol: string): string => {
     const input = rawSymbol.trim().toUpperCase();
 
+    // 0) Specific overrides for user-reported symbols (highest priority)
+    const SPECIFIC_OVERRIDES: Record<string, string> = {
+      'MU': 'NASDAQ:MU',
+      'BAT': 'KRAKEN:BATUSD',
+      'ALPHA': 'KRAKEN:ALPHAUSD'
+    };
+    if (SPECIFIC_OVERRIDES[input]) {
+      console.log(`🎯 Specific override for ${input} -> ${SPECIFIC_OVERRIDES[input]}`);
+      return SPECIFIC_OVERRIDES[input];
+    }
+
     // 1) If already exchange-qualified, sanitize obvious mistakes
     if (input.includes(':')) {
       const [exch, sym] = input.split(':');
