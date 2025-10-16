@@ -16,6 +16,38 @@ const lunarcrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY')!;
 const polygonApiKey = Deno.env.get('POLYGON_API_KEY')!;
 const cronSecret = Deno.env.get('CRON_SECRET');
 
+// ===================================================================
+// SENTENCE-LEVEL DEDUPLICATION UTILITY
+// ===================================================================
+
+/**
+ * Remove duplicate sentences from text content
+ * This catches AI-generated repetition at the sentence level
+ */
+function deduplicateContent(text: string): string {
+  // Split into sentences (handle multiple punctuation marks)
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  
+  // Track seen sentences (normalized for comparison)
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  
+  for (const sentence of sentences) {
+    // Normalize: lowercase, trim, remove extra whitespace
+    const normalized = sentence.toLowerCase().trim().replace(/\s+/g, ' ');
+    
+    // Skip if we've seen this exact sentence (or it's too short to matter)
+    if (!seen.has(normalized) && normalized.length > 10) {
+      seen.add(normalized);
+      unique.push(sentence);
+    } else if (normalized.length > 10) {
+      console.log(`🗑️ Removed duplicate sentence: "${sentence.substring(0, 60)}..."`);
+    }
+  }
+  
+  return unique.join(' ');
+}
+
 interface CoinGeckoData {
   id: string;
   symbol: string;
@@ -176,7 +208,16 @@ function getXRayCryptoPersona(): string {
   
   console.log(`📝 Generated persona: Style=${writingStyle}, Metaphor=${metaphorTheme}`);
   
-  return `You are XRayCrypto (internal name: Xavier Rodriguez), 38 years old, trading since 2013. You survived Mt. Gox, lost 80% in the 2018 crash, rebuilt your portfolio through discipline and data. Your philosophy: "I've been wrecked, made it, lost it, made it again. The market doesn't care about your feelings."
+  return `🚨 CRITICAL ANTI-REPETITION RULES (HIGHEST PRIORITY):
+1. NEVER repeat the same sentence twice - even in different sections
+2. NEVER duplicate paragraphs or large chunks of text
+3. Each asset analysis must contain completely UNIQUE sentences
+4. If you've made a specific point once, DO NOT make it again
+5. Constantly vary your sentence structure and word choice
+6. Read what you've already written before writing more
+7. Each section should have fresh information, not recycled content
+
+You are XRayCrypto (internal name: Xavier Rodriguez), 38 years old, trading since 2013. You survived Mt. Gox, lost 80% in the 2018 crash, rebuilt your portfolio through discipline and data. Your philosophy: "I've been wrecked, made it, lost it, made it again. The market doesn't care about your feelings."
 
 **YOUR WRITING STYLE TODAY: ${writingStyle}**
 
@@ -422,6 +463,8 @@ async function generateSection(
 **RELEVANT DATA FOR THIS SECTION:**
 ${relevantData}
 
+---NEW SECTION START - DO NOT REPEAT PREVIOUS CONTENT---
+
 **INSTRUCTIONS:**
 - Write ONLY the content for this section (do NOT include the heading, it will be added automatically)
 - ${sectionDef.minWords}+ words minimum
@@ -433,9 +476,11 @@ ${relevantData}
 - Each asset mention must contain NEW information - do NOT restate facts already covered
 - Vary your language completely - avoid reusing phrases or sentence structures from prior sections
 - When in doubt, skip repeating an asset rather than risk redundancy
+- DO NOT repeat any sentence you've already written - every sentence must be unique
 
 ✅ CORRECT: "Bitcoin (BTC): On-chain data shows accumulation by whales..."
 ❌ WRONG: "Bitcoin (BTC) rose 3.2% to $121,000" (if already mentioned in Market Overview)
+❌ WRONG: Repeating the same sentence twice in the same section
 
 Write the section content now:`;
 
@@ -454,7 +499,7 @@ Write the section content now:`;
           { role: 'user', content: sectionPrompt }
         ],
         temperature: 0.85,
-        max_tokens: 1000
+        max_tokens: 3000
       }),
     });
 
@@ -464,7 +509,34 @@ Write the section content now:`;
     }
 
     const data = await response.json();
-    let content = data.choices[0].message.content.trim();
+    const rawContent = data.choices[0].message.content.trim();
+    
+    // Step 1: Remove duplicate sentences
+    let content = deduplicateContent(rawContent);
+    
+    // Step 2: Remove duplicate paragraphs
+    const paragraphs = content.split('\n\n');
+    const uniqueParagraphs: string[] = [];
+    const seenParagraphs = new Set<string>();
+    
+    for (const para of paragraphs) {
+      const normalized = para.toLowerCase().trim();
+      if (!seenParagraphs.has(normalized) && para.trim().length > 20) {
+        seenParagraphs.add(normalized);
+        uniqueParagraphs.push(para);
+      } else if (para.trim().length > 20) {
+        console.log(`🗑️ Removed duplicate paragraph in ${sectionDef.title}`);
+      }
+    }
+    
+    content = uniqueParagraphs.join('\n\n');
+    
+    // Step 3: Log deduplication stats
+    const originalLength = rawContent.length;
+    const finalLength = content.length;
+    if (originalLength !== finalLength) {
+      console.warn(`⚠️ ${sectionDef.title}: Removed ${originalLength - finalLength} chars of duplicated content`);
+    }
     
     // Apply post-processing for asset-focused sections
     const assetSections = [
@@ -828,17 +900,19 @@ async function editBriefContent(
   const editorPrompt = `You are an editor for XRayCrypto market briefs. Review and refine this ${briefType} brief to ensure:
 
 1. **Structure:** All expected sections present with <h2> headings: ${sectionTitles}
-2. **No Repetition:** Remove or rephrase any duplicate sentences between sections
+2. **No Repetition:** Remove or rephrase any duplicate sentences between sections - this is CRITICAL
 3. **Voice Consistency:** Maintain XRayCrypto's sharp, plain-spoken voice with humor
 4. **Flow:** Smooth transitions between sections
 5. **Clarity:** Fix any awkward phrasing while preserving meaning
 
 **CRITICAL RULES:**
-- If content is repetitive, REPHRASE to add new angle rather than delete
+- If you find ANY duplicate sentences, DELETE the second occurrence completely
+- If content is repetitive but not identical, REPHRASE to add new angle rather than delete
 - Preserve all <h2> section headings
 - Maintain asset type classification (crypto vs stock)
 - DO NOT change the core analysis or data points
 - DO NOT append any quotes at the end (handled separately)
+- SCAN FOR DUPLICATES: Before finalizing, verify no sentence appears twice
 
 **DRAFT TO EDIT:**
 ${draftContent}
