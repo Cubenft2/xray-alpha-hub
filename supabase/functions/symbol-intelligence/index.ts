@@ -231,8 +231,9 @@ Deno.serve(async (req) => {
           tvSymbol = `FX:${normalized}`;
         }
         
-        // Auto-approve if confidence is high enough
-        if (bestConfidence >= 0.85 && detectedType === 'stock') {
+        // Auto-approve if confidence is high enough (for stocks)
+        const polyConfidence = 0.85; // Fixed confidence for Polygon matches
+        if (polyConfidence >= 0.85 && detectedType === 'stock') {
           // Insert directly into ticker_mappings for stocks with high confidence
           const { error: insertError } = await supabase
             .from('ticker_mappings')

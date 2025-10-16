@@ -407,7 +407,9 @@ function cleanAssetSection(text: string, sectionTitle: string): string {
   });
   
   console.log(`  📊 ${sectionTitle} cleaned: ${paragraphDuplicates} paragraph duplicates + ${sentenceDuplicates} sentence duplicates removed, ${mergedParagraphs.size} unique items`);
-  return paragraphs.map(p => `<p>${p}</p>`).join('\n\n');
+  
+  // Return as separate paragraphs (NO <p> tags here - will be added later)
+  return paragraphs.join('\n\n');
 }
 
 /**
@@ -796,24 +798,30 @@ function updateFactTracker(content: string, tracker: FactTracker): void {
 
 /**
  * Normalize paragraph format to ensure "Name (SYMBOL):" or "Name (SYMBOL $price ±%):" format
+ * Strips any existing HTML tags first
  */
 function normalizeParagraphFormat(paragraph: string): string {
+  // Strip any existing <p> or other HTML tags first
+  let cleanPara = paragraph.replace(/<\/?[^>]+>/g, '').trim();
+  
   // Check if paragraph already starts with proper format
-  const hasProperFormat = /^[^<]*?\([A-Z0-9_]{2,10}(\s+\$[\d,.]+\s+[+-][\d.]+%)?\):/.test(paragraph);
+  const hasProperFormat = /^[^<]*?\([A-Z0-9_]{2,10}(\s+\$[\d,.]+\s+[+-][\d.]+%)?\):/.test(cleanPara);
   
   if (hasProperFormat) {
-    return paragraph; // Already properly formatted
+    return cleanPara; // Already properly formatted
   }
   
   // Try to extract and fix format if malformed
-  const symbolMatch = paragraph.match(/\b([A-Z][a-z]*(?:\s+[A-Z][a-z]*)*)\s*\(?([A-Z0-9_]{2,10})\)?/);
+  const symbolMatch = cleanPara.match(/\b([A-Z][a-z]*(?:\s+[A-Z][a-z]*)*)\s*\(?([A-Z0-9_]{2,10})\)?/);
   if (symbolMatch) {
     const [fullMatch, name, symbol] = symbolMatch;
-    const rest = paragraph.replace(fullMatch, '').trim();
-    return `${name} (${symbol}): ${rest}`;
+    const rest = cleanPara.replace(fullMatch, '').trim();
+    // Remove leading colon if exists
+    const cleanRest = rest.replace(/^:\s*/, '');
+    return `${name} (${symbol}): ${cleanRest}`;
   }
   
-  return paragraph; // Return as-is if can't normalize
+  return cleanPara; // Return as-is if can't normalize
 }
 
 /**
