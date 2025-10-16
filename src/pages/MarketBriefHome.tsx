@@ -158,7 +158,8 @@ export default function MarketBriefHome() {
       'TRX', 'TON', 'LINK', 'SHIB', 'DOT', 'MATIC', 'UNI', 'LTC', 'BCH', 'NEAR',
       'ICP', 'APT', 'FIL', 'ARB', 'OP', 'HBAR', 'VET', 'MKR', 'ATOM', 'IMX',
       'RNDR', 'STX', 'INJ', 'GRT', 'RUNE', 'FTM', 'ALGO', 'SAND', 'MANA', 'AAVE',
-      'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER', 'PYUSD'
+      'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER', 'PYUSD',
+      'ATONE', 'ATOMONE', 'TRAC', 'BLESS', 'AKI'
     ]);
 
     // 1) EXPLICIT OVERRIDES (HIGHEST PRIORITY - RUNS FIRST)
@@ -180,6 +181,12 @@ export default function MarketBriefHome() {
       // Other known edge cases
       QTWO: { symbol: 'NYSE:QTWO' },
       COAI: { symbol: 'COAIUSDT' },
+      // User-reported crypto symbols
+      ATONE: { symbol: 'ATONEUSD', displayName: 'AtomOne' },
+      ATOMONE: { symbol: 'ATONEUSD', displayName: 'AtomOne' },
+      TRAC: { symbol: 'TRACUSD', displayName: 'OriginTrail' },
+      BLESS: { symbol: 'KRAKEN:BLESSUSD', displayName: 'Bless' },
+      AKI: { symbol: 'AKIUSD', displayName: 'AKI' },
     };
     const ov = OVERRIDES[upperTicker];
     if (ov) {
@@ -242,14 +249,8 @@ export default function MarketBriefHome() {
       return { symbol: localMapping.symbol, displayName: localMapping.displayName };
     }
 
-    // 6) Smart heuristic: short tickers (2-5 letters) not in crypto list = likely stock
-    if (/^[A-Z]{2,5}$/.test(upperTicker) && !KNOWN_CRYPTO.has(upperTicker)) {
-      console.log('🧠 Heuristic chose stock for', upperTicker, '-> NASDAQ');
-      return { symbol: `NASDAQ:${upperTicker}`, displayName: upperTicker };
-    }
-
-    // 7) Final fallback: assume crypto
-    console.log('🧠 Heuristic chose crypto for', upperTicker, '-> USD pair');
+    // 6) Final fallback: prefer crypto (safer default than NASDAQ)
+    console.log('🧠 Heuristic prefers crypto for', upperTicker, '-> USD pair');
     return {
       symbol: `${upperTicker}USD`,
       displayName: upperTicker
