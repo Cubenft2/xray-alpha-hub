@@ -407,7 +407,7 @@ function cleanAssetSection(text: string, sectionTitle: string): string {
   });
   
   console.log(`  📊 ${sectionTitle} cleaned: ${paragraphDuplicates} paragraph duplicates + ${sentenceDuplicates} sentence duplicates removed, ${mergedParagraphs.size} unique items`);
-  return '<p>' + paragraphs.join('</p>\n\n<p>') + '</p>';
+  return paragraphs.map(p => `<p>${p}</p>`).join('\n\n');
 }
 
 /**
@@ -795,6 +795,95 @@ function updateFactTracker(content: string, tracker: FactTracker): void {
 }
 
 /**
+ * Normalize paragraph format to ensure "Name (SYMBOL):" or "Name (SYMBOL $price ±%):" format
+ */
+function normalizeParagraphFormat(paragraph: string): string {
+  // Check if paragraph already starts with proper format
+  const hasProperFormat = /^[^<]*?\([A-Z0-9_]{2,10}(\s+\$[\d,.]+\s+[+-][\d.]+%)?\):/.test(paragraph);
+  
+  if (hasProperFormat) {
+    return paragraph; // Already properly formatted
+  }
+  
+  // Try to extract and fix format if malformed
+  const symbolMatch = paragraph.match(/\b([A-Z][a-z]*(?:\s+[A-Z][a-z]*)*)\s*\(?([A-Z0-9_]{2,10})\)?/);
+  if (symbolMatch) {
+    const [fullMatch, name, symbol] = symbolMatch;
+    const rest = paragraph.replace(fullMatch, '').trim();
+    return `${name} (${symbol}): ${rest}`;
+  }
+  
+  return paragraph; // Return as-is if can't normalize
+}
+
+/**
+ * Validate and repair HTML structure
+ */
+function validateAndRepairStructure(content: string, expectedSections: SectionDefinition[]): { content: string; issues: string[] } {
+  console.log('\n🔍 Validating HTML structure...');
+  const issues: string[] = [];
+  
+  // Check for required <h2> headers
+  const headerMatches = content.match(/<h2>([^<]+)<\/h2>/g);
+  const foundHeaders = headerMatches?.map(h => h.replace(/<\/?h2>/g, '')) || [];
+  const expectedHeaders = expectedSections.map(s => s.title);
+  
+  const missingHeaders = expectedHeaders.filter(h => !foundHeaders.includes(h));
+  if (missingHeaders.length > 0) {
+    issues.push(`Missing headers: ${missingHeaders.join(', ')}`);
+  }
+  
+  // Split by headers and validate each section
+  const sections = content.split(/(<h2>.*?<\/h2>)/g);
+  let repairedContent = '';
+  
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    
+    if (section.startsWith('<h2>')) {
+      repairedContent += section + '\n\n';
+      continue;
+    }
+    
+    if (section.trim().length === 0) continue;
+    
+    // Check if paragraphs are properly wrapped
+    const paragraphs = section.split('\n\n').filter(p => p.trim().length > 0);
+    
+    for (const para of paragraphs) {
+      const trimmedPara = para.trim();
+      
+      // Normalize format
+      let normalizedPara = normalizeParagraphFormat(trimmedPara);
+      
+      // Check if multiple assets are in one paragraph (by counting symbol patterns)
+      const symbolCount = (normalizedPara.match(/\([A-Z0-9_]{2,10}\):/g) || []).length;
+      
+      if (symbolCount > 1) {
+        issues.push(`Multiple assets in single paragraph detected`);
+        // Try to split by asset pattern
+        const assetParts = normalizedPara.split(/(?=\b[A-Z][a-z]*(?:\s+[A-Z][a-z]*)*\s*\([A-Z0-9_]{2,10}\):)/);
+        
+        for (const part of assetParts) {
+          if (part.trim().length > 0) {
+            const normalized = normalizeParagraphFormat(part.trim());
+            repairedContent += normalized.startsWith('<p>') ? normalized : `<p>${normalized}</p>`;
+            repairedContent += '\n\n';
+          }
+        }
+      } else {
+        // Single asset paragraph
+        repairedContent += normalizedPara.startsWith('<p>') ? normalizedPara : `<p>${normalizedPara}</p>`;
+        repairedContent += '\n\n';
+      }
+    }
+  }
+  
+  console.log(`✅ Structure validation complete: ${issues.length} issues found`);
+  return { content: repairedContent.trim(), issues };
+}
+
+/**
  * Global deduplication across entire brief
  */
 function deduplicateEntireBrief(content: string): string {
@@ -815,8 +904,11 @@ function deduplicateEntireBrief(content: string): string {
     const paragraphs = section.split('\n\n').filter(p => p.trim().length > 20);
     
     const uniqueParagraphs = paragraphs.map(paragraph => {
+      // Remove <p> tags temporarily for processing
+      const cleanPara = paragraph.replace(/<\/?p>/g, '');
+      
       // Process each sentence within the paragraph
-      const sentences = paragraph.split(/(?<=[.!?])\s+/);
+      const sentences = cleanPara.split(/(?<=[.!?])\s+/);
       const uniqueSentences: string[] = [];
       
       for (const sentence of sentences) {
@@ -831,8 +923,9 @@ function deduplicateEntireBrief(content: string): string {
         }
       }
       
-      // Rejoin sentences within this paragraph
-      return uniqueSentences.join(' ').trim();
+      // Rejoin sentences within this paragraph and re-wrap in <p>
+      const rejoined = uniqueSentences.join(' ').trim();
+      return rejoined.length > 0 ? `<p>${rejoined}</p>` : '';
     }).filter(p => p.length > 0);
     
     // Rejoin paragraphs with double newline (preserves structure)
@@ -1778,17 +1871,30 @@ serve(async (req) => {
     // Apply global deduplication
     let deduplicatedContent = deduplicateEntireBrief(editedContent);
     
+    // ===================================================================
+    // STRUCTURE VALIDATION & REPAIR
+    // ===================================================================
+    
+    const { content: repairedContent, issues: structureIssues } = validateAndRepairStructure(
+      deduplicatedContent,
+      sections
+    );
+    
+    if (structureIssues.length > 0) {
+      console.warn(`⚠️ Structure issues found and repaired: ${structureIssues.length} issues`);
+      structureIssues.forEach(issue => console.warn(`  - ${issue}`));
+    }
+    
     // Ensure proper paragraph spacing (fix any accidental merges)
-    deduplicatedContent = deduplicatedContent
+    let finalContent = repairedContent
       .replace(/\n{3,}/g, '\n\n')  // Max 2 newlines
-      .replace(/([.!?])\s+([A-Z])/g, '$1\n\n$2')  // Add breaks before caps after punctuation
       .trim();
     
     // ===================================================================
     // VALIDATION
     // ===================================================================
     
-    const validation = await validateBriefContent(deduplicatedContent, briefType, supabase);
+    const validation = await validateBriefContent(finalContent, briefType, supabase);
     
     if (validation.issues.length > 0) {
       console.warn(`⚠️ Validation found ${validation.issues.length} issues:`);
@@ -1808,7 +1914,7 @@ serve(async (req) => {
       title: briefTitle,
       executive_summary: `Market analysis for ${format(estTime, 'MMMM d, yyyy')}`,
       content_sections: {
-        ai_generated_content: deduplicatedContent
+        ai_generated_content: finalContent
       },
       market_data: {
         total_market_cap: totalMarketCap,
