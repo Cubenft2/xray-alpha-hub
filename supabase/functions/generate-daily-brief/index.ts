@@ -101,9 +101,9 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'Traditional Markets',
-    guidelines: 'Focus on stock movements, tech stocks, crypto-related equities (COIN, MSTR), earnings if relevant. Keep crypto OUT of this section. FORMAT STRICTLY: One paragraph per stock. Start each with "CompanyName (TICKER):" then 2-3 sentences. Insert blank line between stocks.',
-    dataScope: ['newsStocks', 'stockExchangeContext'],
-    minWords: 100
+    guidelines: 'Focus on stock movements using live Polygon data: tech stocks, crypto-related equities (COIN, MSTR), and major indices (SPY, QQQ). Include actual price changes from stockMarketData. Keep crypto OUT of this section. FORMAT STRICTLY: One paragraph per stock or index. Start each with "CompanyName (TICKER $price ±%):" then 2-3 sentences of analysis. Insert blank line between stocks. If no stock data available, write a single sentence stating data is temporarily unavailable.',
+    dataScope: ['stockMarketData', 'newsStocks', 'stockExchangeContext'],
+    minWords: 80
   },
   {
     title: 'Derivatives & Flows',
@@ -745,6 +745,13 @@ function filterDataForSection(dataScope: string[], allData: any): string {
             `${s.ticker} (${s.exchange})`
           ).join(', ');
           parts.push(`Stock Exchanges: ${exchanges}`);
+        }
+        // Add live stock market data from Polygon
+        if (allData.stockMarketData && Object.keys(allData.stockMarketData).length > 0) {
+          const stockData = Object.entries(allData.stockMarketData).map(([ticker, data]: [string, any]) => 
+            `${ticker}: $${data.price.toFixed(2)} (${data.change >= 0 ? '+' : ''}${data.change}%)`
+          ).join(', ');
+          parts.push(`Stock Market Data: ${stockData}`);
         }
         break;
       case 'economicCalendar':
@@ -1540,9 +1547,52 @@ serve(async (req) => {
       const newsResponse = await supabase.functions.invoke('news-fetch', { body: { limit: 50 } });
       if (!newsResponse.error) {
         newsData = newsResponse.data || { crypto: [], stocks: [] };
+        console.log(`✅ News fetch: ${newsData.crypto?.length || 0} crypto, ${newsData.stocks?.length || 0} stocks`);
       }
     } catch (err) {
       console.error('❌ News fetch failed:', err);
+    }
+    
+    // Fetch stock market data from Polygon for Traditional Markets section
+    let stockMarketData: any = {};
+    try {
+      console.log('📈 Fetching stock market data from Polygon...');
+      const stockTickers = ['SPY', 'QQQ', 'COIN', 'MSTR', 'NVDA', 'TSLA', 'AAPL', 'GOOGL'];
+      const stockPromises = stockTickers.map(async (ticker) => {
+        try {
+          const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?apiKey=${polygonApiKey}`;
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.results && data.results.length > 0) {
+              const result = data.results[0];
+              return {
+                ticker,
+                price: result.c, // close price
+                change: ((result.c - result.o) / result.o * 100).toFixed(2),
+                open: result.o,
+                high: result.h,
+                low: result.l,
+                volume: result.v
+              };
+            }
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch ${ticker}:`, error);
+        }
+        return null;
+      });
+      
+      const stockResults = await Promise.all(stockPromises);
+      stockResults.forEach(result => {
+        if (result) {
+          stockMarketData[result.ticker] = result;
+        }
+      });
+      
+      console.log(`✅ Stock market data: ${Object.keys(stockMarketData).length} tickers fetched`);
+    } catch (err) {
+      console.error('❌ Stock market data fetch failed:', err);
     }
 
     try {
@@ -1835,6 +1885,7 @@ serve(async (req) => {
       exchangeData,
       technicalData,
       newsData,
+      stockMarketData,
       economicCalendar,
       isWeekly: isWeekendBrief
     };
