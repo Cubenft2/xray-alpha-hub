@@ -413,6 +413,69 @@ function cleanAssetSection(text: string, sectionTitle: string): string {
 }
 
 /**
+ * Build Traditional Markets section deterministically from stock snapshot
+ */
+function buildTraditionalMarketsSection(stockData: Record<string, { price: number; change: number; volume: number }>): string {
+  if (!stockData || Object.keys(stockData).length === 0) {
+    return '<p>Traditional market data temporarily unavailable.</p>';
+  }
+  
+  const stockDescriptions: Record<string, string> = {
+    SPY: "S&P 500 ETF tracking broad market sentiment",
+    QQQ: "Nasdaq-100 ETF reflecting tech sector strength",
+    COIN: "Coinbase proxy for crypto exchange performance",
+    MSTR: "MicroStrategy, Bitcoin treasury play",
+    NVDA: "NVIDIA, AI infrastructure leader",
+    TSLA: "Tesla, electric vehicle and energy innovator",
+    AAPL: "Apple, consumer tech bellwether",
+    GOOGL: "Alphabet, digital advertising and cloud giant"
+  };
+  
+  const paragraphs: string[] = [];
+  
+  Object.entries(stockData).forEach(([ticker, data]) => {
+    const sign = data.change >= 0 ? '+' : '';
+    const description = stockDescriptions[ticker] || "market indicator";
+    paragraphs.push(
+      `<p><strong>${ticker}</strong>: $${data.price.toFixed(2)} (${sign}${data.change.toFixed(2)}%). ${description}.</p>`
+    );
+  });
+  
+  console.log(`🧱 TM-FALLBACK engaged: built ${paragraphs.length} stock entries`);
+  return paragraphs.join('\n');
+}
+
+/**
+ * Validate if Traditional Markets section is empty or placeholder
+ */
+function isTraditionalMarketsEmpty(content: string): boolean {
+  if (!content || content.trim().length === 0) return true;
+  
+  // Check for placeholder patterns
+  const placeholderPatterns = [
+    /\[Content needed for this section\.\]/i,
+    /\[To be added\]/i,
+    /temporarily unavailable/i,
+    /no data available/i
+  ];
+  
+  if (placeholderPatterns.some(pattern => pattern.test(content))) {
+    return true;
+  }
+  
+  // Check if section has any meaningful stock ticker mentions
+  const stockTickers = ['SPY', 'QQQ', 'COIN', 'MSTR', 'NVDA', 'TSLA', 'AAPL', 'GOOGL'];
+  const hasStockMention = stockTickers.some(ticker => content.includes(ticker));
+  
+  // If no stock tickers and very short content, consider it empty
+  if (!hasStockMention && content.replace(/<[^>]*>/g, '').trim().length < 50) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
  * Generate a single section using section-specific prompts
  */
 async function generateSection(
@@ -766,6 +829,8 @@ function filterDataForSection(dataScope: string[], allData: any): string {
               `${ticker}: ${{${ticker}_PRICE}}=${data.price.toFixed(2)}, ${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}`
             ).join(', ');
             parts.push(`STOCK SNAPSHOT: ${stockData}`);
+          } else {
+            parts.push(`STOCK SNAPSHOT: No Polygon stock data available for this run - write "Traditional market data temporarily unavailable"`);
           }
           
           parts.push(`DATA AS OF: ${snap.timestamp}`);
@@ -1833,8 +1898,9 @@ serve(async (req) => {
         }
       });
       
-      console.log(`✅ Stock market data: ${Object.keys(stockMarketData).length}/${stockTickers.length} tickers`);
-      if (Object.keys(stockMarketData).length === 0) {
+      const stockCount = Object.keys(stockMarketData).length;
+      console.log(`📈 Stocks snapshot: ${stockCount} of ${stockTickers.length}`);
+      if (stockCount === 0) {
         dataWarnings.push('Traditional market data unavailable');
       }
     } catch (err) {
@@ -2167,15 +2233,33 @@ serve(async (req) => {
     
     // Generate each section sequentially
     let fullBriefContent = '';
+    let traditionalMarketsFallbackUsed = false;
     
     for (const sectionDef of sections) {
-      const sectionContent = await generateSection(
+      let sectionContent = await generateSection(
         sectionDef,
         allData,
         fullBriefContent,
         factTracker,
         isWeekendBrief
       );
+      
+      // CRITICAL: Validate Traditional Markets section and force fallback if empty
+      if (sectionDef.title === 'Traditional Markets' && isTraditionalMarketsEmpty(sectionContent)) {
+        console.warn('⚠️ Traditional Markets section is empty/placeholder - engaging deterministic fallback');
+        const fallbackContent = buildTraditionalMarketsSection(stockMarketData);
+        sectionContent = sectionContent.replace(
+          /(<h2>Traditional Markets<\/h2>)([\s\S]*?)(?=<h2>|$)/,
+          `$1\n${fallbackContent}\n`
+        );
+        
+        // If no h2 tag found, wrap the fallback properly
+        if (!sectionContent.includes('<h2>Traditional Markets</h2>')) {
+          sectionContent = `<h2>Traditional Markets</h2>\n${fallbackContent}\n`;
+        }
+        
+        traditionalMarketsFallbackUsed = true;
+      }
       
       fullBriefContent += sectionContent + '\n\n';
     }
@@ -2291,6 +2375,7 @@ serve(async (req) => {
         snapshot_warnings: canonicalSnapshot.warnings,
         placeholder_substitutions: substitutions,
         numeric_corrections: corrections.length,
+        traditional_markets_fallback_used: traditionalMarketsFallbackUsed,
         social_sentiment: lunarcrushData?.data?.slice(0, 20).map((coin: any) => ({
           name: coin.name,
           symbol: coin.symbol,
