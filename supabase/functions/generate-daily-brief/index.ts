@@ -1808,7 +1808,7 @@ serve(async (req) => {
     // ========================================
     console.log('📊 Creating canonical data snapshot...');
     const snapshotTimestamp = new Date().toISOString();
-    const dataWarnings: string[] = [];
+    dataWarnings = []; // Clear existing warnings for snapshot section
     
     // 1. Fetch all crypto prices via quotes edge function (Polygon-first)
     const cryptoSymbols = ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT'];
