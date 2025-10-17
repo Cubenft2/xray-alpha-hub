@@ -421,23 +421,23 @@ function buildTraditionalMarketsSection(stockData: Record<string, { price: numbe
   }
   
   const stockDescriptions: Record<string, string> = {
-    SPY: "S&P 500 ETF tracking broad market sentiment",
-    QQQ: "Nasdaq-100 ETF reflecting tech sector strength",
-    COIN: "Coinbase proxy for crypto exchange performance",
-    MSTR: "MicroStrategy, Bitcoin treasury play",
-    NVDA: "NVIDIA, AI infrastructure leader",
-    TSLA: "Tesla, electric vehicle and energy innovator",
-    AAPL: "Apple, consumer tech bellwether",
-    GOOGL: "Alphabet, digital advertising and cloud giant"
+    SPY: "S&P 500 ETF",
+    QQQ: "Nasdaq-100 ETF",
+    COIN: "Coinbase Global Inc",
+    MSTR: "MicroStrategy Inc",
+    NVDA: "NVIDIA Corp",
+    TSLA: "Tesla Inc",
+    AAPL: "Apple Inc",
+    GOOGL: "Alphabet Inc"
   };
   
   const paragraphs: string[] = [];
   
   Object.entries(stockData).forEach(([ticker, data]) => {
     const sign = data.change >= 0 ? '+' : '';
-    const description = stockDescriptions[ticker] || "market indicator";
+    const description = stockDescriptions[ticker] || "Market Indicator";
     paragraphs.push(
-      `<p><strong>${ticker}</strong>: $${data.price.toFixed(2)} (${sign}${data.change.toFixed(2)}%). ${description}.</p>`
+      `<p><strong>${description} (${ticker} $${data.price.toFixed(2)} ${sign}${data.change.toFixed(2)}%)</strong></p>`
     );
   });
   
