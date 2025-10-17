@@ -371,14 +371,16 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
     
     let quote: QuoteData | null = null;
     
-    // Try CoinGecko first if we have an ID
-    if (resolution.coinGeckoId) {
-      quote = await fetchCoinGeckoPrice(resolution.coinGeckoId, symbol, resolution.mapping);
+    // Try Polygon first if we have a ticker (unlimited API calls)
+    if (resolution.polygonTicker) {
+      console.log(`📡 Trying Polygon first for ${symbol} (unlimited API)`);
+      quote = await fetchPolygonPrice(resolution.polygonTicker, symbol, resolution.mapping);
     }
     
-    // Try Polygon if CoinGecko failed and we have a ticker
-    if (!quote && resolution.polygonTicker) {
-      quote = await fetchPolygonPrice(resolution.polygonTicker, symbol, resolution.mapping);
+    // Fall back to CoinGecko if Polygon failed and we have an ID (500k/month limit)
+    if (!quote && resolution.coinGeckoId) {
+      console.log(`📡 Falling back to CoinGecko for ${symbol} (limited API)`);
+      quote = await fetchCoinGeckoPrice(resolution.coinGeckoId, symbol, resolution.mapping);
     }
     
     // If still no quote but symbol looks like stock (2-5 uppercase letters), try Polygon
@@ -427,7 +429,7 @@ async function fetchQuotesWithResolution(symbols: string[]): Promise<{
   return { quotes };
 }
 
-const TTL_MS = 60000; // 60 seconds cache
+const TTL_MS = 120000; // 120 seconds cache (reduced API calls)
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
