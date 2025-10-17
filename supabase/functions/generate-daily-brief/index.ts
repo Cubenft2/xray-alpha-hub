@@ -809,7 +809,7 @@ function filterDataForSection(dataScope: string[], allData: any): string {
           // Crypto prices with placeholders
           if (snap.crypto && Object.keys(snap.crypto).length > 0) {
             const cryptoData = Object.entries(snap.crypto).map(([symbol, data]: [string, any]) => 
-              `${symbol}: ${{${symbol}_PRICE}}=${data.price.toFixed(2)}, ${{${symbol}_CHANGE}}=${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}`
+              `${symbol}: \${{${symbol}_PRICE}}=${data.price.toFixed(2)}, \${{${symbol}_CHANGE}}=${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}`
             ).join(', ');
             parts.push(`CRYPTO SNAPSHOT: ${cryptoData}`);
           }
@@ -817,8 +817,8 @@ function filterDataForSection(dataScope: string[], allData: any): string {
           // Global metrics with placeholders
           if (snap.global) {
             const globalParts = [];
-            if (snap.global.market_cap) globalParts.push(`${{MARKET_CAP}}=${(snap.global.market_cap / 1e9).toFixed(2)}B`);
-            if (snap.global.volume_24h) globalParts.push(`${{VOLUME_24H}}=${(snap.global.volume_24h / 1e9).toFixed(2)}B`);
+            if (snap.global.market_cap) globalParts.push(`\${{MARKET_CAP}}=${(snap.global.market_cap / 1e9).toFixed(2)}B`);
+            if (snap.global.volume_24h) globalParts.push(`\${{VOLUME_24H}}=${(snap.global.volume_24h / 1e9).toFixed(2)}B`);
             if (snap.global.btc_dominance) globalParts.push(`BTC.D=${snap.global.btc_dominance.toFixed(2)}%`);
             if (globalParts.length > 0) parts.push(`GLOBAL: ${globalParts.join(', ')}`);
           }
@@ -826,7 +826,7 @@ function filterDataForSection(dataScope: string[], allData: any): string {
           // Stock data with placeholders
           if (snap.stocks && Object.keys(snap.stocks).length > 0) {
             const stockData = Object.entries(snap.stocks).map(([ticker, data]: [string, any]) => 
-              `${ticker}: ${{${ticker}_PRICE}}=${data.price.toFixed(2)}, ${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}`
+              `${ticker}: \${{${ticker}_PRICE}}=${data.price.toFixed(2)}, \${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}`
             ).join(', ');
             parts.push(`STOCK SNAPSHOT: ${stockData}`);
           } else {
