@@ -89,8 +89,8 @@ interface SectionDefinition {
 const DAILY_SECTIONS: SectionDefinition[] = [
   {
     title: 'Market Overview',
-    guidelines: 'Lead with the biggest story/move of the day. Cover overall market sentiment, Fear & Greed, Bitcoin/Ethereum moves, and total market metrics. FORMAT STRICTLY: One paragraph per major asset (BTC, ETH, top mover). Start each with "AssetName (SYM):" then 2-3 sentences. Insert blank line between assets. 2-3 paragraphs total.',
-    dataScope: ['marketCap', 'volume', 'fearGreed', 'btc', 'eth', 'topMover'],
+    guidelines: 'Lead with biggest story using ONLY exact numbers from canonicalSnapshot. Use placeholders: BTC (${{BTC_PRICE}} {{BTC_CHANGE}}%), ETH (${{ETH_PRICE}} {{ETH_CHANGE}}%), Market Cap ${{MARKET_CAP}}B, Volume ${{VOLUME_24H}}B. DO NOT invent or round numbers beyond 2 decimals. If data missing, write "data temporarily unavailable" - never substitute. FORMAT: One paragraph per major asset. Start "AssetName (SYM):" then 2-3 sentences. Blank line between assets.',
+    dataScope: ['canonicalSnapshot', 'marketCap', 'volume', 'fearGreed', 'btc', 'eth', 'topMover'],
     minWords: 150
   },
   {
@@ -101,8 +101,8 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'Traditional Markets',
-    guidelines: 'Focus on stock movements using live Polygon data: tech stocks, crypto-related equities (COIN, MSTR), and major indices (SPY, QQQ). Include actual price changes from stockMarketData. Keep crypto OUT of this section. FORMAT STRICTLY: One paragraph per stock or index. Start each with "CompanyName (TICKER $price ±%):" then 2-3 sentences of analysis. Insert blank line between stocks. If no stock data available, write a single sentence stating data is temporarily unavailable.',
-    dataScope: ['stockMarketData', 'newsStocks', 'stockExchangeContext'],
+    guidelines: 'Focus on stock movements using ONLY live Polygon data from canonicalSnapshot.stocks. Use placeholders: CompanyName (TICKER ${{TICKER_PRICE}} {{TICKER_CHANGE}}%). Cover SPY, QQQ, COIN, MSTR, and other tech stocks. DO NOT invent prices or percentages. Keep crypto OUT of this section. FORMAT: One paragraph per stock. If stock data missing, write "Traditional market data temporarily unavailable" - do not analyze without numbers.',
+    dataScope: ['canonicalSnapshot', 'newsStocks', 'stockExchangeContext'],
     minWords: 80
   },
   {
@@ -739,6 +739,41 @@ function filterDataForSection(dataScope: string[], allData: any): string {
           parts.push(`Stock News: ${stockNews}`);
         }
         break;
+      case 'canonicalSnapshot':
+        if (allData.canonicalSnapshot) {
+          const snap = allData.canonicalSnapshot;
+          
+          // Crypto prices with placeholders
+          if (snap.crypto && Object.keys(snap.crypto).length > 0) {
+            const cryptoData = Object.entries(snap.crypto).map(([symbol, data]: [string, any]) => 
+              `${symbol}: ${{${symbol}_PRICE}}=${data.price.toFixed(2)}, ${{${symbol}_CHANGE}}=${data.change24h >= 0 ? '+' : ''}${data.change24h.toFixed(2)}`
+            ).join(', ');
+            parts.push(`CRYPTO SNAPSHOT: ${cryptoData}`);
+          }
+          
+          // Global metrics with placeholders
+          if (snap.global) {
+            const globalParts = [];
+            if (snap.global.market_cap) globalParts.push(`${{MARKET_CAP}}=${(snap.global.market_cap / 1e9).toFixed(2)}B`);
+            if (snap.global.volume_24h) globalParts.push(`${{VOLUME_24H}}=${(snap.global.volume_24h / 1e9).toFixed(2)}B`);
+            if (snap.global.btc_dominance) globalParts.push(`BTC.D=${snap.global.btc_dominance.toFixed(2)}%`);
+            if (globalParts.length > 0) parts.push(`GLOBAL: ${globalParts.join(', ')}`);
+          }
+          
+          // Stock data with placeholders
+          if (snap.stocks && Object.keys(snap.stocks).length > 0) {
+            const stockData = Object.entries(snap.stocks).map(([ticker, data]: [string, any]) => 
+              `${ticker}: ${{${ticker}_PRICE}}=${data.price.toFixed(2)}, ${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}`
+            ).join(', ');
+            parts.push(`STOCK SNAPSHOT: ${stockData}`);
+          }
+          
+          parts.push(`DATA AS OF: ${snap.timestamp}`);
+          if (snap.warnings && snap.warnings.length > 0) {
+            parts.push(`WARNINGS: ${snap.warnings.join('; ')}`);
+          }
+        }
+        break;
       case 'stockExchangeContext':
         if (allData.newsData?.stockExchangeContext?.length > 0) {
           const exchanges = allData.newsData.stockExchangeContext.map((s: any) => 
@@ -746,12 +781,14 @@ function filterDataForSection(dataScope: string[], allData: any): string {
           ).join(', ');
           parts.push(`Stock Exchanges: ${exchanges}`);
         }
-        // Add live stock market data from Polygon
+        break;
+      case 'stockMarketData':
+        // Legacy support for older code paths
         if (allData.stockMarketData && Object.keys(allData.stockMarketData).length > 0) {
           const stockData = Object.entries(allData.stockMarketData).map(([ticker, data]: [string, any]) => 
             `${ticker}: $${data.price.toFixed(2)} (${data.change >= 0 ? '+' : ''}${data.change}%)`
           ).join(', ');
-          parts.push(`Stock Market Data: ${stockData}`);
+          parts.push(`Legacy Stock Data: ${stockData}`);
         }
         break;
       case 'economicCalendar':
@@ -1438,6 +1475,154 @@ async function fetchCryptoDataWithFallbacks(
   return results;
 }
 
+// ========================================
+// PLACEHOLDER SUBSTITUTION
+// ========================================
+function substitutePlaceholders(htmlContent: string, snapshot: any): { content: string; substitutions: number; missing: string[] } {
+  let content = htmlContent;
+  let substitutions = 0;
+  const missing: string[] = [];
+  
+  // Substitute crypto prices
+  if (snapshot.crypto) {
+    for (const [symbol, data] of Object.entries(snapshot.crypto)) {
+      const pricePattern = new RegExp(`\\$\\{\\{${symbol}_PRICE\\}\\}`, 'g');
+      const changePattern = new RegExp(`\\{\\{${symbol}_CHANGE\\}\\}`, 'g');
+      
+      const priceCount = (content.match(pricePattern) || []).length;
+      const changeCount = (content.match(changePattern) || []).length;
+      
+      if (priceCount > 0) {
+        content = content.replace(pricePattern, (data as any).price.toFixed(2));
+        substitutions += priceCount;
+      }
+      
+      if (changeCount > 0) {
+        const changeStr = (data as any).change24h >= 0 ? '+' : '';
+        content = content.replace(changePattern, `${changeStr}${(data as any).change24h.toFixed(2)}`);
+        substitutions += changeCount;
+      }
+    }
+  }
+  
+  // Substitute global metrics
+  if (snapshot.global) {
+    if (snapshot.global.market_cap) {
+      const pattern = /\$\{\{MARKET_CAP\}\}/g;
+      const count = (content.match(pattern) || []).length;
+      if (count > 0) {
+        content = content.replace(pattern, (snapshot.global.market_cap / 1e9).toFixed(2));
+        substitutions += count;
+      }
+    }
+    
+    if (snapshot.global.volume_24h) {
+      const pattern = /\$\{\{VOLUME_24H\}\}/g;
+      const count = (content.match(pattern) || []).length;
+      if (count > 0) {
+        content = content.replace(pattern, (snapshot.global.volume_24h / 1e9).toFixed(2));
+        substitutions += count;
+      }
+    }
+  }
+  
+  // Substitute stock prices
+  if (snapshot.stocks) {
+    for (const [ticker, data] of Object.entries(snapshot.stocks)) {
+      const pricePattern = new RegExp(`\\$\\{\\{${ticker}_PRICE\\}\\}`, 'g');
+      const changePattern = new RegExp(`\\{\\{${ticker}_CHANGE\\}\\}`, 'g');
+      
+      const priceCount = (content.match(pricePattern) || []).length;
+      const changeCount = (content.match(changePattern) || []).length;
+      
+      if (priceCount > 0) {
+        content = content.replace(pricePattern, (data as any).price.toFixed(2));
+        substitutions += priceCount;
+      }
+      
+      if (changeCount > 0) {
+        const changeStr = (data as any).change >= 0 ? '+' : '';
+        content = content.replace(changePattern, `${changeStr}${(data as any).change.toFixed(2)}`);
+        substitutions += changeCount;
+      }
+    }
+  }
+  
+  // Check for any remaining placeholders (missing data)
+  const remainingPlaceholders = content.match(/\$?\{\{[A-Z_]+\}\}/g);
+  if (remainingPlaceholders) {
+    missing.push(...remainingPlaceholders.map(p => p.replace(/\$?\{\{|\}\}/g, '')));
+    content = content.replace(/\$?\{\{[A-Z_]+\}\}/g, '[data unavailable]');
+  }
+  
+  return { content, substitutions, missing };
+}
+
+// ========================================
+// NUMERIC VALIDATOR & AUTO-CORRECT
+// ========================================
+function validateAndCorrectNumbers(htmlContent: string, snapshot: any): { content: string; corrections: string[] } {
+  let content = htmlContent;
+  const corrections: string[] = [];
+  
+  // Build lookup map for validation
+  const priceMap = new Map<number, { symbol: string; expectedPrice: number }>();
+  
+  // Add crypto prices (rounded for fuzzy matching)
+  if (snapshot.crypto) {
+    for (const [symbol, data] of Object.entries(snapshot.crypto)) {
+      const roundedPrice = Math.round((data as any).price);
+      priceMap.set(roundedPrice, { symbol, expectedPrice: (data as any).price });
+    }
+  }
+  
+  // Add stock prices
+  if (snapshot.stocks) {
+    for (const [ticker, data] of Object.entries(snapshot.stocks)) {
+      const roundedPrice = Math.round((data as any).price);
+      priceMap.set(roundedPrice, { symbol: ticker, expectedPrice: (data as any).price });
+    }
+  }
+  
+  // Pattern to find currency amounts
+  const currencyPattern = /\$([0-9,]+\.?[0-9]{0,2})/g;
+  const matches: Array<{ index: number; value: string; price: number }> = [];
+  let match;
+  
+  while ((match = currencyPattern.exec(content)) !== null) {
+    const priceStr = match[1].replace(/,/g, '');
+    const price = parseFloat(priceStr);
+    matches.push({ index: match.index, value: match[0], price });
+  }
+  
+  // Process matches in reverse order to preserve indices
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const m = matches[i];
+    
+    if (isNaN(m.price) || m.price === 0) {
+      corrections.push(`Removed invalid ${m.value}`);
+      content = content.substring(0, m.index) + '[price unavailable]' + content.substring(m.index + m.value.length);
+      continue;
+    }
+    
+    // Check for significant deviations
+    const roundedPrice = Math.round(m.price);
+    if (priceMap.has(roundedPrice)) {
+      const info = priceMap.get(roundedPrice)!;
+      const deviation = Math.abs((m.price - info.expectedPrice) / info.expectedPrice);
+      
+      if (deviation > 0.02) { // > 2% deviation
+        const newValue = `$${info.expectedPrice.toFixed(2)}`;
+        corrections.push(`Auto-corrected ${info.symbol}: ${m.value} → ${newValue}`);
+        content = content.substring(0, m.index) + newValue + content.substring(m.index + m.value.length);
+      }
+    }
+  }
+  
+  return { content, corrections };
+}
+
+
 // ===================================================================
 // MAIN SERVER LOGIC
 // ===================================================================
@@ -1553,26 +1738,84 @@ serve(async (req) => {
       console.error('❌ News fetch failed:', err);
     }
     
-    // Fetch stock market data from Polygon for Traditional Markets section
-    let stockMarketData: any = {};
+    // ========================================
+    // CANONICAL DATA SNAPSHOT - Single Source of Truth
+    // ========================================
+    console.log('📊 Creating canonical data snapshot...');
+    const snapshotTimestamp = new Date().toISOString();
+    const dataWarnings: string[] = [];
+    
+    // 1. Fetch all crypto prices via quotes edge function (Polygon-first)
+    const cryptoSymbols = ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT'];
+    let cryptoPriceSnapshot: Record<string, { price: number; change24h: number }> = {};
+    
+    try {
+      const { data: quotesData, error: quotesError } = await supabase.functions.invoke('quotes', {
+        body: { symbols: cryptoSymbols }
+      });
+      
+      if (!quotesError && quotesData?.quotes) {
+        quotesData.quotes.forEach((quote: any) => {
+          if (quote.price !== null && !isNaN(quote.price)) {
+            cryptoPriceSnapshot[quote.symbol] = {
+              price: parseFloat(quote.price),
+              change24h: parseFloat(quote.change24h || 0)
+            };
+          }
+        });
+        console.log(`✅ Crypto prices: ${Object.keys(cryptoPriceSnapshot).length}/${cryptoSymbols.length} symbols`);
+      } else {
+        dataWarnings.push('Crypto price data partially unavailable');
+        console.warn('⚠️ Quotes function error:', quotesError);
+      }
+    } catch (err) {
+      dataWarnings.push('Crypto price data fetch failed');
+      console.error('❌ Crypto price fetch failed:', err);
+    }
+    
+    // 2. Fetch global market metrics from CoinGecko
+    let globalMetrics: { market_cap: number | null; volume_24h: number | null; btc_dominance: number | null } = {
+      market_cap: null,
+      volume_24h: null,
+      btc_dominance: null
+    };
+    
+    try {
+      const cgResponse = await fetch('https://api.coingecko.com/api/v3/global', {
+        headers: { 'x-cg-demo-api-key': coinGeckoApiKey }
+      });
+      if (cgResponse.ok) {
+        const cgData = await cgResponse.json();
+        if (cgData.data) {
+          globalMetrics.market_cap = cgData.data.total_market_cap?.usd || null;
+          globalMetrics.volume_24h = cgData.data.total_volume?.usd || null;
+          globalMetrics.btc_dominance = cgData.data.market_cap_percentage?.btc || null;
+          console.log(`✅ Global metrics: MCap=${globalMetrics.market_cap ? 'OK' : 'MISS'}, Vol=${globalMetrics.volume_24h ? 'OK' : 'MISS'}`);
+        }
+      }
+    } catch (err) {
+      dataWarnings.push('Global market metrics unavailable');
+      console.error('❌ Global metrics fetch failed:', err);
+    }
+    
+    // 3. Fetch stock market data from Polygon
+    const stockTickers = ['SPY', 'QQQ', 'COIN', 'MSTR', 'NVDA', 'TSLA', 'AAPL', 'GOOGL'];
+    let stockMarketData: Record<string, { price: number; change: number; volume: number }> = {};
+    
     try {
       console.log('📈 Fetching stock market data from Polygon...');
-      const stockTickers = ['SPY', 'QQQ', 'COIN', 'MSTR', 'NVDA', 'TSLA', 'AAPL', 'GOOGL'];
       const stockPromises = stockTickers.map(async (ticker) => {
         try {
           const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?apiKey=${polygonApiKey}`;
-          const response = await fetch(url);
+          const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
           if (response.ok) {
             const data = await response.json();
-            if (data.results && data.results.length > 0) {
+            if (data.results?.[0]) {
               const result = data.results[0];
               return {
                 ticker,
-                price: result.c, // close price
-                change: ((result.c - result.o) / result.o * 100).toFixed(2),
-                open: result.o,
-                high: result.h,
-                low: result.l,
+                price: result.c,
+                change: parseFloat(((result.c - result.o) / result.o * 100).toFixed(2)),
                 volume: result.v
               };
             }
@@ -1590,10 +1833,34 @@ serve(async (req) => {
         }
       });
       
-      console.log(`✅ Stock market data: ${Object.keys(stockMarketData).length} tickers fetched`);
+      console.log(`✅ Stock market data: ${Object.keys(stockMarketData).length}/${stockTickers.length} tickers`);
+      if (Object.keys(stockMarketData).length === 0) {
+        dataWarnings.push('Traditional market data unavailable');
+      }
     } catch (err) {
+      dataWarnings.push('Traditional market data fetch failed');
       console.error('❌ Stock market data fetch failed:', err);
     }
+    
+    // Build canonical snapshot summary
+    const canonicalSnapshot = {
+      timestamp: snapshotTimestamp,
+      crypto: cryptoPriceSnapshot,
+      global: globalMetrics,
+      stocks: stockMarketData,
+      warnings: dataWarnings,
+      sources: {
+        crypto: 'Polygon.io via quotes function',
+        global: 'CoinGecko /global',
+        stocks: 'Polygon.io'
+      }
+    };
+    
+    console.log('✅ Canonical snapshot created:', {
+      cryptoCount: Object.keys(cryptoPriceSnapshot).length,
+      stockCount: Object.keys(stockMarketData).length,
+      warnings: dataWarnings.length
+    });
 
     try {
       console.log('🌍 Fetching CoinGecko global market data...');
@@ -1876,7 +2143,7 @@ serve(async (req) => {
       biggestMover,
       topGainers,
       topLosers,
-      weeklyGainers: topGainers, // Same for weekly
+      weeklyGainers: topGainers,
       weeklyLosers: topLosers,
       coingeckoData,
       trendingData,
@@ -1887,6 +2154,7 @@ serve(async (req) => {
       newsData,
       stockMarketData,
       economicCalendar,
+      canonicalSnapshot, // Add canonical snapshot
       isWeekly: isWeekendBrief
     };
     
@@ -1950,6 +2218,37 @@ serve(async (req) => {
       .trim();
     
     // ===================================================================
+    // PLACEHOLDER SUBSTITUTION & NUMERIC VALIDATION
+    // ===================================================================
+    
+    console.log('\n🔄 Substituting placeholders with canonical data...');
+    const { content: substitutedContent, substitutions, missing } = substitutePlaceholders(
+      finalContent,
+      canonicalSnapshot
+    );
+    
+    console.log(`✅ Placeholder substitution: ${substitutions} substitutions made`);
+    if (missing.length > 0) {
+      console.warn(`⚠️ Missing data for placeholders: ${missing.join(', ')}`);
+      dataWarnings.push(`Missing placeholders: ${missing.join(', ')}`);
+    }
+    
+    console.log('\n🔍 Validating and auto-correcting numbers...');
+    const { content: validatedContent, corrections } = validateAndCorrectNumbers(
+      substitutedContent,
+      canonicalSnapshot
+    );
+    
+    if (corrections.length > 0) {
+      console.log(`✅ Numeric validation: ${corrections.length} auto-corrections made`);
+      corrections.forEach(correction => console.log(`  - ${correction}`));
+    } else {
+      console.log('✅ Numeric validation: All numbers accurate');
+    }
+    
+    finalContent = validatedContent;
+    
+    // ===================================================================
     // VALIDATION
     // ===================================================================
     
@@ -1986,6 +2285,12 @@ serve(async (req) => {
         polygon_used: polygonUsed,
         eth_price: ethData?.current_price,
         fear_greed: currentFearGreed.value,
+        // Canonical snapshot metadata
+        snapshot_timestamp: canonicalSnapshot.timestamp,
+        snapshot_sources: canonicalSnapshot.sources,
+        snapshot_warnings: canonicalSnapshot.warnings,
+        placeholder_substitutions: substitutions,
+        numeric_corrections: corrections.length,
         social_sentiment: lunarcrushData?.data?.slice(0, 20).map((coin: any) => ({
           name: coin.name,
           symbol: coin.symbol,

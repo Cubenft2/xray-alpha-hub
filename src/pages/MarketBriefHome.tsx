@@ -762,6 +762,46 @@ export default function MarketBriefHome() {
               )}
             </div>
 
+            {/* Data Snapshot Info */}
+            {briefData?.market_data?.snapshot_timestamp && (
+              <div className="mb-4 p-3 bg-muted/50 border border-border/50 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="text-xs font-medium text-foreground/90">
+                      Data snapshot as of {new Date(briefData.market_data.snapshot_timestamp).toLocaleString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric', 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        timeZoneName: 'short'
+                      })}
+                    </div>
+                    {briefData.market_data.snapshot_sources && (
+                      <div className="text-xs text-muted-foreground">
+                        Sources: {Object.entries(briefData.market_data.snapshot_sources as Record<string, string>)
+                          .map(([key, value]) => `${key}: ${value}`)
+                          .join(' • ')}
+                      </div>
+                    )}
+                    {briefData.market_data.snapshot_warnings && briefData.market_data.snapshot_warnings.length > 0 && (
+                      <div className="text-xs text-orange-500 dark:text-orange-400 mt-1">
+                        ⚠️ {briefData.market_data.snapshot_warnings.join(', ')}
+                      </div>
+                    )}
+                    {briefData.market_data.placeholder_substitutions > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        {briefData.market_data.placeholder_substitutions} values verified
+                        {briefData.market_data.numeric_corrections > 0 && ` • ${briefData.market_data.numeric_corrections} auto-corrections applied`}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Live Prices Indicator - Fixed Position */}
             {pricesLoading && (
               <div className="fixed top-32 right-4 z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg">
