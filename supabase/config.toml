@@ -80,3 +80,12 @@ verify_jwt = false
 
 [functions.test-lunarcrush-api]
 verify_jwt = false
+
+[functions.polygon-forex]
+verify_jwt = false
+
+[functions.polygon-stocks-expanded]
+verify_jwt = false
+
+[functions.polygon-technical-analysis]
+verify_jwt = false

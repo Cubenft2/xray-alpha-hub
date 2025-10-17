@@ -102,8 +102,14 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   {
     title: 'Traditional Markets',
     guidelines: 'Focus on stock movements using ONLY live Polygon data from canonicalSnapshot.stocks. Use placeholders: CompanyName (TICKER ${{TICKER_PRICE}} {{TICKER_CHANGE}}%). Cover SPY, QQQ, COIN, MSTR, and other tech stocks. DO NOT invent prices or percentages. Keep crypto OUT of this section. FORMAT: One paragraph per stock. If stock data missing, write "Traditional market data temporarily unavailable" - do not analyze without numbers.',
-    dataScope: ['canonicalSnapshot', 'newsStocks', 'stockExchangeContext'],
+    dataScope: ['canonicalSnapshot', 'newsStocks', 'stockExchangeContext', 'expandedStockData'],
     minWords: 80
+  },
+  {
+    title: 'Global Markets & Currencies',
+    guidelines: 'Analyze forex movements and their correlation with crypto. Dollar strength (DXY if available) typically moves inversely to Bitcoin. EUR/USD, GBP/USD show global risk appetite. FORMAT STRICTLY: One paragraph per currency pair. Start with "Currency (PAIR):" then 2-3 sentences analyzing movement and crypto impact. Insert blank line between pairs. Use technical terms: flight to safety, risk-on/risk-off, dollar milkshake theory.',
+    dataScope: ['forexData', 'canonicalSnapshot', 'technicalIndicators'],
+    minWords: 120
   },
   {
     title: 'Derivatives & Flows',
@@ -800,6 +806,39 @@ function filterDataForSection(dataScope: string[], allData: any): string {
             `"${n.title}" - ${n.tickers?.join(', ')}`
           ).join(' | ');
           parts.push(`Stock News: ${stockNews}`);
+        }
+        break;
+      case 'forexData':
+        if (allData.forexData?.length > 0) {
+          const forexSummary = allData.forexData.map((fx: any) => 
+            `${fx.pair}: ${fx.price.toFixed(4)} (${fx.changePercent > 0 ? '+' : ''}${fx.changePercent.toFixed(2)}%)`
+          ).join(' | ');
+          parts.push(`Forex: ${forexSummary}`);
+        }
+        break;
+      case 'expandedStockData':
+        if (allData.expandedStockData?.length > 0) {
+          const stockCount = allData.expandedStockData.length;
+          const topMover = allData.stockTopMovers?.[0];
+          if (topMover) {
+            parts.push(`Stocks: ${stockCount} tracked, Top Mover: ${topMover.ticker} (${topMover.changePercent > 0 ? '+' : ''}${topMover.changePercent.toFixed(2)}%)`);
+          }
+        }
+        break;
+      case 'technicalIndicators':
+        if (allData.technicalIndicators && Object.keys(allData.technicalIndicators).length > 0) {
+          const signals: string[] = [];
+          Object.entries(allData.technicalIndicators).forEach(([symbol, ind]: [string, any]) => {
+            if (ind.rsiSignal === 'overbought') signals.push(`${symbol} RSI ${ind.rsi.toFixed(1)} (OVERBOUGHT)`);
+            if (ind.rsiSignal === 'oversold') signals.push(`${symbol} RSI ${ind.rsi.toFixed(1)} (OVERSOLD)`);
+            if (ind.sma?.goldenCross) signals.push(`${symbol} GOLDEN CROSS`);
+            if (ind.sma?.deathCross) signals.push(`${symbol} DEATH CROSS`);
+            if (ind.macd?.trend === 'bullish') signals.push(`${symbol} MACD BULLISH`);
+            if (ind.macd?.trend === 'bearish') signals.push(`${symbol} MACD BEARISH`);
+          });
+          if (signals.length > 0) {
+            parts.push(`Technical Signals: ${signals.join(' | ')}`);
+          }
         }
         break;
       case 'canonicalSnapshot':
@@ -1540,6 +1579,65 @@ async function fetchCryptoDataWithFallbacks(
   return results;
 }
 
+async function fetchForexData(supabase: any): Promise<any> {
+  try {
+    console.log('📊 Fetching forex data...');
+    const { data, error } = await supabase.functions.invoke('polygon-forex');
+    if (error) {
+      console.error('❌ Forex error:', error);
+      return null;
+    }
+    if (data?.success) {
+      console.log(`✅ Fetched ${data.data?.length} forex pairs`);
+      return data;
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ fetchForexData exception:', error);
+    return null;
+  }
+}
+
+async function fetchExpandedStockData(supabase: any): Promise<any> {
+  try {
+    console.log('📊 Fetching 24 stocks...');
+    const { data, error } = await supabase.functions.invoke('polygon-stocks-expanded');
+    if (error) {
+      console.error('❌ Stocks error:', error);
+      return null;
+    }
+    if (data?.success) {
+      console.log(`✅ Fetched ${data.count} stocks`);
+      return data;
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ fetchExpandedStockData exception:', error);
+    return null;
+  }
+}
+
+async function fetchTechnicalIndicators(supabase: any): Promise<any> {
+  try {
+    console.log('📊 Fetching technical indicators...');
+    const { data, error } = await supabase.functions.invoke('polygon-technical-analysis', {
+      body: { symbols: ['X:BTCUSD', 'X:ETHUSD', 'SPY', 'QQQ', 'NVDA'] }
+    });
+    if (error) {
+      console.error('❌ Tech indicators error:', error);
+      return null;
+    }
+    if (data?.success) {
+      console.log(`✅ Fetched ${Object.keys(data.indicators || {}).length} indicators`);
+      return data;
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ fetchTechnicalIndicators exception:', error);
+    return null;
+  }
+}
+
 // ========================================
 // PLACEHOLDER SUBSTITUTION
 // ========================================
@@ -1863,49 +1961,58 @@ serve(async (req) => {
       console.error('❌ Global metrics fetch failed:', err);
     }
     
-    // 3. Fetch stock market data from Polygon
-    const stockTickers = ['SPY', 'QQQ', 'COIN', 'MSTR', 'NVDA', 'TSLA', 'AAPL', 'GOOGL'];
-    let stockMarketData: Record<string, { price: number; change: number; volume: number }> = {};
-    
+    // ===================================================================
+    // PHASE 2: FETCH EXPANDED MARKET DATA (NEW)
+    // ===================================================================
+    let forexData: any = null;
+    let expandedStockData: any = null;
+    let technicalIndicators: any = null;
+
     try {
-      console.log('📈 Fetching stock market data from Polygon...');
-      const stockPromises = stockTickers.map(async (ticker) => {
-        try {
-          const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?apiKey=${polygonApiKey}`;
-          const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.results?.[0]) {
-              const result = data.results[0];
-              return {
-                ticker,
-                price: result.c,
-                change: parseFloat(((result.c - result.o) / result.o * 100).toFixed(2)),
-                volume: result.v
-              };
-            }
-          }
-        } catch (error) {
-          console.warn(`⚠️ Failed to fetch ${ticker}:`, error);
-        }
-        return null;
-      });
-      
-      const stockResults = await Promise.all(stockPromises);
-      stockResults.forEach(result => {
-        if (result) {
-          stockMarketData[result.ticker] = result;
-        }
-      });
-      
-      const stockCount = Object.keys(stockMarketData).length;
-      console.log(`📈 Stocks snapshot: ${stockCount} of ${stockTickers.length}`);
-      if (stockCount === 0) {
-        dataWarnings.push('Traditional market data unavailable');
+      console.log('🌍 Fetching forex data...');
+      forexData = await fetchForexData(supabase);
+      if (!forexData?.success) {
+        dataWarnings.push('Forex data unavailable');
       }
     } catch (err) {
-      dataWarnings.push('Traditional market data fetch failed');
-      console.error('❌ Stock market data fetch failed:', err);
+      console.error('❌ Forex fetch failed:', err);
+      dataWarnings.push('Forex data fetch failed');
+    }
+
+    try {
+      console.log('📊 Fetching expanded stock data (24 tickers)...');
+      expandedStockData = await fetchExpandedStockData(supabase);
+      if (!expandedStockData?.success) {
+        dataWarnings.push('Expanded stock data unavailable');
+      } else {
+        console.log(`✅ Got ${expandedStockData.count} stocks, top mover: ${expandedStockData.topMovers?.[0]?.ticker}`);
+      }
+    } catch (err) {
+      console.error('❌ Expanded stock fetch failed:', err);
+      dataWarnings.push('Expanded stock fetch failed');
+    }
+
+    try {
+      console.log('📈 Fetching technical indicators...');
+      technicalIndicators = await fetchTechnicalIndicators(supabase);
+      if (!technicalIndicators?.success) {
+        dataWarnings.push('Technical indicators unavailable');
+      }
+    } catch (err) {
+      console.error('❌ Technical indicators fetch failed:', err);
+      dataWarnings.push('Technical indicators fetch failed');
+    }
+    
+    // Build stock market data from expanded data for backwards compatibility
+    let stockMarketData: Record<string, { price: number; change: number; volume: number }> = {};
+    if (expandedStockData?.data) {
+      expandedStockData.data.forEach((stock: any) => {
+        stockMarketData[stock.ticker] = {
+          price: stock.price,
+          change: stock.changePercent,
+          volume: stock.volume
+        };
+      });
     }
     
     // Build canonical snapshot summary
@@ -2221,6 +2328,10 @@ serve(async (req) => {
       stockMarketData,
       economicCalendar,
       canonicalSnapshot, // Add canonical snapshot
+      forexData: forexData?.data || [],
+      expandedStockData: expandedStockData?.data || [],
+      stockTopMovers: expandedStockData?.topMovers || [],
+      technicalIndicators: technicalIndicators?.indicators || {},
       isWeekly: isWeekendBrief
     };
     
