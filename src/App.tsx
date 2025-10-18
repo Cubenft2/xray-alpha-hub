@@ -12,6 +12,7 @@ import Index from "./pages/Index";
 import Markets from "./pages/Markets";
 import MarketBrief from "./pages/MarketBrief";
 import MarketBriefHome from "./pages/MarketBriefHome";
+import MarketBriefClean from "./pages/MarketBriefClean";
 import Watchlist from "./pages/Watchlist";
 import News from "./pages/News";
 import Store from "./pages/Store";
@@ -46,7 +47,7 @@ const App = () => (
             <Layout>
               <PageTransition>
                 <Routes>
-                  <Route path="/" element={<MarketBriefHome />} />
+                  <Route path="/" element={<MarketBriefClean />} />
                   <Route path="/crypto" element={<Index />} />
                   <Route path="/markets" element={<Markets />} />
                   <Route path="/market-brief" element={<MarketBrief />} />
