@@ -8,7 +8,6 @@ import PageTransition from "./components/PageTransition";
 import { Layout } from "./components/Layout";
 import { CommunityPromotion } from "./components/CommunityPromotion";
 import ErrorBoundary from "./components/ErrorBoundary";
-import Home from "./pages/Home";
 import Index from "./pages/Index";
 import Markets from "./pages/Markets";
 import MarketBrief from "./pages/MarketBrief";
@@ -47,7 +46,7 @@ const App = () => (
             <Layout>
               <PageTransition>
                 <Routes>
-                  <Route path="/" element={<Home />} />
+                  <Route path="/" element={<MarketBriefHome />} />
                   <Route path="/crypto" element={<Index />} />
                   <Route path="/markets" element={<Markets />} />
                   <Route path="/market-brief" element={<MarketBrief />} />
