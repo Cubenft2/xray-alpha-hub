@@ -101,71 +101,9 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'Traditional Markets',
-    guidelines: `
-STRUCTURE:
-Write 4 cohesive paragraphs organized by category. Each paragraph should flow naturally.
-
-CATEGORIES:
-1. Major Indices: SPY, QQQ, DIA, IWM
-2. Crypto-Related Equities: COIN, MSTR, RIOT, MARA, CLSK, HUT
-3. Tech Giants: NVDA, AMD, MSFT, GOOGL, META, AMZN, AAPL, TSLA
-4. Crypto ETFs: BITO, GBTC, HOOD, SQ, PYPL
-
-FORMATTING RULES:
-- Use canonicalSnapshot.stocks for ALL price data
-- Each stock has a .name field - ALWAYS use it
-- Format: "CompanyName (TICKER): Action verb direction changePercent% to $price as reason."
-- Example: "NVIDIA (NVDA): Climbed 1.69% to $141.98, led by semiconductor strength."
-- NEVER write "Market Indicator" - this is a placeholder error
-- Start each category with a topic sentence about the group, then mention individual stocks
-
-WRITING STYLE:
-- First sentence: Overall category performance
-- Following sentences: Individual stocks with context
-- Use action verbs: surged, climbed, fell, dropped, advanced, declined
-- Explain WHY (e.g., "following earnings beat", "on news of", "as traders piled in")
-
-DATA SOURCE:
-- Use ONLY canonicalSnapshot.stocks[ticker].name, .price and .change
-- Do NOT use newsStocks or stockExchangeContext
-- If data missing, write "Traditional market data temporarily unavailable"
-
-EXAMPLE PARAGRAPH:
-"Major Indices: The SPDR S&P 500 ETF (SPY) climbed 0.74% to $575.84 as tech earnings beat expectations, supporting broader risk assets including crypto. The Invesco QQQ ETF (QQQ) gained 1.00% to $494.23, led by semiconductor strength. The SPDR Dow Jones ETF (DIA) added 0.54% to $461.78, while the iShares Russell 2000 ETF (IWM) rose 0.04% to $243.41, showing modest small-cap participation."
-`,
-    dataScope: ['canonicalSnapshot'],
-    minWords: 200
-  },
-  {
-    title: 'Global Markets & Currencies',
-    guidelines: `
-STRUCTURE:
-Write 4 concise paragraphs, one per major currency pair. Explain correlation with Bitcoin.
-
-CURRENCY PAIRS:
-1. EUR/USD: European risk appetite indicator
-2. GBP/USD: UK economic sentiment
-3. USD/JPY: Asian capital flows
-4. DXY (Dollar Index): Overall USD strength
-
-FORMATTING:
-- Format: "Currency (PAIR): Description of movement direction percentage% to rate as reason. Bitcoin correlation: explanation."
-- Example: "Currency (EUR/USD): Euro strengthened 0.3% to 1.0842 as ECB signaled pause in rate hikes. Weaker dollar typically correlates with Bitcoin strength as global liquidity improves."
-- Use REAL forex data from forexData or canonicalSnapshot.forex
-- Explain crypto implications (e.g., "Weaker dollar = stronger BTC historically")
-
-CORRELATION NOTES:
-- EUR/USD up = Risk-on = BTC up
-- DXY down = Weaker dollar = BTC up (inverse correlation)
-- USD/JPY up = Capital leaving Asia = Mixed for BTC
-- GBP/USD tied to UK economic data
-
-DATA SOURCE:
-- Use forexData array or canonicalSnapshot.forex
-- If missing, write "Currency data temporarily unavailable"
-`,
-    dataScope: ['forexData', 'canonicalSnapshot', 'btcData'],
-    minWords: 150
+    guidelines: 'Focus on stock movements using ONLY live Polygon data from canonicalSnapshot.stocks. Use placeholders: CompanyName (TICKER ${{TICKER_PRICE}} {{TICKER_CHANGE}}%). Cover SPY, QQQ, COIN, MSTR, and other tech stocks. DO NOT invent prices or percentages. Keep crypto OUT of this section. FORMAT: One paragraph per stock. If stock data missing, write "Traditional market data temporarily unavailable" - do not analyze without numbers.',
+    dataScope: ['canonicalSnapshot', 'newsStocks', 'stockExchangeContext'],
+    minWords: 80
   },
   {
     title: 'Derivatives & Flows',
@@ -864,39 +802,6 @@ function filterDataForSection(dataScope: string[], allData: any): string {
           parts.push(`Stock News: ${stockNews}`);
         }
         break;
-      case 'forexData':
-        if (allData.forexData?.length > 0) {
-          const forexSummary = allData.forexData.map((fx: any) => 
-            `${fx.pair}: ${fx.price.toFixed(4)} (${fx.changePercent > 0 ? '+' : ''}${fx.changePercent.toFixed(2)}%)`
-          ).join(' | ');
-          parts.push(`Forex: ${forexSummary}`);
-        }
-        break;
-      case 'expandedStockData':
-        if (allData.expandedStockData?.length > 0) {
-          const stockCount = allData.expandedStockData.length;
-          const topMover = allData.stockTopMovers?.[0];
-          if (topMover) {
-            parts.push(`Stocks: ${stockCount} tracked, Top Mover: ${topMover.ticker} (${topMover.changePercent > 0 ? '+' : ''}${topMover.changePercent.toFixed(2)}%)`);
-          }
-        }
-        break;
-      case 'technicalIndicators':
-        if (allData.technicalIndicators && Object.keys(allData.technicalIndicators).length > 0) {
-          const signals: string[] = [];
-          Object.entries(allData.technicalIndicators).forEach(([symbol, ind]: [string, any]) => {
-            if (ind.rsiSignal === 'overbought') signals.push(`${symbol} RSI ${ind.rsi.toFixed(1)} (OVERBOUGHT)`);
-            if (ind.rsiSignal === 'oversold') signals.push(`${symbol} RSI ${ind.rsi.toFixed(1)} (OVERSOLD)`);
-            if (ind.sma?.goldenCross) signals.push(`${symbol} GOLDEN CROSS`);
-            if (ind.sma?.deathCross) signals.push(`${symbol} DEATH CROSS`);
-            if (ind.macd?.trend === 'bullish') signals.push(`${symbol} MACD BULLISH`);
-            if (ind.macd?.trend === 'bearish') signals.push(`${symbol} MACD BEARISH`);
-          });
-          if (signals.length > 0) {
-            parts.push(`Technical Signals: ${signals.join(' | ')}`);
-          }
-        }
-        break;
       case 'canonicalSnapshot':
         if (allData.canonicalSnapshot) {
           const snap = allData.canonicalSnapshot;
@@ -918,28 +823,12 @@ function filterDataForSection(dataScope: string[], allData: any): string {
             if (globalParts.length > 0) parts.push(`GLOBAL: ${globalParts.join(', ')}`);
           }
           
-          // Stock data with placeholders and enhanced categorization
+          // Stock data with placeholders
           if (snap.stocks && Object.keys(snap.stocks).length > 0) {
-            const indices = ['SPY', 'QQQ', 'DIA', 'IWM'];
-            const cryptoEquities = ['COIN', 'MSTR', 'RIOT', 'MARA', 'CLSK', 'HUT'];
-            const tech = ['NVDA', 'AMD', 'MSFT', 'GOOGL', 'META', 'AMZN', 'AAPL', 'TSLA'];
-            const cryptoETFs = ['BITO', 'GBTC', 'HOOD', 'SQ', 'PYPL', 'BITI'];
-            
-            const formatStock = (ticker: string) => {
-              const data = snap.stocks[ticker];
-              if (!data) return null;
-              return `${data.name} (${ticker}): \${{${ticker}_PRICE}}=${data.price.toFixed(2)}, \${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}%`;
-            };
-            
-            const indicesData = indices.map(formatStock).filter(Boolean).join('; ');
-            const cryptoData = cryptoEquities.map(formatStock).filter(Boolean).join('; ');
-            const techData = tech.map(formatStock).filter(Boolean).join('; ');
-            const etfData = cryptoETFs.map(formatStock).filter(Boolean).join('; ');
-            
-            if (indicesData) parts.push(`INDICES: ${indicesData}`);
-            if (cryptoData) parts.push(`CRYPTO EQUITIES: ${cryptoData}`);
-            if (techData) parts.push(`TECH GIANTS: ${techData}`);
-            if (etfData) parts.push(`CRYPTO ETFs: ${etfData}`);
+            const stockData = Object.entries(snap.stocks).map(([ticker, data]: [string, any]) => 
+              `${ticker}: \${{${ticker}_PRICE}}=${data.price.toFixed(2)}, \${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}`
+            ).join(', ');
+            parts.push(`STOCK SNAPSHOT: ${stockData}`);
           } else {
             parts.push(`STOCK SNAPSHOT: No Polygon stock data available for this run - write "Traditional market data temporarily unavailable"`);
           }
@@ -1013,157 +902,6 @@ function updateFactTracker(content: string, tracker: FactTracker): void {
         tracker.numericFacts.get(symbol)!.add(num.replace(/,/g, ''));
       });
     });
-  }
-}
-
-/**
- * Count common errors in brief content for quality metrics
- */
-function countErrors(text: string): number {
-  let errorCount = 0;
-  
-  // Count "Market Indicator" spam
-  errorCount += (text.match(/Market Indicator/g) || []).length;
-  
-  // Count broken formatting like "P (500):"
-  errorCount += (text.match(/P \(\d+\):/g) || []).length;
-  
-  // Count broken currency format "Currency (EUR): /USD)"
-  errorCount += (text.match(/Currency \([A-Z]+\): \/[A-Z]+\)/g) || []).length;
-  
-  // Count duplicate sentences (basic check)
-  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
-  const normalizedSentences = sentences.map(s => s.trim().toLowerCase());
-  const uniqueSentences = new Set(normalizedSentences);
-  errorCount += sentences.length - uniqueSentences.size;
-  
-  return errorCount;
-}
-
-/**
- * Claude Quality Check - Reviews and improves the brief
- * Catches hallucinations, formatting errors, and improves clarity
- */
-async function claudeQualityCheck(
-  briefContent: string,
-  allData: any,
-  briefType: 'daily' | 'weekly'
-): Promise<string> {
-  const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  
-  if (!anthropicApiKey) {
-    console.warn('⚠️ ANTHROPIC_API_KEY not set, skipping Claude quality check');
-    return briefContent;
-  }
-
-  console.log('\n🤖 Running Claude quality check...');
-
-  // Extract key metrics for verification
-  const btcPrice = allData.btcData?.price || allData.canonicalSnapshot?.crypto?.BTC?.price;
-  const ethPrice = allData.ethData?.price || allData.canonicalSnapshot?.crypto?.ETH?.price;
-  const marketCap = allData.totalMarketCap || allData.canonicalSnapshot?.global?.market_cap;
-  const fearGreed = allData.currentFearGreed;
-
-  const reviewPrompt = `You are a professional crypto market analyst reviewing a ${briefType} market brief for quality and accuracy.
-
-CURRENT BRIEF:
-${briefContent}
-
-ACTUAL DATA FOR VERIFICATION:
-- Bitcoin: $${btcPrice ? btcPrice.toFixed(2) : 'N/A'}
-- Ethereum: $${ethPrice ? ethPrice.toFixed(2) : 'N/A'}
-- Total Market Cap: $${marketCap ? (marketCap / 1e12).toFixed(2) + 'T' : 'N/A'}
-- Fear & Greed Index: ${fearGreed || 'N/A'}
-
-YOUR TASK:
-Review the brief and fix these issues ONLY:
-
-1. **Factual Errors**
-   - Fix any prices that don't match the actual data above
-   - Remove contradictory statements (e.g., saying BTC is both up and down)
-   - Verify percentage changes make sense with price movements
-
-2. **Hallucinations**
-   - Remove any phantom/invalid tickers
-   - Delete made-up statistics or events
-   - Remove "Market Indicator" placeholder labels
-   - Fix broken ticker formats like "P (500):" → "SPDR S&P 500 ETF (SPY):"
-
-3. **Formatting Issues**
-   - Fix broken section headers
-   - Clean up garbled text like "Currency (EUR): /USD)" → "Currency (EUR/USD):"
-   - Ensure proper ticker format: "CompanyName (TICKER):" not "(TICKER):"
-   - Fix paragraph spacing and structure
-
-4. **Repetition**
-   - Remove duplicate sentences within sections
-   - Eliminate redundant information
-   - Consolidate repeated facts
-
-5. **Clarity**
-   - Fix unclear or confusing sentences
-   - Improve readability and flow
-   - Ensure analysis is logical and coherent
-
-CRITICAL RULES:
-- Do NOT rewrite the entire brief
-- Do NOT change the writing style or tone
-- Do NOT add new information not in the original
-- ONLY fix errors, formatting, and clarity issues
-- Keep the same structure and section headers
-- Maintain similar length (within 10%)
-- Keep all HTML tags intact
-
-Return ONLY the corrected brief text (no explanations, no markdown wrappers, just the cleaned HTML/text).`;
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': anthropicApiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8192,
-        temperature: 0.3, // Low temperature for consistency
-        messages: [
-          {
-            role: 'user',
-            content: reviewPrompt
-          }
-        ]
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Claude API error: ${response.status}`, errorText);
-      return briefContent; // Return original if Claude fails
-    }
-
-    const data = await response.json();
-    const reviewedContent = data.content[0].text.trim();
-    
-    // Calculate quality metrics
-    const originalErrors = countErrors(briefContent);
-    const reviewedErrors = countErrors(reviewedContent);
-    const errorsFixed = originalErrors - reviewedErrors;
-    const improvementPercent = originalErrors > 0 
-      ? ((errorsFixed / originalErrors) * 100).toFixed(1)
-      : '0.0';
-    
-    console.log('✅ Claude quality check completed');
-    console.log(`📊 Original length: ${briefContent.length} chars, ${originalErrors} issues`);
-    console.log(`📊 Reviewed length: ${reviewedContent.length} chars, ${reviewedErrors} issues`);
-    console.log(`📈 Quality improvement: ${improvementPercent}% (${errorsFixed} issues fixed)`);
-    
-    return reviewedContent;
-
-  } catch (error) {
-    console.error('❌ Claude quality check failed:', error);
-    return briefContent; // Return original on error
   }
 }
 
@@ -1802,65 +1540,6 @@ async function fetchCryptoDataWithFallbacks(
   return results;
 }
 
-async function fetchForexData(supabase: any): Promise<any> {
-  try {
-    console.log('📊 Fetching forex data...');
-    const { data, error } = await supabase.functions.invoke('polygon-forex');
-    if (error) {
-      console.error('❌ Forex error:', error);
-      return null;
-    }
-    if (data?.success) {
-      console.log(`✅ Fetched ${data.data?.length} forex pairs`);
-      return data;
-    }
-    return null;
-  } catch (error) {
-    console.error('❌ fetchForexData exception:', error);
-    return null;
-  }
-}
-
-async function fetchExpandedStockData(supabase: any): Promise<any> {
-  try {
-    console.log('📊 Fetching 24 stocks...');
-    const { data, error } = await supabase.functions.invoke('polygon-stocks-expanded');
-    if (error) {
-      console.error('❌ Stocks error:', error);
-      return null;
-    }
-    if (data?.success) {
-      console.log(`✅ Fetched ${data.count} stocks`);
-      return data;
-    }
-    return null;
-  } catch (error) {
-    console.error('❌ fetchExpandedStockData exception:', error);
-    return null;
-  }
-}
-
-async function fetchTechnicalIndicators(supabase: any): Promise<any> {
-  try {
-    console.log('📊 Fetching technical indicators...');
-    const { data, error } = await supabase.functions.invoke('polygon-technical-analysis', {
-      body: { symbols: ['X:BTCUSD', 'X:ETHUSD', 'SPY', 'QQQ', 'NVDA'] }
-    });
-    if (error) {
-      console.error('❌ Tech indicators error:', error);
-      return null;
-    }
-    if (data?.success) {
-      console.log(`✅ Fetched ${Object.keys(data.indicators || {}).length} indicators`);
-      return data;
-    }
-    return null;
-  } catch (error) {
-    console.error('❌ fetchTechnicalIndicators exception:', error);
-    return null;
-  }
-}
-
 // ========================================
 // PLACEHOLDER SUBSTITUTION
 // ========================================
@@ -2184,59 +1863,49 @@ serve(async (req) => {
       console.error('❌ Global metrics fetch failed:', err);
     }
     
-    // ===================================================================
-    // PHASE 2: FETCH EXPANDED MARKET DATA (NEW)
-    // ===================================================================
-    let forexData: any = null;
-    let expandedStockData: any = null;
-    let technicalIndicators: any = null;
-
-    try {
-      console.log('🌍 Fetching forex data...');
-      forexData = await fetchForexData(supabase);
-      if (!forexData?.success) {
-        dataWarnings.push('Forex data unavailable');
-      }
-    } catch (err) {
-      console.error('❌ Forex fetch failed:', err);
-      dataWarnings.push('Forex data fetch failed');
-    }
-
-    try {
-      console.log('📊 Fetching expanded stock data (24 tickers)...');
-      expandedStockData = await fetchExpandedStockData(supabase);
-      if (!expandedStockData?.success) {
-        dataWarnings.push('Expanded stock data unavailable');
-      } else {
-        console.log(`✅ Got ${expandedStockData.count} stocks, top mover: ${expandedStockData.topMovers?.[0]?.ticker}`);
-      }
-    } catch (err) {
-      console.error('❌ Expanded stock fetch failed:', err);
-      dataWarnings.push('Expanded stock fetch failed');
-    }
-
-    try {
-      console.log('📈 Fetching technical indicators...');
-      technicalIndicators = await fetchTechnicalIndicators(supabase);
-      if (!technicalIndicators?.success) {
-        dataWarnings.push('Technical indicators unavailable');
-      }
-    } catch (err) {
-      console.error('❌ Technical indicators fetch failed:', err);
-      dataWarnings.push('Technical indicators fetch failed');
-    }
+    // 3. Fetch stock market data from Polygon
+    const stockTickers = ['SPY', 'QQQ', 'COIN', 'MSTR', 'NVDA', 'TSLA', 'AAPL', 'GOOGL'];
+    let stockMarketData: Record<string, { price: number; change: number; volume: number }> = {};
     
-    // Build stock market data from expanded data for backwards compatibility
-    let stockMarketData: Record<string, { name: string; price: number; change: number; volume: number }> = {};
-    if (expandedStockData?.data) {
-      expandedStockData.data.forEach((stock: any) => {
-        stockMarketData[stock.ticker] = {
-          name: stock.name,
-          price: stock.price,
-          change: stock.changePercent,
-          volume: stock.volume
-        };
+    try {
+      console.log('📈 Fetching stock market data from Polygon...');
+      const stockPromises = stockTickers.map(async (ticker) => {
+        try {
+          const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/prev?apiKey=${polygonApiKey}`;
+          const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.results?.[0]) {
+              const result = data.results[0];
+              return {
+                ticker,
+                price: result.c,
+                change: parseFloat(((result.c - result.o) / result.o * 100).toFixed(2)),
+                volume: result.v
+              };
+            }
+          }
+        } catch (error) {
+          console.warn(`⚠️ Failed to fetch ${ticker}:`, error);
+        }
+        return null;
       });
+      
+      const stockResults = await Promise.all(stockPromises);
+      stockResults.forEach(result => {
+        if (result) {
+          stockMarketData[result.ticker] = result;
+        }
+      });
+      
+      const stockCount = Object.keys(stockMarketData).length;
+      console.log(`📈 Stocks snapshot: ${stockCount} of ${stockTickers.length}`);
+      if (stockCount === 0) {
+        dataWarnings.push('Traditional market data unavailable');
+      }
+    } catch (err) {
+      dataWarnings.push('Traditional market data fetch failed');
+      console.error('❌ Stock market data fetch failed:', err);
     }
     
     // Build canonical snapshot summary
@@ -2552,10 +2221,6 @@ serve(async (req) => {
       stockMarketData,
       economicCalendar,
       canonicalSnapshot, // Add canonical snapshot
-      forexData: forexData?.data || [],
-      expandedStockData: expandedStockData?.data || [],
-      stockTopMovers: expandedStockData?.topMovers || [],
-      technicalIndicators: technicalIndicators?.indicators || {},
       isWeekly: isWeekendBrief
     };
     
@@ -2666,19 +2331,6 @@ serve(async (req) => {
     }
     
     finalContent = validatedContent;
-    
-    // ===================================================================
-    // CLAUDE QUALITY CHECK (Final Review)
-    // ===================================================================
-    
-    const claudeReviewedContent = await claudeQualityCheck(
-      finalContent,
-      allData,
-      briefType
-    );
-    
-    // Use Claude's reviewed version for final brief
-    finalContent = claudeReviewedContent;
     
     // ===================================================================
     // VALIDATION
