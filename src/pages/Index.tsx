@@ -272,7 +272,7 @@ const Index = () => {
         <div className="container mx-auto">
           <div className="space-y-6">
             {/* Hero Section */}
-            <div className="text-center py-8">
+            <div className="text-center py-8" style={{ minHeight: '200px' }}>
               <h1 className="text-4xl sm:text-5xl font-bold xr-gradient-text mb-4">
                 Welcome to XRayCrypto™
               </h1>
@@ -294,7 +294,7 @@ const Index = () => {
 
       {/* Main Chart - Full nav width */}
       <div className="w-full mb-6">
-        <div className="container mx-auto">
+        <div className="container mx-auto" style={{ minHeight: '700px' }}>
           <TradingViewChart symbol={chartSymbol} height="700px" />
         </div>
       </div>
@@ -304,12 +304,12 @@ const Index = () => {
         <div className="container mx-auto">
           <div className="grid grid-cols-1 gap-6">
             {/* Crypto Screener - Full width */}
-            <div>
+            <div style={{ minHeight: '600px' }}>
               <CryptoScreener />
             </div>
 
             {/* Crypto Heatmap - Full width */}
-            <div>
+            <div style={{ minHeight: '450px' }}>
               <CryptoHeatmap />
             </div>
           </div>

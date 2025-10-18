@@ -499,6 +499,29 @@
     }
   }
 
+  /* Layout Stability Utilities */
+  .stable-height {
+    min-height: var(--stable-height);
+  }
+
+  .chart-container {
+    min-height: 700px;
+  }
+
+  .price-ticker-container {
+    min-height: 140px;
+  }
+
+  /* Smooth content transitions */
+  .fade-in-content {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
   @keyframes xray-scan {
     0% {
       transform: translateX(-100%);
