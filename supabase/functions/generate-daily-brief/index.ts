@@ -928,7 +928,8 @@ function filterDataForSection(dataScope: string[], allData: any): string {
             const formatStock = (ticker: string) => {
               const data = snap.stocks[ticker];
               if (!data) return null;
-              return `${data.name} (${ticker}): \${{${ticker}_PRICE}}=${data.price.toFixed(2)}, \${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}%`;
+              // Changed: Removed the =price.toFixed() part that was confusing OpenAI
+              return `${data.name} (${ticker} \${{${ticker}_PRICE}} \${{${ticker}_CHANGE}}%)`;
             };
             
             const indicesData = indices.map(formatStock).filter(Boolean).join('; ');
