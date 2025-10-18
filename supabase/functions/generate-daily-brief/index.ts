@@ -1017,6 +1017,157 @@ function updateFactTracker(content: string, tracker: FactTracker): void {
 }
 
 /**
+ * Count common errors in brief content for quality metrics
+ */
+function countErrors(text: string): number {
+  let errorCount = 0;
+  
+  // Count "Market Indicator" spam
+  errorCount += (text.match(/Market Indicator/g) || []).length;
+  
+  // Count broken formatting like "P (500):"
+  errorCount += (text.match(/P \(\d+\):/g) || []).length;
+  
+  // Count broken currency format "Currency (EUR): /USD)"
+  errorCount += (text.match(/Currency \([A-Z]+\): \/[A-Z]+\)/g) || []).length;
+  
+  // Count duplicate sentences (basic check)
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  const normalizedSentences = sentences.map(s => s.trim().toLowerCase());
+  const uniqueSentences = new Set(normalizedSentences);
+  errorCount += sentences.length - uniqueSentences.size;
+  
+  return errorCount;
+}
+
+/**
+ * Claude Quality Check - Reviews and improves the brief
+ * Catches hallucinations, formatting errors, and improves clarity
+ */
+async function claudeQualityCheck(
+  briefContent: string,
+  allData: any,
+  briefType: 'daily' | 'weekly'
+): Promise<string> {
+  const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  
+  if (!anthropicApiKey) {
+    console.warn('⚠️ ANTHROPIC_API_KEY not set, skipping Claude quality check');
+    return briefContent;
+  }
+
+  console.log('\n🤖 Running Claude quality check...');
+
+  // Extract key metrics for verification
+  const btcPrice = allData.btcData?.price || allData.canonicalSnapshot?.crypto?.BTC?.price;
+  const ethPrice = allData.ethData?.price || allData.canonicalSnapshot?.crypto?.ETH?.price;
+  const marketCap = allData.totalMarketCap || allData.canonicalSnapshot?.global?.market_cap;
+  const fearGreed = allData.currentFearGreed;
+
+  const reviewPrompt = `You are a professional crypto market analyst reviewing a ${briefType} market brief for quality and accuracy.
+
+CURRENT BRIEF:
+${briefContent}
+
+ACTUAL DATA FOR VERIFICATION:
+- Bitcoin: $${btcPrice ? btcPrice.toFixed(2) : 'N/A'}
+- Ethereum: $${ethPrice ? ethPrice.toFixed(2) : 'N/A'}
+- Total Market Cap: $${marketCap ? (marketCap / 1e12).toFixed(2) + 'T' : 'N/A'}
+- Fear & Greed Index: ${fearGreed || 'N/A'}
+
+YOUR TASK:
+Review the brief and fix these issues ONLY:
+
+1. **Factual Errors**
+   - Fix any prices that don't match the actual data above
+   - Remove contradictory statements (e.g., saying BTC is both up and down)
+   - Verify percentage changes make sense with price movements
+
+2. **Hallucinations**
+   - Remove any phantom/invalid tickers
+   - Delete made-up statistics or events
+   - Remove "Market Indicator" placeholder labels
+   - Fix broken ticker formats like "P (500):" → "SPDR S&P 500 ETF (SPY):"
+
+3. **Formatting Issues**
+   - Fix broken section headers
+   - Clean up garbled text like "Currency (EUR): /USD)" → "Currency (EUR/USD):"
+   - Ensure proper ticker format: "CompanyName (TICKER):" not "(TICKER):"
+   - Fix paragraph spacing and structure
+
+4. **Repetition**
+   - Remove duplicate sentences within sections
+   - Eliminate redundant information
+   - Consolidate repeated facts
+
+5. **Clarity**
+   - Fix unclear or confusing sentences
+   - Improve readability and flow
+   - Ensure analysis is logical and coherent
+
+CRITICAL RULES:
+- Do NOT rewrite the entire brief
+- Do NOT change the writing style or tone
+- Do NOT add new information not in the original
+- ONLY fix errors, formatting, and clarity issues
+- Keep the same structure and section headers
+- Maintain similar length (within 10%)
+- Keep all HTML tags intact
+
+Return ONLY the corrected brief text (no explanations, no markdown wrappers, just the cleaned HTML/text).`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': anthropicApiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8192,
+        temperature: 0.3, // Low temperature for consistency
+        messages: [
+          {
+            role: 'user',
+            content: reviewPrompt
+          }
+        ]
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Claude API error: ${response.status}`, errorText);
+      return briefContent; // Return original if Claude fails
+    }
+
+    const data = await response.json();
+    const reviewedContent = data.content[0].text.trim();
+    
+    // Calculate quality metrics
+    const originalErrors = countErrors(briefContent);
+    const reviewedErrors = countErrors(reviewedContent);
+    const errorsFixed = originalErrors - reviewedErrors;
+    const improvementPercent = originalErrors > 0 
+      ? ((errorsFixed / originalErrors) * 100).toFixed(1)
+      : '0.0';
+    
+    console.log('✅ Claude quality check completed');
+    console.log(`📊 Original length: ${briefContent.length} chars, ${originalErrors} issues`);
+    console.log(`📊 Reviewed length: ${reviewedContent.length} chars, ${reviewedErrors} issues`);
+    console.log(`📈 Quality improvement: ${improvementPercent}% (${errorsFixed} issues fixed)`);
+    
+    return reviewedContent;
+
+  } catch (error) {
+    console.error('❌ Claude quality check failed:', error);
+    return briefContent; // Return original on error
+  }
+}
+
+/**
  * Normalize paragraph format to ensure "Name (SYMBOL):" or "Name (SYMBOL $price ±%):" format
  * Strips any existing HTML tags first
  */
@@ -2515,6 +2666,19 @@ serve(async (req) => {
     }
     
     finalContent = validatedContent;
+    
+    // ===================================================================
+    // CLAUDE QUALITY CHECK (Final Review)
+    // ===================================================================
+    
+    const claudeReviewedContent = await claudeQualityCheck(
+      finalContent,
+      allData,
+      briefType
+    );
+    
+    // Use Claude's reviewed version for final brief
+    finalContent = claudeReviewedContent;
     
     // ===================================================================
     // VALIDATION
