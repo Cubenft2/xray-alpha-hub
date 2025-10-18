@@ -83,21 +83,12 @@ export function useUnifiedPrices(symbols: string[]) {
           
           if (!stockError && stockData?.data) {
             stockData.data.forEach((stock: any) => {
-              // Safely handle timestamp - use current time if invalid
-              let timestampStr = new Date().toISOString();
-              if (stock.timestamp) {
-                const parsedDate = new Date(stock.timestamp);
-                if (!isNaN(parsedDate.getTime())) {
-                  timestampStr = parsedDate.toISOString();
-                }
-              }
-              
               results.push({
                 symbol: stock.ticker,
                 name: stock.name,
                 price: stock.price,
                 change24h: stock.changePercent,
-                timestamp: timestampStr,
+                timestamp: new Date(stock.timestamp).toISOString(),
                 type: 'stock',
                 source: 'polygon'
               });

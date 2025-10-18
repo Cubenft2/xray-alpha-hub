@@ -1,8 +1,5 @@
 project_id = "odncvfiuzliyohxrsigc"
 
-[functions.test-anthropic-key]
-verify_jwt = false
-
 [functions.populate-token-addresses]
 verify_jwt = true
 

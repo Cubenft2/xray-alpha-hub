@@ -928,8 +928,7 @@ function filterDataForSection(dataScope: string[], allData: any): string {
             const formatStock = (ticker: string) => {
               const data = snap.stocks[ticker];
               if (!data) return null;
-              // Changed: Removed the =price.toFixed() part that was confusing OpenAI
-              return `${data.name} (${ticker} \${{${ticker}_PRICE}} \${{${ticker}_CHANGE}}%)`;
+              return `${data.name} (${ticker}): \${{${ticker}_PRICE}}=${data.price.toFixed(2)}, \${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}%`;
             };
             
             const indicesData = indices.map(formatStock).filter(Boolean).join('; ');
@@ -2023,51 +2022,50 @@ serve(async (req) => {
     const requestBody = await req.json().catch(() => ({}));
     const briefType = requestBody.briefType || 'morning';
     
-    // Compute slug immediately for fast response
-    const estTime = toZonedTime(new Date(), 'America/New_York');
-    const slug = `${briefType}-${format(estTime, 'yyyy-MM-dd', { timeZone: 'America/New_York' })}`;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Define background generation function
-    async function generateBriefNow() {
-      try {
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Authentication - check both header and body for cron secret
+    const cronSecretFromHeader = req.headers.get('x-cron-secret');
+    const cronSecretFromBody = requestBody.cron_secret;
+    const providedCronSecret = cronSecretFromHeader || cronSecretFromBody;
+    const isCronCall = cronSecret && providedCronSecret === cronSecret;
     
-        // Authentication - check both header and body for cron secret
-        const cronSecretFromHeader = req.headers.get('x-cron-secret');
-        const cronSecretFromBody = requestBody.cron_secret;
-        const providedCronSecret = cronSecretFromHeader || cronSecretFromBody;
-        const isCronCall = cronSecret && providedCronSecret === cronSecret;
-        
-        if (isCronCall) {
-          const authSource = cronSecretFromHeader ? 'header (x-cron-secret)' : 'body (cron_secret)';
-          console.log(`✅ Authenticated via CRON_SECRET from ${authSource}`);
-        } else {
-          const authHeader = req.headers.get('authorization');
-          if (!authHeader) {
-            console.error('❌ Background generation: Authentication required');
-            return;
-          }
-          
-          const token = authHeader.replace('Bearer ', '');
-          const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-          
-          if (userError || !user) {
-            console.error('❌ Background generation: Invalid authentication token');
-            return;
-          }
+    if (isCronCall) {
+      const authSource = cronSecretFromHeader ? 'header (x-cron-secret)' : 'body (cron_secret)';
+      console.log(`✅ Authenticated via CRON_SECRET from ${authSource}`);
+    } else {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader) {
+        return new Response(
+          JSON.stringify({ error: 'Authentication required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid authentication token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', user.id)
-            .eq('role', 'admin')
-            .single();
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .single();
 
-          if (!roleData) {
-            console.error('❌ Background generation: Admin access required');
-            return;
-          }
-        }
+      if (!roleData) {
+        return new Response(
+          JSON.stringify({ error: 'Admin access required' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
     
     const isWeekendBrief = briefType === 'weekend';
     const briefTitle = isWeekendBrief 
@@ -2079,7 +2077,6 @@ serve(async (req) => {
     console.log(`\n🚀 ========================================`);
     console.log(`🚀 BRIEF TYPE: ${briefType.toUpperCase()}`);
     console.log(`🚀 BRIEF TITLE: ${briefTitle}`);
-    console.log(`🚀 SLUG: ${slug}`);
     console.log(`🚀 ========================================\n`);
     
     // Clear old cache entries before generation
@@ -2775,29 +2772,18 @@ serve(async (req) => {
     console.log(`📊 Final stats: ${validation.metrics.wordCount} words, ${validation.metrics.totalSections} sections`);
     console.log(`🎯 Validation: ${validation.issues.length} issues, ${validation.metrics.assetMisclassifications} misclassifications`);
     
-      } catch (error) {
-        console.error('❌ Background generation failed:', error);
-      }
-    }
-    
-    // Start background generation
-    EdgeRuntime.waitUntil(generateBriefNow());
-    
-    // Return immediate 202 response
     return new Response(
-      JSON.stringify({ 
-        accepted: true, 
-        slug,
-        message: `Brief generation started for ${briefType}. Check back in 20-40 seconds.`
+      JSON.stringify({
+        success: true,
+        brief: savedBrief,
+        validation: validation.metrics,
+        message: 'Brief generated successfully with modular system'
       }),
-      { 
-        status: 202, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
     
   } catch (error) {
-    console.error('❌ Error in serve handler:', error);
+    console.error('❌ Error in generate-daily-brief:', error);
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error', 

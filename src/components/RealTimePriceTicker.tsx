@@ -14,24 +14,32 @@ export function RealTimePriceTicker({
 }: RealTimePriceTickerProps) {
   const { data, isLoading, error } = useUnifiedPrices(symbols);
 
+  if (error) {
+    return (
+      <Card className={className}>
+        <CardContent className='p-4'>
+          <p className='text-sm text-destructive'>Failed to load real-time prices</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Card className={className}>
+        <CardContent className='p-4'>
+          <div className='flex items-center gap-2'>
+            <Activity className='h-4 w-4 animate-spin' />
+            <p className='text-sm text-muted-foreground'>Loading real-time prices...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Card className={className} style={{ minHeight: '140px' }}>
-      <CardContent className='p-2 relative'>
-        {isLoading && (
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
-            <div className='flex items-center gap-2'>
-              <Activity className='h-4 w-4 animate-spin' />
-              <p className='text-sm text-muted-foreground'>Loading real-time prices...</p>
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
-            <p className='text-sm text-destructive'>Failed to load real-time prices</p>
-          </div>
-        )}
-
+    <Card className={className}>
+      <CardContent className='p-2'>
         <div className='flex items-center justify-between mb-1.5'>
           <div className='flex items-center gap-2'>
             <Activity className='h-3 w-3 text-green-500 animate-pulse' />

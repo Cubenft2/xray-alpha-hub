@@ -177,27 +177,25 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               </div>
             )}
 
-            {/* Auth Buttons - Reserve space to prevent layout shift */}
-            <div className="hidden md:flex items-center space-x-1" style={{ minWidth: '100px' }}>
-              {user ? (
-                <>
-                  {isAdmin && (
-                    <Link to="/admin">
-                      <Button variant="outline" size="sm" className="px-2">
-                        <Shield className="w-3.5 h-3.5" />
-                      </Button>
-                    </Link>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={handleLogout} className="px-2">
-                    <LogOut className="w-3.5 h-3.5" />
-                  </Button>
-                </>
-              ) : (
-                <Link to="/auth">
-                  <Button variant="outline" size="sm" className="text-xs px-2">Login</Button>
-                </Link>
-              )}
-            </div>
+            {/* Auth Buttons */}
+            {user ? (
+              <div className="hidden md:flex items-center space-x-1">
+                {isAdmin && (
+                  <Link to="/admin">
+                    <Button variant="outline" size="sm" className="px-2">
+                      <Shield className="w-3.5 h-3.5" />
+                    </Button>
+                  </Link>
+                )}
+                <Button variant="ghost" size="sm" onClick={handleLogout} className="px-2">
+                  <LogOut className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <Link to="/auth" className="hidden md:block">
+                <Button variant="outline" size="sm" className="text-xs px-2">Login</Button>
+              </Link>
+            )}
             
             <ThemeToggle />
 

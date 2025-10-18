@@ -207,11 +207,7 @@ export function TradingViewChart({
       )}
       <div
         className="relative"
-        style={{ 
-          height: isFullscreen ? '100vh' : height, 
-          width: isFullscreen ? '100vw' : '100%',
-          minHeight: height
-        }}
+        style={{ height: isFullscreen ? '100vh' : height, width: isFullscreen ? '100vw' : '100%' }}
       >
         {isLoading && (
           <div className="absolute inset-0 z-10 bg-background/50 backdrop-blur-sm flex items-center justify-center">

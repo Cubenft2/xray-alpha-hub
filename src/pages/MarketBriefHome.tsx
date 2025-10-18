@@ -340,9 +340,9 @@ export default function MarketBriefHome() {
         const hasArticleHtml = briefData.article_html;
         
         if (!hasAiContent && !hasArticleHtml && !date) {
-          console.warn('🛠️ No content available — will show Unavailable state without auto-generation.');
-          // Previously auto-generated a new brief here, which caused reload loops.
-          // Users can manually trigger generation from Admin or a button.
+          console.log('🛠️ No content available — creating fresh brief...');
+          await generateFreshBrief();
+          return; // Wait for reload
         }
         
         console.log('📰 Brief content check:', { 
@@ -358,8 +358,9 @@ export default function MarketBriefHome() {
             (aiTextRaw && aiTextRaw.includes('[ADMIN] Symbol Intelligence Audit')) ||
             (articleHtmlRaw && articleHtmlRaw.includes('[ADMIN] Symbol Intelligence Audit'));
           if (hasAdminLeak) {
-            console.warn('🧹 Admin audit detected in brief — not auto-regenerating to avoid loops.');
-            // Keep existing content; admins can regenerate manually from Admin panel
+            console.log('🧹 Admin audit detected in brief — regenerating clean version...');
+            await generateFreshBrief();
+            return; // Wait for reload
           }
         }
         

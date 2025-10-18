@@ -5,14 +5,6 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { toZonedTime, format } from 'date-fns-tz';
-
-// Helper: compute deterministic slug for brief
-const computeSlug = (briefType: 'morning' | 'evening' | 'weekend'): string => {
-  const nyDate = toZonedTime(new Date(), 'America/New_York');
-  const dateStr = format(nyDate, 'yyyy-MM-dd');
-  return `${briefType}-${dateStr}`;
-};
 
 export function GenerateBrief() {
   const [generating, setGenerating] = useState(false);
@@ -21,46 +13,6 @@ export function GenerateBrief() {
   const [customAuthor, setCustomAuthor] = useState('');
   const [useCustomQuote, setUseCustomQuote] = useState(false);
   const navigate = useNavigate();
-
-  // Helper: poll for brief completion
-  const pollForBrief = async (slug: string, maxDuration = 120000) => {
-    const pollInterval = 2500;
-    const startTime = Date.now();
-    
-    setProgress('Brief is generating in the background...');
-    
-    const poll = async (): Promise<boolean> => {
-      if (Date.now() - startTime > maxDuration) {
-        toast.error('Brief generation timed out. Check Market Briefs page in a moment.');
-        return false;
-      }
-      
-      const { data, error } = await supabase
-        .from('market_briefs')
-        .select('slug, is_published')
-        .eq('slug', slug)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Polling error:', error);
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-        return poll();
-      }
-      
-      if (data) {
-        console.log('✅ Brief found:', data);
-        toast.success('Brief generated! Opening...');
-        setTimeout(() => navigate(`/marketbrief/${slug}`), 500);
-        return true;
-      }
-      
-      // Not found yet, keep polling
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-      return poll();
-    };
-    
-    return poll();
-  };
 
   const handleGenerateBrief = async (briefType: 'morning' | 'evening' | 'weekend') => {
     setGenerating(true);
@@ -81,34 +33,15 @@ export function GenerateBrief() {
       }
       
       setProgress('Collecting market data...');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay for UX
       
-      setProgress('Generating brief with AI...');
-      
-      // Compute expected slug for polling fallback
-      const expectedSlug = computeSlug(briefType);
-      
+      setProgress('Generating brief with AI (15-30s)...');
       const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
         body: { briefType }
       });
       
-      // Clear custom quote after use
-      if (useCustomQuote) {
-        setCustomQuote('');
-        setCustomAuthor('');
-        setUseCustomQuote(false);
-      }
-      
       if (error) {
         console.error('Brief generation error:', error);
-        
-        // Check if it's a fetch/timeout error (function is still running in background)
-        if (error.message?.includes('Failed to fetch') || error.message?.includes('FunctionsFetchError')) {
-          console.log('⏳ Connection timeout - brief is generating in background');
-          toast.info('Brief is generating in the background. Checking status...');
-          await pollForBrief(expectedSlug);
-          return;
-        }
         
         // Handle specific error cases
         if (error.message?.includes('401') || error.message?.includes('Authentication required')) {
@@ -127,32 +60,36 @@ export function GenerateBrief() {
       }
       
       console.log('✅ Brief generated:', data);
+      setProgress('Brief generated! Redirecting...');
       
-      // Extract slug from response
-      const slug = data?.slug ?? data?.brief?.slug ?? data?.data?.slug;
+      // Clear custom quote after use
+      if (useCustomQuote) {
+        setCustomQuote('');
+        setCustomAuthor('');
+        setUseCustomQuote(false);
+      }
+      
+      // Extract slug from response to navigate directly to the new brief
+      const slug = data?.brief?.slug ?? data?.slug ?? data?.data?.slug;
       
       if (slug) {
-        setProgress('Brief generated! Redirecting...');
-        toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated!`);
-        setTimeout(() => navigate(`/marketbrief/${slug}`), 800);
+        toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated! Opening...`);
+        // Navigate directly to the new brief
+        setTimeout(() => {
+          navigate(`/marketbrief/${slug}`);
+        }, 800);
       } else {
-        // No slug in response - start polling with computed slug
-        console.log('⏳ No slug in response - polling for completion');
-        await pollForBrief(expectedSlug);
+        toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated!`);
+        // Fallback to home if no slug
+        setTimeout(() => {
+          navigate('/');
+        }, 1000);
       }
       
     } catch (error: any) {
       console.error('❌ Brief generation error:', error);
       
-      // Check for connection errors
-      if (error?.name === 'FunctionsFetchError' || error?.message?.includes('Failed to fetch')) {
-        console.log('⏳ Connection error - brief likely generating in background');
-        const expectedSlug = computeSlug(briefType);
-        toast.info('Connection timeout. Checking if brief is generating...');
-        await pollForBrief(expectedSlug);
-        return;
-      }
-      
+      // Handle specific error codes
       if (error?.status === 401 || error?.status === 403) {
         toast.error('Authentication required. Please log in again.');
       } else if (error?.status === 429) {
