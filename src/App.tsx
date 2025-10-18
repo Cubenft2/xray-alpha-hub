@@ -46,7 +46,7 @@ const App = () => (
             <Layout>
               <PageTransition>
                 <Routes>
-                  <Route path="/" element={<MarketBriefHome />} />
+                  <Route path="/" element={<Index />} />
                   <Route path="/crypto" element={<Index />} />
                   <Route path="/markets" element={<Markets />} />
                   <Route path="/market-brief" element={<MarketBrief />} />
