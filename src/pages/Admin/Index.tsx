@@ -30,6 +30,7 @@ import { PolygonDataAdmin } from './PolygonDataAdmin';
 import { PolygonDiagnostics } from './PolygonDiagnostics';
 import { LunarCrushDiagnostics } from './LunarCrushDiagnostics';
 import { CoinGeckoEnrich } from './CoinGeckoEnrich';
+import PublishManualBrief from './PublishManualBrief';
 
 function AdminContent() {
   const [activeView, setActiveView] = useState('generate-brief');
@@ -57,6 +58,15 @@ function AdminContent() {
                 >
                   <FileText className="mr-2 h-4 w-4" />
                   <span>Generate Brief</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => handleViewChange('publish-manual')}
+                  isActive={activeView === 'publish-manual'}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  <span>Publish Manual Brief</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -155,6 +165,7 @@ function AdminContent() {
         
         <main className="flex-1 p-8 overflow-auto">
           {activeView === 'generate-brief' && <GenerateBrief />}
+          {activeView === 'publish-manual' && <PublishManualBrief />}
           {activeView === 'missing-tickers' && <PendingTickerMappings />}
           {activeView === 'symbol-intelligence' && <SymbolAdmin />}
           {activeView === 'coingecko-enrich' && <CoinGeckoEnrich />}
