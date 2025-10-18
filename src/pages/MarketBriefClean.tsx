@@ -4,7 +4,7 @@ import { TopAssetsSentiment } from '@/components/TopAssetsSentiment';
 import { MiniChart } from '@/components/MiniChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, BarChart3, Users } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
 interface AssetSentiment {
@@ -102,33 +102,42 @@ export default function MarketBriefClean() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="container mx-auto px-4 lg:px-8 py-8 max-w-7xl space-y-8">
       {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold">Market Sentiment Brief</h1>
-        <p className="text-muted-foreground">
-          Real-time sentiment analysis from latest news articles
+      <div className="space-y-4">
+        <h1 className="text-3xl lg:text-4xl font-bold xr-gradient-text xr-xray-glow">
+          Market Sentiment Brief
+        </h1>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+          <span>Real-time sentiment analysis from latest news articles</span>
           {lastUpdate && (
             <span className="ml-2">
               • Updated {lastUpdate.toLocaleTimeString()}
             </span>
           )}
-        </p>
+        </div>
       </div>
 
       {/* Top Assets Sentiment Widget */}
       <section>
-        <h2 className="text-2xl font-semibold mb-4">Top Asset Sentiment</h2>
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp className="w-5 h-5 text-primary" />
+          <h2 className="text-xl lg:text-2xl font-semibold xr-pixel-text">Top Asset Sentiment</h2>
+        </div>
         <TopAssetsSentiment />
       </section>
 
       {/* Focus Assets Section */}
       <section>
-        <h2 className="text-2xl font-semibold mb-4">Focus Assets</h2>
+        <div className="flex items-center gap-2 mb-4">
+          <BarChart3 className="w-5 h-5 text-primary" />
+          <h2 className="text-xl lg:text-2xl font-semibold xr-pixel-text">Focus Assets</h2>
+        </div>
         {loading ? (
           <div className="grid grid-cols-1 gap-6">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="animate-pulse">
+              <Card key={i} className="xr-card animate-pulse">
                 <CardHeader>
                   <div className="h-6 bg-muted rounded w-1/3" />
                 </CardHeader>
@@ -141,11 +150,11 @@ export default function MarketBriefClean() {
         ) : (
           <div className="grid grid-cols-1 gap-6">
             {focusAssets.map((asset) => (
-              <Card key={asset.id} className="overflow-hidden">
-                <CardHeader className="border-b">
+              <Card key={asset.id} className="xr-card overflow-hidden">
+                <CardHeader className="border-b border-border">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-3">
-                      <CardTitle className="text-xl">{asset.asset_symbol}</CardTitle>
+                      <CardTitle className="text-xl xr-gradient-text">{asset.asset_symbol}</CardTitle>
                       {getSentimentBadge(asset.sentiment_label, asset.sentiment_score)}
                       {getTrendIcon(asset.trend_direction)}
                     </div>
@@ -153,12 +162,12 @@ export default function MarketBriefClean() {
                       {asset.total_articles} article{asset.total_articles !== 1 ? 's' : ''}
                     </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">{asset.asset_name}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{asset.asset_name}</p>
                 </CardHeader>
-                <CardContent className="p-6">
+                <CardContent className="p-6 lg:p-8">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Chart */}
-                    <div className="h-[300px] bg-muted/20 rounded-lg overflow-hidden">
+                    <div className="h-[300px] bg-muted/20 rounded-lg overflow-hidden border border-border/50">
                       <MiniChart
                         symbol={asset.asset_symbol}
                         theme={theme === 'dark' ? 'dark' : 'light'}
@@ -169,37 +178,40 @@ export default function MarketBriefClean() {
                     </div>
 
                     {/* Sentiment Breakdown */}
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       <div>
-                        <h4 className="text-sm font-semibold mb-3">Sentiment Breakdown</h4>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                          <Users className="w-4 h-4 text-primary" />
+                          Sentiment Breakdown
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-success/10 border border-success/20">
                             <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-success" />
-                              <span className="text-sm">Positive</span>
+                              <div className="w-3 h-3 rounded-full bg-success shadow-sm" />
+                              <span className="text-sm font-medium">Positive</span>
                             </div>
-                            <span className="text-sm font-medium">{asset.positive_count}</span>
+                            <span className="text-sm font-bold text-success">{asset.positive_count}</span>
                           </div>
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                             <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-destructive" />
-                              <span className="text-sm">Negative</span>
+                              <div className="w-3 h-3 rounded-full bg-destructive shadow-sm" />
+                              <span className="text-sm font-medium">Negative</span>
                             </div>
-                            <span className="text-sm font-medium">{asset.negative_count}</span>
+                            <span className="text-sm font-bold text-destructive">{asset.negative_count}</span>
                           </div>
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-muted/50 border border-border">
                             <div className="flex items-center gap-2">
-                              <div className="w-3 h-3 rounded-full bg-muted-foreground" />
-                              <span className="text-sm">Neutral</span>
+                              <div className="w-3 h-3 rounded-full bg-muted-foreground shadow-sm" />
+                              <span className="text-sm font-medium">Neutral</span>
                             </div>
-                            <span className="text-sm font-medium">{asset.neutral_count}</span>
+                            <span className="text-sm font-bold text-muted-foreground">{asset.neutral_count}</span>
                           </div>
                         </div>
                       </div>
 
                       {/* Top Keywords */}
                       {asset.top_keywords && asset.top_keywords.length > 0 && (
-                        <div>
+                        <div className="border-t border-border pt-6">
                           <h4 className="text-sm font-semibold mb-3">Top Keywords</h4>
                           <div className="flex flex-wrap gap-2">
                             {asset.top_keywords.slice(0, 6).map((keyword, idx) => (
@@ -212,18 +224,18 @@ export default function MarketBriefClean() {
                       )}
 
                       {/* Sentiment Score Bar */}
-                      <div>
-                        <h4 className="text-sm font-semibold mb-3">Sentiment Score</h4>
+                      <div className="border-t border-border pt-6">
+                        <h4 className="text-sm font-semibold mb-4">Sentiment Score</h4>
                         <div className="relative h-2 bg-gradient-to-r from-destructive via-muted to-success rounded-full">
                           <div 
-                            className="absolute w-3 h-3 bg-primary rounded-full -top-0.5 transition-all duration-1000 shadow-lg"
+                            className="absolute w-3 h-3 bg-primary rounded-full -top-0.5 transition-all duration-1000 shadow-lg xr-glow-primary"
                             style={{ left: `calc(${((asset.sentiment_score + 100) / 200) * 100}% - 6px)` }}
                           />
                         </div>
-                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                          <span>-100</span>
-                          <span>0</span>
-                          <span>+100</span>
+                        <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                          <span className="font-medium">-100</span>
+                          <span className="font-medium">0</span>
+                          <span className="font-medium">+100</span>
                         </div>
                       </div>
                     </div>
