@@ -140,11 +140,12 @@ export default function PublishManualBrief() {
           },
           featured_assets: featuredAssets,
           published_at: new Date().toISOString(),
-          word_count: wordCount,
+          is_published: true,
           market_data: {
             published_manually: true,
             published_by: 'admin',
-            published_from: 'manual-brief-tool'
+            published_from: 'manual-brief-tool',
+            word_count: wordCount
           }
         });
 
