@@ -286,7 +286,6 @@ export default function MarketBriefHome() {
             .from('market_briefs')
             .select('slug, title, executive_summary, content_sections, featured_assets, social_data, market_data, stoic_quote, sentiment_score, published_at, created_at')
             .eq('slug', param)
-            .eq('is_published', true)
             .single();
           
           if (error || !data) {
@@ -305,7 +304,6 @@ export default function MarketBriefHome() {
             .from('market_briefs')
             .select('*')
             .eq('brief_type', expectedBriefType)
-            .eq('is_published', true)
             .gte('created_at', `${today}T00:00:00Z`)
             .order('created_at', { ascending: false })
             .limit(1)
@@ -320,7 +318,6 @@ export default function MarketBriefHome() {
             const { data, error } = await supabase
               .from('market_briefs')
               .select('*')
-              .eq('is_published', true)
               .order('created_at', { ascending: false })
               .limit(1)
               .single();
