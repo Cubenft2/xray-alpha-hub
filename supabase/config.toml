@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.polygon-technical-analysis]
 verify_jwt = false
+
+[functions.manual-brief]
+verify_jwt = false
