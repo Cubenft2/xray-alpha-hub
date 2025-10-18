@@ -285,10 +285,10 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Real-Time Price Ticker */}
+      {/* Real-Time Price Ticker - Mixed Crypto & Stocks */}
       <div className="w-full mb-6">
         <div className="container mx-auto">
-          <RealTimePriceTicker symbols={['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC', 'LINK']} />
+          <RealTimePriceTicker symbols={['BTC', 'ETH', 'SOL', 'SPY', 'AAPL', 'COIN']} />
         </div>
       </div>
 

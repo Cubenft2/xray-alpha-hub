@@ -46,7 +46,8 @@ serve(async (req) => {
 
     for (const pair of forexPairs) {
       try {
-        const url = `https://api.polygon.io/v2/aggs/ticker/${pair.symbol}/prev?adjusted=true&apiKey=${polygonApiKey}`;
+        // Use snapshot API for real-time forex rates
+        const url = `https://api.polygon.io/v2/last/nbbo/${pair.symbol}?apiKey=${polygonApiKey}`;
         
         const response = await fetch(url);
         
@@ -59,30 +60,45 @@ serve(async (req) => {
 
         const data = await response.json();
         
-        if (data.results && data.results.length > 0) {
-          const result = data.results[0];
+        if (data.results) {
+          const currentPrice = data.results.P; // Bid price
           
-          const change = result.c - result.o;
-          const changePercent = (change / result.o) * 100;
+          // Get previous day's close for comparison
+          const prevUrl = `https://api.polygon.io/v2/aggs/ticker/${pair.symbol}/prev?adjusted=true&apiKey=${polygonApiKey}`;
+          const prevResponse = await fetch(prevUrl);
+          
+          let prevClose = currentPrice; // Fallback
+          if (prevResponse.ok) {
+            const prevData = await prevResponse.json();
+            if (prevData.results && prevData.results.length > 0) {
+              prevClose = prevData.results[0].c;
+            }
+          }
+          
+          const change = currentPrice - prevClose;
+          const changePercent = (change / prevClose) * 100;
           
           results.push({
             pair: pair.name,
-            price: result.c,
+            price: currentPrice,
             change: change,
             changePercent: changePercent,
-            open: result.o,
-            high: result.h,
-            low: result.l,
-            close: result.c,
-            volume: result.v || 0,
-            timestamp: result.t
+            open: prevClose,
+            high: currentPrice,
+            low: currentPrice,
+            close: currentPrice,
+            volume: 0,
+            timestamp: data.results.t || Date.now()
           });
           
-          console.log(`✅ ${pair.name}: $${result.c.toFixed(4)} (${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}%)`);
+          console.log(`✅ ${pair.name}: ${currentPrice.toFixed(4)} (${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}%)`);
         } else {
           console.warn(`⚠️ No data for ${pair.name}`);
           errors.push(`${pair.name}: No data available`);
         }
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
       } catch (error) {
         console.error(`❌ Error fetching ${pair.name}:`, error);
         errors.push(`${pair.name}: ${error.message}`);

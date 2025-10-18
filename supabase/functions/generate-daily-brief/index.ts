@@ -101,15 +101,71 @@ const DAILY_SECTIONS: SectionDefinition[] = [
   },
   {
     title: 'Traditional Markets',
-    guidelines: 'Focus on stock movements using ONLY live Polygon data from canonicalSnapshot.stocks. Use placeholders: CompanyName (TICKER ${{TICKER_PRICE}} {{TICKER_CHANGE}}%). Cover SPY, QQQ, COIN, MSTR, and other tech stocks. DO NOT invent prices or percentages. Keep crypto OUT of this section. FORMAT: One paragraph per stock. If stock data missing, write "Traditional market data temporarily unavailable" - do not analyze without numbers.',
-    dataScope: ['canonicalSnapshot', 'newsStocks', 'stockExchangeContext', 'expandedStockData'],
-    minWords: 80
+    guidelines: `
+STRUCTURE:
+Write 4 cohesive paragraphs organized by category. Each paragraph should flow naturally.
+
+CATEGORIES:
+1. Major Indices: SPY, QQQ, DIA, IWM
+2. Crypto-Related Equities: COIN, MSTR, RIOT, MARA, CLSK, HUT
+3. Tech Giants: NVDA, AMD, MSFT, GOOGL, META, AMZN, AAPL, TSLA
+4. Crypto ETFs: BITO, GBTC, HOOD, SQ, PYPL
+
+FORMATTING RULES:
+- Use canonicalSnapshot.stocks for ALL price data
+- Each stock has a .name field - ALWAYS use it
+- Format: "CompanyName (TICKER): Action verb direction changePercent% to $price as reason."
+- Example: "NVIDIA (NVDA): Climbed 1.69% to $141.98, led by semiconductor strength."
+- NEVER write "Market Indicator" - this is a placeholder error
+- Start each category with a topic sentence about the group, then mention individual stocks
+
+WRITING STYLE:
+- First sentence: Overall category performance
+- Following sentences: Individual stocks with context
+- Use action verbs: surged, climbed, fell, dropped, advanced, declined
+- Explain WHY (e.g., "following earnings beat", "on news of", "as traders piled in")
+
+DATA SOURCE:
+- Use ONLY canonicalSnapshot.stocks[ticker].name, .price and .change
+- Do NOT use newsStocks or stockExchangeContext
+- If data missing, write "Traditional market data temporarily unavailable"
+
+EXAMPLE PARAGRAPH:
+"Major Indices: The SPDR S&P 500 ETF (SPY) climbed 0.74% to $575.84 as tech earnings beat expectations, supporting broader risk assets including crypto. The Invesco QQQ ETF (QQQ) gained 1.00% to $494.23, led by semiconductor strength. The SPDR Dow Jones ETF (DIA) added 0.54% to $461.78, while the iShares Russell 2000 ETF (IWM) rose 0.04% to $243.41, showing modest small-cap participation."
+`,
+    dataScope: ['canonicalSnapshot'],
+    minWords: 200
   },
   {
     title: 'Global Markets & Currencies',
-    guidelines: 'Analyze forex movements and their correlation with crypto. Dollar strength (DXY if available) typically moves inversely to Bitcoin. EUR/USD, GBP/USD show global risk appetite. FORMAT STRICTLY: One paragraph per currency pair. Start with "Currency (PAIR):" then 2-3 sentences analyzing movement and crypto impact. Insert blank line between pairs. Use technical terms: flight to safety, risk-on/risk-off, dollar milkshake theory.',
-    dataScope: ['forexData', 'canonicalSnapshot', 'technicalIndicators'],
-    minWords: 120
+    guidelines: `
+STRUCTURE:
+Write 4 concise paragraphs, one per major currency pair. Explain correlation with Bitcoin.
+
+CURRENCY PAIRS:
+1. EUR/USD: European risk appetite indicator
+2. GBP/USD: UK economic sentiment
+3. USD/JPY: Asian capital flows
+4. DXY (Dollar Index): Overall USD strength
+
+FORMATTING:
+- Format: "Currency (PAIR): Description of movement direction percentage% to rate as reason. Bitcoin correlation: explanation."
+- Example: "Currency (EUR/USD): Euro strengthened 0.3% to 1.0842 as ECB signaled pause in rate hikes. Weaker dollar typically correlates with Bitcoin strength as global liquidity improves."
+- Use REAL forex data from forexData or canonicalSnapshot.forex
+- Explain crypto implications (e.g., "Weaker dollar = stronger BTC historically")
+
+CORRELATION NOTES:
+- EUR/USD up = Risk-on = BTC up
+- DXY down = Weaker dollar = BTC up (inverse correlation)
+- USD/JPY up = Capital leaving Asia = Mixed for BTC
+- GBP/USD tied to UK economic data
+
+DATA SOURCE:
+- Use forexData array or canonicalSnapshot.forex
+- If missing, write "Currency data temporarily unavailable"
+`,
+    dataScope: ['forexData', 'canonicalSnapshot', 'btcData'],
+    minWords: 150
   },
   {
     title: 'Derivatives & Flows',
@@ -862,12 +918,28 @@ function filterDataForSection(dataScope: string[], allData: any): string {
             if (globalParts.length > 0) parts.push(`GLOBAL: ${globalParts.join(', ')}`);
           }
           
-          // Stock data with placeholders
+          // Stock data with placeholders and enhanced categorization
           if (snap.stocks && Object.keys(snap.stocks).length > 0) {
-            const stockData = Object.entries(snap.stocks).map(([ticker, data]: [string, any]) => 
-              `${ticker}: \${{${ticker}_PRICE}}=${data.price.toFixed(2)}, \${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}`
-            ).join(', ');
-            parts.push(`STOCK SNAPSHOT: ${stockData}`);
+            const indices = ['SPY', 'QQQ', 'DIA', 'IWM'];
+            const cryptoEquities = ['COIN', 'MSTR', 'RIOT', 'MARA', 'CLSK', 'HUT'];
+            const tech = ['NVDA', 'AMD', 'MSFT', 'GOOGL', 'META', 'AMZN', 'AAPL', 'TSLA'];
+            const cryptoETFs = ['BITO', 'GBTC', 'HOOD', 'SQ', 'PYPL', 'BITI'];
+            
+            const formatStock = (ticker: string) => {
+              const data = snap.stocks[ticker];
+              if (!data) return null;
+              return `${data.name} (${ticker}): \${{${ticker}_PRICE}}=${data.price.toFixed(2)}, \${{${ticker}_CHANGE}}=${data.change >= 0 ? '+' : ''}${data.change.toFixed(2)}%`;
+            };
+            
+            const indicesData = indices.map(formatStock).filter(Boolean).join('; ');
+            const cryptoData = cryptoEquities.map(formatStock).filter(Boolean).join('; ');
+            const techData = tech.map(formatStock).filter(Boolean).join('; ');
+            const etfData = cryptoETFs.map(formatStock).filter(Boolean).join('; ');
+            
+            if (indicesData) parts.push(`INDICES: ${indicesData}`);
+            if (cryptoData) parts.push(`CRYPTO EQUITIES: ${cryptoData}`);
+            if (techData) parts.push(`TECH GIANTS: ${techData}`);
+            if (etfData) parts.push(`CRYPTO ETFs: ${etfData}`);
           } else {
             parts.push(`STOCK SNAPSHOT: No Polygon stock data available for this run - write "Traditional market data temporarily unavailable"`);
           }
@@ -2004,10 +2076,11 @@ serve(async (req) => {
     }
     
     // Build stock market data from expanded data for backwards compatibility
-    let stockMarketData: Record<string, { price: number; change: number; volume: number }> = {};
+    let stockMarketData: Record<string, { name: string; price: number; change: number; volume: number }> = {};
     if (expandedStockData?.data) {
       expandedStockData.data.forEach((stock: any) => {
         stockMarketData[stock.ticker] = {
+          name: stock.name,
           price: stock.price,
           change: stock.changePercent,
           volume: stock.volume

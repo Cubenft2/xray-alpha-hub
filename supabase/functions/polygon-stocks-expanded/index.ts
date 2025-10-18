@@ -65,53 +65,63 @@ serve(async (req) => {
 
     console.log(`📊 Fetching stock data for ${stockTickers.length} tickers...`);
 
-    for (const stock of stockTickers) {
-      try {
-        const url = `https://api.polygon.io/v2/aggs/ticker/${stock.ticker}/prev?adjusted=true&apiKey=${polygonApiKey}`;
-        
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`❌ Failed to fetch ${stock.ticker}:`, response.status, errorText);
-          errors.push(`${stock.ticker}: ${response.status}`);
-          continue;
-        }
-
-        const data = await response.json();
-        
-        if (data.results && data.results.length > 0) {
-          const result = data.results[0];
-          
-          const change = result.c - result.o;
-          const changePercent = (change / result.o) * 100;
-          
-          results.push({
-            ticker: stock.ticker,
-            name: stock.name,
-            price: result.c,
-            change: change,
-            changePercent: changePercent,
-            open: result.o,
-            high: result.h,
-            low: result.l,
-            close: result.c,
-            volume: result.v,
-            timestamp: result.t
-          });
-          
-          console.log(`✅ ${stock.ticker}: $${result.c.toFixed(2)} (${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}%)`);
-        } else {
-          console.warn(`⚠️ No data for ${stock.ticker}`);
-          errors.push(`${stock.ticker}: No data available`);
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, 50));
-        
-      } catch (error) {
-        console.error(`❌ Error fetching ${stock.ticker}:`, error);
-        errors.push(`${stock.ticker}: ${error.message}`);
+    // Fetch all stock tickers in a single snapshot API call for real-time prices
+    try {
+      const tickersList = stockTickers.map(s => s.ticker).join(',');
+      const url = `https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers?tickers=${tickersList}&apiKey=${polygonApiKey}`;
+      
+      console.log(`📊 Fetching snapshot data for ${stockTickers.length} tickers...`);
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Snapshot API failed:`, response.status, errorText);
+        throw new Error(`Snapshot API returned ${response.status}`);
       }
+
+      const data = await response.json();
+      
+      if (data.tickers && data.tickers.length > 0) {
+        for (const tickerData of data.tickers) {
+          const stockInfo = stockTickers.find(s => s.ticker === tickerData.ticker);
+          if (!stockInfo) continue;
+          
+          // Use current day's data for intraday price
+          const currentPrice = tickerData.day?.c || tickerData.lastTrade?.p;
+          const prevClose = tickerData.prevDay?.c;
+          
+          if (currentPrice && prevClose) {
+            const change = currentPrice - prevClose;
+            const changePercent = (change / prevClose) * 100;
+            
+            results.push({
+              ticker: stockInfo.ticker,
+              name: stockInfo.name,
+              price: currentPrice,
+              change: change,
+              changePercent: changePercent,
+              open: tickerData.day?.o || prevClose,
+              high: tickerData.day?.h || currentPrice,
+              low: tickerData.day?.l || currentPrice,
+              close: currentPrice,
+              volume: tickerData.day?.v || 0,
+              timestamp: tickerData.updated || Date.now()
+            });
+            
+            console.log(`✅ ${stockInfo.ticker}: $${currentPrice.toFixed(2)} (${changePercent > 0 ? '+' : ''}${changePercent.toFixed(2)}%)`);
+          } else {
+            console.warn(`⚠️ Incomplete data for ${stockInfo.ticker}`);
+            errors.push(`${stockInfo.ticker}: Missing price data`);
+          }
+        }
+      } else {
+        console.warn('⚠️ No tickers data in snapshot response');
+        errors.push('No data available from snapshot API');
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error fetching snapshot:`, error);
+      errors.push(`Snapshot fetch error: ${error.message}`);
     }
 
     const sortedByChange = [...results].sort((a, b) => 
