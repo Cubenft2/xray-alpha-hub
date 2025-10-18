@@ -3,9 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Copy, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toZonedTime, format } from 'date-fns-tz';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 // Helper: compute deterministic slug for brief
 const computeSlug = (briefType: 'morning' | 'evening' | 'weekend'): string => {
@@ -20,6 +23,9 @@ export function GenerateBrief() {
   const [customQuote, setCustomQuote] = useState('');
   const [customAuthor, setCustomAuthor] = useState('');
   const [useCustomQuote, setUseCustomQuote] = useState(false);
+  const [manualGenerating, setManualGenerating] = useState(false);
+  const [manualTopic, setManualTopic] = useState('');
+  const [manualStyle, setManualStyle] = useState('Market Psychologist');
   const navigate = useNavigate();
 
   // Helper: poll for brief completion
@@ -168,8 +174,117 @@ export function GenerateBrief() {
     }
   };
 
+  const handleManualBrief = async () => {
+    setManualGenerating(true);
+    
+    try {
+      console.log('📝 Generating manual brief...');
+      
+      const { data, error } = await supabase.functions.invoke('manual-brief', {
+        body: { 
+          topic: manualTopic || 'Current crypto market conditions',
+          style: manualStyle,
+          includeCharts: true
+        }
+      });
+      
+      if (error) {
+        console.error('Manual brief error:', error);
+        toast.error('Failed to generate manual brief');
+        return;
+      }
+      
+      if (data?.brief) {
+        // Copy to clipboard
+        await navigator.clipboard.writeText(data.brief);
+        toast.success('📋 Brief copied to clipboard!', {
+          description: `${data.wordCount} words generated`
+        });
+        
+        // Clear form
+        setManualTopic('');
+      } else {
+        toast.error('No brief content received');
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Manual brief error:', error);
+      toast.error(`Generation failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setManualGenerating(false);
+    }
+  };
+
   return (
-    <div className="container mx-auto p-8">
+    <div className="container mx-auto p-8 space-y-6">
+      {/* Manual Brief Generator Card */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <CardTitle>Quick Manual Brief Generator</CardTitle>
+          </div>
+          <CardDescription>
+            Generate a custom brief instantly with AI - perfect for ad-hoc analysis
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="manual-topic">Topic (Optional)</Label>
+                <Input
+                  id="manual-topic"
+                  placeholder="e.g., Bitcoin breaking $100K, Evening market wrap..."
+                  value={manualTopic}
+                  onChange={(e) => setManualTopic(e.target.value)}
+                  disabled={manualGenerating}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="manual-style">Writing Style</Label>
+                <select
+                  id="manual-style"
+                  value={manualStyle}
+                  onChange={(e) => setManualStyle(e.target.value)}
+                  disabled={manualGenerating}
+                  className="w-full p-2 border border-input rounded-md bg-background text-sm"
+                >
+                  <option value="Market Psychologist">Market Psychologist (Educational)</option>
+                  <option value="Direct Trader">Direct Trader (Concise)</option>
+                  <option value="Data Detective">Data Detective (Analytical)</option>
+                </select>
+              </div>
+            </div>
+            
+            <Button 
+              onClick={handleManualBrief}
+              disabled={manualGenerating}
+              className="w-full"
+              size="lg"
+            >
+              {manualGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Generate & Copy to Clipboard
+                </>
+              )}
+            </Button>
+            
+            <p className="text-xs text-muted-foreground">
+              <strong>Tip:</strong> Leave topic blank for a general market brief. Chart links are automatically included.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+      
+      {/* Automated Brief Generator Card */}
       <Card>
         <CardHeader>
           <CardTitle>Generate Market Brief</CardTitle>
