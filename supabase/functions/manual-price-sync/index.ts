@@ -41,30 +41,40 @@ serve(async (req) => {
       throw new Error(`Failed to fetch from CoinGecko: ${error.message}`);
     }
 
-    // Fetch ALL ticker_mappings with coingecko_id
-    const { data: mappings, error: mappingsError } = await supabase
+    // Fetch ticker_mappings: separate fetches for ID-based and all mappings
+    const { data: idMappings, error: idError } = await supabase
       .from('ticker_mappings')
       .select('symbol, display_name, coingecko_id')
       .eq('type', 'crypto')
       .eq('is_active', true)
       .not('coingecko_id', 'is', null);
 
-    if (mappingsError) {
-      throw new Error(`Failed to fetch ticker mappings: ${mappingsError.message}`);
+    if (idError) {
+      throw new Error(`Failed to fetch ID mappings: ${idError.message}`);
     }
 
-    console.log(`📋 Loaded ${mappings?.length || 0} ticker mappings with coingecko_id`);
+    const { data: allMappings, error: allError } = await supabase
+      .from('ticker_mappings')
+      .select('symbol, display_name, display_symbol, aliases')
+      .eq('type', 'crypto')
+      .eq('is_active', true);
+
+    if (allError) {
+      throw new Error(`Failed to fetch all mappings: ${allError.message}`);
+    }
+
+    console.log(`📋 Loaded ${idMappings?.length || 0} mappings with coingecko_id, ${allMappings?.length || 0} total mappings`);
 
     // Create lookup maps for matching
-    const cgIdMap = new Map(mappings.map(m => [m.coingecko_id, m]));
-    const symbolMap = new Map(mappings.map(m => [m.symbol.toUpperCase(), m]));
+    const cgIdMap = new Map(idMappings.map(m => [m.coingecko_id, m]));
+    const symbolMap = new Map(allMappings.map(m => [m.symbol.toUpperCase(), m]));
     const displaySymbolMap = new Map(
-      mappings.filter(m => m.display_symbol).map(m => [m.display_symbol!.toUpperCase(), m])
+      allMappings.filter(m => m.display_symbol).map(m => [m.display_symbol!.toUpperCase(), m])
     );
     
     // Build alias map: alias -> ticker_mapping
     const aliasMap = new Map();
-    for (const m of mappings) {
+    for (const m of allMappings) {
       if (m.aliases && Array.isArray(m.aliases)) {
         for (const alias of m.aliases) {
           aliasMap.set(alias.toUpperCase(), m);
@@ -72,11 +82,21 @@ serve(async (req) => {
       }
     }
 
-    // Match CoinGecko coins to our mappings with fallbacks
-    const results = cgCoins
+    // Match CoinGecko coins to our mappings with fallbacks and metadata
+    type MatchPrecedence = 'coingecko_id' | 'forced_anchor' | 'alias' | 'symbol';
+    const precedenceOrder: Record<MatchPrecedence, number> = {
+      'coingecko_id': 4,
+      'forced_anchor': 3,
+      'alias': 2,
+      'symbol': 1
+    };
+
+    const matchStats = { coingecko_id: 0, forced_anchor: 0, alias: 0, symbol: 0 };
+    
+    const candidateResults = cgCoins
       .map(coin => {
         let mapping = null;
-        let matchedBy = '';
+        let matchedBy: MatchPrecedence | '' = '';
         
         // 1. Try coingecko_id match (primary)
         mapping = cgIdMap.get(coin.id);
@@ -117,6 +137,7 @@ serve(async (req) => {
           return null;
         }
 
+        if (matchedBy) matchStats[matchedBy]++;
         console.log(`  ✅ ${mapping.symbol}: $${coin.current_price} (${coin.price_change_percentage_24h?.toFixed(2)}%) [${matchedBy}]`);
 
         return {
@@ -124,33 +145,82 @@ serve(async (req) => {
           display: mapping.display_name,
           price: coin.current_price,
           change24h: coin.price_change_percentage_24h || 0,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          matchedBy
         };
       })
       .filter(r => r !== null);
 
-    console.log(`\n✨ Matched ${results.length} coins to ticker_mappings`);
+    console.log(`\n✨ Matched ${candidateResults.length} coins before deduplication`);
 
-    // Upsert all results to live_prices
+    // Deduplicate by ticker, keeping best match based on precedence
+    const dedupeMap = new Map<string, typeof candidateResults[0]>();
+    for (const candidate of candidateResults) {
+      const existing = dedupeMap.get(candidate.ticker);
+      if (!existing) {
+        dedupeMap.set(candidate.ticker, candidate);
+      } else {
+        const existingPrecedence = precedenceOrder[existing.matchedBy as MatchPrecedence] || 0;
+        const candidatePrecedence = precedenceOrder[candidate.matchedBy as MatchPrecedence] || 0;
+        if (candidatePrecedence > existingPrecedence) {
+          dedupeMap.set(candidate.ticker, candidate);
+        }
+      }
+    }
+
+    const results = Array.from(dedupeMap.values()).map(({ ticker, display, price, change24h, updated_at }) => ({
+      ticker,
+      display,
+      price,
+      change24h,
+      updated_at
+    }));
+
+    const duplicatesRemoved = candidateResults.length - results.length;
+    console.log(`🔍 Deduplicated: ${results.length} unique tickers (removed ${duplicatesRemoved} duplicates)`);
+    console.log(`📊 Match breakdown: ${JSON.stringify(matchStats)}`);
+
+    // Upsert all results to live_prices with defensive retry
     if (results.length > 0) {
       console.log(`\n💾 Upserting ${results.length} prices to live_prices...`);
       
-      const { error: upsertError } = await supabase
-        .from('live_prices')
-        .upsert(results, { onConflict: 'ticker' });
+      try {
+        const { error: upsertError } = await supabase
+          .from('live_prices')
+          .upsert(results, { onConflict: 'ticker' });
 
-      if (upsertError) {
-        throw new Error(`Failed to upsert prices: ${upsertError.message}`);
+        if (upsertError) {
+          throw new Error(`Failed to upsert prices: ${upsertError.message}`);
+        }
+
+        console.log(`✅ Successfully synced ${results.length} prices!`);
+      } catch (error: any) {
+        if (error.message?.includes('ON CONFLICT DO UPDATE')) {
+          console.error(`⚠️ Upsert conflict detected, retrying with fresh dedupe...`);
+          // Defensive: re-dedupe and retry once
+          const uniqueResults = Array.from(new Map(results.map(r => [r.ticker, r])).values());
+          const { error: retryError } = await supabase
+            .from('live_prices')
+            .upsert(uniqueResults, { onConflict: 'ticker' });
+          
+          if (retryError) {
+            throw new Error(`Retry failed: ${retryError.message}`);
+          }
+          console.log(`✅ Retry successful: synced ${uniqueResults.length} prices!`);
+        } else {
+          throw error;
+        }
       }
-
-      console.log(`✅ Successfully synced ${results.length} prices!`);
     }
 
     const response = {
       success: true,
       synced: results.length,
       total_from_coingecko: cgCoins.length,
-      matched_to_mappings: results.length,
+      matched_before_dedupe: candidateResults.length,
+      matched_after_dedupe: results.length,
+      duplicates_removed: duplicatesRemoved,
+      match_breakdown: matchStats,
       source: 'coingecko-bulk',
       message: `Synced ${results.length} prices from CoinGecko top ${cgCoins.length} by market cap`
     };
