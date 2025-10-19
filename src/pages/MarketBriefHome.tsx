@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Share, Copy, ExternalLink, TrendingUp, BarChart3, Users, DollarSign } from 'lucide-react';
@@ -37,6 +37,8 @@ interface MarketBrief {
 
 export default function MarketBriefHome() {
   const { date } = useParams();
+  const [searchParams] = useSearchParams();
+  const refresh = searchParams.get('refresh');
   const [brief, setBrief] = useState<MarketBrief | null>(null);
   const [briefData, setBriefData] = useState<any>(null); // Store raw database data
   const [loading, setLoading] = useState(true);
@@ -307,14 +309,14 @@ export default function MarketBriefHome() {
             .from('market_briefs')
             .select('*')
             .eq('is_published', true)
-            .gte('created_at', todayStart)
-            .lt('created_at', tomorrowStart)
-            .order('created_at', { ascending: false })
+            .gte('published_at', todayStart)
+            .lt('published_at', tomorrowStart)
+            .order('published_at', { ascending: false })
             .limit(1)
             .maybeSingle();
           
           if (todayBrief) {
-            console.log('✅ Found today\'s brief:', todayBrief.slug);
+            console.log('✅ Found today\'s brief:', { slug: todayBrief.slug, published_at: todayBrief.published_at });
             briefData = todayBrief;
           } else {
             // Fallback: show the most recent brief but flag it as "not today"
@@ -323,9 +325,9 @@ export default function MarketBriefHome() {
               .from('market_briefs')
               .select('*')
               .eq('is_published', true)
-              .order('created_at', { ascending: false })
+              .order('published_at', { ascending: false })
               .limit(1)
-              .single();
+              .maybeSingle();
             
             if (error || !data) {
               console.error('🐕 XRay: Brief fetch failed:', error);
@@ -338,6 +340,7 @@ export default function MarketBriefHome() {
         }
         
         console.log('🐕 XRay: Brief loaded successfully!', briefData);
+        console.log('📊 Homepage brief:', { slug: briefData.slug, published_at: briefData.published_at });
         
         // Store the raw database data for market widgets
         setBriefData(briefData);
@@ -498,7 +501,7 @@ export default function MarketBriefHome() {
     };
 
     fetchBrief();
-  }, [toast, date]);
+  }, [toast, date, refresh]);
 
   const handleShareX = () => {
     if (!brief) return;
