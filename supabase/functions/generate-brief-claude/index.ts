@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 import { toZonedTime, format } from 'https://esm.sh/date-fns-tz@3.2.0';
 import { fetchComprehensiveMarketData } from './data-fetchers.ts';
 import { buildEnhancedPrompt, countWords } from './prompt-builder.ts';
+import { buildSundaySpecialPrompt } from './sunday-special-prompt.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +26,12 @@ serve(async (req) => {
     const { briefType = 'morning' } = await req.json();
     console.log(`🤖 Automated Brief Generation Started - Type: ${briefType}`);
     console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+
+    // Validate brief type
+    const validTypes = ['morning', 'evening', 'weekend', 'sunday_special'];
+    if (!validTypes.includes(briefType)) {
+      throw new Error(`Invalid brief type: ${briefType}`);
+    }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -52,7 +59,9 @@ serve(async (req) => {
     // STEP 2: Build Enhanced Prompt
     // ===================================================================
     console.log('📝 Building enhanced prompt with comprehensive data...');
-    const prompt = buildEnhancedPrompt(briefType, dateStr, timeStr, marketData);
+    const prompt = briefType === 'sunday_special'
+      ? buildSundaySpecialPrompt(dateStr, timeStr, marketData)
+      : buildEnhancedPrompt(briefType, dateStr, timeStr, marketData);
     console.log(`✅ Prompt built: ${prompt.length} characters`);
 
     // ===================================================================
@@ -69,7 +78,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
+        max_tokens: briefType === 'sunday_special' ? 6000 : 4000,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -110,7 +119,13 @@ serve(async (req) => {
     // STEP 5: Save Brief to Database
     // ===================================================================
     const slug = `${briefType}-${dateStr}`;
-    const briefTypeTitle = briefType === 'morning' ? 'Morning Brief' : briefType === 'evening' ? 'Evening Wrap' : 'Weekly Recap';
+    const briefTypeTitle = briefType === 'morning' 
+      ? 'Morning Brief' 
+      : briefType === 'evening' 
+        ? 'Evening Wrap'
+        : briefType === 'sunday_special'
+          ? '🎬 Sunday Special'
+          : 'Weekly Recap';
     const title = `${briefTypeTitle} - ${format(etNow, 'EEEE, MMMM d, yyyy', { timeZone: 'America/New_York' })}`;
 
     // Extract featured assets from top movers
