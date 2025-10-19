@@ -155,7 +155,6 @@ export function GenerateBrief() {
             <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
               <li><strong>Morning Brief:</strong> Pre-market analysis with opening trends (10-15s)</li>
               <li><strong>Evening Brief:</strong> Market recap with closing analysis (10-15s)</li>
-              <li><strong>Weekly Recap:</strong> Comprehensive weekly market summary (15-20s)</li>
               <li><strong>Sunday Special:</strong> Flagship weekly content - investigative, witty, entertaining (15-30s)</li>
             </ul>
             <p className="text-xs text-muted-foreground mt-2">
@@ -260,19 +259,8 @@ export function GenerateBrief() {
                   {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {generating ? progress || 'Generating...' : '🌆 Evening Brief'}
                 </Button>
-                
-                <Button 
-                  onClick={() => handleGenerateBrief('weekend')} 
-                  disabled={generating}
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                >
-                  {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {generating ? progress || 'Generating...' : '📅 Weekly Recap'}
-                </Button>
 
-                <Button 
+                <Button
                   onClick={() => handleGenerateBrief('sunday_special')} 
                   disabled={generating}
                   variant="outline"
