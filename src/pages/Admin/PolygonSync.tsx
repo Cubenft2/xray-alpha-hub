@@ -1,15 +1,69 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Zap, Radio, StopCircle } from 'lucide-react';
+import { Loader2, Zap, Radio, StopCircle, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+
+interface RelayHealth {
+  isActive: boolean;
+  lastHeartbeat: string | null;
+  instanceId: string | null;
+  minutesStale: number | null;
+}
 
 export function PolygonSync() {
   const [mapping, setMapping] = useState(false);
   const [relaying, setRelaying] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [relayHealth, setRelayHealth] = useState<RelayHealth | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkRelayHealth();
+    const interval = setInterval(checkRelayHealth, 30000); // Check every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  const checkRelayHealth = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('price_sync_leader')
+        .select('*')
+        .eq('id', 'singleton')
+        .maybeSingle();
+      
+      if (error) throw error;
+
+      if (!data) {
+        setRelayHealth({
+          isActive: false,
+          lastHeartbeat: null,
+          instanceId: null,
+          minutesStale: null
+        });
+      } else {
+        const heartbeatTime = new Date(data.heartbeat_at).getTime();
+        const now = Date.now();
+        const minutesStale = Math.floor((now - heartbeatTime) / 1000 / 60);
+        const isActive = minutesStale < 2; // Consider active if heartbeat within 2 minutes
+
+        setRelayHealth({
+          isActive,
+          lastHeartbeat: data.heartbeat_at,
+          instanceId: data.instance_id,
+          minutesStale
+        });
+      }
+    } catch (error: any) {
+      console.error('Error checking relay health:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleMapTickers = async () => {
     setMapping(true);
@@ -74,6 +128,41 @@ export function PolygonSync() {
     }
   };
 
+  const handleForceRestart = async () => {
+    setRestarting(true);
+    try {
+      // Step 1: Clear stale leader
+      const { error: deleteError } = await supabase
+        .from('price_sync_leader')
+        .delete()
+        .eq('id', 'singleton');
+      
+      if (deleteError) throw deleteError;
+
+      // Step 2: Wait a moment for cleanup
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Step 3: Start fresh relay
+      const { data, error: invokeError } = await supabase.functions.invoke('polygon-price-relay');
+      
+      if (invokeError) throw invokeError;
+      
+      toast.success('Price relay restarted successfully', {
+        description: data.message || 'Fresh WebSocket connection established'
+      });
+
+      // Step 4: Check health immediately
+      setTimeout(() => checkRelayHealth(), 2000);
+    } catch (error: any) {
+      console.error('Error restarting relay:', error);
+      toast.error('Failed to restart relay', {
+        description: error.message
+      });
+    } finally {
+      setRestarting(false);
+    }
+  };
+
   const handleSyncPrices = async () => {
     setSyncing(true);
     try {
@@ -97,8 +186,119 @@ export function PolygonSync() {
     }
   };
 
+  const formatLastHeartbeat = (timestamp: string | null) => {
+    if (!timestamp) return 'Never';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 1000 / 60);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins === 1) return '1 minute ago';
+    if (diffMins < 60) return `${diffMins} minutes ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours === 1) return '1 hour ago';
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+  };
+
   return (
     <div className="space-y-6">
+      {/* Health Status Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Radio className="h-5 w-5" />
+            Price Relay Health Status
+          </CardTitle>
+          <CardDescription>
+            Real-time monitoring of the Polygon.io WebSocket price relay
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loading ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Checking relay status...</span>
+            </div>
+          ) : relayHealth ? (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {relayHealth.isActive ? (
+                    <>
+                      <CheckCircle className="h-6 w-6 text-green-500" />
+                      <div>
+                        <p className="font-semibold text-green-500">Active & Healthy</p>
+                        <p className="text-sm text-muted-foreground">
+                          Last heartbeat: {formatLastHeartbeat(relayHealth.lastHeartbeat)}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-6 w-6 text-destructive" />
+                      <div>
+                        <p className="font-semibold text-destructive">
+                          {relayHealth.lastHeartbeat ? 'Stale / Dead' : 'Not Running'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {relayHealth.lastHeartbeat 
+                            ? `Last heartbeat: ${formatLastHeartbeat(relayHealth.lastHeartbeat)}`
+                            : 'No active relay instance found'}
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <Badge variant={relayHealth.isActive ? "default" : "destructive"}>
+                  {relayHealth.isActive ? 'LIVE' : 'DOWN'}
+                </Badge>
+              </div>
+
+              {!relayHealth.isActive && relayHealth.minutesStale && relayHealth.minutesStale > 2 && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm">
+                  <p className="font-semibold text-destructive mb-1">⚠️ Action Required</p>
+                  <p className="text-muted-foreground">
+                    The price relay has been dead for {relayHealth.minutesStale} minutes. 
+                    Click "Force Restart" below to restore live price updates.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                <div>
+                  <p className="text-xs text-muted-foreground">Instance ID</p>
+                  <p className="text-sm font-mono">{relayHealth.instanceId || 'None'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Minutes Since Heartbeat</p>
+                  <p className="text-sm font-mono">
+                    {relayHealth.minutesStale !== null ? relayHealth.minutesStale : 'N/A'}
+                  </p>
+                </div>
+              </div>
+
+              <Button 
+                onClick={handleForceRestart}
+                disabled={restarting}
+                variant={relayHealth.isActive ? "outline" : "default"}
+                className="w-full"
+              >
+                {restarting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <RefreshCw className="mr-2 h-4 w-4" />
+                {restarting ? 'Restarting...' : 'Force Restart Relay'}
+              </Button>
+            </>
+          ) : (
+            <p className="text-muted-foreground">Unable to fetch relay status</p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
