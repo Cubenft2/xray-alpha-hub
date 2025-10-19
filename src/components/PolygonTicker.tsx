@@ -341,30 +341,24 @@ export function PolygonTicker() {
   };
 
   const getStatusBadge = () => {
-    const now = Date.now();
-    const delta = lastUpdateTs ? Math.floor((now - lastUpdateTs) / 1000) : 0;
-
     switch (liveStatus) {
       case 'live':
         return (
-          <Badge variant="default" className="bg-green-600 hover:bg-green-600 gap-1 animate-pulse">
-            <Radio className="h-3 w-3" />
-            LIVE
-          </Badge>
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-600/20">
+            <Radio className="h-4 w-4 text-green-500 animate-pulse" />
+          </div>
         );
       case 'recovering':
         return (
-          <Badge variant="secondary" className="bg-amber-600 hover:bg-amber-600 gap-1">
-            <Radio className="h-3 w-3" />
-            RECOVERING
-          </Badge>
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-600/20">
+            <Radio className="h-4 w-4 text-amber-500" />
+          </div>
         );
       case 'fallback':
         return (
-          <Badge variant="destructive" className="gap-1">
-            <Radio className="h-3 w-3" />
-            FALLBACK
-          </Badge>
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-600/20">
+            <Radio className="h-4 w-4 text-red-500" />
+          </div>
         );
     }
   };
@@ -373,7 +367,7 @@ export function PolygonTicker() {
     <TooltipProvider>
       <div className="relative bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y overflow-hidden">
         <div className="container mx-auto py-2 flex items-center gap-2 md:gap-4">
-          {/* Status Badge */}
+          {/* Status Indicator */}
           <div className="flex items-center shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -382,13 +376,18 @@ export function PolygonTicker() {
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p className="text-xs">
+                <p className="text-xs font-semibold">
+                  {liveStatus === 'live' && 'STREAMING LIVE'}
+                  {liveStatus === 'recovering' && 'RECOVERING...'}
+                  {liveStatus === 'fallback' && 'FALLBACK MODE'}
+                </p>
+                <p className="text-xs text-muted-foreground">
                   {lastUpdateTs 
-                    ? `Last update: ${Math.floor((Date.now() - lastUpdateTs) / 1000)}s ago`
+                    ? `Updated ${Math.floor((Date.now() - lastUpdateTs) / 1000)}s ago`
                     : 'Connecting...'}
                 </p>
                 {liveStatus === 'fallback' && (
-                  <p className="text-xs text-amber-400 mt-1">Polling direct quotes (stream stale)</p>
+                  <p className="text-xs text-amber-400 mt-1">Polling direct quotes</p>
                 )}
               </TooltipContent>
             </Tooltip>
