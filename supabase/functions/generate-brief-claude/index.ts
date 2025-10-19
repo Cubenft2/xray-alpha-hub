@@ -32,31 +32,49 @@ serve(async (req) => {
     const dateStr = format(etNow, 'yyyy-MM-dd', { timeZone: 'America/New_York' });
     const timeStr = format(etNow, 'h:mm a zzz', { timeZone: 'America/New_York' });
 
-    // Fetch BTC and ETH prices from price_cache
-    const { data: btcCache } = await supabase
-      .from('price_cache')
-      .select('price, metadata')
-      .eq('symbol', 'BTC')
-      .gt('expires_at', new Date().toISOString())
-      .order('cached_at', { ascending: false })
-      .limit(1)
-      .single();
+    // Fetch BTC and ETH prices from live_prices
+    const { data: priceData, error: priceError } = await supabase
+      .from('live_prices')
+      .select('ticker, price, change24h, updated_at')
+      .in('ticker', ['BTC', 'ETH'])
+      .order('updated_at', { ascending: false });
 
-    const { data: ethCache } = await supabase
-      .from('price_cache')
-      .select('price, metadata')
-      .gt('expires_at', new Date().toISOString())
-      .eq('symbol', 'ETH')
-      .order('cached_at', { ascending: false })
-      .limit(1)
-      .single();
+    if (priceError) {
+      throw new Error(`❌ Failed to fetch price data: ${priceError.message}`);
+    }
 
-    const btcPrice = btcCache?.price || 0;
-    const ethPrice = ethCache?.price || 0;
-    const btcChange = btcCache?.metadata?.change_24h || 0;
-    const ethChange = ethCache?.metadata?.change_24h || 0;
+    if (!priceData || priceData.length === 0) {
+      throw new Error('❌ No price data found - run manual-price-sync first');
+    }
 
-    console.log(`✅ Anchors: BTC=$${btcPrice} (${btcChange}%), ETH=$${ethPrice} (${ethChange}%)`);
+    // Find BTC and ETH from results
+    const btcData = priceData.find(p => p.ticker === 'BTC');
+    const ethData = priceData.find(p => p.ticker === 'ETH');
+
+    if (!btcData || !ethData) {
+      throw new Error(`❌ Missing price data - BTC: ${!!btcData}, ETH: ${!!ethData}`);
+    }
+
+    const btcPrice = btcData.price || 0;
+    const ethPrice = ethData.price || 0;
+    const btcChange = btcData.change24h || 0;
+    const ethChange = ethData.change24h || 0;
+
+    // Validate prices are not zero
+    if (btcPrice === 0 || ethPrice === 0) {
+      throw new Error(`❌ Invalid price data - BTC: $${btcPrice}, ETH: $${ethPrice}`);
+    }
+
+    // Check if data is recent (within 24 hours)
+    const btcAge = new Date().getTime() - new Date(btcData.updated_at).getTime();
+    const ethAge = new Date().getTime() - new Date(ethData.updated_at).getTime();
+    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+    if (btcAge > maxAge || ethAge > maxAge) {
+      console.warn(`⚠️ Price data is stale - BTC: ${Math.round(btcAge/3600000)}h, ETH: ${Math.round(ethAge/3600000)}h old`);
+    }
+
+    console.log(`✅ Anchors: BTC=$${btcPrice} (${btcChange.toFixed(2)}%), ETH=$${ethPrice} (${ethChange.toFixed(2)}%)`);
 
     // ===================================================================
     // STEP 2: Build Claude Prompt
@@ -237,8 +255,8 @@ Write the ${briefTypeTitle} now:`;
       },
       stoic_quote: stoicQuote,
       stoic_quote_author: stoicQuoteAuthor,
-      is_published: false,
-      published_at: null,
+      is_published: true,
+      published_at: new Date().toISOString(),
       market_data: {
         btc: { price: btcPrice, change_24h: btcChange },
         eth: { price: ethPrice, change_24h: ethChange }
