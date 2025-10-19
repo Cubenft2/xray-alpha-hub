@@ -14,12 +14,12 @@ export function GenerateBrief() {
   const [useCustomQuote, setUseCustomQuote] = useState(false);
   const navigate = useNavigate();
 
-  const handleGenerateBrief = async (briefType: 'morning' | 'evening' | 'weekend') => {
+  const handleGenerateBrief = async (briefType: 'morning' | 'evening' | 'weekend', useClaude = false) => {
     setGenerating(true);
     setProgress('Initializing...');
     
     try {
-      console.log(`🚀 Generating ${briefType} brief with Symbol Intelligence Layer...`);
+      console.log(`🚀 Generating ${briefType} brief with ${useClaude ? 'Claude AI' : 'Symbol Intelligence Layer'}...`);
       
       setProgress('Setting up custom quote...');
       // Store custom quote if provided
@@ -32,11 +32,16 @@ export function GenerateBrief() {
         console.log('✅ Custom quote override set');
       }
       
-      setProgress('Collecting market data...');
-      await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay for UX
+      if (useClaude) {
+        setProgress('Generating brief with Claude AI (10-20s)...');
+      } else {
+        setProgress('Collecting market data...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay for UX
+        setProgress('Generating brief with AI (15-30s)...');
+      }
       
-      setProgress('Generating brief with AI (15-30s)...');
-      const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
+      const functionName = useClaude ? 'generate-brief-claude' : 'generate-daily-brief';
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { briefType }
       });
       
@@ -177,38 +182,84 @@ export function GenerateBrief() {
               </div>
             )}
             
-            <div className="grid gap-3">
-              <Button 
-                onClick={() => handleGenerateBrief('morning')} 
-                disabled={generating}
-                className="w-full"
-                size="lg"
-              >
-                {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {generating ? progress || 'Generating...' : '🌅 Generate Morning Brief'}
-              </Button>
-              
-              <Button 
-                onClick={() => handleGenerateBrief('evening')} 
-                disabled={generating}
-                variant="secondary"
-                className="w-full"
-                size="lg"
-              >
-                {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {generating ? progress || 'Generating...' : '🌆 Generate Evening Brief'}
-              </Button>
-              
-              <Button 
-                onClick={() => handleGenerateBrief('weekend')} 
-                disabled={generating}
-                variant="outline"
-                className="w-full"
-                size="lg"
-              >
-                {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {generating ? progress || 'Generating...' : '📅 Generate Weekly Recap'}
-              </Button>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Claude AI (Recommended - Fresh Start)</h3>
+                <div className="grid gap-3">
+                  <Button 
+                    onClick={() => handleGenerateBrief('morning', true)} 
+                    disabled={generating}
+                    className="w-full bg-gradient-to-r from-primary to-primary/80"
+                    size="lg"
+                  >
+                    {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {generating ? progress || 'Generating...' : '🤖 Claude Morning Brief'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => handleGenerateBrief('evening', true)} 
+                    disabled={generating}
+                    variant="secondary"
+                    className="w-full"
+                    size="lg"
+                  >
+                    {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {generating ? progress || 'Generating...' : '🤖 Claude Evening Brief'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => handleGenerateBrief('weekend', true)} 
+                    disabled={generating}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                  >
+                    {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {generating ? progress || 'Generating...' : '🤖 Claude Weekly Recap'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  ⚡ Uses Claude Sonnet 4.5 with minimal data - 10x cheaper, more accurate
+                </p>
+              </div>
+
+              <div className="border-t border-border pt-6">
+                <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Legacy System (GPT-4o + Full Data)</h3>
+                <div className="grid gap-3">
+                  <Button 
+                    onClick={() => handleGenerateBrief('morning', false)} 
+                    disabled={generating}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                  >
+                    {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {generating ? progress || 'Generating...' : '🌅 GPT-4o Morning Brief'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => handleGenerateBrief('evening', false)} 
+                    disabled={generating}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                  >
+                    {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {generating ? progress || 'Generating...' : '🌆 GPT-4o Evening Brief'}
+                  </Button>
+                  
+                  <Button 
+                    onClick={() => handleGenerateBrief('weekend', false)} 
+                    disabled={generating}
+                    variant="outline"
+                    className="w-full"
+                    size="lg"
+                  >
+                    {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {generating ? progress || 'Generating...' : '📅 GPT-4o Weekly Recap'}
+                  </Button>
+                </div>
+              </div>
             </div>
             
             <p className="text-xs text-muted-foreground mt-4">
