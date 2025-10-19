@@ -335,14 +335,12 @@ export default function MarketBriefHome() {
         // Store the raw database data for market widgets
         setBriefData(briefData);
         
-        // Only auto-regenerate if both AI content AND article_html are missing
+        // Check if content exists
         const hasAiContent = (briefData as any)?.content_sections?.ai_generated_content;
         const hasArticleHtml = briefData.article_html;
         
         if (!hasAiContent && !hasArticleHtml && !date) {
-          console.log('🛠️ No content available — creating fresh brief...');
-          await generateFreshBrief();
-          return; // Wait for reload
+          console.log('⚠️ No content available - please generate a brief from the admin panel.');
         }
         
         console.log('📰 Brief content check:', { 
@@ -350,7 +348,7 @@ export default function MarketBriefHome() {
           hasArticleHtml: !!hasArticleHtml,
           hasMarketData: !!(briefData as any)?.content_sections?.market_data 
         });
-        // If an admin audit block accidentally leaked into the article, regenerate a clean brief (no button)
+        // Check for admin audit block in content
         if (!date) {
           const aiTextRaw = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
           const articleHtmlRaw = (briefData as any)?.article_html as string | undefined;
@@ -358,9 +356,7 @@ export default function MarketBriefHome() {
             (aiTextRaw && aiTextRaw.includes('[ADMIN] Symbol Intelligence Audit')) ||
             (articleHtmlRaw && articleHtmlRaw.includes('[ADMIN] Symbol Intelligence Audit'));
           if (hasAdminLeak) {
-            console.log('🧹 Admin audit detected in brief — regenerating clean version...');
-            await generateFreshBrief();
-            return; // Wait for reload
+            console.log('⚠️ Admin audit detected in brief - content may need regeneration.');
           }
         }
         
@@ -497,89 +493,6 @@ export default function MarketBriefHome() {
     fetchBrief();
   }, [toast, date]);
 
-  const generateFreshBrief = async () => {
-    try {
-      setGenerating(true);
-      console.log('🚀 Generating fresh market brief via edge function...');
-
-      const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
-        body: { briefType: deriveBriefType() }
-      });
-
-      if (error) {
-        console.error('❌ Brief generation failed:', error);
-        toast({
-          title: "Generation Failed",
-          description: `Brief generation failed: ${JSON.stringify(error)}`,
-          variant: "destructive"
-        });
-        throw error;
-      }
-
-      console.log('✅ Fresh brief generated successfully:', data);
-      toast({
-        title: "Fresh Brief Published!",
-        description: data?.message || 'New brief created with current market insights.',
-      });
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-
-    } catch (error) {
-      console.error('💥 Fresh brief creation error:', error);
-      toast({
-        title: "Creation Failed",
-        description: `Error: ${error}. Please try again.`,
-        variant: "destructive"
-      });
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const generateComprehensiveBrief = async () => {
-    try {
-      setGenerating(true);
-      console.log('🚀 Generating comprehensive market brief with API keys...');
-      
-      const { data, error } = await supabase.functions.invoke('generate-daily-brief', {
-        body: { briefType: deriveBriefType() }
-      });
-      
-      if (error) {
-        console.error('❌ Brief generation failed:', error);
-        toast({
-          title: "API Error",
-          description: `Brief generation failed: ${JSON.stringify(error)}`,
-          variant: "destructive"
-        });
-        throw error;
-      }
-      
-      console.log('✅ Brief generated successfully with data sources:', data?.data_summary);
-      toast({
-        title: "Success!",
-        description: `New brief created with ${data?.data_summary?.coins_analyzed || 0} coins analyzed and ${data?.data_summary?.social_assets || 0} social assets tracked.`,
-      });
-      
-      // Refresh the page after a short delay to load the new brief
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
-    } catch (error) {
-      console.error('💥 Brief generation error:', error);
-      toast({
-        title: "Generation Failed",
-        description: `Error: ${error}. Check if API keys are working.`,
-        variant: "destructive"
-      });
-    } finally {
-      setGenerating(false);
-    }
-  };
-
   const handleShareX = () => {
     if (!brief) return;
     
@@ -694,12 +607,12 @@ export default function MarketBriefHome() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">{brief.title || 'Market Brief'}</h1>
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Regenerate Brief button disabled per request */} {false && (
+            {/* Brief generation now happens in admin panel only - /admin/generate-brief */}
+            {false && (
             <Button 
               variant="default" 
               size="sm" 
-              onClick={generateFreshBrief}
-              disabled={generating}
+              disabled={true}
               className="btn-hero"
             >
               {generating ? (
