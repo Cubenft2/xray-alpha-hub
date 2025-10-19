@@ -104,6 +104,33 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
   }, [navigate]);
 
+  // New handler for full asset mention clicks - opens TradingView charts
+  const handleAssetClick = React.useCallback((event: React.MouseEvent, ticker: string) => {
+    event.preventDefault();
+    const upperTicker = ticker.toUpperCase();
+    
+    // Use centralized configuration to determine routing
+    const NON_ASSET = new Set(['CPI', 'GREED', 'NEUTRAL']);
+    if (NON_ASSET.has(upperTicker)) return;
+    
+    const mapping = getTickerMapping(upperTicker);
+    
+    let chartUrl: string;
+    
+    if (mapping?.type === 'crypto' || isKnownCrypto(upperTicker)) {
+      // Crypto → TradingView with BINANCE pair
+      chartUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${upperTicker}USDT`;
+    } else if (mapping?.type === 'stock') {
+      // Stock → TradingView stock chart using mapped symbol (already includes exchange)
+      chartUrl = `https://www.tradingview.com/chart/?symbol=${mapping.symbol}`;
+    } else {
+      // Fallback → TradingView general search
+      chartUrl = `https://www.tradingview.com/symbols/${upperTicker}/`;
+    }
+    
+    window.open(chartUrl, '_blank', 'noopener,noreferrer');
+  }, []);
+
   const processContent = (text: string) => {
     // Normalize any pre-existing HTML tags in the source to plain newlines/markdown first
     const normalized = text
@@ -199,8 +226,12 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             const beforeText = text.substring(0, index);
             const afterText = text.substring(index + match.length);
             
-            // Create structure: Name (SYMBOL) $price (+change%)
-            // Each component gets its own span with specific class
+            // Create clickable link wrapper for entire mention
+            const linkWrapper = document.createElement('a');
+            linkWrapper.href = '#';
+            linkWrapper.className = 'asset-mention-link';
+            linkWrapper.setAttribute('data-ticker', symbol);
+            linkWrapper.setAttribute('onclick', `event.preventDefault(); window.handleAssetClick(event, '${symbol}')`);
             
             // Name span
             const nameSpan = document.createElement('span');
@@ -219,31 +250,31 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             // Opening paren
             const openParen = document.createTextNode('(');
             
-            // Clickable ticker symbol with its own span
-            const tickerLink = document.createElement('span');
-            tickerLink.className = 'sym-ticker';
-            tickerLink.setAttribute('data-ticker', symbol);
-            tickerLink.setAttribute('onclick', `window.handleTickerClick('${symbol}')`);
-            tickerLink.style.cursor = 'pointer';
-            tickerLink.textContent = symbol;
+            // Ticker symbol span (no longer needs click handler - parent link handles it)
+            const tickerSpan = document.createElement('span');
+            tickerSpan.className = 'sym-ticker';
+            tickerSpan.textContent = symbol;
             
             // Closing paren (will be populated with price/change later)
             const closeParen = document.createTextNode(')');
             
             parenWrapper.appendChild(openParen);
-            parenWrapper.appendChild(tickerLink);
+            parenWrapper.appendChild(tickerSpan);
             parenWrapper.appendChild(closeParen);
+            
+            // Assemble: linkWrapper contains nameSpan + space + parenWrapper
+            linkWrapper.appendChild(nameSpan);
+            linkWrapper.appendChild(spaceText);
+            linkWrapper.appendChild(parenWrapper);
             
             const parent = node.parentNode;
             if (parent) {
-              // Insert in order: beforeText, nameSpan, space, parenWrapper, afterText
+              // Insert in order: beforeText, linkWrapper, afterText
               if (afterText) {
                 const afterNode = document.createTextNode(afterText);
                 parent.insertBefore(afterNode, node.nextSibling);
               }
-              parent.insertBefore(parenWrapper, node.nextSibling);
-              parent.insertBefore(spaceText, node.nextSibling);
-              parent.insertBefore(nameSpan, node.nextSibling);
+              parent.insertBefore(linkWrapper, node.nextSibling);
               node.textContent = beforeText;
             }
           });
@@ -279,8 +310,9 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   }, [tickers.length]); // Only depend on length to avoid infinite loops
 
   React.useEffect(() => {
-    // Add global click handler for ticker buttons
+    // Add global click handlers
     (window as any).handleTickerClick = handleTickerClick;
+    (window as any).handleAssetClick = handleAssetClick;
     
     // Initialize capability-aware inline quotes
     const initCapabilityQuotes = async () => {
@@ -455,20 +487,43 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           white-space: nowrap;
         }
         
-        /* Ticker Symbol - clickable, accent color */
+        /* Asset mention link - wraps entire mention */
+        .asset-mention-link {
+          display: inline;
+          text-decoration: none;
+          color: inherit;
+          transition: all 0.2s ease;
+          border-radius: 4px;
+          padding: 0 2px;
+          position: relative;
+        }
+        .asset-mention-link:hover {
+          background-color: hsl(var(--primary) / 0.1);
+          text-decoration: underline;
+          text-decoration-color: hsl(var(--primary));
+          text-decoration-thickness: 2px;
+          text-underline-offset: 2px;
+        }
+        .asset-mention-link:hover .sym-name {
+          color: hsl(var(--primary));
+        }
+        .asset-mention-link::after {
+          content: " ↗";
+          font-size: 0.75rem;
+          opacity: 0;
+          transition: opacity 0.2s;
+          color: hsl(var(--primary));
+          margin-left: 2px;
+        }
+        .asset-mention-link:hover::after {
+          opacity: 0.7;
+        }
+        
+        /* Ticker Symbol - no longer individually clickable, parent link handles it */
         .sym-ticker {
           display: inline;
           color: hsl(var(--primary));
           font-weight: 700;
-          text-decoration: none;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border-bottom: 1px solid transparent;
-        }
-        
-        .sym-ticker:hover {
-          opacity: 0.8;
-          border-bottom-color: hsl(var(--primary));
         }
         
         /* Price - neutral accent color */
