@@ -350,7 +350,7 @@ export default function MarketBriefHome() {
         setBriefData(briefData);
         
         // Check if content exists
-        const hasAiContent = (briefData as any)?.content_sections?.ai_generated_content;
+        const hasAiContent = (briefData as any)?.content_sections?.full_content || (briefData as any)?.content_sections?.ai_generated_content;
         const hasArticleHtml = briefData.article_html;
         
         if (!hasAiContent && !hasArticleHtml && !date) {
@@ -364,7 +364,7 @@ export default function MarketBriefHome() {
         });
         // Check for admin audit block in content
         if (!date) {
-          const aiTextRaw = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
+          const aiTextRaw = ((briefData as any)?.content_sections?.full_content || (briefData as any)?.content_sections?.ai_generated_content) as string | undefined;
           const articleHtmlRaw = (briefData as any)?.article_html as string | undefined;
           const hasAdminLeak =
             (aiTextRaw && aiTextRaw.includes('[ADMIN] Symbol Intelligence Audit')) ||
@@ -444,7 +444,7 @@ export default function MarketBriefHome() {
           return out.join('\n');
         };
 
-        const aiText = (briefData as any)?.content_sections?.ai_generated_content as string | undefined;
+        const aiText = ((briefData as any)?.content_sections?.full_content || (briefData as any)?.content_sections?.ai_generated_content) as string | undefined;
         const cleanAiText = sanitizeAdminLeak(aiText);
         
         // Check if content already contains HTML tags (from AI generation)
