@@ -81,8 +81,11 @@ export function PolygonSync() {
       
       if (error) throw error;
       
+      const breakdown = data.match_breakdown || {};
+      const breakdownText = `by coingecko_id: ${breakdown.coingecko_id || 0}, symbol: ${breakdown.symbol || 0}, alias: ${breakdown.alias || 0}, forced: ${breakdown.forced_anchor || 0}`;
+      
       toast.success('Prices synced successfully', {
-        description: `Synced ${data.synced} prices from Polygon (${data.sources.polygon}), CoinGecko (${data.sources.coingecko}), and Exchange (${data.sources.exchange})`
+        description: `Synced ${data.synced} prices from ${data.source}. Matched ${breakdownText}`
       });
     } catch (error: any) {
       console.error('Error syncing prices:', error);
