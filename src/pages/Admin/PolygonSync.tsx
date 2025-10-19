@@ -24,7 +24,7 @@ export function PolygonSync() {
 
   useEffect(() => {
     checkRelayHealth();
-    const interval = setInterval(checkRelayHealth, 30000); // Check every 30 seconds
+    const interval = setInterval(checkRelayHealth, 10000); // Check every 10 seconds for real-time monitoring
     return () => clearInterval(interval);
   }, []);
 
@@ -48,8 +48,9 @@ export function PolygonSync() {
       } else {
         const heartbeatTime = new Date(data.heartbeat_at).getTime();
         const now = Date.now();
-        const minutesStale = Math.floor((now - heartbeatTime) / 1000 / 60);
-        const isActive = minutesStale < 2; // Consider active if heartbeat within 2 minutes
+        const secondsStale = Math.floor((now - heartbeatTime) / 1000);
+        const minutesStale = Math.floor(secondsStale / 60);
+        const isActive = secondsStale < 30; // Consider active if heartbeat within 30 seconds
 
         setRelayHealth({
           isActive,
@@ -259,12 +260,21 @@ export function PolygonSync() {
                 </Badge>
               </div>
 
-              {!relayHealth.isActive && relayHealth.minutesStale && relayHealth.minutesStale > 2 && (
+              {!relayHealth.isActive && (
                 <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm">
-                  <p className="font-semibold text-destructive mb-1">⚠️ Action Required</p>
+                  <p className="font-semibold text-destructive mb-1">⚠️ CRITICAL: Price Relay is DOWN</p>
                   <p className="text-muted-foreground">
-                    The price relay has been dead for {relayHealth.minutesStale} minutes. 
-                    Click "Force Restart" below to restore live price updates.
+                    Real-time prices are NOT updating. The ticker tape shows stale data. 
+                    Click "Force Restart" below to restore live WebSocket streaming.
+                  </p>
+                </div>
+              )}
+
+              {relayHealth.isActive && (
+                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm">
+                  <p className="font-semibold text-green-700 dark:text-green-300 mb-1">✅ Live & Streaming</p>
+                  <p className="text-muted-foreground">
+                    WebSocket connected to Polygon.io. Auto-restart via cron every 5 minutes to maintain connection.
                   </p>
                 </div>
               )}
@@ -375,6 +385,7 @@ export function PolygonSync() {
           <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-1">
             <p><strong>⚠️ Important:</strong> Run "Map Polygon Tickers" first!</p>
             <p>The relay will automatically subscribe to all tickers with polygon_ticker values in ticker_mappings.</p>
+            <p><strong>⏰ Auto-Restart:</strong> Cron job runs every 5 minutes to keep the relay alive and maintain the WebSocket connection.</p>
             <p><strong>🛑 If stuck:</strong> Use "Force Stop" to clear leadership and wait 30 seconds before restarting.</p>
           </div>
           <div className="flex gap-2">
