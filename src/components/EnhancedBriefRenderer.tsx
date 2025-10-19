@@ -173,18 +173,27 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       .replace(/\n\n+/g, '</p><p class="mb-6 leading-relaxed text-foreground/90">')
       .replace(/\n/g, '<br/>');
 
-    // Style prices (e.g., $50,000, $1.25, $0.00045) - bold white
+    // FIRST: Convert pre-formatted price mentions to clickable links
+    // Pattern: Name (TICKER $PRICE ±X.X%)
+    // This must happen BEFORE price/percentage styling to avoid breaking the pattern
+    const priceRegex = /\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+\(([A-Z]{2,10})\s+\$([0-9,]+(?:\.\d{1,6})?)\s+([+-][0-9]+\.?[0-9]*)%\)/g;
+    enhancedText = enhancedText.replace(priceRegex, (fullMatch, name, ticker, price, change) => {
+      const tickerUpper = ticker.toUpperCase();
+      return `<a href="#" class="inline-crypto-link" data-ticker="${tickerUpper}" onclick="event.preventDefault(); window.handleAssetClick(event, '${tickerUpper}')">${name} (<span class="inline-ticker">${ticker}</span> <span class="inline-price">$${price}</span> <span class="inline-change ${change.startsWith('-') ? 'negative' : 'positive'}">${change}%</span>)</a>`;
+    });
+
+    // Style standalone prices (e.g., $50,000, $1.25, $0.00045) - bold white
     enhancedText = enhancedText.replace(/\$([0-9,]+(?:\.[0-9]+)?)/g, 
       '<span class="price-badge">$$$1</span>');
 
-    // Style percentages (e.g., +5.2%, -3.1%) - will be colored by sign
+    // Style standalone percentages (e.g., +5.2%, -3.1%) - will be colored by sign
     enhancedText = enhancedText.replace(/([+-]?)([0-9]+\.?[0-9]*)%/g, 
       '<span class="percentage-badge" data-sign="$1" data-value="$2">$1$2%</span>');
 
     // Sanitize HTML before DOM manipulation to prevent XSS attacks
     const sanitized = DOMPurify.sanitize(enhancedText, {
-      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'ul', 'ol', 'li', 'hr'],
-      ALLOWED_ATTR: ['class', 'data-ticker', 'data-type', 'data-sign', 'data-value', 'data-quote-symbol', 'data-sym', 'style'],
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'ul', 'ol', 'li', 'hr', 'a'],
+      ALLOWED_ATTR: ['class', 'data-ticker', 'data-type', 'data-sign', 'data-value', 'data-quote-symbol', 'data-sym', 'style', 'href', 'onclick'],
       KEEP_CONTENT: true,
       RETURN_DOM: false,
       RETURN_DOM_FRAGMENT: false
@@ -517,6 +526,51 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         }
         .asset-mention-link:hover::after {
           opacity: 0.7;
+        }
+        
+        /* Inline crypto link - for pre-formatted price mentions */
+        .inline-crypto-link {
+          display: inline;
+          color: inherit;
+          text-decoration: none;
+          border-bottom: 1px dashed hsl(var(--primary) / 0.4);
+          transition: all 0.2s ease;
+          cursor: pointer;
+          padding: 0 1px;
+        }
+        .inline-crypto-link:hover {
+          color: hsl(var(--primary));
+          border-bottom: 2px solid hsl(var(--primary));
+          text-decoration: none;
+        }
+        .inline-crypto-link::after {
+          content: " 📊";
+          font-size: 0.85rem;
+          opacity: 0;
+          transition: opacity 0.2s;
+          margin-left: 2px;
+        }
+        .inline-crypto-link:hover::after {
+          opacity: 1;
+        }
+        
+        /* Components inside inline links */
+        .inline-ticker {
+          color: hsl(var(--primary));
+          font-weight: 700;
+        }
+        .inline-price {
+          color: hsl(var(--foreground));
+          font-weight: 600;
+        }
+        .inline-change {
+          font-weight: 700;
+        }
+        .inline-change.positive {
+          color: #10b981;
+        }
+        .inline-change.negative {
+          color: #ef4444;
         }
         
         /* Ticker Symbol - no longer individually clickable, parent link handles it */
