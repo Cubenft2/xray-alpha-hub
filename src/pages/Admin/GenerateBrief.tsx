@@ -21,6 +21,40 @@ export function GenerateBrief() {
     try {
       console.log(`🚀 Generating ${briefType} brief with Claude AI...`);
       
+      // Preflight check: Verify BTC/ETH anchors are fresh
+      setProgress('Checking price data freshness...');
+      const { data: anchors, error: anchorsError } = await supabase
+        .from('live_prices')
+        .select('ticker, price, updated_at')
+        .in('ticker', ['BTC', 'ETH']);
+      
+      if (anchorsError) {
+        console.warn('⚠️ Could not check price freshness:', anchorsError);
+      } else if (anchors) {
+        const now = Date.now();
+        const staleThreshold = 60 * 60 * 1000; // 60 minutes
+        const btc = anchors.find(a => a.ticker === 'BTC');
+        const eth = anchors.find(a => a.ticker === 'ETH');
+        
+        const btcStale = !btc || (now - new Date(btc.updated_at).getTime()) > staleThreshold;
+        const ethStale = !eth || (now - new Date(eth.updated_at).getTime()) > staleThreshold;
+        
+        if (btcStale || ethStale) {
+          console.log('⚠️ BTC/ETH prices stale or missing, running sync first...');
+          setProgress('Prices stale. Running sync (30s)...');
+          
+          const { error: syncError } = await supabase.functions.invoke('manual-price-sync');
+          
+          if (syncError) {
+            console.error('❌ Sync failed:', syncError);
+            toast.error('Failed to sync prices. Proceeding with stale data...');
+          } else {
+            console.log('✅ Prices synced successfully');
+            toast.success('Prices synced! Generating brief...');
+          }
+        }
+      }
+      
       setProgress('Setting up custom quote...');
       // Store custom quote if provided
       if (useCustomQuote && customQuote && customAuthor) {

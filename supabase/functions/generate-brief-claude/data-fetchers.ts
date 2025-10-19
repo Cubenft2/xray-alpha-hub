@@ -25,9 +25,44 @@ export async function fetchComprehensiveMarketData(): Promise<MarketData> {
   const stocks = stocksData.status === 'fulfilled' ? stocksData.value : { COIN: null, MSTR: null };
   const prices = livePrices.status === 'fulfilled' ? livePrices.value : { BTC: null, ETH: null };
 
-  // Validate critical data
-  if (!prices.BTC || !prices.ETH) {
-    throw new Error('❌ Missing BTC/ETH price data from live_prices');
+  // Validate critical data with fallback to CoinGecko
+  let btcPrice = prices.BTC;
+  let ethPrice = prices.ETH;
+  
+  const now = Date.now();
+  const staleThreshold = 60 * 60 * 1000; // 60 minutes
+  
+  // Check if BTC is missing or stale
+  if (!btcPrice || (btcPrice.updated_at && (now - new Date(btcPrice.updated_at).getTime()) > staleThreshold)) {
+    console.warn('⚠️ BTC missing or stale in live_prices, falling back to CoinGecko...');
+    const btcCoin = coins.find(c => c.id === 'bitcoin');
+    if (btcCoin) {
+      btcPrice = {
+        price: btcCoin.current_price,
+        change_24h: btcCoin.price_change_percentage_24h || 0,
+        updated_at: new Date().toISOString()
+      };
+      console.log('✅ Using CoinGecko fallback for BTC:', btcPrice.price);
+    }
+  }
+  
+  // Check if ETH is missing or stale
+  if (!ethPrice || (ethPrice.updated_at && (now - new Date(ethPrice.updated_at).getTime()) > staleThreshold)) {
+    console.warn('⚠️ ETH missing or stale in live_prices, falling back to CoinGecko...');
+    const ethCoin = coins.find(c => c.id === 'ethereum');
+    if (ethCoin) {
+      ethPrice = {
+        price: ethCoin.current_price,
+        change_24h: ethCoin.price_change_percentage_24h || 0,
+        updated_at: new Date().toISOString()
+      };
+      console.log('✅ Using CoinGecko fallback for ETH:', ethPrice.price);
+    }
+  }
+  
+  // Final validation
+  if (!btcPrice || !ethPrice) {
+    throw new Error('❌ Missing BTC/ETH price data from both live_prices and CoinGecko fallback');
   }
 
   return {
@@ -41,8 +76,8 @@ export async function fetchComprehensiveMarketData(): Promise<MarketData> {
     fearGreedLabel: fearGreed.classification,
     btcFundingRate: funding.btc,
     ethFundingRate: funding.eth,
-    btc: prices.BTC,
-    eth: prices.ETH
+    btc: btcPrice,
+    eth: ethPrice
   };
 }
 

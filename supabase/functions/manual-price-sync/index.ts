@@ -55,19 +55,69 @@ serve(async (req) => {
 
     console.log(`📋 Loaded ${mappings?.length || 0} ticker mappings with coingecko_id`);
 
-    // Create lookup map: coingecko_id -> ticker_mapping
+    // Create lookup maps for matching
     const cgIdMap = new Map(mappings.map(m => [m.coingecko_id, m]));
+    const symbolMap = new Map(mappings.map(m => [m.symbol.toUpperCase(), m]));
+    const displaySymbolMap = new Map(
+      mappings.filter(m => m.display_symbol).map(m => [m.display_symbol!.toUpperCase(), m])
+    );
+    
+    // Build alias map: alias -> ticker_mapping
+    const aliasMap = new Map();
+    for (const m of mappings) {
+      if (m.aliases && Array.isArray(m.aliases)) {
+        for (const alias of m.aliases) {
+          aliasMap.set(alias.toUpperCase(), m);
+        }
+      }
+    }
 
-    // Match CoinGecko coins to our mappings
+    // Match CoinGecko coins to our mappings with fallbacks
     const results = cgCoins
       .map(coin => {
-        const mapping = cgIdMap.get(coin.id);
+        let mapping = null;
+        let matchedBy = '';
+        
+        // 1. Try coingecko_id match (primary)
+        mapping = cgIdMap.get(coin.id);
+        if (mapping) {
+          matchedBy = 'coingecko_id';
+        }
+        
+        // 2. Force-match anchors (BTC/ETH) by symbol if not matched
+        if (!mapping && (coin.id === 'bitcoin' || coin.id === 'ethereum')) {
+          const anchorSymbol = coin.id === 'bitcoin' ? 'BTC' : 'ETH';
+          mapping = symbolMap.get(anchorSymbol) || displaySymbolMap.get(anchorSymbol) || aliasMap.get(anchorSymbol);
+          if (mapping) {
+            matchedBy = 'forced_anchor';
+            console.log(`  🔒 Force-matched ${coin.id} -> ${mapping.symbol} (anchor guarantee)`);
+          }
+        }
+        
+        // 3. Try symbol match (normalized)
+        if (!mapping) {
+          const normalizedSymbol = coin.symbol.toUpperCase();
+          mapping = symbolMap.get(normalizedSymbol) || displaySymbolMap.get(normalizedSymbol);
+          if (mapping) {
+            matchedBy = 'symbol';
+          }
+        }
+        
+        // 4. Try alias match
+        if (!mapping) {
+          const normalizedSymbol = coin.symbol.toUpperCase();
+          mapping = aliasMap.get(normalizedSymbol);
+          if (mapping) {
+            matchedBy = 'alias';
+          }
+        }
+        
         if (!mapping) {
           console.log(`  ⚠️ No mapping found for CoinGecko ID: ${coin.id} (${coin.symbol})`);
           return null;
         }
 
-        console.log(`  ✅ ${mapping.symbol}: $${coin.current_price} (${coin.price_change_percentage_24h?.toFixed(2)}%)`);
+        console.log(`  ✅ ${mapping.symbol}: $${coin.current_price} (${coin.price_change_percentage_24h?.toFixed(2)}%) [${matchedBy}]`);
 
         return {
           ticker: mapping.symbol,

@@ -3,6 +3,9 @@ project_id = "odncvfiuzliyohxrsigc"
 [functions.manual-price-sync]
 verify_jwt = false
 
+[[functions.manual-price-sync.cron]]
+schedule = "0 * * * *"  # Every hour at minute 0
+
 [functions.generate-brief-claude]
 verify_jwt = false
 
