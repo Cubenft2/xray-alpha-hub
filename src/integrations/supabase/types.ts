@@ -404,6 +404,7 @@ export type Database = {
           title: string
           updated_at: string
           view_count: number | null
+          word_count: number | null
         }
         Insert: {
           brief_type: string
@@ -423,6 +424,7 @@ export type Database = {
           title: string
           updated_at?: string
           view_count?: number | null
+          word_count?: number | null
         }
         Update: {
           brief_type?: string
@@ -442,6 +444,7 @@ export type Database = {
           title?: string
           updated_at?: string
           view_count?: number | null
+          word_count?: number | null
         }
         Relationships: []
       }

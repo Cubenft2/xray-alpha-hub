@@ -3,6 +3,12 @@ project_id = "odncvfiuzliyohxrsigc"
 [functions.generate-brief-claude]
 verify_jwt = false
 
+[[functions.generate-brief-claude.cron]]
+schedule = "0 11 * * *"  # 6 AM EST = 11 AM UTC (morning brief)
+
+[[functions.generate-brief-claude.cron]]
+schedule = "0 23 * * *"  # 6 PM EST = 11 PM UTC (evening brief)
+
 [functions.populate-token-addresses]
 verify_jwt = true
 
