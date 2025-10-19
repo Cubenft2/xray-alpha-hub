@@ -14,6 +14,15 @@ interface EnhancedBriefRendererProps {
 
 export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted, stoicQuote, stoicQuoteAuthor }: EnhancedBriefRendererProps) {
   const navigate = useNavigate();
+  
+  // Live price state management
+  const [livePrices, setLivePrices] = React.useState<Map<string, {
+    price: number;
+    change24h: number;
+    updated_at: string;
+  }>>(new Map());
+  const [lastPriceUpdate, setLastPriceUpdate] = React.useState<Date | null>(null);
+  const [priceLoading, setPriceLoading] = React.useState(false);
 
   // Remove any inlined Stoic quote from the beginning or end of the article content
   const cleanedContent = React.useMemo(() => {
@@ -58,6 +67,60 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
 
     return result;
   }, [content, stoicQuote, stoicQuoteAuthor]);
+
+  // Extract tickers from content
+  const extractTickersFromContent = React.useCallback((text: string): string[] => {
+    const priceRegex = /\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)?\s+\(([A-Z]{2,10})\s+\$[0-9,]+(?:\.\d{1,6})?\s+[+-][0-9]+\.?[0-9]*%\)/g;
+    const tickers = new Set<string>();
+    let match;
+    while ((match = priceRegex.exec(text)) !== null) {
+      tickers.add(match[1].toUpperCase());
+    }
+    return Array.from(tickers);
+  }, []);
+
+  // Fetch live prices from database
+  const fetchLivePrices = React.useCallback(async (tickers: string[]) => {
+    if (tickers.length === 0) return;
+    
+    setPriceLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('live_prices')
+        .select('ticker, price, change24h, updated_at')
+        .in('ticker', tickers);
+      
+      if (error) throw error;
+      
+      const priceMap = new Map();
+      data?.forEach(item => {
+        priceMap.set(item.ticker, {
+          price: Number(item.price),
+          change24h: Number(item.change24h),
+          updated_at: item.updated_at
+        });
+      });
+      
+      setLivePrices(priceMap);
+      setLastPriceUpdate(new Date());
+      
+      console.log(`📊 Fetched live prices for ${data?.length || 0} tickers`);
+    } catch (error) {
+      console.error('❌ Error fetching live prices:', error);
+    } finally {
+      setPriceLoading(false);
+    }
+  }, []);
+
+  // Format time ago helper
+  const formatTimeAgo = (date: Date): string => {
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ago`;
+  };
 
   const handleTickerClick = React.useCallback((ticker: string) => {
     const upperTicker = ticker.toUpperCase();
@@ -173,13 +236,44 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       .replace(/\n\n+/g, '</p><p class="mb-6 leading-relaxed text-foreground/90">')
       .replace(/\n/g, '<br/>');
 
-    // FIRST: Convert pre-formatted price mentions to clickable links
+    // FIRST: Convert pre-formatted price mentions to clickable links with live prices
     // Pattern: Name (TICKER $PRICE ±X.X%)
     // This must happen BEFORE price/percentage styling to avoid breaking the pattern
     const priceRegex = /\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+\(([A-Z]{2,10})\s+\$([0-9,]+(?:\.\d{1,6})?)\s+([+-][0-9]+\.?[0-9]*)%\)/g;
     enhancedText = enhancedText.replace(priceRegex, (fullMatch, name, ticker, price, change) => {
       const tickerUpper = ticker.toUpperCase();
-      return `<a href="#" class="inline-crypto-link" data-ticker="${tickerUpper}" onclick="event.preventDefault(); window.handleAssetClick(event, '${tickerUpper}')">${name} (<span class="inline-ticker">${ticker}</span> <span class="inline-price">$${price}</span> <span class="inline-change ${change.startsWith('-') ? 'negative' : 'positive'}">${change}%</span>)</a>`;
+      const originalPrice = parseFloat(price.replace(/,/g, ''));
+      
+      // Get live price data
+      const liveData = livePrices.get(tickerUpper);
+      
+      // Build the base clickable link
+      let linkContent = `${name} (<span class="inline-ticker">${ticker}</span> <span class="inline-price">$${price}</span> <span class="inline-change ${change.startsWith('-') ? 'negative' : 'positive'}">${change}%</span>`;
+      
+      // Add live price badge if available and different from original
+      if (liveData && liveData.price) {
+        const priceDiff = Math.abs(liveData.price - originalPrice);
+        const percentDiff = (priceDiff / originalPrice) * 100;
+        
+        // Only show live price if difference is more than 0.1% or $0.10
+        if (percentDiff > 0.1 || priceDiff > 0.10) {
+          const priceChange = liveData.price - originalPrice;
+          const changePercent = ((priceChange / originalPrice) * 100);
+          const isUp = priceChange > 0;
+          
+          const formatPrice = (p: number) => {
+            if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            if (p >= 1) return p.toLocaleString('en-US', { maximumFractionDigits: 2 });
+            return p.toLocaleString('en-US', { maximumFractionDigits: 6 });
+          };
+          
+          linkContent += ` <span class="live-price-separator">→</span> <span class="live-price-badge ${isUp ? 'price-up' : 'price-down'}">📊 $${formatPrice(liveData.price)} <span class="live-change">${isUp ? '+' : ''}${changePercent.toFixed(2)}%</span></span>`;
+        }
+      }
+      
+      linkContent += ')';
+      
+      return `<a href="#" class="inline-crypto-link" data-ticker="${tickerUpper}" onclick="event.preventDefault(); window.handleAssetClick(event, '${tickerUpper}')">${linkContent}</a>`;
     });
 
     // Style standalone prices (e.g., $50,000, $1.25, $0.00045) - bold white
@@ -309,7 +403,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     return { html: enhancedText, tickers: extractedTickers };
   };
 
-  const { html: enhancedHtml, tickers } = React.useMemo(() => processContent(cleanedContent), [cleanedContent, enhancedTickers]);
+  const { html: enhancedHtml, tickers } = React.useMemo(() => processContent(cleanedContent), [cleanedContent, livePrices]);
 
   React.useEffect(() => {
     if (onTickersExtracted && tickers.length > 0) {
@@ -317,6 +411,29 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       onTickersExtracted(uniqueTickers);
     }
   }, [tickers.length]); // Only depend on length to avoid infinite loops
+
+  // Extract tickers and fetch prices on mount and content change
+  React.useEffect(() => {
+    const extractedTickers = extractTickersFromContent(cleanedContent);
+    
+    if (extractedTickers.length > 0) {
+      console.log(`🔍 Extracted ${extractedTickers.length} tickers from brief:`, extractedTickers);
+      
+      // Initial fetch
+      fetchLivePrices(extractedTickers);
+      
+      // Set up 60-second refresh interval
+      const intervalId = setInterval(() => {
+        console.log('🔄 Refreshing live prices...');
+        fetchLivePrices(extractedTickers);
+      }, 60000); // 60 seconds
+      
+      return () => {
+        clearInterval(intervalId);
+        console.log('🛑 Stopped price refresh interval');
+      };
+    }
+  }, [cleanedContent, extractTickersFromContent, fetchLivePrices]);
 
   React.useEffect(() => {
     // Add global click handlers
@@ -467,6 +584,14 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
 
   return (
     <div className="enhanced-brief font-medium text-base leading-7 space-y-4 font-pixel">
+      {lastPriceUpdate && livePrices.size > 0 && (
+        <div className="text-xs text-muted-foreground mb-4 pb-3 border-b border-border/30 flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            💰 Live prices updated {formatTimeAgo(lastPriceUpdate)}
+          </span>
+          {priceLoading && <span className="animate-pulse">Refreshing...</span>}
+        </div>
+      )}
       <style>{`
         .enhanced-brief {
           font-family: var(--font-pixel);
@@ -571,6 +696,62 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         }
         .inline-change.negative {
           color: #ef4444;
+        }
+        
+        /* Live price separator */
+        .live-price-separator {
+          display: inline;
+          color: hsl(var(--muted-foreground) / 0.5);
+          font-weight: 400;
+          margin: 0 4px;
+          font-size: 0.9rem;
+        }
+
+        /* Live price badge - shows current real-time price */
+        .live-price-badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-weight: 600;
+          font-size: 0.9rem;
+          margin-left: 2px;
+          transition: all 0.3s ease;
+          animation: priceUpdate 0.5s ease;
+        }
+
+        @keyframes priceUpdate {
+          0% { opacity: 0.5; transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+
+        .live-price-badge.price-up {
+          background-color: rgba(34, 197, 94, 0.15);
+          color: #10b981;
+          border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .live-price-badge.price-down {
+          background-color: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+          border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .live-change {
+          font-weight: 700;
+          margin-left: 4px;
+        }
+
+        /* Dim original price slightly when live price is shown */
+        .inline-crypto-link:has(.live-price-badge) .inline-price,
+        .inline-crypto-link:has(.live-price-badge) .inline-change {
+          opacity: 0.7;
+          font-size: 0.85rem;
+        }
+
+        /* Make live badge more prominent on hover */
+        .inline-crypto-link:hover .live-price-badge {
+          transform: scale(1.05);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
         
         /* Ticker Symbol - no longer individually clickable, parent link handles it */
