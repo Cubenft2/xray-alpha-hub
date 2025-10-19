@@ -176,11 +176,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     
     let chartUrl: string;
     
-    if (mapping?.type === 'crypto') {
-      // Crypto → TradingView with BINANCE pair
-      chartUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${upperTicker}USDT`;
-    } else if (mapping?.type === 'stock') {
-      // Stock → TradingView stock chart using mapped TradingView symbol
+    if (mapping?.tradingview_symbol) {
+      // Use the TradingView symbol from database for both crypto and stocks
       chartUrl = `https://www.tradingview.com/chart/?symbol=${mapping.tradingview_symbol}`;
     } else {
       // Fallback → TradingView general search
