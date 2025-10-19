@@ -1,5 +1,8 @@
 project_id = "odncvfiuzliyohxrsigc"
 
+[functions.get-polygon-key]
+verify_jwt = false
+
 [functions.manual-price-sync]
 verify_jwt = false
 
