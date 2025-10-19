@@ -3,12 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ExternalLink, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function GenerateBrief() {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState('');
+  const [generatedSlug, setGeneratedSlug] = useState<string | null>(null);
   const [customQuote, setCustomQuote] = useState('');
   const [customAuthor, setCustomAuthor] = useState('');
   const [useCustomQuote, setUseCustomQuote] = useState(false);
@@ -92,7 +93,7 @@ export function GenerateBrief() {
       }
       
       console.log('✅ Brief generated:', data);
-      setProgress('Brief generated! Redirecting...');
+      setProgress('Brief generated successfully!');
       
       // Clear custom quote after use
       if (useCustomQuote) {
@@ -101,22 +102,19 @@ export function GenerateBrief() {
         setUseCustomQuote(false);
       }
       
-      // Extract slug from response to navigate directly to the new brief
+      // Extract slug from response
       const slug = data?.brief?.slug ?? data?.slug ?? data?.data?.slug;
       
       if (slug) {
-        toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated! Opening...`);
-        // Navigate directly to the new brief
-        setTimeout(() => {
-          navigate(`/marketbrief/${slug}`);
-        }, 800);
-      } else {
-        toast.success(`${briefType.charAt(0).toUpperCase() + briefType.slice(1)} brief generated!`);
-        // Fallback to home if no slug
-        setTimeout(() => {
-          navigate('/');
-        }, 1000);
+        setGeneratedSlug(slug);
       }
+      
+      // Show success message with navigation options
+      const briefTypeLabel = briefType.charAt(0).toUpperCase() + briefType.slice(1);
+      toast.success(`${briefTypeLabel} brief generated successfully!`, {
+        description: 'Use the buttons below to view the new brief.',
+        duration: 10000
+      });
       
     } catch (error: any) {
       console.error('❌ Brief generation error:', error);
@@ -133,7 +131,9 @@ export function GenerateBrief() {
       }
     } finally {
       setGenerating(false);
-      setProgress('');
+      if (!generatedSlug) {
+        setProgress('');
+      }
     }
   };
 
@@ -207,6 +207,33 @@ export function GenerateBrief() {
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
                   <span className="text-sm font-medium">{progress}</span>
                 </div>
+              </div>
+            )}
+            
+            {generatedSlug && !generating && (
+              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg mb-4">
+                <h3 className="text-sm font-semibold text-green-600 dark:text-green-400 mb-3">✅ Brief Generated Successfully!</h3>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button 
+                    onClick={() => navigate(`/marketbrief/${generatedSlug}`)}
+                    className="flex-1"
+                    variant="default"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    View This Brief
+                  </Button>
+                  <Button 
+                    onClick={() => navigate(`/?refresh=${Date.now()}`)}
+                    className="flex-1"
+                    variant="outline"
+                  >
+                    <Home className="w-4 h-4 mr-2" />
+                    Go to Homepage
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  The brief has been published and is now live on the homepage.
+                </p>
               </div>
             )}
             

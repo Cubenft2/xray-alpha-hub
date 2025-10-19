@@ -294,30 +294,35 @@ export default function MarketBriefHome() {
           }
           briefData = data;
         } else {
-          // Fetch the appropriate brief type based on current time
-          const expectedBriefType = deriveBriefType();
-          console.log('🐕 XRay: Expected brief type for current time:', expectedBriefType);
+          // Fetch today's most recent brief (any type) in ET timezone
+          console.log('🐕 XRay: Fetching today\'s most recent brief...');
           
-          // Try to get today's brief of the expected type first
-          const today = new Date().toISOString().split('T')[0];
-          const { data: typedBrief, error: typedError } = await supabase
+          const nowET = toZonedTime(new Date(), 'America/New_York');
+          const todayStart = format(nowET, 'yyyy-MM-dd') + 'T00:00:00';
+          const tomorrowStart = format(new Date(nowET.getTime() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd') + 'T00:00:00';
+          
+          console.log('📅 Date range:', { todayStart, tomorrowStart });
+          
+          const { data: todayBrief, error: todayError } = await supabase
             .from('market_briefs')
             .select('*')
-            .eq('brief_type', expectedBriefType)
-            .gte('created_at', `${today}T00:00:00Z`)
+            .eq('is_published', true)
+            .gte('created_at', todayStart)
+            .lt('created_at', tomorrowStart)
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
           
-          if (typedBrief) {
-            console.log('✅ Found', expectedBriefType, 'brief for today');
-            briefData = typedBrief;
+          if (todayBrief) {
+            console.log('✅ Found today\'s brief:', todayBrief.slug);
+            briefData = todayBrief;
           } else {
-            // Fallback: if no brief of expected type for today, get the most recent brief
-            console.log('⚠️ No', expectedBriefType, 'brief for today, fetching latest available');
+            // Fallback: show the most recent brief but flag it as "not today"
+            console.log('⚠️ No brief for today, fetching most recent');
             const { data, error } = await supabase
               .from('market_briefs')
               .select('*')
+              .eq('is_published', true)
               .order('created_at', { ascending: false })
               .limit(1)
               .single();
@@ -327,6 +332,8 @@ export default function MarketBriefHome() {
               throw new Error('No market briefs available');
             }
             briefData = data;
+            // Add flag that this is not today's brief
+            (briefData as any)._isOld = true;
           }
         }
         
@@ -600,9 +607,52 @@ export default function MarketBriefHome() {
     );
   }
 
+  // Check if we're showing an old brief
+  const isOldBrief = (briefData as any)?._isOld;
+  const briefType = briefData?.brief_type || 'unknown';
+  const briefCreatedAt = briefData?.created_at;
+  
+  // Format brief type badge
+  const getBriefTypeBadge = () => {
+    const badges: Record<string, { emoji: string; label: string; color: string }> = {
+      morning: { emoji: '🌅', label: 'Morning Brief', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+      evening: { emoji: '🌆', label: 'Evening Brief', color: 'bg-orange-500/10 text-orange-600 dark:text-orange-400' },
+      weekend: { emoji: '📅', label: 'Weekend Recap', color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400' }
+    };
+    return badges[briefType] || { emoji: '📰', label: 'Market Brief', color: 'bg-muted text-muted-foreground' };
+  };
+  
+  const typeBadge = getBriefTypeBadge();
+
   return (
     <div className="container mx-auto py-6">
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Brief Date & Type Header */}
+        {briefCreatedAt && (
+          <div className="flex items-center justify-between flex-wrap gap-3 pb-2 border-b border-border/50">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${typeBadge.color}`}>
+                <span>{typeBadge.emoji}</span>
+                <span>{typeBadge.label}</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {format(toZonedTime(new Date(briefCreatedAt), 'America/New_York'), 'MMMM d, yyyy')}
+                </span>
+                {' • Generated at '}
+                <span className="font-medium text-foreground">
+                  {format(toZonedTime(new Date(briefCreatedAt), 'America/New_York'), 'h:mm a')} ET
+                </span>
+              </div>
+            </div>
+            {isOldBrief && (
+              <div className="text-xs text-orange-500 dark:text-orange-400 bg-orange-500/10 px-3 py-1.5 rounded-full">
+                ⚠️ Showing recent brief - today's brief not yet available
+              </div>
+            )}
+          </div>
+        )}
+        
         {/* Header Section */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-3xl font-bold xr-gradient-text">{brief.title || 'Market Brief'}</h1>
