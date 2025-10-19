@@ -19,136 +19,67 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🚀 Starting manual price sync...');
+    console.log('🚀 Starting manual price sync with bulk CoinGecko...');
 
-    // Fetch top cryptos with either polygon_ticker or coingecko_id
-    const { data: cryptos, error: fetchError } = await supabase
-      .from('ticker_mappings')
-      .select('symbol, display_name, polygon_ticker, coingecko_id')
-      .eq('type', 'crypto')
-      .eq('is_active', true)
-      .or('polygon_ticker.not.is.null,coingecko_id.not.is.null')
-      .limit(100);
-
-    if (fetchError) {
-      throw new Error(`Failed to fetch cryptos: ${fetchError.message}`);
-    }
-
-    console.log(`📊 Found ${cryptos?.length || 0} cryptos to sync`);
-
-    const results: any[] = [];
-    const stats = {
-      polygon: 0,
-      coingecko: 0,
-      exchange: 0,
-      failed: 0
-    };
-
-    // Process in batches to avoid rate limits
-    const BATCH_SIZE = 10;
-    const batches = [];
-    for (let i = 0; i < cryptos.length; i += BATCH_SIZE) {
-      batches.push(cryptos.slice(i, i + BATCH_SIZE));
-    }
-
-    for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
-      const batch = batches[batchIdx];
-      console.log(`\n📦 Processing batch ${batchIdx + 1}/${batches.length}...`);
-
-      const batchPromises = batch.map(async (crypto) => {
-        let price = null;
-        let change24h = null;
-        let source = 'none';
-
-        // Try Polygon.io first
-        if (crypto.polygon_ticker && polygonKey) {
-          try {
-            const polygonUrl = `https://api.polygon.io/v2/aggs/ticker/${crypto.polygon_ticker}/prev?apiKey=${polygonKey}`;
-            const polygonRes = await fetch(polygonUrl);
-            
-            if (polygonRes.ok) {
-              const polygonData = await polygonRes.json();
-              if (polygonData.results?.[0]) {
-                const bar = polygonData.results[0];
-                price = bar.c;
-                change24h = bar.c && bar.o ? ((bar.c - bar.o) / bar.o) * 100 : null;
-                source = 'polygon';
-                console.log(`  ✅ ${crypto.symbol}: $${price} (Polygon)`);
-              }
-            }
-          } catch (error) {
-            console.log(`  ⚠️ ${crypto.symbol}: Polygon failed - ${error.message}`);
-          }
-        }
-
-        // Fallback to CoinGecko
-        if (!price && crypto.coingecko_id && coingeckoKey) {
-          try {
-            const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${crypto.coingecko_id}&vs_currencies=usd&include_24hr_change=true`;
-            const cgRes = await fetch(cgUrl, {
-              headers: { 'x-cg-demo-api-key': coingeckoKey }
-            });
-
-            if (cgRes.ok) {
-              const cgData = await cgRes.json();
-              if (cgData[crypto.coingecko_id]?.usd) {
-                price = cgData[crypto.coingecko_id].usd;
-                change24h = cgData[crypto.coingecko_id].usd_24h_change || null;
-                source = 'coingecko';
-                console.log(`  ✅ ${crypto.symbol}: $${price} (CoinGecko)`);
-              }
-            }
-          } catch (error) {
-            console.log(`  ⚠️ ${crypto.symbol}: CoinGecko failed - ${error.message}`);
-          }
-        }
-
-        // Last resort: exchange_ticker_data
-        if (!price) {
-          try {
-            const { data: exchangeData } = await supabase
-              .from('exchange_ticker_data')
-              .select('price, change_24h')
-              .eq('asset_symbol', crypto.symbol)
-              .order('last_updated', { ascending: false })
-              .limit(1)
-              .single();
-
-            if (exchangeData?.price) {
-              price = exchangeData.price;
-              change24h = exchangeData.change_24h;
-              source = 'exchange';
-              console.log(`  ✅ ${crypto.symbol}: $${price} (Exchange cache)`);
-            }
-          } catch (error) {
-            // Silent fail for exchange fallback
-          }
-        }
-
-        if (price) {
-          stats[source]++;
-          return {
-            ticker: crypto.symbol,
-            display: crypto.display_name,
-            price: parseFloat(price.toString()),
-            change24h: change24h ? parseFloat(change24h.toString()) : 0,
-            updated_at: new Date().toISOString()
-          };
-        } else {
-          stats.failed++;
-          console.log(`  ❌ ${crypto.symbol}: No price found`);
-          return null;
-        }
+    // Fetch top 250 cryptos from CoinGecko Pro by market cap
+    const cgUrl = `https://pro-api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h`;
+    
+    let cgCoins = [];
+    try {
+      const cgRes = await fetch(cgUrl, {
+        headers: { 'x-cg-pro-api-key': coingeckoKey }
       });
 
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults.filter(r => r !== null));
-
-      // Rate limit pause between batches
-      if (batchIdx < batches.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!cgRes.ok) {
+        throw new Error(`CoinGecko API error: ${cgRes.status}`);
       }
+
+      cgCoins = await cgRes.json();
+      console.log(`📊 Fetched ${cgCoins.length} coins from CoinGecko Pro`);
+    } catch (error) {
+      console.error(`❌ CoinGecko bulk fetch failed: ${error.message}`);
+      throw new Error(`Failed to fetch from CoinGecko: ${error.message}`);
     }
+
+    // Fetch ALL ticker_mappings with coingecko_id
+    const { data: mappings, error: mappingsError } = await supabase
+      .from('ticker_mappings')
+      .select('symbol, display_name, coingecko_id')
+      .eq('type', 'crypto')
+      .eq('is_active', true)
+      .not('coingecko_id', 'is', null);
+
+    if (mappingsError) {
+      throw new Error(`Failed to fetch ticker mappings: ${mappingsError.message}`);
+    }
+
+    console.log(`📋 Loaded ${mappings?.length || 0} ticker mappings with coingecko_id`);
+
+    // Create lookup map: coingecko_id -> ticker_mapping
+    const cgIdMap = new Map(mappings.map(m => [m.coingecko_id, m]));
+
+    // Match CoinGecko coins to our mappings
+    const results = cgCoins
+      .map(coin => {
+        const mapping = cgIdMap.get(coin.id);
+        if (!mapping) {
+          console.log(`  ⚠️ No mapping found for CoinGecko ID: ${coin.id} (${coin.symbol})`);
+          return null;
+        }
+
+        console.log(`  ✅ ${mapping.symbol}: $${coin.current_price} (${coin.price_change_percentage_24h?.toFixed(2)}%)`);
+
+        return {
+          ticker: mapping.symbol,
+          display: mapping.display_name,
+          price: coin.current_price,
+          change24h: coin.price_change_percentage_24h || 0,
+          updated_at: new Date().toISOString()
+        };
+      })
+      .filter(r => r !== null);
+
+    console.log(`\n✨ Matched ${results.length} coins to ticker_mappings`);
 
     // Upsert all results to live_prices
     if (results.length > 0) {
@@ -168,14 +99,10 @@ serve(async (req) => {
     const response = {
       success: true,
       synced: results.length,
-      failed: stats.failed,
-      total: cryptos.length,
-      sources: {
-        polygon: stats.polygon,
-        coingecko: stats.coingecko,
-        exchange: stats.exchange
-      },
-      message: `Synced ${results.length} of ${cryptos.length} prices`
+      total_from_coingecko: cgCoins.length,
+      matched_to_mappings: results.length,
+      source: 'coingecko-bulk',
+      message: `Synced ${results.length} prices from CoinGecko top ${cgCoins.length} by market cap`
     };
 
     console.log('\n📊 Final stats:', response);
