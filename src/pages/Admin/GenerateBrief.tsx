@@ -242,7 +242,7 @@ export function GenerateBrief() {
                 <Button 
                   onClick={() => handleGenerateBrief('morning')} 
                   disabled={generating}
-                  className="w-full bg-gradient-to-r from-primary to-primary/80"
+                  className="w-full bg-gradient-to-r from-primary to-primary/80 hover:scale-[1.02] hover:shadow-lg hover:shadow-primary/50 transition-all duration-300 hover:-translate-y-1"
                   size="lg"
                 >
                   {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -253,7 +253,7 @@ export function GenerateBrief() {
                   onClick={() => handleGenerateBrief('evening')} 
                   disabled={generating}
                   variant="secondary"
-                  className="w-full"
+                  className="w-full hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/50 transition-all duration-300 hover:-translate-y-1 hover:bg-secondary/60"
                   size="lg"
                 >
                   {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -264,7 +264,7 @@ export function GenerateBrief() {
                   onClick={() => handleGenerateBrief('sunday_special')} 
                   disabled={generating}
                   variant="outline"
-                  className="w-full border-2 border-primary"
+                  className="w-full border-2 border-primary hover:scale-[1.02] hover:shadow-xl hover:shadow-primary/60 transition-all duration-300 hover:-translate-y-1 hover:bg-primary/10 hover:border-primary/80"
                   size="lg"
                 >
                   {generating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
