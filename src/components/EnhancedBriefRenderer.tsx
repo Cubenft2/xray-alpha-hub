@@ -1,7 +1,7 @@
 import React from 'react';
 import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
-import { getTickerMapping, isKnownCrypto } from '@/config/tickerMappings';
+import { useTickerMappings } from '@/hooks/useTickerMappings';
 import { supabase } from '@/integrations/supabase/client';
 
 interface EnhancedBriefRendererProps {
@@ -14,6 +14,7 @@ interface EnhancedBriefRendererProps {
 
 export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted, stoicQuote, stoicQuoteAuthor }: EnhancedBriefRendererProps) {
   const navigate = useNavigate();
+  const { getMapping, isLoading: mappingsLoading } = useTickerMappings();
   
   // Live price state management
   const [livePrices, setLivePrices] = React.useState<Map<string, {
@@ -136,63 +137,58 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       return;
     }
     
-    // Use centralized configuration to determine routing
+    // Use database mappings to determine routing
     const NON_ASSET = new Set(['CPI', 'GREED', 'NEUTRAL']);
-    const mapping = getTickerMapping(upperTicker);
-
-    if (mapping) {
-      if (mapping.type === 'crypto') {
-        // Crypto → external detail on CoinGecko (no internal chart yet)
-        window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
-      } else {
-        // Stocks, indices, forex → internal Markets page using mapped symbol (EXCHANGE:SYMBOL)
-        navigate(`/markets?symbol=${encodeURIComponent(mapping.symbol)}`);
-      }
-      return;
-    }
-
+    
     if (NON_ASSET.has(upperTicker)) {
       // Macro/sentiment keywords: do nothing
       return;
     }
     
-    if (isKnownCrypto(upperTicker)) {
-      // Route to CoinGecko for crypto
-      window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
+    const mapping = getMapping(upperTicker);
+
+    if (mapping) {
+      if (mapping.type === 'crypto') {
+        // Crypto → CoinGecko search
+        window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
+      } else {
+        // Stocks → internal Markets page using TradingView symbol
+        navigate(`/markets?symbol=${encodeURIComponent(mapping.tradingview_symbol)}`);
+      }
       return;
     }
     
-    // If not found in our mappings, log warning and default to CoinGecko
-    console.warn(`⚠️ Unknown ticker "${upperTicker}" clicked - add to src/config/tickerMappings.ts for proper routing`);
+    // If not found in database mappings, default to CoinGecko as fallback
+    console.warn(`⚠️ Unknown ticker "${upperTicker}" clicked - defaulting to CoinGecko search`);
     window.open(`https://www.coingecko.com/en/search?query=${encodeURIComponent(upperTicker)}`,'_blank');
-  }, [navigate]);
+  }, [navigate, getMapping]);
 
   // New handler for full asset mention clicks - opens TradingView charts
   const handleAssetClick = React.useCallback((event: React.MouseEvent, ticker: string) => {
     event.preventDefault();
     const upperTicker = ticker.toUpperCase();
     
-    // Use centralized configuration to determine routing
+    // Use database mappings to determine routing
     const NON_ASSET = new Set(['CPI', 'GREED', 'NEUTRAL']);
     if (NON_ASSET.has(upperTicker)) return;
     
-    const mapping = getTickerMapping(upperTicker);
+    const mapping = getMapping(upperTicker);
     
     let chartUrl: string;
     
-    if (mapping?.type === 'crypto' || isKnownCrypto(upperTicker)) {
+    if (mapping?.type === 'crypto') {
       // Crypto → TradingView with BINANCE pair
       chartUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${upperTicker}USDT`;
     } else if (mapping?.type === 'stock') {
-      // Stock → TradingView stock chart using mapped symbol (already includes exchange)
-      chartUrl = `https://www.tradingview.com/chart/?symbol=${mapping.symbol}`;
+      // Stock → TradingView stock chart using mapped TradingView symbol
+      chartUrl = `https://www.tradingview.com/chart/?symbol=${mapping.tradingview_symbol}`;
     } else {
       // Fallback → TradingView general search
       chartUrl = `https://www.tradingview.com/symbols/${upperTicker}/`;
     }
     
     window.open(chartUrl, '_blank', 'noopener,noreferrer');
-  }, []);
+  }, [getMapping]);
 
   const processContent = (text: string) => {
     // Normalize any pre-existing HTML tags in the source to plain newlines/markdown first
