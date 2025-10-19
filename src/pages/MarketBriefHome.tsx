@@ -14,8 +14,8 @@ import { StoicQuote } from '@/components/StoicQuote';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 import { getTickerMapping } from '@/config/tickerMappings';
-import { toZonedTime } from 'date-fns-tz';
-import { format } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { format, startOfDay, addDays } from 'date-fns';
 import { NewsSentimentOverview } from '@/components/NewsSentimentOverview';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
 import { useSymbolValidation } from '@/hooks/useSymbolValidation';
@@ -299,18 +299,22 @@ export default function MarketBriefHome() {
           // Fetch today's most recent brief (any type) in ET timezone
           console.log('🐕 XRay: Fetching today\'s most recent brief...');
           
-          const nowET = toZonedTime(new Date(), 'America/New_York');
-          const todayStart = format(nowET, 'yyyy-MM-dd') + 'T00:00:00';
-          const tomorrowStart = format(new Date(nowET.getTime() + 24 * 60 * 60 * 1000), 'yyyy-MM-dd') + 'T00:00:00';
+          const tz = 'America/New_York';
+          const now = new Date();
+          const nowET = toZonedTime(now, tz);
+          const startEt = startOfDay(nowET);
+          const endEt = addDays(startEt, 1);
+          const todayStartUtc = fromZonedTime(startEt, tz).toISOString();
+          const tomorrowStartUtc = fromZonedTime(endEt, tz).toISOString();
           
-          console.log('📅 Date range:', { todayStart, tomorrowStart });
+          console.log('📅 Date range (UTC):', { todayStartUtc, tomorrowStartUtc });
           
           const { data: todayBrief, error: todayError } = await supabase
             .from('market_briefs')
             .select('*')
             .eq('is_published', true)
-            .gte('published_at', todayStart)
-            .lt('published_at', tomorrowStart)
+            .gte('published_at', todayStartUtc)
+            .lt('published_at', tomorrowStartUtc)
             .order('published_at', { ascending: false })
             .limit(1)
             .maybeSingle();
