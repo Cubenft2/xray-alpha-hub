@@ -1,11 +1,25 @@
 import { MarketData } from './types.ts';
+import { resolveSymbolMappings } from './symbol-resolver.ts';
 
-export function buildEnhancedPrompt(
+export async function buildEnhancedPrompt(
   briefType: string,
   dateStr: string,
   timeStr: string,
   marketData: MarketData
-): string {
+): Promise<string> {
+  // Resolve symbol mappings to ensure correct TradingView symbols
+  const topSymbols = marketData.topCoins.slice(0, 20).map(c => c.symbol.toUpperCase());
+  const symbolMappings = await resolveSymbolMappings(topSymbols);
+  
+  console.log('📊 Symbol Mappings for Brief:');
+  topSymbols.forEach(sym => {
+    const mapping = symbolMappings.get(sym);
+    if (mapping) {
+      console.log(`  ✅ ${sym}: ${mapping.tradingview_symbol}`);
+    } else {
+      console.warn(`  ⚠️ ${sym}: NO MAPPING FOUND - using fallback`);
+    }
+  });
   const briefTypeTitle = briefType === 'morning' 
     ? 'Morning Brief' 
     : briefType === 'evening' 

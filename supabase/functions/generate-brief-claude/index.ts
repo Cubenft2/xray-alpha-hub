@@ -56,12 +56,17 @@ serve(async (req) => {
       - MSTR Stock: ${marketData.mstrStock ? '$' + marketData.mstrStock.close.toFixed(2) : 'N/A'}`);
 
     // ===================================================================
-    // STEP 2: Build Enhanced Prompt
+    // STEP 2: Build Enhanced Prompt with Symbol Validation
     // ===================================================================
     console.log('📝 Building enhanced prompt with comprehensive data...');
+    
+    // Log top symbols for diagnostics
+    const topSymbols = marketData.topCoins.slice(0, 10).map(c => c.symbol.toUpperCase());
+    console.log('🔍 Top 10 symbols in market data:', topSymbols.join(', '));
+    
     const prompt = briefType === 'sunday_special'
       ? buildSundaySpecialPrompt(dateStr, timeStr, marketData)
-      : buildEnhancedPrompt(briefType, dateStr, timeStr, marketData);
+      : await buildEnhancedPrompt(briefType, dateStr, timeStr, marketData);
     console.log(`✅ Prompt built: ${prompt.length} characters`);
 
     // ===================================================================
