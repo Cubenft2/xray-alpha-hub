@@ -12,14 +12,23 @@ schedule = "0 * * * *"  # Every hour at minute 0
 [functions.generate-brief-claude]
 verify_jwt = false
 
-[[functions.generate-brief-claude.cron]]
-schedule = "0 11 * * *"  # 6 AM EST = 11 AM UTC (morning brief)
+[functions.generate-brief-morning]
+verify_jwt = false
 
-[[functions.generate-brief-claude.cron]]
-schedule = "0 23 * * *"  # 6 PM EST = 11 PM UTC (evening brief)
+[[functions.generate-brief-morning.cron]]
+schedule = "0 11 * * *"  # 7 AM ET (DST) / 6 AM ET (EST) = 11 AM UTC (morning brief)
 
-[[functions.generate-brief-claude.cron]]
-schedule = "0 1 * * 1"  # Sunday 8 PM EST = Monday 1:00 AM UTC (Sunday Special)
+[functions.generate-brief-evening]
+verify_jwt = false
+
+[[functions.generate-brief-evening.cron]]
+schedule = "0 23 * * *"  # 7 PM ET (DST) / 6 PM ET (EST) = 11 PM UTC (evening brief)
+
+[functions.generate-sunday-special]
+verify_jwt = false
+
+[[functions.generate-sunday-special.cron]]
+schedule = "0 1 * * 1"  # Sunday 9 PM ET (DST) / 8 PM ET (EST) = Monday 1 AM UTC (Sunday Special)
 
 [functions.populate-token-addresses]
 verify_jwt = true
