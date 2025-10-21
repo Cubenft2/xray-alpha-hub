@@ -86,26 +86,25 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     
     setPriceLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('live_prices')
-        .select('ticker, price, change24h, updated_at')
-        .in('ticker', tickers);
+      const { data, error } = await supabase.functions.invoke('quotes', {
+        body: { symbols: tickers }
+      });
       
       if (error) throw error;
       
       const priceMap = new Map();
-      data?.forEach(item => {
-        priceMap.set(item.ticker, {
-          price: Number(item.price),
-          change24h: Number(item.change24h),
-          updated_at: item.updated_at
+      data?.quotes?.forEach((quote: any) => {
+        priceMap.set(quote.symbol, {
+          price: Number(quote.price),
+          change24h: Number(quote.change24h),
+          updated_at: quote.timestamp
         });
       });
       
       setLivePrices(priceMap);
       setLastPriceUpdate(new Date());
       
-      console.log(`📊 Fetched live prices for ${data?.length || 0} tickers`);
+      console.log(`📊 Fetched live prices for ${data?.quotes?.length || 0} tickers`);
     } catch (error) {
       console.error('❌ Error fetching live prices:', error);
     } finally {
