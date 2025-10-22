@@ -13,7 +13,7 @@ export async function fetchComprehensiveMarketData(): Promise<MarketData> {
     fetchLunarCrushSocial(),
     fetchFearGreedIndex(),
     fetchBinanceFunding(),
-    fetchPolygonStocks(['COIN', 'MSTR']),
+    fetchPolygonStocks(['COIN', 'MSTR', 'SPY', 'QQQ', 'DXY']),
     fetchLivePrices(['BTC', 'ETH'])
   ]);
 
@@ -22,7 +22,7 @@ export async function fetchComprehensiveMarketData(): Promise<MarketData> {
   const social = lunarCrushData.status === 'fulfilled' ? lunarCrushData.value : [];
   const fearGreed = fearGreedData.status === 'fulfilled' ? fearGreedData.value : { value: 50, classification: 'Neutral' };
   const funding = binanceData.status === 'fulfilled' ? binanceData.value : { btc: 0, eth: 0 };
-  const stocks = stocksData.status === 'fulfilled' ? stocksData.value : { COIN: null, MSTR: null };
+  const stocks = stocksData.status === 'fulfilled' ? stocksData.value : { COIN: null, MSTR: null, SPY: null, QQQ: null, DXY: null };
   const prices = livePrices.status === 'fulfilled' ? livePrices.value : { BTC: null, ETH: null };
 
   // Validate critical data with fallback to CoinGecko
@@ -72,6 +72,9 @@ export async function fetchComprehensiveMarketData(): Promise<MarketData> {
     socialSentiment: social.slice(0, 10),
     coinStock: stocks.COIN,
     mstrStock: stocks.MSTR,
+    spyStock: stocks.SPY,
+    qqqStock: stocks.QQQ,
+    dxyIndex: stocks.DXY,
     fearGreedIndex: fearGreed.value,
     fearGreedLabel: fearGreed.classification,
     btcFundingRate: funding.btc,
@@ -187,7 +190,9 @@ async function fetchPolygonStocks(symbols: string[]) {
   const apiKey = Deno.env.get('POLYGON_API_KEY');
   if (!apiKey) {
     console.warn('⚠️ POLYGON_API_KEY not set, skipping stock data');
-    return { COIN: null, MSTR: null };
+    const emptyResults: any = {};
+    symbols.forEach(sym => emptyResults[sym] = null);
+    return emptyResults;
   }
 
   const results: any = {};

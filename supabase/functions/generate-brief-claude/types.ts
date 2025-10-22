@@ -10,6 +10,9 @@ export interface MarketData {
   // Polygon stock data
   coinStock: StockData | null;
   mstrStock: StockData | null;
+  spyStock: StockData | null;
+  qqqStock: StockData | null;
+  dxyIndex: StockData | null;
   
   // Fear & Greed Index
   fearGreedIndex: number;

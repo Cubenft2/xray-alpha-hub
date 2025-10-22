@@ -87,10 +87,17 @@ ${topLosers || 'No significant losers'}
 ${socialTrending}
 
 ═══════════════════════════════════════════════════════════
-💼 CRYPTO STOCKS (from Polygon)
+📈 U.S. MARKET INDICES (from Polygon)
 ═══════════════════════════════════════════════════════════
+${marketData.spyStock ? `S&P 500 (SPY): $${marketData.spyStock.close.toFixed(2)} (${marketData.spyStock.change_percent > 0 ? '+' : ''}${marketData.spyStock.change_percent.toFixed(2)}%)` : 'SPY data unavailable'}
+${marketData.qqqStock ? `Nasdaq (QQQ): $${marketData.qqqStock.close.toFixed(2)} (${marketData.qqqStock.change_percent > 0 ? '+' : ''}${marketData.qqqStock.change_percent.toFixed(2)}%)` : 'QQQ data unavailable'}
+
+💼 CRYPTO-RELATED STOCKS (from Polygon)
 ${marketData.coinStock ? `Coinbase (COIN): $${marketData.coinStock.close.toFixed(2)} (${marketData.coinStock.change_percent > 0 ? '+' : ''}${marketData.coinStock.change_percent.toFixed(2)}%)` : 'COIN data unavailable'}
 ${marketData.mstrStock ? `MicroStrategy (MSTR): $${marketData.mstrStock.close.toFixed(2)} (${marketData.mstrStock.change_percent > 0 ? '+' : ''}${marketData.mstrStock.change_percent.toFixed(2)}%)` : 'MSTR data unavailable'}
+
+💵 DOLLAR INDEX (from Polygon)
+${marketData.dxyIndex ? `Dollar Index (DXY): ${marketData.dxyIndex.close.toFixed(2)} (${marketData.dxyIndex.change_percent > 0 ? '+' : ''}${marketData.dxyIndex.change_percent.toFixed(2)}%)` : 'DXY data unavailable'}
 
 ═══════════════════════════════════════════════════════════
 😨 FEAR & GREED INDEX
@@ -125,9 +132,35 @@ Write a 2,000-word brief with these 6 sections:
    - Analyze funding rates (positive = bullish leverage, negative = bearish)
    - Discuss what this means for short-term price action
 
-5. **Macro Context** (80-120 words MAX)
-   - Only mention COIN/MSTR if they have significant moves (>5%)
-   - Connect crypto market to broader market trends if relevant
+5. **Macro Context** (80-120 words MAX - KEEP SHORT!)
+   
+   This is SUPPORTING context only - crypto is the main story (90%), this is just the backdrop (10%).
+   
+   ALWAYS INCLUDE:
+   ✅ S&P 500 (SPY) performance - overall market sentiment
+   ✅ Nasdaq (QQQ) performance - tech sector sentiment  
+   ✅ Brief interpretation of risk-on vs risk-off
+   
+   INCLUDE ONLY IF SIGNIFICANT MOVES:
+   ✅ Coinbase (COIN) - ONLY if moved >3%
+   ✅ MicroStrategy (MSTR) - ONLY if moved >5%
+   ✅ Dollar Index (DXY) - ONLY if notable move >0.5%
+   
+   STRUCTURE:
+   1. Start with broad market (SPY/QQQ) - 1-2 sentences
+   2. Then crypto stocks if relevant (COIN/MSTR) - 1 sentence
+   3. Any other macro factors if relevant - 1 sentence
+   
+   EXAMPLE (GOOD):
+   "U.S. equities finished mixed with the S&P 500 down 0.3% and Nasdaq flat as rate concerns weighed on tech. Coinbase (COIN $336.02 +5.2%) outperformed on Bitcoin's strength while MicroStrategy (MSTR $289.87 +3.8%) tracked BTC holdings. The dollar weakened slightly, providing tailwinds for risk assets."
+   
+   EXAMPLE (ALSO GOOD - when COIN/MSTR didn't move much):
+   "The S&P 500 rose 0.8% and Nasdaq gained 1.1% as tech stocks rallied on dovish Fed commentary. Crypto-related equities mostly tracked broader markets, with no standout moves. Treasury yields dipped, supporting risk appetite across both traditional and digital assets."
+   
+   CRITICAL:
+   - Don't make this section too long - it's context, not the main story
+   - Always mention SPY/QQQ even if flat
+   - Only mention COIN/MSTR if they had significant moves
 
 6. **What's Next** (120-180 words)
    - Key levels to watch for BTC/ETH
