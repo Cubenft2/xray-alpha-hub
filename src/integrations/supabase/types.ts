@@ -1003,7 +1003,7 @@ export type Database = {
     }
     Functions: {
       auto_approve_pending_mappings: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           approved_count: number
           rejected_count: number
@@ -1018,18 +1018,9 @@ export type Database = {
         }
         Returns: number
       }
-      cleanup_expired_cache: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_expired_price_cache: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_asset_sentiments: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_expired_cache: { Args: never; Returns: undefined }
+      cleanup_expired_price_cache: { Args: never; Returns: undefined }
+      cleanup_old_asset_sentiments: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1037,10 +1028,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      norm_symbol: {
-        Args: { raw_symbol: string }
-        Returns: string
-      }
+      norm_symbol: { Args: { raw_symbol: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "user"
