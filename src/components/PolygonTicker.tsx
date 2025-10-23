@@ -172,7 +172,13 @@ export function PolygonTicker() {
       <div className="relative bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y overflow-hidden">
         {/* Pause overlay for mobile */}
         {isMobile && isPaused && (
-          <div className="absolute inset-0 z-10 bg-background/40 backdrop-blur-sm flex items-center justify-center">
+          <div
+            className="absolute inset-0 z-10 bg-background/40 backdrop-blur-sm flex items-center justify-center cursor-pointer"
+            role="button"
+            aria-label="Tap to resume ticker"
+            onClick={() => setIsPaused(false)}
+            onPointerDown={() => setIsPaused(false)}
+          >
             <span className="text-xs font-medium">Tap to resume</span>
           </div>
         )}
