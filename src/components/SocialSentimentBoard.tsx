@@ -354,12 +354,12 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {/* Galaxy Score Progress */}
                     <div>
                       <div className="flex justify-between text-sm mb-1">
-                        <span>Galaxy Score</span>
-                        <span className={`${getScoreColor(asset.galaxy_score || 0)} font-semibold`}>
+                        <span className="whitespace-nowrap">Galaxy Score</span>
+                        <span className={`${getScoreColor(asset.galaxy_score || 0)} font-semibold ml-2`}>
                           {asset.galaxy_score || 0}/100
                         </span>
                       </div>
@@ -369,8 +369,8 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     {/* FOMO Score */}
                     <div>
                       <div className="flex justify-between text-sm mb-1">
-                        <span>FOMO Score</span>
-                        <span className={`${getScoreColor(asset.fomo_score || 0)} font-semibold`}>
+                        <span className="whitespace-nowrap">FOMO Score</span>
+                        <span className={`${getScoreColor(asset.fomo_score || 0)} font-semibold ml-2`}>
                           {asset.fomo_score?.toFixed(0) || 0}
                         </span>
                       </div>
@@ -379,13 +379,13 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
 
                     {/* Social Volume */}
                     <div>
-                      <p className="text-sm text-muted-foreground">Social Volume</p>
+                      <p className="text-sm text-muted-foreground whitespace-nowrap">Social Volume</p>
                       <p className="font-bold text-foreground">{formatSocialVolume(asset.social_volume || 0)}</p>
                     </div>
 
                     {/* Sentiment */}
                     <div>
-                      <p className="text-sm text-muted-foreground">Sentiment</p>
+                      <p className="text-sm text-muted-foreground whitespace-nowrap">Sentiment</p>
                       <Badge 
                         variant="outline" 
                         className={`${asset.sentiment >= 0 
@@ -402,8 +402,8 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                   {asset.social_dominance > 1 && (
                     <div>
                       <div className="flex justify-between text-sm mb-1">
-                        <span>Social Dominance</span>
-                        <span>{asset.social_dominance.toFixed(2)}%</span>
+                        <span className="whitespace-nowrap">Social Dominance</span>
+                        <span className="ml-2">{asset.social_dominance.toFixed(2)}%</span>
                       </div>
                       <Progress value={asset.social_dominance} className="h-2" />
                     </div>
