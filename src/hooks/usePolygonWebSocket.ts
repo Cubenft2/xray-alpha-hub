@@ -31,7 +31,6 @@ export function usePolygonWebSocket(symbols: string[]) {
   const healthCheckIntervalRef = useRef<NodeJS.Timeout>();
   const priceBufferRef = useRef<Record<string, PriceData>>({});
   const reconnectAttemptsRef = useRef(0);
-  const apiKeyRef = useRef<string | null>(null);
 
   // Fetch 24h baseline prices for change calculation
   const fetch24hBaseline = useCallback(async () => {
@@ -59,21 +58,6 @@ export function usePolygonWebSocket(symbols: string[]) {
       console.error('Failed to fetch 24h baseline:', error);
     }
   }, [symbols]);
-
-  // Fetch API key once
-  const fetchApiKey = useCallback(async () => {
-    if (apiKeyRef.current) return apiKeyRef.current;
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('get-polygon-key');
-      if (error) throw error;
-      apiKeyRef.current = data.key;
-      return data.key;
-    } catch (error) {
-      console.error('Failed to fetch Polygon API key:', error);
-      return null;
-    }
-  }, []);
 
   // Normalize Polygon symbol to display symbol
   const normalizeSymbol = (polygonSym: string): string => {
@@ -144,28 +128,24 @@ export function usePolygonWebSocket(symbols: string[]) {
   const connect = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const apiKey = await fetchApiKey();
-    if (!apiKey) {
-      console.error('Cannot connect: no API key');
-      startFallbackPolling();
-      return;
-    }
-
     try {
       setStatus('connecting');
-      const ws = new WebSocket('wss://socket.polygon.io/crypto');
+      
+      // Get session for authorization
+      const { data: { session } } = await supabase.auth.getSession();
+      const authHeader = session?.access_token ? `Bearer ${session.access_token}` : '';
+      
+      // Connect to authenticated WebSocket proxy
+      const wsUrl = 'wss://odncvfiuzliyohxrsigc.supabase.co/functions/v1/polygon-websocket-proxy';
+      console.log('🔌 Connecting to WebSocket proxy...');
+      
+      const ws = new WebSocket(wsUrl, authHeader ? ['websocket', authHeader] : undefined);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log('🔌 WebSocket connected to Polygon');
-        
-        // Authenticate
-        ws.send(JSON.stringify({
-          action: 'auth',
-          params: apiKey
-        }));
+        console.log('🔌 WebSocket connected via proxy');
 
-        // Subscribe to channels
+        // Subscribe to channels (authentication handled by proxy)
         const channels = symbols.map(toPolygonChannel).join(',');
         ws.send(JSON.stringify({
           action: 'subscribe',
@@ -253,7 +233,7 @@ export function usePolygonWebSocket(symbols: string[]) {
       console.error('Failed to create WebSocket:', error);
       startFallbackPolling();
     }
-  }, [symbols, fetchApiKey, startFallbackPolling, stopFallbackPolling]);
+  }, [symbols, startFallbackPolling, stopFallbackPolling]);
 
   // Health check: switch to fallback if no updates
   useEffect(() => {

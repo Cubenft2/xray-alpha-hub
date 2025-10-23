@@ -1,7 +1,7 @@
 project_id = "odncvfiuzliyohxrsigc"
 
-[functions.get-polygon-key]
-verify_jwt = false
+[functions.polygon-websocket-proxy]
+verify_jwt = true
 
 [functions.manual-price-sync]
 verify_jwt = false
