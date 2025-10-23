@@ -23,6 +23,7 @@ export function usePolygonWebSocket(symbols: string[]) {
   const [prices, setPrices] = useState<Record<string, PriceData>>({});
   const [status, setStatus] = useState<ConnectionStatus>('connecting');
   const [lastUpdate, setLastUpdate] = useState<number>(0);
+  const [baseline24h, setBaseline24h] = useState<Record<string, number>>({});
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
@@ -31,6 +32,33 @@ export function usePolygonWebSocket(symbols: string[]) {
   const priceBufferRef = useRef<Record<string, PriceData>>({});
   const reconnectAttemptsRef = useRef(0);
   const apiKeyRef = useRef<string | null>(null);
+
+  // Fetch 24h baseline prices for change calculation
+  const fetch24hBaseline = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('quotes', {
+        body: { symbols }
+      });
+
+      if (error) throw error;
+
+      if (data?.quotes) {
+        const baseline: Record<string, number> = {};
+        data.quotes.forEach((quote: any) => {
+          if (quote.price && quote.change24h !== undefined) {
+            // Calculate the price 24h ago from current price and change%
+            const currentPrice = quote.price;
+            const changePercent = quote.change24h;
+            const price24hAgo = currentPrice / (1 + changePercent / 100);
+            baseline[quote.symbol] = price24hAgo;
+          }
+        });
+        setBaseline24h(baseline);
+      }
+    } catch (error) {
+      console.error('Failed to fetch 24h baseline:', error);
+    }
+  }, [symbols]);
 
   // Fetch API key once
   const fetchApiKey = useCallback(async () => {
@@ -78,10 +106,15 @@ export function usePolygonWebSocket(symbols: string[]) {
           const updates: Record<string, PriceData> = {};
           
           data.prices.forEach((p: any) => {
+            const baselinePrice = baseline24h[p.symbol];
+            const change24h = baselinePrice 
+              ? ((p.price - baselinePrice) / baselinePrice) * 100 
+              : 0;
+            
             updates[p.symbol] = {
               symbol: p.symbol,
               price: p.price,
-              change24h: 0, // Polygon doesn't provide 24h change in this endpoint
+              change24h,
               timestamp: now
             };
           });
@@ -167,10 +200,15 @@ export function usePolygonWebSocket(symbols: string[]) {
               const trade = msg as PolygonTrade;
               const symbol = normalizeSymbol(trade.sym);
               
+              const baselinePrice = baseline24h[symbol];
+              const change24h = baselinePrice 
+                ? ((trade.p - baselinePrice) / baselinePrice) * 100 
+                : 0;
+              
               priceBufferRef.current[symbol] = {
                 symbol,
                 price: trade.p,
-                change24h: 0, // Calculate from previous price if needed
+                change24h,
                 timestamp: now
               };
             }
@@ -239,6 +277,13 @@ export function usePolygonWebSocket(symbols: string[]) {
       }
     };
   }, [lastUpdate, status, startFallbackPolling, stopFallbackPolling]);
+
+  // Fetch 24h baseline on mount and refresh every 10 minutes
+  useEffect(() => {
+    fetch24hBaseline();
+    const interval = setInterval(fetch24hBaseline, 600000); // 10 minutes
+    return () => clearInterval(interval);
+  }, [fetch24hBaseline]);
 
   // Initial connection
   useEffect(() => {

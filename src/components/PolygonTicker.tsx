@@ -29,6 +29,7 @@ export function PolygonTicker() {
   const tickerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const offsetRef = useRef(0);
+  const lastTapRef = useRef<{ symbol: string; time: number } | null>(null);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   
@@ -232,11 +233,28 @@ export function PolygonTicker() {
                   <div
                     key={`${price.symbol}-${idx}`}
                     className="flex items-center gap-3 hover:bg-accent/50 px-3 py-1 rounded cursor-pointer transition-colors"
-                    onClick={() => navigate(`/crypto?symbol=${price.displayName}`)}
-                    onTouchStart={(e) => {
+                    onClick={(e) => {
                       if (isMobile) {
-                        e.stopPropagation();
-                        setIsPaused(!isPaused);
+                        e.preventDefault();
+                        const now = Date.now();
+                        const lastTap = lastTapRef.current;
+                        
+                        // Check if this is a second tap on the same item within 3 seconds
+                        if (lastTap && 
+                            lastTap.symbol === price.symbol && 
+                            now - lastTap.time < 3000) {
+                          // Second tap: Resume scrolling
+                          setIsPaused(false);
+                          lastTapRef.current = null;
+                        } else {
+                          // First tap: Pause and navigate
+                          setIsPaused(true);
+                          lastTapRef.current = { symbol: price.symbol, time: now };
+                          navigate(`/crypto?symbol=${price.displayName}`);
+                        }
+                      } else {
+                        // Desktop: just navigate
+                        navigate(`/crypto?symbol=${price.displayName}`);
                       }
                     }}
                   >
