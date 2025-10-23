@@ -29,7 +29,6 @@ export function PolygonTicker() {
   const tickerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const offsetRef = useRef(0);
-  const lastTapRef = useRef<{ symbol: string; time: number } | null>(null);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   
@@ -171,6 +170,12 @@ export function PolygonTicker() {
   return (
     <TooltipProvider>
       <div className="relative bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y overflow-hidden">
+        {/* Pause overlay for mobile */}
+        {isMobile && isPaused && (
+          <div className="absolute inset-0 z-10 bg-background/40 backdrop-blur-sm flex items-center justify-center">
+            <span className="text-xs font-medium">Tap to resume</span>
+          </div>
+        )}
         <div className="container mx-auto py-2 flex items-center gap-2 md:gap-4">
           {/* Status Indicator */}
           <div className="flex items-center shrink-0">
@@ -236,22 +241,14 @@ export function PolygonTicker() {
                     onClick={(e) => {
                       if (isMobile) {
                         e.preventDefault();
-                        const now = Date.now();
-                        const lastTap = lastTapRef.current;
-                        
-                        // Check if this is a second tap on the same item within 3 seconds
-                        if (lastTap && 
-                            lastTap.symbol === price.symbol && 
-                            now - lastTap.time < 3000) {
-                          // Second tap: Resume scrolling
+                        if (isPaused) {
+                          // If paused, resume scrolling without navigating
                           setIsPaused(false);
-                          lastTapRef.current = null;
-                        } else {
-                          // First tap: Pause and navigate
-                          setIsPaused(true);
-                          lastTapRef.current = { symbol: price.symbol, time: now };
-                          navigate(`/crypto?symbol=${price.symbol}`);
+                          return;
                         }
+                        // If not paused, pause and navigate
+                        setIsPaused(true);
+                        navigate(`/crypto?symbol=${price.symbol}`);
                       } else {
                         // Desktop: just navigate
                         navigate(`/crypto?symbol=${price.symbol}`);
