@@ -250,11 +250,11 @@ export function PolygonTicker() {
                           // First tap: Pause and navigate
                           setIsPaused(true);
                           lastTapRef.current = { symbol: price.symbol, time: now };
-                          navigate(`/crypto?symbol=${price.displayName}`);
+                          navigate(`/crypto?symbol=${price.symbol}`);
                         }
                       } else {
                         // Desktop: just navigate
-                        navigate(`/crypto?symbol=${price.displayName}`);
+                        navigate(`/crypto?symbol=${price.symbol}`);
                       }
                     }}
                   >

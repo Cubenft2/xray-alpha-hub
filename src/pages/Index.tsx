@@ -17,122 +17,56 @@ const Index = () => {
   const { setSearchHandler } = useLayoutSearch();
   const { getMapping, isLoading } = useTickerMappings();
 
+  // Extract base symbol from display name formats
+  const extractSymbol = (input: string): string => {
+    // If already uppercase ticker format (BTC, ETH, AVAX), return as-is
+    if (/^[A-Z]{2,10}$/.test(input)) return input;
+    
+    // Extract symbol from display name format: "Avalanche (AVAX)" -> "AVAX"
+    const match = input.match(/\(([A-Z]{2,10})\)/);
+    if (match) return match[1];
+    
+    // Extract from formats like "AVAX - Avalanche"
+    const dashMatch = input.match(/^([A-Z]{2,10})\s*[-–]/);
+    if (dashMatch) return dashMatch[1];
+    
+    // Return cleaned uppercase version
+    return input.replace(/[^A-Z0-9]/g, '').toUpperCase();
+  };
+
   const handleSearch = (term: string) => {
     setSearchTerm(term);
     
     // Convert search term to TradingView symbol format
     if (term.length >= 2) {
-      const upperTerm = term.toUpperCase();
+      const baseSymbol = extractSymbol(term);
       let newSymbol = '';
       
       // 1. Check database first for exact mapping
-      const dbMapping = getMapping(upperTerm);
+      const dbMapping = getMapping(baseSymbol);
       if (dbMapping?.tradingview_symbol) {
         newSymbol = dbMapping.tradingview_symbol;
       } else {
-        // 2. Fall back to hardcoded common mappings for performance
+        // 2. Fall back to minimal hardcoded mappings (only top 10)
         const cryptoMappings: { [key: string]: string } = {
           'BTC': 'BINANCE:BTCUSDT',
           'BITCOIN': 'BINANCE:BTCUSDT',
           'ETH': 'BINANCE:ETHUSDT',
           'ETHEREUM': 'BINANCE:ETHUSDT',
           'BNB': 'BINANCE:BNBUSDT',
-          'BINANCE': 'BINANCE:BNBUSDT',
           'SOL': 'BINANCE:SOLUSDT',
           'SOLANA': 'BINANCE:SOLUSDT',
           'XRP': 'BINANCE:XRPUSDT',
           'RIPPLE': 'BINANCE:XRPUSDT',
-          'ADA': 'BINANCE:ADAUSDT',
-          'CARDANO': 'BINANCE:ADAUSDT',
-          'AVAX': 'BINANCE:AVAXUSDT',
-          'AVALANCHE': 'BINANCE:AVAXUSDT',
           'DOGE': 'BINANCE:DOGEUSDT',
           'DOGECOIN': 'BINANCE:DOGEUSDT',
-          'TRX': 'BINANCE:TRXUSDT',
-          'TRON': 'BINANCE:TRXUSDT',
-          'TON': 'BINANCE:TONUSDT',
-          'TONCOIN': 'BINANCE:TONUSDT',
-          'LINK': 'BINANCE:LINKUSDT',
-          'CHAINLINK': 'BINANCE:LINKUSDT',
-          'SHIB': 'BINANCE:SHIBUSDT',
-          'SHIBA': 'BINANCE:SHIBUSDT',
-          'DOT': 'BINANCE:DOTUSDT',
-          'POLKADOT': 'BINANCE:DOTUSDT',
-          'MATIC': 'BINANCE:MATICUSDT',
-          'POLYGON': 'BINANCE:MATICUSDT',
-          'UNI': 'BINANCE:UNIUSDT',
-          'UNISWAP': 'BINANCE:UNIUSDT',
-          'LTC': 'BINANCE:LTCUSDT',
-          'LITECOIN': 'BINANCE:LTCUSDT',
-          'BCH': 'BINANCE:BCHUSDT',
-          'NEAR': 'BINANCE:NEARUSDT',
-          'ICP': 'BINANCE:ICPUSDT',
-          'APT': 'BINANCE:APTUSDT',
-          'APTOS': 'BINANCE:APTUSDT',
-          'FIL': 'BINANCE:FILUSDT',
-          'FILECOIN': 'BINANCE:FILUSDT',
-          'ARB': 'BINANCE:ARBUSDT',
-          'ARBITRUM': 'BINANCE:ARBUSDT',
-          'OP': 'BINANCE:OPUSDT',
-          'OPTIMISM': 'BINANCE:OPUSDT',
-          'HBAR': 'BINANCE:HBARUSDT',
-          'HEDERA': 'BINANCE:HBARUSDT',
-          'VET': 'BINANCE:VETUSDT',
-          'VECHAIN': 'BINANCE:VETUSDT',
-          'MKR': 'BINANCE:MKRUSDT',
-          'MAKER': 'BINANCE:MKRUSDT',
-          'ATOM': 'BINANCE:ATOMUSDT',
-          'COSMOS': 'BINANCE:ATOMUSDT',
-          'IMX': 'BINANCE:IMXUSDT',
-          'IMMUTABLE': 'BINANCE:IMXUSDT',
-          'RNDR': 'GEMINI:RNDRUSD',
-          'RENDER': 'GEMINI:RNDRUSD',
-          'STX': 'BINANCE:STXUSDT',
-          'STACKS': 'BINANCE:STXUSDT',
-          'INJ': 'BINANCE:INJUSDT',
-          'INJECTIVE': 'BINANCE:INJUSDT',
-          'GRT': 'BINANCE:GRTUSDT',
-          'GRAPH': 'BINANCE:GRTUSDT',
-          'RUNE': 'BINANCE:RUNEUSDT',
-          'THORCHAIN': 'BINANCE:RUNEUSDT',
-          'FTM': 'BINANCE:FTMUSDT',
-          'FANTOM': 'BINANCE:FTMUSDT',
-          'ALGO': 'BINANCE:ALGOUSDT',
-          'ALGORAND': 'BINANCE:ALGOUSDT',
-          'SAND': 'BINANCE:SANDUSDT',
-          'SANDBOX': 'BINANCE:SANDUSDT',
-          'MANA': 'BINANCE:MANAUSDT',
-          'DECENTRALAND': 'BINANCE:MANAUSDT',
-          'AAVE': 'BINANCE:AAVEUSDT',
-          'EOS': 'BINANCE:EOSUSDT',
-          'XTZ': 'BINANCE:XTZUSDT',
-          'TEZOS': 'BINANCE:XTZUSDT',
-          'THETA': 'BINANCE:THETAUSDT',
-          'FLR': 'BINANCE:FLRUSDT',
-          'FLARE': 'BINANCE:FLRUSDT',
-          'AXS': 'BINANCE:AXSUSDT',
-          'AXIE': 'BINANCE:AXSUSDT',
-          'FLOW': 'BINANCE:FLOWUSDT',
-          'SUI': 'BINANCE:SUIUSDT',
-          'HYPE': 'BINANCE:HYPEUSDT',
-          'HYPERLIQUID': 'BINANCE:HYPEUSDT',
         };
         
-        // Check for exact matches in hardcoded list
-        if (cryptoMappings[upperTerm]) {
-          newSymbol = cryptoMappings[upperTerm];
+        if (cryptoMappings[baseSymbol]) {
+          newSymbol = cryptoMappings[baseSymbol];
         } else {
-          // Try to find partial matches
-          const matchedKey = Object.keys(cryptoMappings).find(key => 
-            key.startsWith(upperTerm) || key.includes(upperTerm)
-          );
-          if (matchedKey) {
-            newSymbol = cryptoMappings[matchedKey];
-          } else {
-            // 3. Last resort: try exchanges in priority order (MEXC → GATEIO → KUCOIN → BYBIT → OKX → BINANCE)
-            const exchanges = ['MEXC', 'GATEIO', 'KUCOIN', 'BYBIT', 'OKX', 'BINANCE'];
-            newSymbol = `${exchanges[0]}:${upperTerm}USDT`;
-          }
+          // 3. Last resort: construct BINANCE pair
+          newSymbol = `BINANCE:${baseSymbol}USDT`;
         }
       }
       
@@ -145,114 +79,38 @@ const Index = () => {
   useEffect(() => {
     const symbolFromUrl = searchParams.get('symbol');
     if (symbolFromUrl && !isLoading) {
-      // Convert symbol to TradingView format
-      const upperSymbol = symbolFromUrl.toUpperCase();
+      // Extract base symbol from display name if needed
+      const baseSymbol = extractSymbol(symbolFromUrl);
       let newSymbol = '';
       
       // 1. Check database first for exact mapping
-      const dbMapping = getMapping(upperSymbol);
+      const dbMapping = getMapping(baseSymbol);
       if (dbMapping?.tradingview_symbol) {
         newSymbol = dbMapping.tradingview_symbol;
+      } else if (symbolFromUrl.includes(':')) {
+        // 2. If already in TradingView format (e.g., "BINANCE:BTCUSDT")
+        newSymbol = symbolFromUrl;
       } else {
-        // 2. Fall back to hardcoded common mappings
+        // 3. Fall back to minimal hardcoded mappings (only top 10)
         const cryptoMappings: { [key: string]: string } = {
           'BTC': 'BINANCE:BTCUSDT',
           'BITCOIN': 'BINANCE:BTCUSDT',
           'ETH': 'BINANCE:ETHUSDT',
           'ETHEREUM': 'BINANCE:ETHUSDT',
           'BNB': 'BINANCE:BNBUSDT',
-          'BINANCE': 'BINANCE:BNBUSDT',
           'SOL': 'BINANCE:SOLUSDT',
           'SOLANA': 'BINANCE:SOLUSDT',
           'XRP': 'BINANCE:XRPUSDT',
           'RIPPLE': 'BINANCE:XRPUSDT',
-          'ADA': 'BINANCE:ADAUSDT',
-          'CARDANO': 'BINANCE:ADAUSDT',
-          'AVAX': 'BINANCE:AVAXUSDT',
-          'AVALANCHE': 'BINANCE:AVAXUSDT',
           'DOGE': 'BINANCE:DOGEUSDT',
           'DOGECOIN': 'BINANCE:DOGEUSDT',
-          'TRX': 'BINANCE:TRXUSDT',
-          'TRON': 'BINANCE:TRXUSDT',
-          'TON': 'BINANCE:TONUSDT',
-          'TONCOIN': 'BINANCE:TONUSDT',
-          'LINK': 'BINANCE:LINKUSDT',
-          'CHAINLINK': 'BINANCE:LINKUSDT',
-          'SHIB': 'BINANCE:SHIBUSDT',
-          'SHIBA': 'BINANCE:SHIBUSDT',
-          'DOT': 'BINANCE:DOTUSDT',
-          'POLKADOT': 'BINANCE:DOTUSDT',
-          'MATIC': 'BINANCE:MATICUSDT',
-          'POLYGON': 'BINANCE:MATICUSDT',
-          'UNI': 'BINANCE:UNIUSDT',
-          'UNISWAP': 'BINANCE:UNIUSDT',
-          'LTC': 'BINANCE:LTCUSDT',
-          'LITECOIN': 'BINANCE:LTCUSDT',
-          'BCH': 'BINANCE:BCHUSDT',
-          'NEAR': 'BINANCE:NEARUSDT',
-          'ICP': 'BINANCE:ICPUSDT',
-          'APT': 'BINANCE:APTUSDT',
-          'APTOS': 'BINANCE:APTUSDT',
-          'FIL': 'BINANCE:FILUSDT',
-          'FILECOIN': 'BINANCE:FILUSDT',
-          'ARB': 'BINANCE:ARBUSDT',
-          'ARBITRUM': 'BINANCE:ARBUSDT',
-          'OP': 'BINANCE:OPUSDT',
-          'OPTIMISM': 'BINANCE:OPUSDT',
-          'HBAR': 'BINANCE:HBARUSDT',
-          'HEDERA': 'BINANCE:HBARUSDT',
-          'VET': 'BINANCE:VETUSDT',
-          'VECHAIN': 'BINANCE:VETUSDT',
-          'MKR': 'BINANCE:MKRUSDT',
-          'MAKER': 'BINANCE:MKRUSDT',
-          'ATOM': 'BINANCE:ATOMUSDT',
-          'COSMOS': 'BINANCE:ATOMUSDT',
-          'IMX': 'BINANCE:IMXUSDT',
-          'IMMUTABLE': 'BINANCE:IMXUSDT',
-          'RNDR': 'GEMINI:RNDRUSD',
-          'RENDER': 'GEMINI:RNDRUSD',
-          'STX': 'BINANCE:STXUSDT',
-          'STACKS': 'BINANCE:STXUSDT',
-          'INJ': 'BINANCE:INJUSDT',
-          'INJECTIVE': 'BINANCE:INJUSDT',
-          'GRT': 'BINANCE:GRTUSDT',
-          'GRAPH': 'BINANCE:GRTUSDT',
-          'RUNE': 'BINANCE:RUNEUSDT',
-          'THORCHAIN': 'BINANCE:RUNEUSDT',
-          'FTM': 'BINANCE:FTMUSDT',
-          'FANTOM': 'BINANCE:FTMUSDT',
-          'ALGO': 'BINANCE:ALGOUSDT',
-          'ALGORAND': 'BINANCE:ALGOUSDT',
-          'SAND': 'BINANCE:SANDUSDT',
-          'SANDBOX': 'BINANCE:SANDUSDT',
-          'MANA': 'BINANCE:MANAUSDT',
-          'DECENTRALAND': 'BINANCE:MANAUSDT',
-          'AAVE': 'BINANCE:AAVEUSDT',
-          'EOS': 'BINANCE:EOSUSDT',
-          'XTZ': 'BINANCE:XTZUSDT',
-          'TEZOS': 'BINANCE:XTZUSDT',
-          'THETA': 'BINANCE:THETAUSDT',
-          'FLR': 'BINANCE:FLRUSDT',
-          'FLARE': 'BINANCE:FLRUSDT',
-          'AXS': 'BINANCE:AXSUSDT',
-          'AXIE': 'BINANCE:AXSUSDT',
-          'FLOW': 'BINANCE:FLOWUSDT',
-          'SUI': 'BINANCE:SUIUSDT',
-          'HYPE': 'BINANCE:HYPEUSDT',
-          'HYPERLIQUID': 'BINANCE:HYPEUSDT',
         };
         
-        if (cryptoMappings[upperSymbol]) {
-          newSymbol = cryptoMappings[upperSymbol];
+        if (cryptoMappings[baseSymbol]) {
+          newSymbol = cryptoMappings[baseSymbol];
         } else {
-          // Check if it's already in TradingView format
-          if (symbolFromUrl.includes(':')) {
-            newSymbol = symbolFromUrl;
-          } else {
-            // 3. Last resort: try exchanges in priority order (MEXC → GATEIO → KUCOIN → BYBIT → OKX → BINANCE)
-            const exchanges = ['MEXC', 'GATEIO', 'KUCOIN', 'BYBIT', 'OKX', 'BINANCE'];
-            newSymbol = `${exchanges[0]}:${upperSymbol}USDT`;
-          }
+          // 4. Last resort: construct BINANCE pair
+          newSymbol = `BINANCE:${baseSymbol}USDT`;
         }
       }
       
