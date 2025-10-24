@@ -87,10 +87,19 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     setPriceLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('quotes', {
-        body: { symbols: tickers }
+        body: { 
+          symbols: tickers,
+          bypassCache: true  // Get fresh prices for live updates
+        }
       });
       
       if (error) throw error;
+      
+      if (data.cached) {
+        console.log('⚠️ Received cached prices (should not happen with bypassCache)');
+      } else {
+        console.log('✅ Fetched fresh live prices for', tickers.length, 'tickers');
+      }
       
       const priceMap = new Map();
       data?.quotes?.forEach((quote: any) => {
@@ -259,7 +268,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             return p.toLocaleString('en-US', { maximumFractionDigits: 6 });
           };
           
-          linkContent += ` <span class="live-price-separator">→</span> <span class="live-price-badge ${isUp ? 'price-up' : 'price-down'}">📊 $${formatPrice(liveData.price)} <span class="live-change">${isUp ? '+' : ''}${change24h.toFixed(2)}%</span></span>`;
+          linkContent += ` <span class="live-price-separator">→</span> <span class="live-price-badge ${isUp ? 'price-up' : 'price-down'}">📊 <span class="live-price-value">$${formatPrice(liveData.price)}</span> <span class="live-change">${isUp ? '+' : ''}${change24h.toFixed(2)}%</span></span>`;
         }
       }
       
@@ -483,6 +492,19 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       // Update the live price badge to also show 24h change
       const liveBadge = el.querySelector('.live-price-badge');
       if (liveBadge) {
+        // Update the badge price value
+        const livePriceValue = liveBadge.querySelector('.live-price-value');
+        if (livePriceValue) {
+          const formatPrice = (p: number) => {
+            if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
+            if (p >= 1) return p.toLocaleString('en-US', { maximumFractionDigits: 2 });
+            return p.toLocaleString('en-US', { maximumFractionDigits: 6 });
+          };
+          livePriceValue.textContent = `$${formatPrice(data.price)}`;
+          console.log(`✅ Updated ${ticker} badge to $${formatPrice(data.price)}`);
+        }
+        
+        // Update the badge change percentage
         const liveChange = liveBadge.querySelector('.live-change');
         if (liveChange) {
           const isPositive = (data.change24h ?? 0) >= 0;

@@ -468,27 +468,73 @@ serve(async (req) => {
       }
       
       symbols = body.symbols.map((s: string) => norm(s.trim()));
+      
+      // NEW: Support cache control parameters
+      const bypassCache = body.bypassCache === true;
+      const ttlMs = body.ttlMs ? Math.max(5000, Math.min(body.ttlMs, 120000)) : TTL_MS;
+      
+      const uniqueSymbols = [...new Set(symbols)];
+      const cacheKey = `quotes:${uniqueSymbols.sort().join(',')}`;
+      
+      // Check cache unless bypassCache is requested
+      if (!bypassCache) {
+        const cached = await getCachedData(cacheKey);
+        if (cached) {
+          console.log('✅ Returning cached quotes');
+          return new Response(
+            JSON.stringify({ ...cached, cached: true }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      } else {
+        console.log('⚡ Cache bypass requested - fetching fresh data');
+      }
+
+      console.log('🔄 Fetching fresh quotes for:', uniqueSymbols);
+      
+      // Fetch with resolution pipeline
+      const { quotes } = await fetchQuotesWithResolution(uniqueSymbols);
+      
+      console.log(`✅ Successfully fetched ${quotes.length} quotes`);
+      
+      const response = {
+        quotes,
+        ts: new Date().toISOString(),
+        cached: false
+      };
+      
+      // Cache the result unless bypassCache is set
+      if (!bypassCache) {
+        await setCachedData(cacheKey, response, ttlMs / 1000);
+        console.log(`💾 Cached result for ${ttlMs / 1000}s`);
+      }
+      
+      return new Response(
+        JSON.stringify(response),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
+    // For GET requests, use default caching behavior
     const uniqueSymbols = [...new Set(symbols)];
     const cacheKey = `quotes:${uniqueSymbols.sort().join(',')}`;
     
     // Check cache
     const cached = await getCachedData(cacheKey);
     if (cached) {
-      console.log('Returning cached quotes');
+      console.log('✅ Returning cached quotes');
       return new Response(
         JSON.stringify({ ...cached, cached: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Fetching fresh quotes for:', uniqueSymbols);
+    console.log('🔄 Fetching fresh quotes for:', uniqueSymbols);
     
     // Fetch with resolution pipeline
     const { quotes } = await fetchQuotesWithResolution(uniqueSymbols);
     
-    console.log(`Successfully fetched ${quotes.length} quotes`);
+    console.log(`✅ Successfully fetched ${quotes.length} quotes`);
     
     const response = {
       quotes,
