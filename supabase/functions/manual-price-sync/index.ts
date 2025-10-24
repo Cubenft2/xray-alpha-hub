@@ -140,8 +140,11 @@ serve(async (req) => {
         if (matchedBy) matchStats[matchedBy]++;
         console.log(`  ✅ ${mapping.symbol}: $${coin.current_price} (${coin.price_change_percentage_24h?.toFixed(2)}%) [${matchedBy}]`);
 
+        // Use polygon_ticker if available, fallback to symbol
+        const tickerKey = mapping.polygon_ticker || mapping.symbol;
+        
         return {
-          ticker: mapping.symbol,
+          ticker: tickerKey,
           display: mapping.display_name,
           price: coin.current_price,
           change24h: coin.price_change_percentage_24h || 0,

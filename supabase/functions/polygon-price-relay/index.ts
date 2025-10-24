@@ -245,8 +245,8 @@ async function startWebSocket(supabase: any, apiKey: string, tickers: any[]) {
     // Authenticate
     ws?.send(JSON.stringify({ action: 'auth', params: apiKey }));
 
-    // Subscribe to tickers
-    const symbols = tickers.map(t => `X:${t.polygon_ticker}`);
+    // Subscribe to tickers using polygon_ticker as-is (already includes X: prefix)
+    const symbols = tickers.map(t => t.polygon_ticker);
 
     ws?.send(JSON.stringify({
       action: 'subscribe',
@@ -265,17 +265,22 @@ async function startWebSocket(supabase: any, apiKey: string, tickers: any[]) {
       for (const msg of messages) {
         // Handle ticker updates
         if (msg.ev === 'XT') {
-          const ticker = msg.pair?.replace('X:', '') || '';
+          // Use msg.pair as-is (includes X: prefix like X:BTCUSD or X:HYPEUSD)
+          const ticker = msg.pair || '';
           if (!ticker) continue;
 
           const price = msg.p || 0;
           const change = msg.d || 0; // Daily change percentage
           
+          // Find the display name from our mappings
+          const mapping = tickers.find(t => t.polygon_ticker === ticker);
+          const display = mapping?.display_name || ticker;
+          
           priceBuffer.set(ticker, {
             ticker,
             price,
             change24h: change,
-            display: ticker,
+            display,
             volume: msg.v,
           });
         }
