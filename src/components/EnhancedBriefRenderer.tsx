@@ -2,6 +2,7 @@ import React from 'react';
 import DOMPurify from 'dompurify';
 import { useNavigate } from 'react-router-dom';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
+import { usePolygonPrices } from '@/hooks/usePolygonPrices';
 import { supabase } from '@/integrations/supabase/client';
 
 interface EnhancedBriefRendererProps {
@@ -14,18 +15,17 @@ interface EnhancedBriefRendererProps {
 
 export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted, stoicQuote, stoicQuoteAuthor }: EnhancedBriefRendererProps) {
   const navigate = useNavigate();
-  const { getMapping, isLoading: mappingsLoading } = useTickerMappings();
+  const { getMapping } = useTickerMappings();
   
-  // Live price state management with freshness tracking
-  const FRESHNESS_THRESHOLD_MS = 120000; // 2 minutes
+  // Simple live price state - no freshness tracking needed with 2s polling
   const [livePrices, setLivePrices] = React.useState<Map<string, {
     price: number;
     change24h: number;
-    updated_at: string;
-    isFresh: boolean;
   }>>(new Map());
-  const [lastPriceUpdate, setLastPriceUpdate] = React.useState<Date | null>(null);
-  const [priceLoading, setPriceLoading] = React.useState(false);
+  const [extractedSymbols, setExtractedSymbols] = React.useState<string[]>([]);
+  
+  // Use same polling hook as crypto widget - 2 second updates
+  const { data: polygonData } = usePolygonPrices(extractedSymbols);
 
   // Remove any inlined Stoic quote from the beginning or end of the article content
   const cleanedContent = React.useMemo(() => {
@@ -91,19 +91,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     return tickers;
   }, []);
 
-  // Ref to track all tickers (content + DOM)
+  // Ref to track all tickers
   const allTickersRef = React.useRef<Set<string>>(new Set());
-  const tickerMappingRef = React.useRef<Map<string, string>>(new Map()); // displaySymbol -> livePricesKey
-
-  // Format time ago helper
-  const formatTimeAgo = (date: Date): string => {
-    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
-    if (seconds < 60) return 'just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ago`;
-  };
 
   const handleTickerClick = React.useCallback((ticker: string) => {
     const upperTicker = ticker.toUpperCase();
@@ -219,14 +208,14 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       const tickerUpper = ticker.toUpperCase();
       const originalPrice = parseFloat(price.replace(/,/g, ''));
       
-      // Get live price data
+      // Get live price data (always fresh with 2s polling)
       const liveData = livePrices.get(tickerUpper);
       
       // Build the base clickable link
       let linkContent = `${name} (<span class="inline-ticker">${ticker}</span> <span class="inline-price">$${price}</span> <span class="inline-change ${change.startsWith('-') ? 'negative' : 'positive'}">${change}%</span>`;
       
-      // Add live price badge if available (only show when fresh)
-      if (liveData && liveData.price && liveData.isFresh) {
+      // Add live price badge if available (no freshness check needed)
+      if (liveData && liveData.price) {
         const change24h = liveData.change24h ?? 0;
         const isUp = change24h >= 0;
         
@@ -237,9 +226,6 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         };
         
         linkContent += ` <span class="live-price-separator">→</span> <span class="live-price-badge ${isUp ? 'price-up' : 'price-down'}">📊 <span class="live-price-value">$${formatPrice(liveData.price)}</span> <span class="live-change">${isUp ? '+' : ''}${change24h.toFixed(2)}%</span></span>`;
-      } else if (liveData && liveData.price && !liveData.isFresh) {
-        // Show stale indicator
-        linkContent += ` <span class="live-price-separator">→</span> <span class="live-price-badge stale">⚠️ stale</span>`;
       }
       
       linkContent += ')';
@@ -489,7 +475,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     });
   }, [livePrices]);
 
-  // Extract all tickers and scan DOM for additional ones
+  // Extract all tickers from content and DOM
   React.useEffect(() => {
     const contentTickers = extractAllTickers(cleanedContent);
     
@@ -508,195 +494,29 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     const merged = new Set([...contentTickers, ...domTickers]);
     allTickersRef.current = merged;
     
-    console.log(`📊 Total tickers to track: ${merged.size}`, [...merged]);
+    const symbolArray = Array.from(merged);
+    setExtractedSymbols(symbolArray);
+    
+    console.log(`📊 Polling prices for ${merged.size} symbols:`, symbolArray);
   }, [cleanedContent, extractAllTickers, enhancedHtml]);
 
-  // Build candidate keys and subscribe to freshest prices
+  // Update live prices map when Polygon data arrives (2-second polling)
   React.useEffect(() => {
-    const symbols = Array.from(allTickersRef.current);
-    if (symbols.length === 0 || mappingsLoading) return;
+    if (!polygonData?.prices) return;
     
-    let channel: any = null;
+    const priceMap = new Map<string, { price: number; change24h: number }>();
     
-    const setupRealtimeSubscription = async () => {
-      try {
-        // Build ALL candidate keys per symbol (polygon_ticker, symbol, aliases)
-        const candidateMap = new Map<string, Set<string>>(); // displaySymbol -> Set of candidate keys
-        const allCandidates = new Set<string>();
-        
-        symbols.forEach(sym => {
-          const mapping = getMapping(sym);
-          const candidates = new Set<string>();
-          
-          if (mapping) {
-            // Add polygon_ticker if available
-            if (mapping.polygon_ticker) {
-              candidates.add(mapping.polygon_ticker.toUpperCase());
-            }
-            // Add symbol
-            candidates.add(mapping.symbol.toUpperCase());
-            // Add aliases
-            if (mapping.aliases && Array.isArray(mapping.aliases)) {
-              mapping.aliases.forEach(alias => candidates.add(alias.toUpperCase()));
-            }
-          } else {
-            // Fallback: just use the symbol as-is
-            candidates.add(sym.toUpperCase());
-          }
-          
-          candidateMap.set(sym.toUpperCase(), candidates);
-          candidates.forEach(c => allCandidates.add(c));
-        });
-        
-        const keys = Array.from(allCandidates);
-        console.log(`🔍 Subscribing to ${keys.length} candidate keys for ${symbols.length} symbols`);
-        
-        // Helper to pick freshest row per symbol
-        const pickFreshest = (rows: any[]) => {
-          const priceMap = new Map();
-          const now = Date.now();
-          
-          candidateMap.forEach((candidates, displaySym) => {
-            // Find all rows matching this symbol's candidates
-            const matchingRows = rows.filter(r => candidates.has(r.ticker.toUpperCase()));
-            
-            if (matchingRows.length === 0) return;
-            
-            // Sort by updated_at desc, pick freshest
-            matchingRows.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-            const freshest = matchingRows[0];
-            
-            const updatedAt = new Date(freshest.updated_at).getTime();
-            const ageMs = now - updatedAt;
-            const isFresh = ageMs <= FRESHNESS_THRESHOLD_MS;
-            
-            priceMap.set(displaySym, {
-              price: Number(freshest.price),
-              change24h: Number(freshest.change24h ?? 0),
-              updated_at: freshest.updated_at,
-              isFresh
-            });
-            
-            if (!isFresh) {
-              console.warn(`⚠️ ${displaySym} price is stale (${Math.floor(ageMs / 1000)}s old)`);
-            }
-          });
-          
-          return priceMap;
-        };
-        
-        // Load initial snapshot
-        const { data: snapshot, error: snapError } = await supabase
-          .from('live_prices')
-          .select('ticker, price, change24h, updated_at')
-          .in('ticker', keys);
-        
-        if (!snapError && snapshot) {
-          const priceMap = pickFreshest(snapshot);
-          setLivePrices(priceMap);
-          setLastPriceUpdate(new Date());
-          console.log(`📊 Loaded prices for ${priceMap.size}/${symbols.length} symbols`);
-        }
-        
-        // Subscribe to ALL candidate keys
-        channel = supabase
-          .channel('brief-live-prices')
-          .on('postgres_changes', {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'live_prices',
-            filter: `ticker=in.(${keys.join(',')})`
-          }, (payload) => {
-            const { ticker, price, change24h, updated_at } = payload.new;
-            
-            // Find which symbol(s) this ticker belongs to
-            setLivePrices(prev => {
-              const next = new Map(prev);
-              const now = Date.now();
-              
-              candidateMap.forEach((candidates, displaySym) => {
-                if (candidates.has(ticker.toUpperCase())) {
-                  const updatedAt = new Date(updated_at).getTime();
-                  const ageMs = now - updatedAt;
-                  const isFresh = ageMs <= FRESHNESS_THRESHOLD_MS;
-                  
-                  const existing = prev.get(displaySym);
-                  
-                  // Only update if this is fresher than what we have
-                  if (!existing || new Date(updated_at) > new Date(existing.updated_at)) {
-                    console.log(`💹 ${displaySym}: $${price} (${change24h > 0 ? '+' : ''}${Number(change24h).toFixed(2)}%) [${isFresh ? 'fresh' : 'stale'}]`);
-                    next.set(displaySym, {
-                      price: Number(price),
-                      change24h: Number(change24h ?? 0),
-                      updated_at: updated_at,
-                      isFresh
-                    });
-                  }
-                }
-              });
-              
-              return next;
-            });
-            
-            setLastPriceUpdate(new Date());
-          })
-          .subscribe((status) => {
-            console.log('🔴 Realtime status:', status);
-          });
-        
-      } catch (error) {
-        console.error('❌ Error setting up realtime subscription:', error);
-      }
-    };
+    polygonData.prices.forEach((priceData: any) => {
+      const symbol = priceData.symbol.toUpperCase();
+      priceMap.set(symbol, {
+        price: priceData.price,
+        change24h: priceData.change24h || 0
+      });
+      console.log(`💹 ${symbol}: $${priceData.price} (${priceData.change24h > 0 ? '+' : ''}${(priceData.change24h || 0).toFixed(2)}%)`);
+    });
     
-    setupRealtimeSubscription();
-    
-    return () => {
-      if (channel) {
-        console.log('🛑 Unsubscribing from live prices');
-        supabase.removeChannel(channel);
-      }
-    };
-  }, [allTickersRef.current.size, mappingsLoading, getMapping]);
-
-  // Watchdog: manual snapshot if no updates for 20s
-  React.useEffect(() => {
-    const watchdogInterval = setInterval(async () => {
-      const now = Date.now();
-      const lastUpdate = lastPriceUpdate?.getTime() ?? 0;
-      const staleness = now - lastUpdate;
-      
-      if (staleness > 20000 && allTickersRef.current.size > 0) {
-        console.log('⚠️ No realtime updates for 20s, fetching snapshot from live_prices');
-        
-        const keys = Array.from(tickerMappingRef.current.values());
-        const { data: snapshot } = await supabase
-          .from('live_prices')
-          .select('ticker, price, change24h, updated_at')
-          .in('ticker', keys);
-        
-        if (snapshot) {
-          const priceMap = new Map();
-          snapshot.forEach(row => {
-            for (const [displaySym, liveKey] of tickerMappingRef.current.entries()) {
-              if (liveKey === row.ticker) {
-                priceMap.set(displaySym, {
-                  price: Number(row.price),
-                  change24h: Number(row.change24h),
-                  updated_at: row.updated_at
-                });
-              }
-            }
-          });
-          setLivePrices(priceMap);
-          setLastPriceUpdate(new Date());
-          console.log(`📊 Watchdog: Loaded ${snapshot.length} prices`);
-        }
-      }
-    }, 20000);
-    
-    return () => clearInterval(watchdogInterval);
-  }, [lastPriceUpdate]);
+    setLivePrices(priceMap);
+  }, [polygonData]);
 
   React.useEffect(() => {
     // Add global click handlers
@@ -847,12 +667,11 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
 
   return (
     <div className="enhanced-brief font-medium text-base leading-7 space-y-4 font-pixel">
-      {lastPriceUpdate && livePrices.size > 0 && (
+      {livePrices.size > 0 && (
         <div className="text-xs text-muted-foreground mb-4 pb-3 border-b border-border/30 flex items-center justify-between">
           <span className="flex items-center gap-2">
-            💰 Live prices updated {formatTimeAgo(lastPriceUpdate)}
+            📊 Live prices updating every 2 seconds
           </span>
-          {priceLoading && <span className="animate-pulse">Refreshing...</span>}
         </div>
       )}
       <style>{`
@@ -997,14 +816,6 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           background-color: rgba(239, 68, 68, 0.15);
           color: #ef4444;
           border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-        .live-price-badge.stale {
-          background-color: rgba(156, 163, 175, 0.15);
-          color: hsl(var(--muted-foreground));
-          border: 1px solid rgba(156, 163, 175, 0.3);
-          font-size: 0.85rem;
-          opacity: 0.8;
         }
 
         .live-change {
