@@ -249,9 +249,9 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         
         // Only show live price if difference is more than 0.1% or $0.10
         if (percentDiff > 0.1 || priceDiff > 0.10) {
-          const priceChange = liveData.price - originalPrice;
-          const changePercent = ((priceChange / originalPrice) * 100);
-          const isUp = priceChange > 0;
+          // Use 24h change from database instead of delta from brief price
+          const change24h = liveData.change24h ?? 0;
+          const isUp = change24h >= 0;
           
           const formatPrice = (p: number) => {
             if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -259,7 +259,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             return p.toLocaleString('en-US', { maximumFractionDigits: 6 });
           };
           
-          linkContent += ` <span class="live-price-separator">→</span> <span class="live-price-badge ${isUp ? 'price-up' : 'price-down'}">📊 $${formatPrice(liveData.price)} <span class="live-change">${isUp ? '+' : ''}${changePercent.toFixed(2)}%</span></span>`;
+          linkContent += ` <span class="live-price-separator">→</span> <span class="live-price-badge ${isUp ? 'price-up' : 'price-down'}">📊 $${formatPrice(liveData.price)} <span class="live-change">${isUp ? '+' : ''}${change24h.toFixed(2)}%</span></span>`;
         }
       }
       
@@ -408,6 +408,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   React.useEffect(() => {
     if (livePrices.size === 0) return;
 
+    // 1. Update capability quotes (Name (TICKER) pattern)
     const nodes = document.querySelectorAll('.ticker-parentheses[data-quote-symbol]');
     nodes.forEach((el) => {
       const sym = el.getAttribute('data-quote-symbol');
@@ -449,6 +450,50 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       const isPositive = (data.change24h ?? 0) >= 0;
       changeSpan.className = `sym-change ${isPositive ? 'positive' : 'negative'}`;
       changeSpan.textContent = ` ${isPositive ? '+' : ''}${(data.change24h ?? 0).toFixed(2)}%`;
+    });
+
+    // 2. Update pre-formatted prices (Name (TICKER $PRICE ±X.X%) pattern)
+    const inlineLinks = document.querySelectorAll('.inline-crypto-link[data-ticker]');
+    inlineLinks.forEach((el) => {
+      const ticker = el.getAttribute('data-ticker');
+      if (!ticker) return;
+      
+      const data = livePrices.get(ticker);
+      if (!data) return;
+
+      // Update the inline-price span
+      const priceSpan = el.querySelector('.inline-price') as HTMLElement | null;
+      if (priceSpan) {
+        const formatPrice = (p: number) => {
+          if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
+          if (p >= 1) return p.toLocaleString('en-US', { maximumFractionDigits: 2 });
+          return p.toLocaleString('en-US', { maximumFractionDigits: 6 });
+        };
+        priceSpan.textContent = `$${formatPrice(data.price)}`;
+      }
+
+      // Update the inline-change span with 24h change from database
+      const changeSpan = el.querySelector('.inline-change') as HTMLElement | null;
+      if (changeSpan) {
+        const isPositive = (data.change24h ?? 0) >= 0;
+        changeSpan.className = `inline-change ${isPositive ? 'positive' : 'negative'}`;
+        changeSpan.textContent = `${isPositive ? '+' : ''}${(data.change24h ?? 0).toFixed(2)}%`;
+      }
+
+      // Update the live price badge to also show 24h change
+      const liveBadge = el.querySelector('.live-price-badge');
+      if (liveBadge) {
+        const liveChange = liveBadge.querySelector('.live-change');
+        if (liveChange) {
+          const isPositive = (data.change24h ?? 0) >= 0;
+          liveChange.className = `live-change`;
+          liveChange.textContent = `${isPositive ? '+' : ''}${(data.change24h ?? 0).toFixed(2)}%`;
+        }
+        
+        // Update badge price styling
+        const isPositive = (data.change24h ?? 0) >= 0;
+        liveBadge.className = `live-price-badge ${isPositive ? 'price-up' : 'price-down'}`;
+      }
     });
   }, [livePrices]);
 
