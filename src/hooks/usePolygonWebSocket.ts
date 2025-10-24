@@ -74,7 +74,7 @@ export function usePolygonWebSocket(symbols: string[]) {
   const startFallbackPolling = useCallback(async () => {
     if (fallbackIntervalRef.current) return;
     
-    console.log('🔄 Starting fallback polling...');
+    console.log(`⏰ Starting fallback polling mode for ${symbols.length} symbols`);
     setStatus('fallback');
 
     const poll = async () => {
@@ -105,6 +105,7 @@ export function usePolygonWebSocket(symbols: string[]) {
 
           setPrices(prev => ({ ...prev, ...updates }));
           setLastUpdate(now);
+          console.log(`📊 Fallback: updated ${Object.keys(updates).length} prices`);
         }
       } catch (error) {
         console.error('Fallback polling error:', error);
@@ -113,7 +114,8 @@ export function usePolygonWebSocket(symbols: string[]) {
 
     poll(); // Initial poll
     fallbackIntervalRef.current = setInterval(poll, 2000);
-  }, [symbols]);
+    console.log(`✅ Fallback polling started (2s interval)`);
+  }, [symbols, baseline24h]);
 
   // Stop fallback polling
   const stopFallbackPolling = useCallback(() => {

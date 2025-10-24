@@ -404,6 +404,54 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     }
   }, [tickers.length]); // Only depend on length to avoid infinite loops
 
+  // Update DOM prices when livePrices changes - makes prices truly "live"
+  React.useEffect(() => {
+    if (livePrices.size === 0) return;
+
+    const nodes = document.querySelectorAll('.ticker-parentheses[data-quote-symbol]');
+    nodes.forEach((el) => {
+      const sym = el.getAttribute('data-quote-symbol');
+      if (!sym) return;
+      
+      const data = livePrices.get(sym);
+      if (!data) return;
+
+      // Find or create price span
+      let priceSpan = el.querySelector('.sym-price') as HTMLElement | null;
+      if (!priceSpan) {
+        priceSpan = document.createElement('span');
+        priceSpan.className = 'sym-price';
+        const closeParen = Array.from(el.childNodes).find(
+          n => n.nodeType === Node.TEXT_NODE && n.textContent === ')'
+        );
+        if (closeParen) el.insertBefore(priceSpan, closeParen);
+      }
+
+      // Format and update price
+      const formatPrice = (p: number) => {
+        if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        if (p >= 1) return p.toLocaleString('en-US', { maximumFractionDigits: 2 });
+        return p.toLocaleString('en-US', { maximumFractionDigits: 6 });
+      };
+      priceSpan.textContent = ` $${formatPrice(data.price)}`;
+
+      // Find or create change span
+      let changeSpan = el.querySelector('.sym-change') as HTMLElement | null;
+      if (!changeSpan) {
+        changeSpan = document.createElement('span');
+        const closeParen = Array.from(el.childNodes).find(
+          n => n.nodeType === Node.TEXT_NODE && n.textContent === ')'
+        );
+        if (closeParen) el.insertBefore(changeSpan, closeParen);
+      }
+
+      // Update change with correct styling
+      const isPositive = (data.change24h ?? 0) >= 0;
+      changeSpan.className = `sym-change ${isPositive ? 'positive' : 'negative'}`;
+      changeSpan.textContent = ` ${isPositive ? '+' : ''}${(data.change24h ?? 0).toFixed(2)}%`;
+    });
+  }, [livePrices]);
+
   // Extract tickers and fetch prices on mount and content change
   React.useEffect(() => {
     const extractedTickers = extractTickersFromContent(cleanedContent);
@@ -414,11 +462,11 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       // Initial fetch
       fetchLivePrices(extractedTickers);
       
-      // Set up 60-second refresh interval
+      // Set up 15-second refresh interval for snappier updates
       const intervalId = setInterval(() => {
         console.log('🔄 Refreshing live prices...');
         fetchLivePrices(extractedTickers);
-      }, 60000); // 60 seconds
+      }, 15000); // 15 seconds
       
       return () => {
         clearInterval(intervalId);
