@@ -12,6 +12,10 @@ const LEADER_TIMEOUT = 30000; // 30 seconds (reduced from 60s for faster takeove
 const BATCH_INTERVAL = 1000; // 1 second batch upserts
 const MAX_RECONNECT_ATTEMPTS = 5;
 
+// Connection monitoring
+let consecutiveFailures = 0;
+const MAX_CONSECUTIVE_FAILURES = 3;
+
 interface PriceUpdate {
   ticker: string;
   price: number;
@@ -279,6 +283,16 @@ async function startWebSocket(supabase: any, apiKey: string, tickers: any[]) {
         // Handle status messages
         if (msg.ev === 'status') {
           console.log('Status:', msg.message);
+          
+          // Reset failure counter on successful connection
+          if (msg.message.includes('authenticated') || msg.message.includes('Connected Successfully')) {
+            consecutiveFailures = 0;
+          }
+          
+          // Monitor for connection limit warnings
+          if (msg.message.includes('connection limit') || msg.message.includes('exceeded')) {
+            console.error('🚨 CONNECTION LIMIT WARNING:', msg.message);
+          }
         }
       }
     } catch (error) {
@@ -289,11 +303,27 @@ async function startWebSocket(supabase: any, apiKey: string, tickers: any[]) {
   ws.onerror = (error) => {
     console.error('❌ WebSocket error:', error);
     connectionState = ConnectionState.ERROR;
+    consecutiveFailures++;
   };
 
-  ws.onclose = (event) => {
+  ws.onclose = async (event) => {
     console.log(`🔌 WebSocket closed (code: ${event.code}, reason: ${event.reason || 'none'})`);
     connectionState = ConnectionState.DISCONNECTED;
+    
+    // Enhanced monitoring for connection limit errors
+    if (event.reason && event.reason.includes('connection limit')) {
+      consecutiveFailures++;
+      console.error(`🚨 CONNECTION LIMIT EXCEEDED (failure ${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES})`);
+      console.log('💡 Suggestion: Check for other active Polygon.io WebSocket connections');
+      console.log('💡 Backup polling should activate within 30 seconds');
+      
+      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        console.error('❌ Too many consecutive connection limit failures. Backing off for 5 minutes.');
+        await releaseLeadership(supabase);
+        cleanup();
+        return;
+      }
+    }
     
     // Attempt reconnect with exponential backoff if still leader
     if (isLeader && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
@@ -308,6 +338,7 @@ async function startWebSocket(supabase: any, apiKey: string, tickers: any[]) {
       }, backoffDelay);
     } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
       console.error('❌ Max reconnection attempts reached. Relay stopped.');
+      console.log('🛡️ Backup price-poller function will take over');
       cleanup();
     }
   };

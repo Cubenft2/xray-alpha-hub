@@ -72,6 +72,12 @@ verify_jwt = false
 [[functions.polygon-price-relay.cron]]
 schedule = "*/5 * * * *"  # Every 5 minutes to keep relay alive
 
+[functions.price-poller]
+verify_jwt = false
+
+[[functions.price-poller.cron]]
+schedule = "*/15 * * * * *"  # Every 15 seconds backup polling
+
 [functions.polygon-historical-data]
 verify_jwt = false
 
