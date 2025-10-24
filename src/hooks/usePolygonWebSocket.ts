@@ -133,13 +133,17 @@ export function usePolygonWebSocket(symbols: string[]) {
       
       // Get session for authorization
       const { data: { session } } = await supabase.auth.getSession();
-      const authHeader = session?.access_token ? `Bearer ${session.access_token}` : '';
+
+      if (!session?.access_token) {
+        console.error('❌ No active session - WebSocket requires authentication');
+        throw new Error('Authentication required for live prices');
+      }
       
-      // Connect to authenticated WebSocket proxy
-      const wsUrl = 'wss://odncvfiuzliyohxrsigc.supabase.co/functions/v1/polygon-websocket-proxy';
-      console.log('🔌 Connecting to WebSocket proxy...');
+      // Pass auth token as query parameter for WebSocket connection
+      const wsUrl = `wss://odncvfiuzliyohxrsigc.supabase.co/functions/v1/polygon-websocket-proxy?token=${session.access_token}`;
+      console.log('🔐 Connecting with authenticated session...');
       
-      const ws = new WebSocket(wsUrl, authHeader ? ['websocket', authHeader] : undefined);
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
