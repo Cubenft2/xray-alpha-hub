@@ -41,19 +41,42 @@ serve(async (req) => {
 
     const pricePromises = symbolList.map(async (symbol) => {
       try {
-        const response = await fetch(
+        // Fetch current price
+        const priceResponse = await fetch(
           'https://api.polygon.io/v2/last/trade/X:' + symbol + 'USD?apiKey=' + polygonApiKey
         );
         
-        if (!response.ok) return null;
-        const data = await response.json();
+        if (!priceResponse.ok) return null;
+        const priceData = await priceResponse.json();
+        const currentPrice = priceData.results?.p;
+        
+        if (!currentPrice) return null;
+        
+        // Fetch previous day's close for 24h change calculation
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const dateStr = yesterday.toISOString().split('T')[0];
+        
+        const aggResponse = await fetch(
+          `https://api.polygon.io/v2/aggs/ticker/X:${symbol}USD/prev?adjusted=true&apiKey=${polygonApiKey}`
+        );
+        
+        let change24h = 0;
+        if (aggResponse.ok) {
+          const aggData = await aggResponse.json();
+          const prevClose = aggData.results?.[0]?.c;
+          if (prevClose) {
+            change24h = ((currentPrice - prevClose) / prevClose) * 100;
+          }
+        }
         
         return {
           symbol,
-          price: data.results?.p || null,
-          timestamp: data.results?.t || Date.now(),
-          exchange: data.results?.x || 'POLYGON',
-          size: data.results?.s || null
+          price: currentPrice,
+          change24h: change24h,
+          timestamp: priceData.results?.t || Date.now(),
+          exchange: priceData.results?.x || 'POLYGON',
+          size: priceData.results?.s || null
         };
       } catch (error) {
         return null;
