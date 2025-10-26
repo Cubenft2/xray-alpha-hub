@@ -357,10 +357,8 @@ export default function QuoteLibraryAdmin() {
                   ) : (
                     filteredQuotes.slice(0, 50).map((quote) => (
                       <TableRow key={quote.id}>
-                        <TableCell className="font-medium">
-                          {quote.quote_text.length > 100 
-                            ? `${quote.quote_text.substring(0, 100)}...` 
-                            : quote.quote_text}
+                        <TableCell className="font-medium whitespace-pre-wrap break-words text-pretty">
+                          {quote.quote_text}
                         </TableCell>
                         <TableCell>{quote.author}</TableCell>
                         <TableCell>
