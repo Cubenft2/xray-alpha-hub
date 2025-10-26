@@ -23,20 +23,6 @@ interface PopulateStats {
 const QUOTES_PER_RUN = 10;
 const MAX_QUOTE_LEN = 200;
 
-// Truncate to whole word to respect DB constraint
-function truncateToWholeWord(text: string, maxLen: number): string {
-  if (!text || text.length <= maxLen) return text;
-  
-  let truncated = text.slice(0, maxLen);
-  const lastSpace = truncated.lastIndexOf(' ');
-  
-  if (lastSpace > 0) {
-    truncated = truncated.slice(0, lastSpace);
-  }
-  
-  return truncated.trim() + '…';
-}
-
 // Free tier: fetch one random quote (no parameters allowed)
 async function fetchRandomQuote(
   apiKey: string
@@ -124,16 +110,25 @@ Deno.serve(async (req) => {
         
         // Normalize fields before checking duplicates or inserting
         const rawText = (quote.quote || '').trim();
-        const text = truncateToWholeWord(rawText, MAX_QUOTE_LEN);
         const author = (quote.author || 'Unknown').trim();
         const category = (quote.category || 'general').trim().toLowerCase();
         
-        // Skip if quote is too short after truncation
-        if (!text || text.length < 5) {
+        // Skip if quote is too long (we only want complete quotes)
+        if (rawText.length > MAX_QUOTE_LEN) {
+          stats.errors.push(`Skipped quote (too long: ${rawText.length} chars)`);
+          console.log(`⏭️ Skipping quote that's too long (${rawText.length} chars)`);
+          continue;
+        }
+        
+        // Skip if quote is too short
+        if (!rawText || rawText.length < 5) {
           stats.errors.push('Skipped empty or too-short quote');
           console.log(`⏭️ Skipping empty/too-short quote`);
           continue;
         }
+        
+        // Use the full, untruncated text
+        const text = rawText;
         
         // Use normalized text for duplicate check
         const key = `${text}|||${author}`.toLowerCase();
