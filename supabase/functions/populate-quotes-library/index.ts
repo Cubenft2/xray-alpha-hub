@@ -5,56 +5,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ApiNinjasQuote {
-  quote: string;
+interface StoicQuote {
+  text: string;
   author: string;
-  category: string;
 }
 
 interface PopulateStats {
-  totalFetched: number;
+  totalLoaded: number;
   totalInserted: number;
   totalDuplicates: number;
   errors: string[];
-  categoriesProcessed: { [key: string]: number };
 }
 
-// Free tier: 10 random quotes per run (no category support on free tier)
-const QUOTES_PER_RUN = 10;
-const MAX_QUOTE_LEN = 200;
-
-// Free tier: fetch one random quote (no parameters allowed)
-async function fetchRandomQuote(
-  apiKey: string
-): Promise<ApiNinjasQuote | null> {
+// Load stoic quotes from local JSON seed file
+async function loadStoicQuotes(): Promise<StoicQuote[]> {
   try {
-    // Free tier: no parameters at all, returns 1 random quote
-    const url = 'https://api.api-ninjas.com/v1/quotes';
-    console.log('📡 Fetching random quote from API Ninjas');
+    const seedPath = new URL('../seed-data/stoic-quotes.json', import.meta.url);
+    console.log('📚 Loading stoic quotes from seed file');
     
-    const response = await fetch(url, {
-      headers: {
-        'X-Api-Key': apiKey,
-      },
-    });
-
+    const response = await fetch(seedPath);
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ API Ninjas error: ${response.status} - ${errorText}`);
-      return null;
-    }
-
-    const quotes: ApiNinjasQuote[] = await response.json();
-    
-    if (quotes.length > 0) {
-      console.log(`✅ Fetched quote: "${quotes[0].quote.substring(0, 50)}..."`);
-      return quotes[0];
+      throw new Error(`Failed to load seed file: ${response.status}`);
     }
     
-    return null;
+    const quotes: StoicQuote[] = await response.json();
+    console.log(`✅ Loaded ${quotes.length} stoic quotes from seed file`);
+    return quotes;
   } catch (error) {
-    console.error(`❌ Error fetching quote:`, error);
-    return null;
+    console.error(`❌ Error loading stoic quotes:`, error);
+    throw error;
   }
 }
 
@@ -64,24 +43,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('API_NINJAS_KEY');
-    if (!apiKey) {
-      throw new Error('API_NINJAS_KEY not configured');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    console.log('🚀 Starting quote population from API Ninjas');
+    console.log('🚀 Starting stoic quote population from seed file');
 
     const stats: PopulateStats = {
-      totalFetched: 0,
+      totalLoaded: 0,
       totalInserted: 0,
       totalDuplicates: 0,
       errors: [],
-      categoriesProcessed: {},
     };
+
+    // Load quotes from seed file
+    const seedQuotes = await loadStoicQuotes();
+    stats.totalLoaded = seedQuotes.length;
 
     // Fetch existing quotes to check for duplicates
     const { data: existingQuotes } = await supabase
@@ -94,56 +71,32 @@ Deno.serve(async (req) => {
 
     console.log(`📚 Found ${existingSet.size} existing quotes in database`);
 
-    // Fetch random quotes (no categories on free tier)
-    for (let i = 1; i <= QUOTES_PER_RUN; i++) {
-      console.log(`\n🔄 Fetching quote ${i}/${QUOTES_PER_RUN}`);
-      
+    // Process each quote from seed file
+    for (const quote of seedQuotes) {
       try {
-        const quote = await fetchRandomQuote(apiKey);
+        const text = quote.text.trim();
+        const author = quote.author.trim();
         
-        if (!quote) {
-          console.log(`⚠️ No quote received`);
+        if (!text || !author) {
+          stats.errors.push('Skipped empty quote or author');
+          console.log(`⏭️ Skipping empty quote`);
           continue;
         }
         
-        stats.totalFetched++;
-        
-        // Normalize fields before checking duplicates or inserting
-        const rawText = (quote.quote || '').trim();
-        const author = (quote.author || 'Unknown').trim();
-        const category = (quote.category || 'general').trim().toLowerCase();
-        
-        // Skip if quote is too long (we only want complete quotes)
-        if (rawText.length > MAX_QUOTE_LEN) {
-          stats.errors.push(`Skipped quote (too long: ${rawText.length} chars)`);
-          console.log(`⏭️ Skipping quote that's too long (${rawText.length} chars)`);
-          continue;
-        }
-        
-        // Skip if quote is too short
-        if (!rawText || rawText.length < 5) {
-          stats.errors.push('Skipped empty or too-short quote');
-          console.log(`⏭️ Skipping empty/too-short quote`);
-          continue;
-        }
-        
-        // Use the full, untruncated text
-        const text = rawText;
-        
-        // Use normalized text for duplicate check
+        // Check for duplicates
         const key = `${text}|||${author}`.toLowerCase();
         
         if (existingSet.has(key)) {
           stats.totalDuplicates++;
-          console.log(`⏭️ Skipping duplicate quote`);
+          console.log(`⏭️ Skipping duplicate: "${text.substring(0, 50)}..."`);
           continue;
         }
 
-        // Insert with normalized fields
+        // Insert quote
         const { error } = await supabase.from('quote_library').insert({
           quote_text: text,
           author: author,
-          category: category,
+          category: 'stoicism',
           is_active: true,
           times_used: 0,
         });
@@ -153,20 +106,16 @@ Deno.serve(async (req) => {
           stats.errors.push(`Failed to insert quote: ${error.message}`);
         } else {
           stats.totalInserted++;
-          stats.categoriesProcessed[category] = (stats.categoriesProcessed[category] || 0) + 1;
           existingSet.add(key);
-          console.log(`✅ Inserted new quote (${category})`);
+          console.log(`✅ Inserted: "${text.substring(0, 50)}..." - ${author}`);
         }
-
-        // Delay between calls to respect rate limits (500ms)
-        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
-        console.error(`❌ Failed to fetch quote:`, error);
-        stats.errors.push(`Quote fetch failed: ${error.message}`);
+        console.error(`❌ Failed to process quote:`, error);
+        stats.errors.push(`Quote processing failed: ${error.message}`);
       }
     }
 
-    console.log('\n✅ Quote population completed!');
+    console.log('\n✅ Stoic quote population completed!');
     console.log(`📊 Stats:`, stats);
 
     return new Response(
