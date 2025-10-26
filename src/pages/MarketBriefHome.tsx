@@ -161,7 +161,7 @@ export default function MarketBriefHome() {
       'ICP', 'APT', 'FIL', 'ARB', 'OP', 'HBAR', 'VET', 'MKR', 'ATOM', 'IMX',
       'RNDR', 'STX', 'INJ', 'GRT', 'RUNE', 'FTM', 'ALGO', 'SAND', 'MANA', 'AAVE',
       'EOS', 'XTZ', 'THETA', 'FLR', 'AXS', 'FLOW', 'SUI', 'HYPE', 'ASTER', 'PYUSD',
-      'ATONE', 'ATOMONE', 'TRAC', 'BLESS', 'AKI'
+      'ATONE', 'ATOMONE', 'TRAC', 'BLESS', 'AKI', 'CAKE'
     ]);
 
     // 1) EXPLICIT OVERRIDES (HIGHEST PRIORITY - RUNS FIRST)
@@ -1030,6 +1030,20 @@ export default function MarketBriefHome() {
                         symbol={mapTickerToTradingView('DOGE').symbol} 
                         theme={theme}
                         {...getAssetMetadata('DOGE')}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* CAKE */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">PancakeSwap (CAKE)</div>
+                    <div className="h-36">
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('CAKE').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('CAKE')}
                       />
                     </div>
                   </CardContent>

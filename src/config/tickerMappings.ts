@@ -200,6 +200,9 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   'ENAUSD': { symbol: 'ENAUSD', displayName: 'Ethena Staked ENA', type: 'crypto' },
   'SENA': { symbol: 'ENAUSD', displayName: 'Ethena Staked ENA', type: 'crypto' },
   'SENAUSD': { symbol: 'ENAUSD', displayName: 'Ethena Staked ENA', type: 'crypto' },
+  // PancakeSwap
+  'CAKE': { symbol: 'BINANCE:CAKEUSDT', displayName: 'PancakeSwap (CAKE)', type: 'crypto' },
+  'PANCAKESWAP': { symbol: 'BINANCE:CAKEUSDT', displayName: 'PancakeSwap (CAKE)', type: 'crypto' },
 };
 
 // Index and Forex tickers
