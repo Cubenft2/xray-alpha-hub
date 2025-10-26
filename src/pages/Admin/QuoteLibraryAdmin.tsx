@@ -106,8 +106,27 @@ export default function QuoteLibraryAdmin() {
 
       if (error) throw error;
 
+      // Always show the result
       setPopulationResult(data);
-      toast.success(`Successfully added ${data.stats.totalInserted} new quotes!`);
+
+      // Smart toast feedback based on results
+      if (data?.success === false) {
+        toast.error(data.error || 'Failed to populate quotes');
+      } else if (data?.stats) {
+        const { totalInserted, totalDuplicates, errors } = data.stats;
+        
+        if (totalInserted > 0) {
+          toast.success(`Added ${totalInserted} new quote${totalInserted !== 1 ? 's' : ''}`);
+        } else if (totalDuplicates > 0 && errors.length === 0) {
+          toast.message('No new quotes added (all duplicates)');
+        } else if (totalInserted === 0 && errors.length === 0) {
+          toast.message('No new quotes added');
+        }
+        
+        if (errors.length > 0) {
+          toast.warning(`${errors.length} quote${errors.length !== 1 ? 's' : ''} skipped: ${errors[0]}`);
+        }
+      }
       
       await loadStats();
       await loadQuotes();
@@ -214,7 +233,7 @@ export default function QuoteLibraryAdmin() {
             )}
           </Button>
 
-          {populationResult && (
+          {populationResult && populationResult.stats && (
             <div className="mt-4 p-4 border rounded-lg bg-muted/50">
               <h4 className="font-semibold mb-2">Population Results:</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -235,6 +254,17 @@ export default function QuoteLibraryAdmin() {
                   <p className="text-xl font-bold text-red-600">{populationResult.stats.errors.length}</p>
                 </div>
               </div>
+              
+              {populationResult.stats.errors.length > 0 && (
+                <div className="mt-4 p-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded">
+                  <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Skipped Quotes:</p>
+                  <ul className="text-xs text-yellow-700 dark:text-yellow-300 mt-1 list-disc list-inside">
+                    {populationResult.stats.errors.slice(0, 3).map((err, idx) => (
+                      <li key={idx}>{err}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               
               {Object.keys(populationResult.stats.categoriesProcessed).length > 0 && (
                 <div className="mt-4">

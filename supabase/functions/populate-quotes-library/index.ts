@@ -21,6 +21,21 @@ interface PopulateStats {
 
 // Free tier: 10 random quotes per run (no category support on free tier)
 const QUOTES_PER_RUN = 10;
+const MAX_QUOTE_LEN = 200;
+
+// Truncate to whole word to respect DB constraint
+function truncateToWholeWord(text: string, maxLen: number): string {
+  if (!text || text.length <= maxLen) return text;
+  
+  let truncated = text.slice(0, maxLen);
+  const lastSpace = truncated.lastIndexOf(' ');
+  
+  if (lastSpace > 0) {
+    truncated = truncated.slice(0, lastSpace);
+  }
+  
+  return truncated.trim() + '…';
+}
 
 // Free tier: fetch one random quote (no parameters allowed)
 async function fetchRandomQuote(
@@ -107,7 +122,21 @@ Deno.serve(async (req) => {
         
         stats.totalFetched++;
         
-        const key = `${quote.quote}|||${quote.author}`.toLowerCase();
+        // Normalize fields before checking duplicates or inserting
+        const rawText = (quote.quote || '').trim();
+        const text = truncateToWholeWord(rawText, MAX_QUOTE_LEN);
+        const author = (quote.author || 'Unknown').trim();
+        const category = (quote.category || 'general').trim().toLowerCase();
+        
+        // Skip if quote is too short after truncation
+        if (!text || text.length < 5) {
+          stats.errors.push('Skipped empty or too-short quote');
+          console.log(`⏭️ Skipping empty/too-short quote`);
+          continue;
+        }
+        
+        // Use normalized text for duplicate check
+        const key = `${text}|||${author}`.toLowerCase();
         
         if (existingSet.has(key)) {
           stats.totalDuplicates++;
@@ -115,11 +144,10 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Insert new quote with its original category or 'general'
-        const category = quote.category || 'general';
+        // Insert with normalized fields
         const { error } = await supabase.from('quote_library').insert({
-          quote_text: quote.quote,
-          author: quote.author,
+          quote_text: text,
+          author: author,
           category: category,
           is_active: true,
           times_used: 0,
