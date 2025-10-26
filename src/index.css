@@ -258,6 +258,16 @@
     @apply bg-muted/50 border-y border-border backdrop-blur-sm;
   }
 
+  /* TradingView Ticker Speed Override - 75% Faster */
+  .xr-ticker * {
+    animation-duration: 23s !important;
+    transition-duration: 23s !important;
+  }
+  
+  .xr-ticker iframe {
+    animation-duration: 23s !important;
+  }
+
   .xr-header {
     @apply sticky top-0 z-50 w-full border-b border-primary/20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60;
     box-shadow: 0 1px 3px hsl(var(--primary) / 0.1);
