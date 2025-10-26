@@ -35,50 +35,40 @@ const CATEGORIES = [
   'famous'
 ];
 
-const QUOTES_PER_CATEGORY = 30; // We'll try to fetch this many per category
-const BATCH_SIZE = 10; // API Ninjas typically allows up to 10 per request
-
-async function fetchQuotesFromCategory(
+// Free tier: fetch one quote per category per run
+async function fetchQuoteFromCategory(
   category: string,
-  apiKey: string,
-  targetCount: number
-): Promise<ApiNinjasQuote[]> {
-  const allQuotes: ApiNinjasQuote[] = [];
-  const batches = Math.ceil(targetCount / BATCH_SIZE);
+  apiKey: string
+): Promise<ApiNinjasQuote | null> {
+  try {
+    // Free tier: no limit parameter, returns 1 quote
+    const url = `https://api.api-ninjas.com/v1/quotes?category=${category}`;
+    console.log(`📡 Fetching quote from category: ${category}`);
+    
+    const response = await fetch(url, {
+      headers: {
+        'X-Api-Key': apiKey,
+      },
+    });
 
-  for (let i = 0; i < batches; i++) {
-    try {
-      const url = `https://api.api-ninjas.com/v1/quotes?category=${category}&limit=${BATCH_SIZE}`;
-      console.log(`📡 Fetching quotes from category: ${category} (batch ${i + 1}/${batches})`);
-      
-      const response = await fetch(url, {
-        headers: {
-          'X-Api-Key': apiKey,
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`❌ API Ninjas error for ${category}: ${response.status} - ${errorText}`);
-        break; // Stop trying this category if we get an error
-      }
-
-      const quotes: ApiNinjasQuote[] = await response.json();
-      console.log(`✅ Fetched ${quotes.length} quotes from ${category}`);
-      
-      allQuotes.push(...quotes);
-
-      // Small delay to avoid rate limiting
-      if (i < batches - 1) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    } catch (error) {
-      console.error(`❌ Error fetching ${category}:`, error);
-      break;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ API Ninjas error for ${category}: ${response.status} - ${errorText}`);
+      return null;
     }
-  }
 
-  return allQuotes;
+    const quotes: ApiNinjasQuote[] = await response.json();
+    
+    if (quotes.length > 0) {
+      console.log(`✅ Fetched quote from ${category}: "${quotes[0].quote.substring(0, 50)}..."`);
+      return quotes[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`❌ Error fetching ${category}:`, error);
+    return null;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -117,45 +107,50 @@ Deno.serve(async (req) => {
 
     console.log(`📚 Found ${existingSet.size} existing quotes in database`);
 
-    // Process each category
+    // Process each category - one quote per category per run
     for (const category of CATEGORIES) {
       console.log(`\n🔄 Processing category: ${category}`);
       
       try {
-        const quotes = await fetchQuotesFromCategory(category, apiKey, QUOTES_PER_CATEGORY);
-        stats.totalFetched += quotes.length;
+        const quote = await fetchQuoteFromCategory(category, apiKey);
+        
+        if (!quote) {
+          console.log(`⚠️ No quote received for ${category}`);
+          stats.categoriesProcessed[category] = 0;
+          continue;
+        }
+        
+        stats.totalFetched++;
         stats.categoriesProcessed[category] = 0;
-
-        for (const quote of quotes) {
-          const key = `${quote.quote}|||${quote.author}`.toLowerCase();
-          
-          if (existingSet.has(key)) {
-            stats.totalDuplicates++;
-            continue;
-          }
-
-          // Insert new quote
-          const { error } = await supabase.from('quote_library').insert({
-            quote_text: quote.quote,
-            author: quote.author,
-            category: category,
-            is_active: true,
-            times_used: 0,
-          });
-
-          if (error) {
-            console.error(`❌ Error inserting quote:`, error);
-            stats.errors.push(`Failed to insert quote from ${category}: ${error.message}`);
-          } else {
-            stats.totalInserted++;
-            stats.categoriesProcessed[category]++;
-            existingSet.add(key); // Add to set to avoid duplicates within this run
-          }
+        
+        const key = `${quote.quote}|||${quote.author}`.toLowerCase();
+        
+        if (existingSet.has(key)) {
+          stats.totalDuplicates++;
+          console.log(`⏭️ Skipping duplicate quote from ${category}`);
+          continue;
         }
 
-        console.log(`✅ Category ${category}: inserted ${stats.categoriesProcessed[category]} new quotes`);
+        // Insert new quote
+        const { error } = await supabase.from('quote_library').insert({
+          quote_text: quote.quote,
+          author: quote.author,
+          category: category,
+          is_active: true,
+          times_used: 0,
+        });
 
-        // Small delay between categories
+        if (error) {
+          console.error(`❌ Error inserting quote:`, error);
+          stats.errors.push(`Failed to insert quote from ${category}: ${error.message}`);
+        } else {
+          stats.totalInserted++;
+          stats.categoriesProcessed[category] = 1;
+          existingSet.add(key);
+          console.log(`✅ Inserted new quote from ${category}`);
+        }
+
+        // Small delay between categories to respect rate limits (300ms)
         await new Promise(resolve => setTimeout(resolve, 300));
       } catch (error) {
         console.error(`❌ Failed to process category ${category}:`, error);
