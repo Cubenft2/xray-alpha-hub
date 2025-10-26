@@ -19,31 +19,17 @@ interface PopulateStats {
   categoriesProcessed: { [key: string]: number };
 }
 
-const CATEGORIES = [
-  'money',
-  'success', 
-  'business',
-  'inspirational',
-  'wisdom',
-  'learning',
-  'leadership',
-  'courage',
-  'change',
-  'dreams',
-  'happiness',
-  'age',
-  'famous'
-];
+// Free tier: 10 random quotes per run (no category support on free tier)
+const QUOTES_PER_RUN = 10;
 
-// Free tier: fetch one quote per category per run
-async function fetchQuoteFromCategory(
-  category: string,
+// Free tier: fetch one random quote (no parameters allowed)
+async function fetchRandomQuote(
   apiKey: string
 ): Promise<ApiNinjasQuote | null> {
   try {
-    // Free tier: no limit parameter, returns 1 quote
-    const url = `https://api.api-ninjas.com/v1/quotes?category=${category}`;
-    console.log(`📡 Fetching quote from category: ${category}`);
+    // Free tier: no parameters at all, returns 1 random quote
+    const url = 'https://api.api-ninjas.com/v1/quotes';
+    console.log('📡 Fetching random quote from API Ninjas');
     
     const response = await fetch(url, {
       headers: {
@@ -53,20 +39,20 @@ async function fetchQuoteFromCategory(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ API Ninjas error for ${category}: ${response.status} - ${errorText}`);
+      console.error(`❌ API Ninjas error: ${response.status} - ${errorText}`);
       return null;
     }
 
     const quotes: ApiNinjasQuote[] = await response.json();
     
     if (quotes.length > 0) {
-      console.log(`✅ Fetched quote from ${category}: "${quotes[0].quote.substring(0, 50)}..."`);
+      console.log(`✅ Fetched quote: "${quotes[0].quote.substring(0, 50)}..."`);
       return quotes[0];
     }
     
     return null;
   } catch (error) {
-    console.error(`❌ Error fetching ${category}:`, error);
+    console.error(`❌ Error fetching quote:`, error);
     return null;
   }
 }
@@ -107,31 +93,30 @@ Deno.serve(async (req) => {
 
     console.log(`📚 Found ${existingSet.size} existing quotes in database`);
 
-    // Process each category - one quote per category per run
-    for (const category of CATEGORIES) {
-      console.log(`\n🔄 Processing category: ${category}`);
+    // Fetch random quotes (no categories on free tier)
+    for (let i = 1; i <= QUOTES_PER_RUN; i++) {
+      console.log(`\n🔄 Fetching quote ${i}/${QUOTES_PER_RUN}`);
       
       try {
-        const quote = await fetchQuoteFromCategory(category, apiKey);
+        const quote = await fetchRandomQuote(apiKey);
         
         if (!quote) {
-          console.log(`⚠️ No quote received for ${category}`);
-          stats.categoriesProcessed[category] = 0;
+          console.log(`⚠️ No quote received`);
           continue;
         }
         
         stats.totalFetched++;
-        stats.categoriesProcessed[category] = 0;
         
         const key = `${quote.quote}|||${quote.author}`.toLowerCase();
         
         if (existingSet.has(key)) {
           stats.totalDuplicates++;
-          console.log(`⏭️ Skipping duplicate quote from ${category}`);
+          console.log(`⏭️ Skipping duplicate quote`);
           continue;
         }
 
-        // Insert new quote
+        // Insert new quote with its original category or 'general'
+        const category = quote.category || 'general';
         const { error } = await supabase.from('quote_library').insert({
           quote_text: quote.quote,
           author: quote.author,
@@ -142,19 +127,19 @@ Deno.serve(async (req) => {
 
         if (error) {
           console.error(`❌ Error inserting quote:`, error);
-          stats.errors.push(`Failed to insert quote from ${category}: ${error.message}`);
+          stats.errors.push(`Failed to insert quote: ${error.message}`);
         } else {
           stats.totalInserted++;
-          stats.categoriesProcessed[category] = 1;
+          stats.categoriesProcessed[category] = (stats.categoriesProcessed[category] || 0) + 1;
           existingSet.add(key);
-          console.log(`✅ Inserted new quote from ${category}`);
+          console.log(`✅ Inserted new quote (${category})`);
         }
 
-        // Small delay between categories to respect rate limits (300ms)
-        await new Promise(resolve => setTimeout(resolve, 300));
+        // Delay between calls to respect rate limits (500ms)
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error) {
-        console.error(`❌ Failed to process category ${category}:`, error);
-        stats.errors.push(`Category ${category} failed: ${error.message}`);
+        console.error(`❌ Failed to fetch quote:`, error);
+        stats.errors.push(`Quote fetch failed: ${error.message}`);
       }
     }
 
