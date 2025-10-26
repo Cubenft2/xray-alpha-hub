@@ -20,7 +20,8 @@ import {
   BarChart3, 
   Moon, 
   RefreshCw, 
-  Database, 
+  Database,
+  MessageSquare, 
 } from 'lucide-react';
 import { SymbolAdmin } from './SymbolAdmin';
 import { PendingTickerMappings } from './PendingTickerMappings';
@@ -30,6 +31,7 @@ import { PolygonDataAdmin } from './PolygonDataAdmin';
 import { PolygonDiagnostics } from './PolygonDiagnostics';
 import { LunarCrushDiagnostics } from './LunarCrushDiagnostics';
 import { CoinGeckoEnrich } from './CoinGeckoEnrich';
+import QuoteLibraryAdmin from './QuoteLibraryAdmin';
 
 function AdminContent() {
   const [activeView, setActiveView] = useState('generate-brief');
@@ -57,6 +59,15 @@ function AdminContent() {
                 >
                   <FileText className="mr-2 h-4 w-4" />
                   <span>Generate Brief</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => handleViewChange('quote-library')}
+                  isActive={activeView === 'quote-library'}
+                >
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  <span>Quote Library</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -155,6 +166,7 @@ function AdminContent() {
         
         <main className="flex-1 p-8 overflow-auto">
           {activeView === 'generate-brief' && <GenerateBrief />}
+          {activeView === 'quote-library' && <QuoteLibraryAdmin />}
           {activeView === 'missing-tickers' && <PendingTickerMappings />}
           {activeView === 'symbol-intelligence' && <SymbolAdmin />}
           {activeView === 'coingecko-enrich' && <CoinGeckoEnrich />}

@@ -763,6 +763,45 @@ export type Database = {
         }
         Relationships: []
       }
+      quote_population_history: {
+        Row: {
+          categories_processed: Json | null
+          duplicates_skipped: number | null
+          duration_ms: number | null
+          errors: Json | null
+          id: string
+          quotes_fetched: number | null
+          quotes_inserted: number | null
+          success: boolean | null
+          triggered_at: string
+          triggered_by: string
+        }
+        Insert: {
+          categories_processed?: Json | null
+          duplicates_skipped?: number | null
+          duration_ms?: number | null
+          errors?: Json | null
+          id?: string
+          quotes_fetched?: number | null
+          quotes_inserted?: number | null
+          success?: boolean | null
+          triggered_at?: string
+          triggered_by: string
+        }
+        Update: {
+          categories_processed?: Json | null
+          duplicates_skipped?: number | null
+          duration_ms?: number | null
+          errors?: Json | null
+          id?: string
+          quotes_fetched?: number | null
+          quotes_inserted?: number | null
+          success?: boolean | null
+          triggered_at?: string
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           created_at: string
