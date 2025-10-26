@@ -1,5 +1,8 @@
 project_id = "odncvfiuzliyohxrsigc"
 
+[functions.populate-quotes-library]
+verify_jwt = false
+
 [functions.polygon-websocket-proxy]
 verify_jwt = false
 
