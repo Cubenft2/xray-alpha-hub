@@ -1091,16 +1091,15 @@ export default function MarketBriefHome() {
                   </CardContent>
                 </Card>
 
-                {/* USD Futures Index - Always show */}
+                {/* Hedera HBAR */}
                 <Card className="h-48">
                   <CardContent className="p-3">
-                    <div className="text-sm font-medium mb-2 text-center">US Dollar Futures</div>
+                    <div className="text-sm font-medium mb-2 text-center">Hedera (HBAR)</div>
                     <div className="h-36">
                       <MiniChart 
-                        symbol="TVC:DXY" 
+                        symbol={mapTickerToTradingView('HBAR').symbol} 
                         theme={theme}
-                        assetType="index"
-                        tvOk={true}
+                        {...getAssetMetadata('HBAR')}
                       />
                     </div>
                   </CardContent>
