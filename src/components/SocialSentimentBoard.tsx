@@ -354,27 +354,31 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-3">
                     {/* Galaxy Score Progress */}
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="whitespace-nowrap">Galaxy Score</span>
-                        <span className={`${getScoreColor(asset.galaxy_score || 0)} font-semibold ml-2`}>
-                          {asset.galaxy_score || 0}/100
-                        </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">Galaxy Score</span>
+                          <span className={`${getScoreColor(asset.galaxy_score || 0)} font-semibold text-sm`}>
+                            {asset.galaxy_score || 0}/100
+                          </span>
+                        </div>
+                        <Progress value={asset.galaxy_score || 0} className="h-2" />
                       </div>
-                      <Progress value={asset.galaxy_score || 0} className="h-2" />
                     </div>
 
                     {/* FOMO Score */}
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="whitespace-nowrap">FOMO Score</span>
-                        <span className={`${getScoreColor(asset.fomo_score || 0)} font-semibold ml-2`}>
-                          {asset.fomo_score?.toFixed(0) || 0}
-                        </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">FOMO Score</span>
+                          <span className={`${getScoreColor(asset.fomo_score || 0)} font-semibold text-sm`}>
+                            {asset.fomo_score?.toFixed(0) || 0}
+                          </span>
+                        </div>
+                        <Progress value={asset.fomo_score || 0} className="h-2" />
                       </div>
-                      <Progress value={asset.fomo_score || 0} className="h-2" />
                     </div>
 
                     {/* Social Volume */}
