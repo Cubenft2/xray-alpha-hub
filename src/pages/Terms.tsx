@@ -156,7 +156,7 @@ export default function Terms() {
               For questions about these Terms of Service, please contact us:
             </p>
             <div className="space-y-1 text-sm">
-              <div><strong>Twitter:</strong> @XRaycryptox</div>
+              <div><strong>Twitter:</strong> @XRayMarkets</div>
               <div><strong>Website:</strong> xraycrypto.io</div>
             </div>
           </CardContent>

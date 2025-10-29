@@ -117,12 +117,12 @@ export default function About() {
             <div className="flex items-center gap-2">
               <span className="font-medium">Twitter:</span>
               <a 
-                href="https://twitter.com/XRaycryptox" 
+                href="https://x.com/XRayMarkets" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-primary hover:underline flex items-center gap-1"
               >
-                @XRaycryptox <ExternalLink className="w-3 h-3" />
+                @XRayMarkets <ExternalLink className="w-3 h-3" />
               </a>
             </div>
             <div className="flex items-center gap-2">

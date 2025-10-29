@@ -25,12 +25,12 @@ export function XRFooter() {
               </span>
             </div>
             <a
-              href="https://twitter.com/XRaycryptox"
+              href="https://x.com/XRayMarkets"
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center group"
             >
-              @XRaycryptox
+              @XRayMarkets
               <ExternalLink className="w-3 h-3 ml-1 group-hover:animate-wiggle" />
             </a>
           </div>

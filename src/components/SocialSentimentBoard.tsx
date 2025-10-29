@@ -219,8 +219,8 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
           description: "Image copied! Paste it anywhere.",
         });
       } else {
-        const twitterText = encodeURIComponent('Latest crypto social sentiment rankings from @XRaycryptox 🚀');
-        window.open(`https://twitter.com/intent/tweet?text=${twitterText}`, '_blank');
+        const twitterText = encodeURIComponent('Latest crypto social sentiment rankings from @XRayMarkets 🚀');
+        window.open(`https://x.com/intent/tweet?text=${twitterText}`, '_blank');
       }
     } catch (error) {
       console.error('Share failed:', error);
@@ -461,7 +461,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
               <div className="text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">XRayCrypto™</span>
                 <span className="mx-1">•</span>
-                <span>@XRaycryptox</span>
+                <span>@XRayMarkets</span>
                 <span className="mx-1">•</span>
                 <span>{siteHost}</span>
               </div>
@@ -477,7 +477,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     XRayCrypto™
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    • @XRaycryptox
+                    • @XRayMarkets
                   </div>
                 </div>
                 <div className="text-xs text-center text-muted-foreground mt-1">

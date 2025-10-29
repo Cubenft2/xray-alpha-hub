@@ -186,7 +186,7 @@ export default function Privacy() {
               If you have questions about this privacy policy or our data practices, contact us:
             </p>
             <div className="space-y-1 text-sm">
-              <div><strong>Twitter:</strong> @XRaycryptox</div>
+              <div><strong>Twitter:</strong> @XRayMarkets</div>
               <div><strong>Website:</strong> xraycrypto.io</div>
             </div>
             

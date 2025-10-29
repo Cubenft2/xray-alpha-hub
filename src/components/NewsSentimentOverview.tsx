@@ -94,7 +94,7 @@ export function NewsSentimentOverview({
         if (!blob) return;
 
         const file = new File([blob], 'xraycrypto-sentiment.png', { type: 'image/png' });
-        const shareText = 'News Sentiment Analysis by @XRaycryptox';
+        const shareText = 'News Sentiment Analysis by @XRayMarkets';
 
         // 1) Native Share with image file
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -317,7 +317,7 @@ export function NewsSentimentOverview({
           />
           <div className="flex flex-col text-right">
             <span className="text-xs font-bold text-gray-900 dark:text-white">XRayCrypto™</span>
-            <span className="text-[10px] text-gray-600 dark:text-gray-400">@XRaycryptox</span>
+            <span className="text-[10px] text-gray-600 dark:text-gray-400">@XRayMarkets</span>
           </div>
         </div>
       )}
