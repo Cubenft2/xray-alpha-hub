@@ -1035,6 +1035,20 @@ export default function MarketBriefHome() {
                   </CardContent>
                 </Card>
 
+                {/* XRP */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Ripple (XRP)</div>
+                    <div className="h-36">
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('XRP').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('XRP')}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* CAKE */}
                 <Card className="h-48">
                   <CardContent className="p-3">
