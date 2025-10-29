@@ -18,9 +18,7 @@ serve(async (req) => {
     }
 
     const apiKey = Deno.env.get('COINGECKO_API_KEY');
-    if (!apiKey) {
-      throw new Error('CoinGecko API key not configured');
-    }
+    const isPro = !!apiKey;
 
     // Filter out invalid IDs and batch requests
     const validIds = coingecko_ids.filter(id => id && typeof id === 'string' && id.length > 0);
@@ -40,13 +38,18 @@ serve(async (req) => {
         per_page: '250',
       });
 
+      const baseUrl = isPro 
+        ? 'https://pro-api.coingecko.com/api/v3'
+        : 'https://api.coingecko.com/api/v3';
+
+      const headers: Record<string, string> = { 'accept': 'application/json' };
+      if (isPro && apiKey) {
+        headers['x-cg-pro-api-key'] = apiKey;
+      }
+
       const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/markets?${params}`,
-        {
-          headers: {
-            'x-cg-demo-api-key': apiKey,
-          },
-        }
+        `${baseUrl}/coins/markets?${params}`,
+        { headers }
       );
 
       if (!response.ok) {
