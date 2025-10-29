@@ -110,8 +110,8 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
   }
 
   const handleTokenClick = (symbol: string) => {
-    // Navigate to crypto page with the token symbol
-    navigate(`/crypto?symbol=${symbol.toUpperCase()}`);
+    // Navigate to crypto-universe detail page which uses proper ticker mappings
+    navigate(`/crypto-universe/${symbol.toUpperCase()}`);
   };
 
   const getScoreColor = (score: number) => {
