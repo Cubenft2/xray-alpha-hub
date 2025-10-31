@@ -13,6 +13,18 @@ Deno.serve(async (req) => {
   try {
     console.log('🌅 Morning Brief wrapper invoked');
 
+    // Verify CRON_SECRET to prevent unauthorized access
+    const cronSecret = Deno.env.get('CRON_SECRET');
+    const authHeader = req.headers.get('authorization');
+    
+    if (!cronSecret || !authHeader || authHeader !== `Bearer ${cronSecret}`) {
+      console.error('❌ Unauthorized: Invalid or missing CRON_SECRET');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
