@@ -167,14 +167,6 @@ Write a 2,000-word brief with these 6 sections:
    - Upcoming events or catalysts in next 24-48 hours
    - Risk factors or opportunities
 
-End with chart links:
-
-## 📊 Interactive Charts & Data
-**Bitcoin (BTC):** [Live Chart →](https://www.tradingview.com/symbols/BTCUSD/)
-**Ethereum (ETH):** [Live Chart →](https://www.tradingview.com/symbols/ETHUSD/)
-**DeFi Dashboard:** [DeFiLlama →](https://defillama.com/)
-**Fear & Greed Index:** [View Index →](https://alternative.me/crypto/fear-and-greed-index/)
-
 Write the ${briefTypeTitle} now:`;
 }
 
