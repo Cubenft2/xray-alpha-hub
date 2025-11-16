@@ -18,7 +18,13 @@ const USDT_EXCHANGES = ['BINANCE', 'OKX', 'BYBIT', 'KUCOIN', 'MEXC', 'GATEIO'];
  */
 export function getTvCandidates(baseSymbol: string, mappedSymbol?: string): string[] {
   const candidates: string[] = [];
-  const base = baseSymbol.toUpperCase().trim();
+  let base = baseSymbol.toUpperCase().trim();
+
+  // If no mapping provided, try normalizing the symbol
+  // Strip trailing digits: GIGA2 → GIGA, PEPE3 → PEPE
+  if (!mappedSymbol) {
+    base = base.replace(/\d+$/, '');
+  }
 
   // 1. If we have a valid mapping with exchange prefix, try it first
   if (mappedSymbol && mappedSymbol.includes(':')) {
