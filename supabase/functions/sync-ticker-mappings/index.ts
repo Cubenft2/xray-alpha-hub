@@ -274,26 +274,23 @@ Deno.serve(async (req) => {
         ? trustedExchanges[0] 
         : sortedExchanges[0];
 
-      // Only set TradingView symbol if we have valid exchange:pair format
+      // Only set TradingView symbol if we have a trusted exchange and multiple exchanges
       const hasTrustedExchange = trustedExchanges.length > 0;
       const hasMultipleExchanges = assetData.exchanges.size >= 3;
       const tradingViewSupported = hasTrustedExchange && hasMultipleExchanges;
       
-      let tvSymbol: string | null = null;
+      let tvSymbol: string;
       if (tradingViewSupported) {
         const tvExchange = TV_EXCHANGE_MAP[preferredExchange] || preferredExchange.toUpperCase();
-        
-        // Prefer USD pairs, fallback to USDT
         const mainPair = assetData.pairs.find(
-          p => p.exchange === preferredExchange && p.quote === 'USD'
-        ) || assetData.pairs.find(
           p => p.exchange === preferredExchange && p.quote === 'USDT'
+        ) || assetData.pairs.find(
+          p => p.exchange === preferredExchange && p.quote === 'USD'
         ) || assetData.pairs[0];
-        
-        // Only set if we have a valid exchange prefix
-        if (tvExchange && mainPair) {
-          tvSymbol = `${tvExchange}:${baseAsset}${mainPair.quote}`;
-        }
+        tvSymbol = `${tvExchange}:${baseAsset}${mainPair.quote}`;
+      } else {
+        // Neutral placeholder - requires manual review
+        tvSymbol = `${baseAsset}USD`;
       }
 
       // Generate aliases from all pair variations
