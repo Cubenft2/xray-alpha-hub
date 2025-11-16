@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowUpIcon, ArrowDownIcon, TrendingUpIcon } from 'lucide-react';
+import { ArrowUpIcon, ArrowDownIcon, TrendingUpIcon, Clock, AlertTriangle } from 'lucide-react';
 
 interface ExchangePrice {
   exchange: string;
@@ -99,6 +99,34 @@ export function ExchangePriceComparison({ symbol }: ExchangePriceComparisonProps
   const lowestPrice = Math.min(...exchanges.map(e => e.price));
   const priceSpread = ((highestPrice - lowestPrice) / lowestPrice * 100).toFixed(2);
 
+  // Calculate data freshness
+  const mostRecentUpdate = exchanges.reduce((latest, exchange) => {
+    const updateTime = new Date(exchange.last_updated).getTime();
+    return updateTime > latest ? updateTime : latest;
+  }, 0);
+
+  const hoursSinceUpdate = (Date.now() - mostRecentUpdate) / (1000 * 60 * 60);
+  
+  const getFreshnessStatus = () => {
+    if (hoursSinceUpdate < 1) return { label: 'Fresh', variant: 'default' as const, color: 'text-success' };
+    if (hoursSinceUpdate < 6) return { label: 'Recent', variant: 'secondary' as const, color: 'text-warning' };
+    return { label: 'Stale', variant: 'destructive' as const, color: 'text-destructive' };
+  };
+
+  const getTimeAgo = () => {
+    if (hoursSinceUpdate < 1) {
+      const minutes = Math.floor(hoursSinceUpdate * 60);
+      return `${minutes}m ago`;
+    }
+    if (hoursSinceUpdate < 24) {
+      return `${Math.floor(hoursSinceUpdate)}h ago`;
+    }
+    const days = Math.floor(hoursSinceUpdate / 24);
+    return `${days}d ago`;
+  };
+
+  const freshness = getFreshnessStatus();
+
   return (
     <Card>
       <CardHeader>
@@ -106,8 +134,23 @@ export function ExchangePriceComparison({ symbol }: ExchangePriceComparisonProps
           <TrendingUpIcon className="h-5 w-5" />
           Available on {exchanges.length} Exchanges
         </CardTitle>
-        <div className="text-sm text-muted-foreground">
-          Price spread: {priceSpread}% ({formatPrice(lowestPrice)} - {formatPrice(highestPrice)})
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span>Last updated: {getTimeAgo()}</span>
+            <Badge variant={freshness.variant} className="ml-2">
+              {freshness.label}
+            </Badge>
+          </div>
+          {hoursSinceUpdate > 1 && (
+            <div className="flex items-center gap-2 text-sm text-warning">
+              <AlertTriangle className="h-3 w-3" />
+              <span>Price data may not be current</span>
+            </div>
+          )}
+          <div className="text-sm text-muted-foreground">
+            Price spread: {priceSpread}% ({formatPrice(lowestPrice)} - {formatPrice(highestPrice)})
+          </div>
         </div>
       </CardHeader>
       <CardContent>
