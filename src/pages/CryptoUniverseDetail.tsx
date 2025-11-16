@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Copy, ExternalLink } from 'lucide-react';
@@ -12,6 +12,7 @@ import { ExchangePriceComparison } from '@/components/ExchangePriceComparison';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
+import { getTvCandidates } from '@/lib/tvSymbolResolver';
 
 interface CoinDetail {
   id: number;
@@ -76,6 +77,13 @@ export default function CryptoUniverseDetail() {
 
   const coin = coinDetailData?.data || null;
   const analysis = coinDetailData?.analysis || null;
+
+  // Generate prioritized TradingView symbol candidates
+  const tvCandidates = useMemo(() => {
+    if (!coin || mappingsLoading) return undefined;
+    const mapping = getMapping(coin.symbol);
+    return getTvCandidates(coin.symbol, mapping?.tradingview_symbol);
+  }, [coin?.symbol, getMapping, mappingsLoading]);
 
   // Fetch CoinGecko platform data
   useEffect(() => {
@@ -270,10 +278,16 @@ export default function CryptoUniverseDetail() {
       {/* TradingView Chart */}
       <Card>
         <CardContent className="p-0">
-          <TradingViewChart 
-            symbol={getMapping(coin.symbol)?.tradingview_symbol || `CRYPTO:${coin.symbol}USD`} 
-            height="500px" 
-          />
+          {mappingsLoading || !tvCandidates ? (
+            <div className="h-[500px] flex items-center justify-center">
+              <Skeleton className="h-full w-full" />
+            </div>
+          ) : (
+            <TradingViewChart 
+              candidates={tvCandidates}
+              height="500px" 
+            />
+          )}
         </CardContent>
       </Card>
 
