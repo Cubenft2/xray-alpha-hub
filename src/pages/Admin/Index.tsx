@@ -32,6 +32,7 @@ import { PolygonDiagnostics } from './PolygonDiagnostics';
 import { LunarCrushDiagnostics } from './LunarCrushDiagnostics';
 import { CoinGeckoEnrich } from './CoinGeckoEnrich';
 import QuoteLibraryAdmin from './QuoteLibraryAdmin';
+import { ExchangeDataSync } from './ExchangeDataSync';
 
 function AdminContent() {
   const [activeView, setActiveView] = useState('generate-brief');
@@ -135,10 +136,19 @@ function AdminContent() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton 
+                  onClick={() => handleViewChange('exchange-sync')}
+                  isActive={activeView === 'exchange-sync'}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  <span>Exchange Data Sync</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
                   onClick={() => handleViewChange('polygon-sync')}
                   isActive={activeView === 'polygon-sync'}
                 >
-                  <RefreshCw className="mr-2 h-4 w-4" />
+                  <Database className="mr-2 h-4 w-4" />
                   <span>Polygon Sync</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -172,6 +182,7 @@ function AdminContent() {
           {activeView === 'coingecko-enrich' && <CoinGeckoEnrich />}
           {activeView === 'polygon-diagnostics' && <PolygonDiagnostics />}
           {activeView === 'lunarcrush-diagnostics' && <LunarCrushDiagnostics />}
+          {activeView === 'exchange-sync' && <ExchangeDataSync />}
           {activeView === 'polygon-sync' && <PolygonSync />}
           {activeView === 'polygon-data' && <PolygonDataAdmin />}
         </main>

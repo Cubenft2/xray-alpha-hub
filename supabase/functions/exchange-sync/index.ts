@@ -145,42 +145,51 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const cronSecret = Deno.env.get('CRON_SECRET');
 
-    // Check admin authentication
+    // Check authentication - allow either JWT or cron secret
     const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
+    const cronSecretHeader = req.headers.get('x-cron-secret');
+    
+    // If cron secret is provided and matches, allow access
+    const isCronJob = cronSecret && cronSecretHeader === cronSecret;
+    
+    if (!isCronJob && authHeader) {
+      // Verify JWT if not a cron job
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Verify admin role
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (roleError || !roleData) {
+        return new Response(JSON.stringify({ error: 'Forbidden - Admin access required' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      console.log('✅ Admin user authenticated:', user.email);
+    } else if (!isCronJob) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    // Verify admin role
-    const { data: roleData, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle();
-
-    if (roleError || !roleData) {
-      return new Response(JSON.stringify({ error: 'Forbidden - Admin access required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    console.log('Starting exchange sync...');
+    console.log(isCronJob ? '⏰ Starting exchange sync (cron job)...' : '👤 Starting exchange sync (admin request)...');
 
     const cgApiKey = Deno.env.get('COINGECKO_API_KEY');
 
