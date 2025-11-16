@@ -45,6 +45,9 @@ export function TradingViewChart({
   // Determine which symbol to use based on current attempt
   const symbolsToTry = candidates || [symbol];
   const currentSymbol = symbolsToTry[Math.min(attemptIndex, symbolsToTry.length - 1)];
+  
+  // Limit retry attempts to prevent endless cycling
+  const MAX_ATTEMPTS = 3;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -63,12 +66,12 @@ export function TradingViewChart({
     let started = false;
 
     const tryNextCandidate = () => {
-      if (attemptIndex < symbolsToTry.length - 1) {
-        console.log(`⚠️ Symbol ${currentSymbol} failed, trying next candidate...`);
+      if (attemptIndex < Math.min(symbolsToTry.length - 1, MAX_ATTEMPTS - 1)) {
+        console.log(`⚠️ Symbol ${currentSymbol} failed, trying next candidate (${attemptIndex + 1}/${MAX_ATTEMPTS})...`);
         setAttemptIndex(prev => prev + 1);
         setUsedFallback(true);
       } else {
-        console.warn(`❌ All symbol candidates exhausted for ${symbolsToTry[0]}`);
+        console.warn(`❌ All attempts exhausted (tried ${Math.min(symbolsToTry.length, MAX_ATTEMPTS)} symbols)`);
         setIsLoading(false);
       }
     };
@@ -223,7 +226,7 @@ export function TradingViewChart({
         containerRef.current.innerHTML = '';
       }
     };
-  }, [currentSymbol, theme, interval, style, hideTopToolbar, hideSideToolbar, allowSymbolChange, isFullscreen, reloadToken]);
+  }, [symbol, candidates?.join(','), theme, interval, style, hideTopToolbar, hideSideToolbar, allowSymbolChange, isFullscreen, reloadToken, attemptIndex]);
 
   // Reset attempt index when symbol/candidates change
   useEffect(() => {
