@@ -2,11 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { createPortal } from 'react-dom';
 import { X, RotateCcw, Maximize } from 'lucide-react';
+import { formatTvSymbol } from '@/lib/tvSymbolResolver';
 
 interface TradingViewChartProps {
   symbol?: string;
+  candidates?: string[]; // New: prioritized list of symbols to try
   height?: string;
   interval?: string;
   style?: string;
@@ -19,6 +22,7 @@ interface TradingViewChartProps {
 
 export function TradingViewChart({
   symbol = "NASDAQ:AAPL",
+  candidates,
   height = "400px",
   interval = "D",
   style = "1",
@@ -33,14 +37,41 @@ export function TradingViewChart({
   const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
+  const [attemptIndex, setAttemptIndex] = useState(0);
+  const [usedFallback, setUsedFallback] = useState(false);
+  const attemptTimeoutRef = useRef<number | null>(null);
+  const mutationObserverRef = useRef<MutationObserver | null>(null);
+
+  // Determine which symbol to use based on current attempt
+  const symbolsToTry = candidates || [symbol];
+  const currentSymbol = symbolsToTry[Math.min(attemptIndex, symbolsToTry.length - 1)];
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     setIsLoading(true);
     
-    // Clear previous widget
+    // Clear previous widget and observers
     containerRef.current.innerHTML = '';
+    if (mutationObserverRef.current) {
+      mutationObserverRef.current.disconnect();
+    }
+    if (attemptTimeoutRef.current) {
+      clearTimeout(attemptTimeoutRef.current);
+    }
+
+    let started = false;
+
+    const tryNextCandidate = () => {
+      if (attemptIndex < symbolsToTry.length - 1) {
+        console.log(`⚠️ Symbol ${currentSymbol} failed, trying next candidate...`);
+        setAttemptIndex(prev => prev + 1);
+        setUsedFallback(true);
+      } else {
+        console.warn(`❌ All symbol candidates exhausted for ${symbolsToTry[0]}`);
+        setIsLoading(false);
+      }
+    };
 
     const init = () => {
       if (!containerRef.current) return;
@@ -63,7 +94,7 @@ export function TradingViewChart({
         locale: 'en',
         save_image: true,
         style: style,
-        symbol: symbol,
+        symbol: currentSymbol,
         theme: theme === 'dark' ? 'dark' : 'light',
         timezone: 'Etc/UTC',
         watchlist: [],
@@ -92,13 +123,54 @@ export function TradingViewChart({
       copyrightDiv.className = 'tradingview-widget-copyright';
       copyrightDiv.innerHTML = `<a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank"><span class="blue-text">Track all markets</span></a><span class="trademark"> on TradingView</span>`;
 
+      // Set up timeout to try next candidate if widget doesn't load
+      attemptTimeoutRef.current = window.setTimeout(() => {
+        const iframe = widgetDiv.querySelector('iframe');
+        if (!iframe) {
+          console.warn(`⏱️ Timeout loading ${currentSymbol}`);
+          tryNextCandidate();
+        }
+      }, 4000);
+
       script.onload = () => {
         const start = Date.now();
         const checkWidget = setInterval(() => {
           const iframe = widgetDiv.querySelector('iframe');
           if (iframe) {
             clearInterval(checkWidget);
-            setTimeout(() => setIsLoading(false), 500);
+            
+            // Monitor for "Invalid symbol" error text
+            if (mutationObserverRef.current) {
+              mutationObserverRef.current.disconnect();
+            }
+            
+            mutationObserverRef.current = new MutationObserver(() => {
+              const errorText = widgetDiv.textContent || '';
+              if (errorText.toLowerCase().includes('invalid symbol') || 
+                  errorText.toLowerCase().includes('symbol not found')) {
+                console.warn(`❌ Invalid symbol detected: ${currentSymbol}`);
+                if (mutationObserverRef.current) {
+                  mutationObserverRef.current.disconnect();
+                }
+                if (attemptTimeoutRef.current) {
+                  clearTimeout(attemptTimeoutRef.current);
+                }
+                tryNextCandidate();
+              }
+            });
+
+            mutationObserverRef.current.observe(widgetDiv, {
+              childList: true,
+              subtree: true,
+              characterData: true
+            });
+
+            setTimeout(() => {
+              setIsLoading(false);
+              if (attemptTimeoutRef.current) {
+                clearTimeout(attemptTimeoutRef.current);
+              }
+            }, 500);
           } else if (Date.now() - start > 3000) {
             clearInterval(checkWidget);
             setIsLoading(false);
@@ -109,6 +181,7 @@ export function TradingViewChart({
       script.onerror = () => {
         setIsLoading(false);
         console.error('TradingView widget failed to load');
+        tryNextCandidate();
       };
 
       widgetContainer.appendChild(widgetDiv);
@@ -118,8 +191,6 @@ export function TradingViewChart({
       containerRef.current.appendChild(widgetContainer);
     };
 
-    // Wait until the container is visible to avoid stuck loading inside hidden tabs
-    let started = false;
     const tryStart = () => {
       if (!containerRef.current) return;
       const { offsetWidth, offsetHeight } = containerRef.current;
@@ -137,19 +208,30 @@ export function TradingViewChart({
       }
     }, 1200);
 
-    // Kick first check immediately
     tryStart();
 
     return () => {
       clearInterval(visibleCheck);
       clearTimeout(safetyTimeout);
+      if (attemptTimeoutRef.current) {
+        clearTimeout(attemptTimeoutRef.current);
+      }
+      if (mutationObserverRef.current) {
+        mutationObserverRef.current.disconnect();
+      }
       if (containerRef.current) {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [symbol, theme, interval, style, hideTopToolbar, hideSideToolbar, allowSymbolChange, isFullscreen, reloadToken]);
+  }, [currentSymbol, theme, interval, style, hideTopToolbar, hideSideToolbar, allowSymbolChange, isFullscreen, reloadToken]);
 
-  // Lock body scroll when fullscreen to avoid background interaction
+  // Reset attempt index when symbol/candidates change
+  useEffect(() => {
+    setAttemptIndex(0);
+    setUsedFallback(false);
+  }, [symbol, candidates?.join(',')]);
+
+  // Lock body scroll when fullscreen
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
     if (isFullscreen) {
@@ -162,31 +244,44 @@ export function TradingViewChart({
     };
   }, [isFullscreen]);
 
+  const { exchange, pair } = formatTvSymbol(currentSymbol);
 
   const chart = (
     <div className={`${isFullscreen ? 'fixed inset-0 z-[9999] bg-background' : ''} ${className}`}>
       {!isFullscreen && (
-        <div className="flex justify-end gap-2 mb-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setIsFullscreen((f) => !f)}
-            aria-label="Enter fullscreen"
-          >
-            <Maximize size={16} />
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setReloadToken((t) => t + 1)}
-            aria-label="Reload chart"
-          >
-            <RotateCcw size={16} />
-          </Button>
+        <div className="flex items-center justify-between mb-2">
+          {usedFallback && attemptIndex > 0 && (
+            <Badge variant="outline" className="text-xs">
+              Using: {exchange}:{pair}
+            </Badge>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setIsFullscreen((f) => !f)}
+              aria-label="Enter fullscreen"
+            >
+              <Maximize size={16} />
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setReloadToken((t) => t + 1)}
+              aria-label="Reload chart"
+            >
+              <RotateCcw size={16} />
+            </Button>
+          </div>
         </div>
       )}
       {isFullscreen && (
         <div className="fixed top-4 right-4 z-[10000] flex gap-2">
+          {usedFallback && attemptIndex > 0 && (
+            <Badge variant="outline" className="text-xs mr-2">
+              Using: {exchange}:{pair}
+            </Badge>
+          )}
           <Button
             size="sm"
             variant="secondary"
@@ -232,6 +327,4 @@ export function TradingViewChart({
   );
 
   return isFullscreen ? createPortal(chart, document.body) : chart;
-
-
 }
