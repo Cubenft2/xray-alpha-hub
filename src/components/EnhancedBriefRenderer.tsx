@@ -200,6 +200,9 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       .replace(/\n\n+/g, '</p><p class="mb-6 leading-relaxed text-foreground/90">')
       .replace(/\n/g, '<br/>');
 
+    // Track which tickers have been enhanced with live prices (first mention only)
+    const enhancedTickers = new Set<string>();
+    
     // FIRST: Convert pre-formatted price mentions to clickable links with live prices
     // Pattern: Name (TICKER $PRICE ±X.X%)
     // This must happen BEFORE price/percentage styling to avoid breaking the pattern
@@ -214,8 +217,10 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       // Build the base clickable link
       let linkContent = `${name} (<span class="inline-ticker">${ticker}</span> <span class="inline-price">$${price}</span> <span class="inline-change ${change.startsWith('-') ? 'negative' : 'positive'}">${change}%</span>`;
       
-      // Add live price badge if available (no freshness check needed)
-      if (liveData && liveData.price) {
+      // Add live price badge ONLY for first mention of each ticker
+      if (liveData && liveData.price && !enhancedTickers.has(tickerUpper)) {
+        enhancedTickers.add(tickerUpper);
+        
         const change24h = liveData.change24h ?? 0;
         const isUp = change24h >= 0;
         
