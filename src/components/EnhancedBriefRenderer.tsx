@@ -200,40 +200,15 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       .replace(/\n\n+/g, '</p><p class="mb-6 leading-relaxed text-foreground/90">')
       .replace(/\n/g, '<br/>');
 
-    // Track which tickers have been enhanced with live prices (first mention only)
-    const enhancedTickers = new Set<string>();
-    
-    // FIRST: Convert pre-formatted price mentions to clickable links with live prices
+    // FIRST: Convert pre-formatted price mentions to clickable links (no live price overlay)
     // Pattern: Name (TICKER $PRICE ±X.X%)
     // This must happen BEFORE price/percentage styling to avoid breaking the pattern
     const priceRegex = /\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+\(([A-Z]{2,10})\s+\$([0-9,]+(?:\.\d{1,6})?)\s+([+-][0-9]+\.?[0-9]*)%\)/g;
     enhancedText = enhancedText.replace(priceRegex, (fullMatch, name, ticker, price, change) => {
       const tickerUpper = ticker.toUpperCase();
-      const originalPrice = parseFloat(price.replace(/,/g, ''));
       
-      // Get live price data (always fresh with 2s polling)
-      const liveData = livePrices.get(tickerUpper);
-      
-      // Build the base clickable link
-      let linkContent = `${name} (<span class="inline-ticker">${ticker}</span> <span class="inline-price">$${price}</span> <span class="inline-change ${change.startsWith('-') ? 'negative' : 'positive'}">${change}%</span>`;
-      
-      // Add live price badge ONLY for first mention of each ticker
-      if (liveData && liveData.price && !enhancedTickers.has(tickerUpper)) {
-        enhancedTickers.add(tickerUpper);
-        
-        const change24h = liveData.change24h ?? 0;
-        const isUp = change24h >= 0;
-        
-        const formatPrice = (p: number) => {
-          if (p >= 1000) return p.toLocaleString('en-US', { maximumFractionDigits: 0 });
-          if (p >= 1) return p.toLocaleString('en-US', { maximumFractionDigits: 2 });
-          return p.toLocaleString('en-US', { maximumFractionDigits: 6 });
-        };
-        
-        linkContent += ` <span class="live-price-separator">→</span> <span class="live-price-badge ${isUp ? 'price-up' : 'price-down'}">📊 <span class="live-price-value">$${formatPrice(liveData.price)}</span> <span class="live-change">${isUp ? '+' : ''}${change24h.toFixed(2)}%</span></span>`;
-      }
-      
-      linkContent += ')';
+      // Build clean clickable link with original brief data (no live price overlay)
+      const linkContent = `${name} (<span class="inline-ticker">${ticker}</span> <span class="inline-price">$${price}</span> <span class="inline-change ${change.startsWith('-') ? 'negative' : 'positive'}">${change}%</span>)`;
       
       return `<a href="#" class="inline-crypto-link" data-ticker="${tickerUpper}" onclick="event.preventDefault(); window.handleAssetClick(event, '${tickerUpper}')">${linkContent}</a>`;
     });
