@@ -39,6 +39,7 @@ serve(async (req) => {
     const etNow = toZonedTime(new Date(), 'America/New_York');
     const dateStr = format(etNow, 'yyyy-MM-dd', { timeZone: 'America/New_York' });
     const timeStr = format(etNow, 'h:mm a zzz', { timeZone: 'America/New_York' });
+    const fullDateStr = format(etNow, 'EEEE, MMMM d, yyyy', { timeZone: 'America/New_York' });
 
     // ===================================================================
     // STEP 1: Fetch Comprehensive Market Data
@@ -65,8 +66,8 @@ serve(async (req) => {
     console.log('🔍 Top 10 symbols in market data:', topSymbols.join(', '));
     
     const prompt = briefType === 'sunday_special'
-      ? buildSundaySpecialPrompt(dateStr, timeStr, marketData)
-      : await buildEnhancedPrompt(briefType, dateStr, timeStr, marketData);
+      ? buildSundaySpecialPrompt(fullDateStr, timeStr, marketData)
+      : await buildEnhancedPrompt(briefType, fullDateStr, timeStr, marketData);
     console.log(`✅ Prompt built: ${prompt.length} characters`);
 
     // ===================================================================
