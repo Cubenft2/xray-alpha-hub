@@ -16,6 +16,9 @@ interface DisplayPriceData {
   logo_url?: string | null;
 }
 
+// Featured tokens that should always appear first in the ticker
+const FEATURED_SYMBOLS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'BAT', 'MON', 'LINK', 'AVAX'];
+
 export function PolygonTicker() {
   const speedLevels = [20, 40, 60, 80, 100];
   const [displayPrices, setDisplayPrices] = useState<DisplayPriceData[]>([]);
@@ -34,28 +37,50 @@ export function PolygonTicker() {
   
   const speed = speedLevels[speedLevel];
 
-  // Load ticker mappings to get symbols
+  // Load ticker mappings with featured tokens priority
   useEffect(() => {
     const loadSymbols = async () => {
-      const { data: tickers } = await supabase
+      // First fetch featured tokens
+      const { data: featuredTickers } = await supabase
         .from('ticker_mappings')
         .select('symbol, display_name, coingecko_id')
         .eq('type', 'crypto')
         .eq('is_active', true)
-        .limit(60);
+        .in('symbol', FEATURED_SYMBOLS);
 
-      if (!tickers) return;
+      // Then fetch remaining tokens to fill up to 60
+      const remainingLimit = 60 - (featuredTickers?.length || 0);
+      const { data: otherTickers } = await supabase
+        .from('ticker_mappings')
+        .select('symbol, display_name, coingecko_id')
+        .eq('type', 'crypto')
+        .eq('is_active', true)
+        .not('symbol', 'in', `(${FEATURED_SYMBOLS.join(',')})`)
+        .limit(remainingLimit);
 
-      const symbolList = tickers.map(t => t.symbol);
+      const allTickers = [...(featuredTickers || []), ...(otherTickers || [])];
+      if (allTickers.length === 0) return;
+
+      // Sort to ensure featured tokens appear first in order
+      const sortedTickers = allTickers.sort((a, b) => {
+        const aIdx = FEATURED_SYMBOLS.indexOf(a.symbol);
+        const bIdx = FEATURED_SYMBOLS.indexOf(b.symbol);
+        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+        if (aIdx !== -1) return -1;
+        if (bIdx !== -1) return 1;
+        return 0;
+      });
+
+      const symbolList = sortedTickers.map(t => t.symbol);
       const metadata = new Map(
-        tickers.map(t => [t.symbol, { displayName: t.display_name, coingecko_id: t.coingecko_id }])
+        sortedTickers.map(t => [t.symbol, { displayName: t.display_name, coingecko_id: t.coingecko_id }])
       );
 
       setSymbols(symbolList);
       setSymbolMetadata(metadata);
 
       // Fetch logos
-      const coingeckoIds = tickers
+      const coingeckoIds = sortedTickers
         .map(t => t.coingecko_id)
         .filter(id => id && id.trim().length > 0) as string[];
 
