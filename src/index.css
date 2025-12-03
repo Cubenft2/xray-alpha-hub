@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* XRayCrypto™ Design System - XRay Dog's Pixel Vision Dashboard */
+/* XRayCrypto™ Design System - Spooky Haunted Crypto Dashboard 👻🎃 */
 
 @layer base {
   * {
@@ -15,73 +15,73 @@
     --font-pixel: 'Orbitron', 'Space Mono', monospace;
     --font-mono: 'Space Mono', monospace;
     
-    /* Core Theme Colors - Zoobie Beret Dog Palette */
-    --background: 350 100% 96%; /* Soft pink from PFP background */
-    --foreground: 0 0% 5%; /* Deep black like dog's features */
+    /* Core Theme Colors - Spooky Haunted Palette 👻 */
+    --background: 270 15% 8%; /* Deep purple-black */
+    --foreground: 0 0% 90%; /* Ghostly white */
 
-    --card: 350 100% 98%;
-    --card-foreground: 0 0% 5%;
+    --card: 270 20% 12%; /* Dark purple card */
+    --card-foreground: 0 0% 88%;
 
-    --popover: 350 100% 98%;
-    --popover-foreground: 0 0% 5%;
+    --popover: 270 20% 12%;
+    --popover-foreground: 0 0% 88%;
 
-    /* Zoobie Beret Dog Brand Colors */
-    --primary: 80 40% 35%; /* Olive green from beret */
-    --primary-foreground: 0 0% 98%;
+    /* Spooky Brand Colors */
+    --primary: 120 100% 35%; /* Toxic green 👻 */
+    --primary-foreground: 0 0% 5%;
 
-    --secondary: 350 100% 95%; /* Soft pink */
-    --secondary-foreground: 0 0% 5%;
+    --secondary: 270 30% 20%; /* Deep purple */
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 350 30% 92%; /* Muted pink */
-    --muted-foreground: 0 0% 40%;
+    --muted: 270 20% 15%; /* Dark muted purple */
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 51 100% 50%; /* Bright gold from badge */
+    --accent: 15 100% 50%; /* Eerie pumpkin orange 🎃 */
     --accent-foreground: 0 0% 5%;
 
-    /* Zoobie Feature Colors */
-    --pixel-orange: 0 70% 55%; /* Red from tongue/details */
+    /* Spooky Feature Colors */
+    --pixel-orange: 0 100% 45%; /* Blood red 🩸 */
     --pixel-orange-foreground: 0 0% 98%;
     
-    --pixel-teal: 120 61% 50%; /* Bright green from collar */
+    --pixel-teal: 120 100% 40%; /* Toxic green glow */
     --pixel-teal-foreground: 0 0% 5%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 100% 50%; /* Intense blood red */
     --destructive-foreground: 0 0% 98%;
 
-    --border: 350 30% 85%; /* Pink-tinted borders */
-    --input: 350 30% 90%;
-    --ring: 80 40% 35%;
+    --border: 270 20% 25%; /* Purple-tinted borders */
+    --input: 270 20% 18%;
+    --ring: 120 100% 35%;
 
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 98%;
+    --success: 120 100% 35%; /* Toxic green */
+    --success-foreground: 0 0% 5%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
+    --warning: 15 100% 50%; /* Pumpkin orange */
+    --warning-foreground: 0 0% 5%;
 
-    /* Zoobie Beret Dog Gradients & Effects */
-    --gradient-primary: linear-gradient(135deg, hsl(80 40% 35%), hsl(80 50% 45%));
-    --gradient-accent: linear-gradient(135deg, hsl(51 100% 50%), hsl(51 100% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(80 40% 35%) 0%, hsl(51 100% 50%) 100%);
-    --gradient-pixel: linear-gradient(45deg, hsl(51 100% 50%) 0%, hsl(120 61% 50%) 50%, hsl(80 40% 35%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(350 100% 98%) 0%, hsl(350 50% 96%) 100%);
+    /* Spooky Gradients & Effects 👻 */
+    --gradient-primary: linear-gradient(135deg, hsl(120 100% 35%), hsl(120 100% 25%));
+    --gradient-accent: linear-gradient(135deg, hsl(15 100% 50%), hsl(0 100% 45%));
+    --gradient-hero: linear-gradient(135deg, hsl(270 30% 15%) 0%, hsl(120 100% 35%) 50%, hsl(0 100% 45%) 100%);
+    --gradient-pixel: linear-gradient(45deg, hsl(120 100% 40%) 0%, hsl(0 100% 45%) 50%, hsl(270 30% 20%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(270 20% 12%) 0%, hsl(270 15% 10%) 100%);
     
-    --glow-primary: 0 0 20px hsl(80 40% 35% / 0.4);
-    --glow-accent: 0 0 20px hsl(51 100% 50% / 0.4);
-    --glow-pixel: 0 0 30px hsl(51 100% 50% / 0.6), 0 0 60px hsl(80 40% 35% / 0.3);
-    --shadow-card: 0 4px 6px -1px hsl(350 100% 30% / 0.15), 0 2px 4px -2px hsl(350 100% 30% / 0.1);
-    --shadow-elevated: 0 10px 15px -3px hsl(350 100% 30% / 0.2), 0 4px 6px -4px hsl(350 100% 30% / 0.15);
-    --shadow-pixel: 2px 2px 0px hsl(0 0% 0% / 0.3), 4px 4px 0px hsl(0 0% 0% / 0.15);
+    --glow-primary: 0 0 20px hsl(120 100% 40% / 0.5);
+    --glow-accent: 0 0 20px hsl(15 100% 50% / 0.5);
+    --glow-pixel: 0 0 30px hsl(120 100% 40% / 0.7), 0 0 60px hsl(0 100% 45% / 0.4);
+    --shadow-card: 0 4px 6px -1px hsl(270 50% 10% / 0.5), 0 2px 4px -2px hsl(0 0% 0% / 0.4);
+    --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -4px hsl(120 100% 35% / 0.2);
+    --shadow-pixel: 2px 2px 0px hsl(0 0% 0% / 0.5), 4px 4px 0px hsl(120 100% 35% / 0.2);
 
-    --radius: 0.5rem; /* Slightly sharper for pixel aesthetic */
+    --radius: 0.5rem;
 
-    --sidebar-background: 350 100% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 80 40% 35%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 350 50% 95%;
-    --sidebar-accent-foreground: 0 0% 5%;
-    --sidebar-border: 350 20% 91%;
-    --sidebar-ring: 80 40% 35%;
+    --sidebar-background: 270 20% 10%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 120 100% 40%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 270 30% 18%;
+    --sidebar-accent-foreground: 0 0% 90%;
+    --sidebar-border: 270 20% 20%;
+    --sidebar-ring: 120 100% 35%;
   }
 
   @keyframes gradient {
@@ -105,57 +105,57 @@
   }
 
   .dark {
-    /* Zoobie Beret Dog Dark Mode */
-    --background: 0 0% 8%; /* Deep dark for contrast */
-    --foreground: 350 100% 92%; /* Light pink text */
+    /* Spooky Dark Mode - Even More Haunted 💀 */
+    --background: 270 20% 5%; /* Nearly black with purple tint */
+    --foreground: 0 0% 92%; /* Ghostly white */
 
-    --card: 0 0% 10%;
-    --card-foreground: 350 100% 92%;
+    --card: 270 20% 8%;
+    --card-foreground: 0 0% 90%;
 
-    --popover: 0 0% 10%;
-    --popover-foreground: 350 100% 92%;
+    --popover: 270 20% 8%;
+    --popover-foreground: 0 0% 90%;
 
-    /* Zoobie Dark Colors */
-    --primary: 80 50% 45%; /* Brighter olive green in dark mode */
-    --primary-foreground: 0 0% 8%;
+    /* Spooky Dark Colors */
+    --primary: 120 100% 45%; /* Brighter toxic green */
+    --primary-foreground: 0 0% 5%;
 
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 350 100% 92%;
+    --secondary: 270 25% 15%;
+    --secondary-foreground: 0 0% 92%;
 
-    --muted: 0 0% 12%;
-    --muted-foreground: 350 30% 70%;
+    --muted: 270 20% 10%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 51 100% 60%; /* Bright gold glow */
-    --accent-foreground: 0 0% 8%;
+    --accent: 15 100% 55%; /* Brighter pumpkin orange */
+    --accent-foreground: 0 0% 5%;
 
-    /* Zoobie Dark Feature Colors */
-    --pixel-orange: 0 70% 60%; /* Brighter red */
-    --pixel-orange-foreground: 0 0% 8%;
+    /* Spooky Dark Feature Colors */
+    --pixel-orange: 0 100% 50%; /* Brighter blood red */
+    --pixel-orange-foreground: 0 0% 98%;
     
-    --pixel-teal: 120 70% 55%; /* Brighter green collar */
-    --pixel-teal-foreground: 0 0% 8%;
+    --pixel-teal: 120 100% 50%; /* Maximum toxic glow */
+    --pixel-teal-foreground: 0 0% 5%;
 
-    --destructive: 0 84% 65%;
+    --destructive: 0 100% 55%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 20%;
-    --input: 0 0% 15%;
-    --ring: 80 50% 45%;
+    --border: 270 15% 18%;
+    --input: 270 20% 12%;
+    --ring: 120 100% 45%;
 
-    --success: 142 76% 40%;
-    --success-foreground: 0 0% 98%;
+    --success: 120 100% 45%;
+    --success-foreground: 0 0% 5%;
 
-    --warning: 38 92% 55%;
-    --warning-foreground: 0 0% 98%;
+    --warning: 15 100% 55%;
+    --warning-foreground: 0 0% 5%;
 
-    /* Zoobie Dark Gradients & Effects */
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 10%) 0%, hsl(0 0% 12%) 100%);
-    --glow-primary: 0 0 25px hsl(80 50% 45% / 0.5);
-    --glow-accent: 0 0 25px hsl(51 100% 60% / 0.5);
-    --glow-pixel: 0 0 35px hsl(51 100% 60% / 0.7), 0 0 70px hsl(80 50% 45% / 0.4);
-    --shadow-card: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
-    --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -4px hsl(0 0% 0% / 0.4);
-    --shadow-pixel: 2px 2px 0px hsl(51 100% 50% / 0.3), 4px 4px 0px hsl(80 50% 45% / 0.2);
+    /* Spooky Dark Gradients & Effects */
+    --gradient-card: linear-gradient(145deg, hsl(270 20% 8%) 0%, hsl(270 15% 6%) 100%);
+    --glow-primary: 0 0 25px hsl(120 100% 45% / 0.6);
+    --glow-accent: 0 0 25px hsl(15 100% 55% / 0.6);
+    --glow-pixel: 0 0 35px hsl(120 100% 50% / 0.8), 0 0 70px hsl(0 100% 50% / 0.5);
+    --shadow-card: 0 4px 6px -1px hsl(0 0% 0% / 0.6), 0 2px 4px -2px hsl(0 0% 0% / 0.5);
+    --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.7), 0 4px 6px -4px hsl(120 100% 45% / 0.3);
+    --shadow-pixel: 2px 2px 0px hsl(120 100% 45% / 0.4), 4px 4px 0px hsl(0 100% 50% / 0.3);
   }
   
   body {
