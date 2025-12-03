@@ -17,7 +17,7 @@ export function XRFooter() {
               <img 
                 src="/zoobie-pfp.webp" 
                 alt="Zoobie Beret Dog" 
-                className="w-5 h-5 opacity-80 animate-zoobie-glow rounded-full" 
+                className="w-5 h-5 opacity-80 animate-zoobie-glow" 
               />
               <span className="text-sm text-muted-foreground font-medium">
                 © {currentYear} XRayCrypto™
@@ -54,7 +54,7 @@ export function XRFooter() {
               <img 
                 src="/zoobie-pfp.webp" 
                 alt="Zoobie Beret Dog" 
-                className="w-4 h-4 ml-1 animate-wiggle rounded-full" 
+                className="w-4 h-4 ml-1 animate-wiggle" 
               />
             </span>
             <span className="text-zoobie/50">•</span>
