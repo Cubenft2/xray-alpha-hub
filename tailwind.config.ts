@@ -60,6 +60,10 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        zoobie: {
+          DEFAULT: "hsl(var(--zoobie-pink))",
+          foreground: "hsl(var(--zoobie-pink-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

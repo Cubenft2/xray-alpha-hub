@@ -58,12 +58,18 @@
     --warning: 15 100% 50%; /* Pumpkin orange */
     --warning-foreground: 0 0% 5%;
 
+    /* Zoobie Pink - Signature Mascot Color 💖 */
+    --zoobie-pink: 330 80% 60%;
+    --zoobie-pink-foreground: 0 0% 5%;
+
     /* Spooky Gradients & Effects 👻 */
     --gradient-primary: linear-gradient(135deg, hsl(120 100% 35%), hsl(120 100% 25%));
     --gradient-accent: linear-gradient(135deg, hsl(15 100% 50%), hsl(0 100% 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(270 30% 15%) 0%, hsl(120 100% 35%) 50%, hsl(0 100% 45%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(270 30% 15%) 0%, hsl(330 80% 55%) 30%, hsl(120 100% 35%) 60%, hsl(0 100% 45%) 100%);
     --gradient-pixel: linear-gradient(45deg, hsl(120 100% 40%) 0%, hsl(0 100% 45%) 50%, hsl(270 30% 20%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(270 20% 12%) 0%, hsl(270 15% 10%) 100%);
+    --gradient-zoobie: linear-gradient(135deg, hsl(330 80% 60%), hsl(300 70% 50%));
+    --glow-zoobie: 0 0 20px hsl(330 80% 60% / 0.5);
     
     --glow-primary: 0 0 20px hsl(120 100% 40% / 0.5);
     --glow-accent: 0 0 20px hsl(15 100% 50% / 0.5);
@@ -148,10 +154,16 @@
     --warning: 15 100% 55%;
     --warning-foreground: 0 0% 5%;
 
+    /* Zoobie Pink Dark Mode 💖 */
+    --zoobie-pink: 330 80% 65%;
+    --zoobie-pink-foreground: 0 0% 5%;
+
     /* Spooky Dark Gradients & Effects */
     --gradient-card: linear-gradient(145deg, hsl(270 20% 8%) 0%, hsl(270 15% 6%) 100%);
+    --gradient-zoobie: linear-gradient(135deg, hsl(330 80% 65%), hsl(300 70% 55%));
     --glow-primary: 0 0 25px hsl(120 100% 45% / 0.6);
     --glow-accent: 0 0 25px hsl(15 100% 55% / 0.6);
+    --glow-zoobie: 0 0 25px hsl(330 80% 65% / 0.6);
     --glow-pixel: 0 0 35px hsl(120 100% 50% / 0.8), 0 0 70px hsl(0 100% 50% / 0.5);
     --shadow-card: 0 4px 6px -1px hsl(0 0% 0% / 0.6), 0 2px 4px -2px hsl(0 0% 0% / 0.5);
     --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.7), 0 4px 6px -4px hsl(120 100% 45% / 0.3);
@@ -203,6 +215,14 @@
 
   .xr-glow-accent {
     box-shadow: var(--glow-accent);
+  }
+
+  .xr-glow-zoobie {
+    box-shadow: var(--glow-zoobie);
+  }
+
+  .bg-zoobie-gradient {
+    background: var(--gradient-zoobie);
   }
 
   .xr-glow-pixel {
@@ -485,6 +505,34 @@
   .animate-zoobie-glow {
     animation: zoobie-eye-glow 2s ease-in-out infinite;
     border: 2px solid hsl(120 100% 45% / 0.5);
+  }
+
+  /* Zoobie Pink Pulse Animation 💖 */
+  @keyframes zoobie-pink-pulse {
+    0%, 100% { 
+      text-shadow: 0 0 8px hsl(330 80% 60% / 0.6);
+    }
+    50% { 
+      text-shadow: 0 0 16px hsl(330 80% 65% / 0.8), 0 0 24px hsl(330 80% 60% / 0.4);
+    }
+  }
+
+  .animate-zoobie-pink-pulse {
+    animation: zoobie-pink-pulse 2s ease-in-out infinite;
+  }
+
+  /* Zoobie Pink Button Glow */
+  @keyframes zoobie-button-glow {
+    0%, 100% {
+      box-shadow: 0 0 10px hsl(330 80% 60% / 0.4), 0 0 20px hsl(330 80% 60% / 0.2);
+    }
+    50% {
+      box-shadow: 0 0 15px hsl(330 80% 65% / 0.6), 0 0 30px hsl(330 80% 60% / 0.3);
+    }
+  }
+
+  .animate-zoobie-button-glow {
+    animation: zoobie-button-glow 2s ease-in-out infinite;
   }
 
   /* Spooky Flicker Effect - Broken haunted light bulb 👻 */

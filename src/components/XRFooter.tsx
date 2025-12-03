@@ -38,10 +38,10 @@ export function XRFooter() {
           <Button
             variant="default"
             size="sm"
-            className="animate-wiggle hover:animate-none"
+            className="bg-zoobie hover:bg-zoobie/90 text-zoobie-foreground animate-zoobie-button-glow hover:animate-none border border-zoobie/50"
             onClick={() => navigate('/support')}
           >
-            <Heart className="w-4 h-4 mr-2 text-red-500" />
+            <Heart className="w-4 h-4 mr-2 text-zoobie-foreground" fill="currentColor" />
             Buy Me a Treat 🦴
           </Button>
         </div>
@@ -50,30 +50,30 @@ export function XRFooter() {
         <div className="mt-4 pt-4 border-t border-border/50">
           <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground mb-3">
             <span className="flex items-center">
-              Built with 💖 by the XRay Dog Pack 
+              Built with <span className="text-zoobie mx-1">💖</span> by the XRay Dog Pack 
               <img 
                 src="/zoobie-pfp.webp" 
                 alt="Zoobie Beret Dog" 
                 className="w-4 h-4 ml-1 animate-wiggle rounded-full" 
               />
             </span>
-            <span>•</span>
+            <span className="text-zoobie/50">•</span>
             <span>Real-time data by TradingView</span>
-            <span>•</span>
-            <span className="font-bold text-accent">🐕 Pixel Power • Crypto Vision • Woof!</span>
+            <span className="text-zoobie/50">•</span>
+            <span className="font-bold text-zoobie animate-zoobie-pink-pulse">🐕 Pixel Power • Crypto Vision • Woof!</span>
           </div>
           
           {/* Legal Links */}
           <div className="flex flex-wrap items-center justify-center gap-3 text-xs">
-            <a href="/about" className="text-muted-foreground hover:text-primary transition-colors">
+            <a href="/about" className="text-muted-foreground hover:text-zoobie transition-colors">
               About Us
             </a>
-            <span className="text-muted-foreground/50">•</span>
-            <a href="/terms" className="text-muted-foreground hover:text-primary transition-colors">
+            <span className="text-zoobie/30">•</span>
+            <a href="/terms" className="text-muted-foreground hover:text-zoobie transition-colors">
               Terms of Service
             </a>
-            <span className="text-muted-foreground/50">•</span>
-            <a href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
+            <span className="text-zoobie/30">•</span>
+            <a href="/privacy" className="text-muted-foreground hover:text-zoobie transition-colors">
               Privacy Policy
             </a>
           </div>
