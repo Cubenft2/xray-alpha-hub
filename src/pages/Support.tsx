@@ -46,8 +46,8 @@ export default function Support() {
           <CardHeader className="text-center">
             <div className="mx-auto w-24 h-24 rounded-full overflow-hidden mb-4 border-4 border-primary">
               <img 
-                src="/pfp.png" 
-                alt="XRayCrypto Avatar" 
+                src="/zoobie-pfp.webp" 
+                alt="Zoobie Beret Dog" 
                 className="w-full h-full object-cover"
               />
             </div>

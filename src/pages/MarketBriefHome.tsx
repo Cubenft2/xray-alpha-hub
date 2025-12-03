@@ -1139,17 +1139,17 @@ export default function MarketBriefHome() {
             {/* Prominent watermark stamp for sharing */}
             <div className="absolute top-4 right-4 opacity-10 pointer-events-none">
               <img 
-                src="/xray-dog.png" 
-                alt="XRayCrypto Watermark" 
-                className="w-24 h-24 lg:w-32 lg:h-32"
+                src="/zoobie-pfp.webp" 
+                alt="Zoobie Beret Dog Watermark" 
+                className="w-24 h-24 lg:w-32 lg:h-32 rounded-full"
               />
             </div>
             
             <div className="flex items-center justify-between text-sm text-muted-foreground bg-accent/20 rounded-lg p-4 relative z-10">
               <div className="flex items-center gap-3">
                 <img 
-                  src="/pfp.png" 
-                  alt="XRayCrypto" 
+                  src="/zoobie-pfp.webp" 
+                  alt="Zoobie Beret Dog" 
                   className="w-8 h-8 rounded-md border border-primary/20"
                 />
                 <div className="flex flex-col items-start">
