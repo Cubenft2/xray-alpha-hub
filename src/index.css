@@ -15,24 +15,24 @@
     --font-pixel: 'Orbitron', 'Space Mono', monospace;
     --font-mono: 'Space Mono', monospace;
     
-    /* 👻☀️ HAUNTED LIGHT MODE - True Neutral Cream (No Purple Tint) */
-    --background: 40 20% 96%; /* Warm neutral cream */
+    /* 👻☀️ HAUNTED LIGHT MODE - Soft Sage Green Background 🌿 */
+    --background: 130 20% 94%; /* Soft sage green */
     --foreground: 30 10% 15%; /* Warm dark brown-gray text */
 
-    --card: 40 15% 98%; /* Nearly white with warm tint */
+    --card: 130 15% 97%; /* Lighter sage for cards */
     --card-foreground: 30 10% 18%;
 
-    --popover: 40 15% 98%;
+    --popover: 130 15% 97%;
     --popover-foreground: 30 10% 18%;
 
     /* Spooky Brand Colors - Adjusted for Light Mode */
     --primary: 120 100% 28%; /* Darker toxic green for light bg */
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 40 15% 92%; /* Light warm cream */
+    --secondary: 130 15% 90%; /* Soft sage secondary */
     --secondary-foreground: 30 10% 15%;
 
-    --muted: 40 12% 90%; /* Soft warm gray-cream */
+    --muted: 130 12% 88%; /* Muted sage */
     --muted-foreground: 30 8% 45%;
 
     --accent: 15 90% 45%; /* Slightly muted pumpkin orange */
@@ -48,8 +48,8 @@
     --destructive: 0 85% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 40 12% 85%; /* Warm neutral border */
-    --input: 40 12% 92%; /* Warm input background */
+    --border: 130 12% 82%; /* Soft sage border */
+    --input: 130 12% 90%; /* Sage input background */
     --ring: 120 100% 30%;
 
     --success: 120 90% 30%; /* Toxic green */
@@ -65,9 +65,9 @@
     /* Haunted Light Gradients & Effects 👻☀️ */
     --gradient-primary: linear-gradient(135deg, hsl(120 100% 32%), hsl(120 100% 25%));
     --gradient-accent: linear-gradient(135deg, hsl(15 90% 50%), hsl(0 85% 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(40 20% 94%) 0%, hsl(40 15% 96%) 30%, hsl(120 60% 92%) 60%, hsl(0 60% 95%) 100%);
-    --gradient-pixel: linear-gradient(45deg, hsl(120 90% 35%) 0%, hsl(0 85% 45%) 50%, hsl(40 15% 90%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(40 15% 98%) 0%, hsl(40 12% 96%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(130 20% 94%) 0%, hsl(130 15% 96%) 30%, hsl(120 60% 92%) 60%, hsl(0 60% 95%) 100%);
+    --gradient-pixel: linear-gradient(45deg, hsl(120 90% 35%) 0%, hsl(0 85% 45%) 50%, hsl(130 15% 90%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(130 15% 97%) 0%, hsl(130 12% 95%) 100%);
     --gradient-zoobie: linear-gradient(135deg, hsl(350 30% 50%), hsl(320 25% 42%));
     --glow-zoobie: 0 0 15px hsl(350 30% 50% / 0.3);
     
@@ -84,13 +84,13 @@
     --radius: 0.5rem;
 
     /* Sidebar Light Mode */
-    --sidebar-background: 40 15% 96%;
+    --sidebar-background: 130 15% 94%;
     --sidebar-foreground: 30 10% 15%;
     --sidebar-primary: 120 100% 30%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 40 15% 92%;
+    --sidebar-accent: 130 15% 90%;
     --sidebar-accent-foreground: 30 10% 15%;
-    --sidebar-border: 40 12% 88%;
+    --sidebar-border: 130 12% 85%;
     --sidebar-ring: 120 100% 30%;
 
     /* Header & Footer - Peachy Salmon Accent (Light Mode) 🍑 */
