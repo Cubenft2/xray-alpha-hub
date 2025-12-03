@@ -9,9 +9,9 @@ export default function About() {
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center mb-4">
           <img 
-            src="/pfp.png" 
-            alt="XRayCrypto Team" 
-            className="w-20 h-20 rounded-full border-4 border-primary"
+            src="/zoobie-pfp.webp" 
+            alt="Zoobie Beret Dog" 
+            className="w-20 h-20 rounded-full border-4 border-primary animate-zoobie-glow"
           />
         </div>
         <h1 className="text-4xl font-bold xr-gradient-text">About XRayCrypto™</h1>

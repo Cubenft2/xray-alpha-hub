@@ -311,9 +311,9 @@ export function NewsSentimentOverview({
       {isExporting && (
         <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-white/90 dark:bg-black/90 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
           <img 
-            src="/xray-dog.png" 
-            alt="XRayCrypto" 
-            className="w-8 h-8 object-contain"
+            src="/zoobie-pfp.webp" 
+            alt="Zoobie Beret Dog" 
+            className="w-8 h-8 object-contain rounded-full"
           />
           <div className="flex flex-col text-right">
             <span className="text-xs font-bold text-gray-900 dark:text-white">XRayCrypto™</span>

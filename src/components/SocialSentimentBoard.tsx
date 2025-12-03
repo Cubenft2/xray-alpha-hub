@@ -454,9 +454,9 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
           {!isExporting && (
             <div className="flex items-center justify-center gap-4 mt-4 pt-3 border-t border-border/30">
               <img 
-                src="/xray-dog.png" 
-                alt="XRayCrypto" 
-                className="w-8 h-8 opacity-70"
+                src="/zoobie-pfp.webp" 
+                alt="Zoobie Beret Dog" 
+                className="w-8 h-8 opacity-70 rounded-full"
               />
               <div className="text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">XRayCrypto™</span>
