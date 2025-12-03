@@ -98,6 +98,10 @@
     --header-footer-bg-transparent: 15 60% 88% / 0.95;
     --header-footer-border: 15 45% 78%;
     --header-footer-text: 15 15% 25%;
+
+    /* Beret Yellow - Golden Badge Color 🎖️ */
+    --beret-yellow: 45 100% 50%;
+    --beret-yellow-foreground: 30 20% 15%;
     --header-footer-text-muted: 15 10% 45%;
   }
 
@@ -186,6 +190,10 @@
     --header-footer-border: 270 25% 20%;
     --header-footer-text: 0 0% 95%;
     --header-footer-text-muted: 0 0% 70%;
+
+    /* Beret Yellow - Golden Badge Color (Dark Mode) 🎖️ */
+    --beret-yellow: 45 100% 55%;
+    --beret-yellow-foreground: 30 20% 10%;
   }
   
   body {
@@ -645,6 +653,34 @@
 
   .animate-ghost-float {
     animation: ghost-float 3s ease-in-out infinite;
+  }
+
+  /* Beret Yellow Button Glow 🎖️ */
+  @keyframes beret-button-glow {
+    0%, 100% {
+      box-shadow: 0 0 10px hsl(45 100% 50% / 0.4), 0 0 20px hsl(45 100% 50% / 0.2);
+    }
+    50% {
+      box-shadow: 0 0 15px hsl(45 100% 55% / 0.6), 0 0 30px hsl(45 100% 50% / 0.3);
+    }
+  }
+
+  .animate-beret-button-glow {
+    animation: beret-button-glow 2s ease-in-out infinite;
+  }
+
+  /* Beret Yellow Text Pulse 🎖️ */
+  @keyframes beret-text-pulse {
+    0%, 100% { 
+      text-shadow: 0 0 8px hsl(45 100% 50% / 0.6);
+    }
+    50% { 
+      text-shadow: 0 0 16px hsl(45 100% 55% / 0.8), 0 0 24px hsl(45 100% 50% / 0.4);
+    }
+  }
+
+  .animate-beret-text-pulse {
+    animation: beret-text-pulse 2s ease-in-out infinite;
   }
 
   /* Eerie Pulse Text - Haunted breathing glow 🎃 */
