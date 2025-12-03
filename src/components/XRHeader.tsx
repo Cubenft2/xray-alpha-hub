@@ -136,7 +136,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                   <Button
                     variant={location.pathname === item.href ? "default" : "ghost"}
                     size="sm"
-                    className={`xr-nav-text px-2 text-xs hover:text-zoobie transition-colors ${location.pathname === item.href ? "btn-hero" : ""}`}
+                    className={`xr-nav-text px-2 text-xs nav-hover-glow ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
                   {item.href === '/support' ? (
                     <Heart className="w-3.5 h-3.5 text-zoobie animate-pulse" fill="currentColor" />
@@ -153,7 +153,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                   <Button
                     variant={location.pathname === item.href ? "default" : "ghost"}
                     size="sm"
-                    className={`xr-nav-text px-2 text-xs hover:text-zoobie transition-colors ${location.pathname === item.href ? "btn-hero" : ""}`}
+                    className={`xr-nav-text px-2 text-xs nav-hover-glow ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
                     {item.name}
                   </Button>
@@ -203,7 +203,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="lg:hidden border border-zoobie/30 hover:border-zoobie/60 hover:bg-zoobie/10"
+              className="lg:hidden border border-beret/30 hover:border-beret/60 hover:bg-beret/10"
               onClick={() => setIsMobileMenuOpen(true)}
             >
               <Menu className="h-5 w-5" />
@@ -234,7 +234,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 <Link key={item.name} to={item.href} onClick={closeMobileMenu}>
                   <Button
                     variant={location.pathname === item.href ? "default" : "ghost"}
-                    className={`w-full justify-start xr-nav-text ${location.pathname === item.href ? "btn-hero" : ""}`}
+                    className={`w-full justify-start xr-nav-text nav-hover-glow ${location.pathname === item.href ? "btn-hero" : ""}`}
                   >
                     {item.name}
                     {item.href === '/support' && <Heart className="ml-auto w-4 h-4 text-zoobie animate-pulse" fill="currentColor" />}

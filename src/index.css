@@ -683,6 +683,24 @@
     animation: beret-text-pulse 2s ease-in-out infinite;
   }
 
+  /* Nav Link Hover Glow - Beret Yellow 🎖️ */
+  .nav-hover-glow {
+    @apply transition-all duration-200;
+  }
+
+  .nav-hover-glow:hover {
+    color: hsl(var(--beret-yellow));
+    text-shadow: 
+      0 0 8px hsl(45 100% 50% / 0.5),
+      0 0 16px hsl(45 100% 50% / 0.25);
+  }
+
+  .dark .nav-hover-glow:hover {
+    text-shadow: 
+      0 0 10px hsl(45 100% 55% / 0.7),
+      0 0 20px hsl(45 100% 50% / 0.35);
+  }
+
   /* Eerie Pulse Text - Haunted breathing glow 🎃 */
   @keyframes eerie-pulse-text {
     0%, 100% { 
