@@ -8,7 +8,7 @@ export function XRFooter() {
   const navigate = useNavigate();
 
   return (
-    <footer className="border-t border-border bg-card/50 mt-8">
+    <footer className="xr-footer mt-8">
       <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
           {/* XRay Dog Branding */}
