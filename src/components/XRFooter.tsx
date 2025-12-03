@@ -38,10 +38,10 @@ export function XRFooter() {
           <Button
             variant="default"
             size="sm"
-            className="bg-zoobie hover:bg-zoobie/90 text-zoobie-foreground animate-zoobie-button-glow hover:animate-none border border-zoobie/50"
+            className="bg-beret hover:bg-beret/90 text-beret-foreground animate-beret-button-glow hover:animate-none border border-beret/50"
             onClick={() => navigate('/support')}
           >
-            <Heart className="w-4 h-4 mr-2 text-zoobie-foreground" fill="currentColor" />
+            <Heart className="w-4 h-4 mr-2 text-beret-foreground" fill="currentColor" />
             Buy Me a Treat 🦴
           </Button>
         </div>
@@ -60,7 +60,7 @@ export function XRFooter() {
             <span className="text-zoobie/50">•</span>
             <span>Real-time data by TradingView</span>
             <span className="text-zoobie/50">•</span>
-            <span className="font-bold text-zoobie animate-zoobie-pink-pulse">🐕 Pixel Power • Crypto Vision • Woof!</span>
+            <span className="font-bold text-beret animate-beret-text-pulse">🐕 Pixel Power • Crypto Vision • Woof!</span>
           </div>
           
           {/* Legal Links */}

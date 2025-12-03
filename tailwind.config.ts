@@ -64,6 +64,10 @@ export default {
           DEFAULT: "hsl(var(--zoobie-pink))",
           foreground: "hsl(var(--zoobie-pink-foreground))",
         },
+        beret: {
+          DEFAULT: "hsl(var(--beret-yellow))",
+          foreground: "hsl(var(--beret-yellow-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
