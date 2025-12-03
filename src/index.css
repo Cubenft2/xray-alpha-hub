@@ -15,25 +15,25 @@
     --font-pixel: 'Orbitron', 'Space Mono', monospace;
     --font-mono: 'Space Mono', monospace;
     
-    /* 👻☀️ HAUNTED LIGHT MODE - Ghostly Pale Theme */
-    --background: 270 10% 95%; /* Pale ghostly cream with purple tint */
-    --foreground: 270 40% 15%; /* Dark purple text */
+    /* 👻☀️ HAUNTED LIGHT MODE - True Neutral Cream (No Purple Tint) */
+    --background: 40 20% 96%; /* Warm neutral cream */
+    --foreground: 30 10% 15%; /* Warm dark brown-gray text */
 
-    --card: 270 15% 98%; /* Nearly white card with hint of purple */
-    --card-foreground: 270 35% 20%;
+    --card: 40 15% 98%; /* Nearly white with warm tint */
+    --card-foreground: 30 10% 18%;
 
-    --popover: 270 15% 98%;
-    --popover-foreground: 270 35% 20%;
+    --popover: 40 15% 98%;
+    --popover-foreground: 30 10% 18%;
 
     /* Spooky Brand Colors - Adjusted for Light Mode */
     --primary: 120 100% 28%; /* Darker toxic green for light bg */
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 270 20% 90%; /* Light purple tint */
-    --secondary-foreground: 270 40% 15%;
+    --secondary: 40 15% 92%; /* Light warm cream */
+    --secondary-foreground: 30 10% 15%;
 
-    --muted: 270 15% 92%; /* Soft muted purple-gray */
-    --muted-foreground: 270 25% 40%;
+    --muted: 40 12% 90%; /* Soft warm gray-cream */
+    --muted-foreground: 30 8% 45%;
 
     --accent: 15 90% 45%; /* Slightly muted pumpkin orange */
     --accent-foreground: 0 0% 98%;
@@ -48,8 +48,8 @@
     --destructive: 0 85% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 270 20% 85%; /* Light purple-tinted borders */
-    --input: 270 15% 92%;
+    --border: 40 12% 85%; /* Warm neutral border */
+    --input: 40 12% 92%; /* Warm input background */
     --ring: 120 100% 30%;
 
     --success: 120 90% 30%; /* Toxic green */
@@ -65,9 +65,9 @@
     /* Haunted Light Gradients & Effects 👻☀️ */
     --gradient-primary: linear-gradient(135deg, hsl(120 100% 32%), hsl(120 100% 25%));
     --gradient-accent: linear-gradient(135deg, hsl(15 90% 50%), hsl(0 85% 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(270 20% 92%) 0%, hsl(350 20% 85%) 30%, hsl(120 60% 85%) 60%, hsl(0 60% 90%) 100%);
-    --gradient-pixel: linear-gradient(45deg, hsl(120 90% 35%) 0%, hsl(0 85% 45%) 50%, hsl(270 20% 85%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(270 15% 98%) 0%, hsl(270 10% 95%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(40 20% 94%) 0%, hsl(40 15% 96%) 30%, hsl(120 60% 92%) 60%, hsl(0 60% 95%) 100%);
+    --gradient-pixel: linear-gradient(45deg, hsl(120 90% 35%) 0%, hsl(0 85% 45%) 50%, hsl(40 15% 90%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(40 15% 98%) 0%, hsl(40 12% 96%) 100%);
     --gradient-zoobie: linear-gradient(135deg, hsl(350 30% 50%), hsl(320 25% 42%));
     --glow-zoobie: 0 0 15px hsl(350 30% 50% / 0.3);
     
@@ -76,21 +76,21 @@
     --glow-accent: 0 0 15px hsl(15 100% 50% / 0.3);
     --glow-pixel: 0 0 20px hsl(120 100% 35% / 0.4), 0 0 40px hsl(0 100% 45% / 0.2);
     
-    /* Light mode shadows - softer, purple-tinted */
-    --shadow-card: 0 4px 6px -1px hsl(270 30% 20% / 0.1), 0 2px 4px -2px hsl(270 30% 20% / 0.08);
-    --shadow-elevated: 0 10px 15px -3px hsl(270 30% 20% / 0.12), 0 4px 6px -4px hsl(120 100% 35% / 0.08);
-    --shadow-pixel: 2px 2px 0px hsl(270 30% 20% / 0.15), 4px 4px 0px hsl(120 100% 35% / 0.08);
+    /* Light mode shadows - warm neutral tint */
+    --shadow-card: 0 4px 6px -1px hsl(30 10% 20% / 0.1), 0 2px 4px -2px hsl(30 10% 20% / 0.08);
+    --shadow-elevated: 0 10px 15px -3px hsl(30 10% 20% / 0.12), 0 4px 6px -4px hsl(120 100% 35% / 0.08);
+    --shadow-pixel: 2px 2px 0px hsl(30 10% 20% / 0.15), 4px 4px 0px hsl(120 100% 35% / 0.08);
 
     --radius: 0.5rem;
 
     /* Sidebar Light Mode */
-    --sidebar-background: 270 15% 96%;
-    --sidebar-foreground: 270 40% 15%;
+    --sidebar-background: 40 15% 96%;
+    --sidebar-foreground: 30 10% 15%;
     --sidebar-primary: 120 100% 30%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 270 20% 90%;
-    --sidebar-accent-foreground: 270 40% 15%;
-    --sidebar-border: 270 15% 88%;
+    --sidebar-accent: 40 15% 92%;
+    --sidebar-accent-foreground: 30 10% 15%;
+    --sidebar-border: 40 12% 88%;
     --sidebar-ring: 120 100% 30%;
   }
 
