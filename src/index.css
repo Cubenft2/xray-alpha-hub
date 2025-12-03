@@ -463,6 +463,30 @@
     letter-spacing: 0.05em;
   }
 
+  /* Zoobie Glowing Eyes Effect 👻 */
+  @keyframes zoobie-eye-glow {
+    0%, 100% { 
+      box-shadow: 
+        0 0 8px hsl(120 100% 45% / 0.6),
+        0 0 16px hsl(120 100% 45% / 0.4),
+        0 0 24px hsl(120 100% 45% / 0.2);
+      filter: brightness(1) drop-shadow(0 0 4px hsl(120 100% 45% / 0.8));
+    }
+    50% { 
+      box-shadow: 
+        0 0 12px hsl(120 100% 50% / 0.8),
+        0 0 24px hsl(120 100% 50% / 0.6),
+        0 0 36px hsl(120 100% 50% / 0.4),
+        0 0 48px hsl(120 100% 50% / 0.2);
+      filter: brightness(1.15) drop-shadow(0 0 8px hsl(120 100% 50% / 1));
+    }
+  }
+
+  .animate-zoobie-glow {
+    animation: zoobie-eye-glow 2s ease-in-out infinite;
+    border: 2px solid hsl(120 100% 45% / 0.5);
+  }
+
   /* X-Ray Glow Effect */
   .xr-xray-glow {
     position: relative;

@@ -107,7 +107,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 <img 
                   src="/zoobie-pfp.webp" 
                   alt="Zoobie Beret Dog" 
-                  className="w-8 h-8 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-2"
+                  className="w-8 h-8 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-2 animate-zoobie-glow"
                 />
                 <span className="text-lg xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
                   XRayCrypto™
@@ -120,7 +120,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 <img 
                   src="/zoobie-pfp.webp" 
                   alt="Zoobie Beret Dog" 
-                  className="w-7 h-7 rounded-full"
+                  className="w-7 h-7 rounded-full animate-zoobie-glow"
                 />
                 <span className="text-base xr-pixel-text animate-radioactive-glow">
                   XR™
