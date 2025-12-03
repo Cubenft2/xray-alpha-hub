@@ -41,7 +41,7 @@ export const Layout = ({ children }: LayoutProps) => {
 
   return (
     <LayoutContext.Provider value={contextValue}>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen">
         {/* Persistent Header - never unmounts */}
         <XRHeader onSearch={handleSearch} />
         
