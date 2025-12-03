@@ -204,6 +204,32 @@
     padding: 0;
     width: 100%;
     overflow-x: hidden;
+    /* Zombie Pattern Background - Light Mode Only 🧟‍♂️ */
+    background-color: hsl(var(--background));
+    background-image: url('/images/zombie-pattern.png');
+    background-repeat: repeat;
+    background-size: 300px 300px;
+    background-attachment: fixed;
+  }
+  
+  /* Semi-transparent overlay for readability in light mode */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: hsl(130 28% 92% / 0.75);
+    pointer-events: none;
+    z-index: -1;
+  }
+  
+  /* Dark mode - solid background, no pattern */
+  .dark body {
+    background-image: none;
+    background-color: hsl(var(--background));
+  }
+  
+  .dark body::before {
+    background: hsl(265 35% 8% / 0.95);
   }
   
   html {
