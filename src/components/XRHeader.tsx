@@ -105,8 +105,8 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <img 
-                  src="/pfp.png" 
-                  alt="XRay Profile" 
+                  src="/zoobie-pfp.webp" 
+                  alt="Zoobie Beret Dog" 
                   className="w-8 h-8 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-2"
                 />
                 <span className="text-lg xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
@@ -118,8 +118,8 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               </span>
               <div className="flex items-center space-x-1 sm:hidden">
                 <img 
-                  src="/pfp.png" 
-                  alt="XRay Profile" 
+                  src="/zoobie-pfp.webp" 
+                  alt="Zoobie Beret Dog" 
                   className="w-7 h-7 rounded-full"
                 />
                 <span className="text-base xr-pixel-text animate-radioactive-glow">
