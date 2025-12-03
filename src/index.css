@@ -15,42 +15,42 @@
     --font-pixel: 'Orbitron', 'Space Mono', monospace;
     --font-mono: 'Space Mono', monospace;
     
-    /* Core Theme Colors - XRay Dog Palette */
-    --background: 51 100% 98%; /* Light yellow tint */
+    /* Core Theme Colors - Zoobie Beret Dog Palette */
+    --background: 350 100% 96%; /* Soft pink from PFP background */
     --foreground: 0 0% 5%; /* Deep black like dog's features */
 
-    --card: 51 100% 99%;
+    --card: 350 100% 98%;
     --card-foreground: 0 0% 5%;
 
-    --popover: 51 100% 99%;
+    --popover: 350 100% 98%;
     --popover-foreground: 0 0% 5%;
 
-    /* XRay Dog Brand Colors */
-    --primary: 194 100% 50%; /* Cyan goggles #00CFFF */
-    --primary-foreground: 0 0% 5%;
+    /* Zoobie Beret Dog Brand Colors */
+    --primary: 80 40% 35%; /* Olive green from beret */
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 51 100% 95%; /* Soft yellow */
+    --secondary: 350 100% 95%; /* Soft pink */
     --secondary-foreground: 0 0% 5%;
 
-    --muted: 51 50% 92%; /* Muted yellow */
+    --muted: 350 30% 92%; /* Muted pink */
     --muted-foreground: 0 0% 40%;
 
-    --accent: 51 100% 50%; /* Bright pixel yellow #FFD700 */
+    --accent: 51 100% 50%; /* Bright gold from badge */
     --accent-foreground: 0 0% 5%;
 
-    /* XRay Dog Feature Colors */
-    --pixel-orange: 25 100% 65%; /* Dog snout/nose color */
-    --pixel-orange-foreground: 0 0% 5%;
+    /* Zoobie Feature Colors */
+    --pixel-orange: 0 70% 55%; /* Red from tongue/details */
+    --pixel-orange-foreground: 0 0% 98%;
     
-    --pixel-teal: 180 100% 35%; /* Deeper teal for accents */
-    --pixel-teal-foreground: 0 0% 100%;
+    --pixel-teal: 120 61% 50%; /* Bright green from collar */
+    --pixel-teal-foreground: 0 0% 5%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 51 30% 85%; /* Yellow-tinted borders */
-    --input: 51 30% 90%;
-    --ring: 194 100% 50%;
+    --border: 350 30% 85%; /* Pink-tinted borders */
+    --input: 350 30% 90%;
+    --ring: 80 40% 35%;
 
     --success: 142 76% 36%;
     --success-foreground: 0 0% 98%;
@@ -58,30 +58,30 @@
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 98%;
 
-    /* XRay Dog Gradients & Effects */
-    --gradient-primary: linear-gradient(135deg, hsl(194 100% 50%), hsl(194 100% 60%));
+    /* Zoobie Beret Dog Gradients & Effects */
+    --gradient-primary: linear-gradient(135deg, hsl(80 40% 35%), hsl(80 50% 45%));
     --gradient-accent: linear-gradient(135deg, hsl(51 100% 50%), hsl(51 100% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(194 100% 50%) 0%, hsl(51 100% 50%) 100%);
-    --gradient-pixel: linear-gradient(45deg, hsl(51 100% 50%) 0%, hsl(25 100% 65%) 50%, hsl(194 100% 50%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(51 100% 99%) 0%, hsl(51 50% 96%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(80 40% 35%) 0%, hsl(51 100% 50%) 100%);
+    --gradient-pixel: linear-gradient(45deg, hsl(51 100% 50%) 0%, hsl(120 61% 50%) 50%, hsl(80 40% 35%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(350 100% 98%) 0%, hsl(350 50% 96%) 100%);
     
-    --glow-primary: 0 0 20px hsl(194 100% 50% / 0.4);
+    --glow-primary: 0 0 20px hsl(80 40% 35% / 0.4);
     --glow-accent: 0 0 20px hsl(51 100% 50% / 0.4);
-    --glow-pixel: 0 0 30px hsl(51 100% 50% / 0.6), 0 0 60px hsl(194 100% 50% / 0.3);
-    --shadow-card: 0 4px 6px -1px hsl(51 100% 30% / 0.15), 0 2px 4px -2px hsl(51 100% 30% / 0.1);
-    --shadow-elevated: 0 10px 15px -3px hsl(51 100% 30% / 0.2), 0 4px 6px -4px hsl(51 100% 30% / 0.15);
+    --glow-pixel: 0 0 30px hsl(51 100% 50% / 0.6), 0 0 60px hsl(80 40% 35% / 0.3);
+    --shadow-card: 0 4px 6px -1px hsl(350 100% 30% / 0.15), 0 2px 4px -2px hsl(350 100% 30% / 0.1);
+    --shadow-elevated: 0 10px 15px -3px hsl(350 100% 30% / 0.2), 0 4px 6px -4px hsl(350 100% 30% / 0.15);
     --shadow-pixel: 2px 2px 0px hsl(0 0% 0% / 0.3), 4px 4px 0px hsl(0 0% 0% / 0.15);
 
     --radius: 0.5rem; /* Slightly sharper for pixel aesthetic */
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 350 100% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary: 80 40% 35%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 350 50% 95%;
+    --sidebar-accent-foreground: 0 0% 5%;
+    --sidebar-border: 350 20% 91%;
+    --sidebar-ring: 80 40% 35%;
   }
 
   @keyframes gradient {
@@ -105,42 +105,42 @@
   }
 
   .dark {
-    /* XRay Dog Dark Mode - Retro Night Vision */
+    /* Zoobie Beret Dog Dark Mode */
     --background: 0 0% 8%; /* Deep dark for contrast */
-    --foreground: 51 100% 90%; /* Bright yellow text */
+    --foreground: 350 100% 92%; /* Light pink text */
 
     --card: 0 0% 10%;
-    --card-foreground: 51 100% 90%;
+    --card-foreground: 350 100% 92%;
 
     --popover: 0 0% 10%;
-    --popover-foreground: 51 100% 90%;
+    --popover-foreground: 350 100% 92%;
 
-    /* XRay Dog Dark Colors */
-    --primary: 194 100% 55%; /* Brighter cyan in dark mode */
+    /* Zoobie Dark Colors */
+    --primary: 80 50% 45%; /* Brighter olive green in dark mode */
     --primary-foreground: 0 0% 8%;
 
     --secondary: 0 0% 15%;
-    --secondary-foreground: 51 100% 90%;
+    --secondary-foreground: 350 100% 92%;
 
     --muted: 0 0% 12%;
-    --muted-foreground: 51 50% 70%;
+    --muted-foreground: 350 30% 70%;
 
-    --accent: 51 100% 60%; /* Bright yellow glow */
+    --accent: 51 100% 60%; /* Bright gold glow */
     --accent-foreground: 0 0% 8%;
 
-    /* XRay Dog Dark Feature Colors */
-    --pixel-orange: 25 100% 70%;
+    /* Zoobie Dark Feature Colors */
+    --pixel-orange: 0 70% 60%; /* Brighter red */
     --pixel-orange-foreground: 0 0% 8%;
     
-    --pixel-teal: 180 100% 40%;
-    --pixel-teal-foreground: 0 0% 100%;
+    --pixel-teal: 120 70% 55%; /* Brighter green collar */
+    --pixel-teal-foreground: 0 0% 8%;
 
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 0 0% 20%;
     --input: 0 0% 15%;
-    --ring: 194 100% 55%;
+    --ring: 80 50% 45%;
 
     --success: 142 76% 40%;
     --success-foreground: 0 0% 98%;
@@ -148,14 +148,14 @@
     --warning: 38 92% 55%;
     --warning-foreground: 0 0% 98%;
 
-    /* XRay Dog Dark Gradients & Effects */
+    /* Zoobie Dark Gradients & Effects */
     --gradient-card: linear-gradient(145deg, hsl(0 0% 10%) 0%, hsl(0 0% 12%) 100%);
-    --glow-primary: 0 0 25px hsl(194 100% 55% / 0.5);
+    --glow-primary: 0 0 25px hsl(80 50% 45% / 0.5);
     --glow-accent: 0 0 25px hsl(51 100% 60% / 0.5);
-    --glow-pixel: 0 0 35px hsl(51 100% 60% / 0.7), 0 0 70px hsl(194 100% 55% / 0.4);
+    --glow-pixel: 0 0 35px hsl(51 100% 60% / 0.7), 0 0 70px hsl(80 50% 45% / 0.4);
     --shadow-card: 0 4px 6px -1px hsl(0 0% 0% / 0.4), 0 2px 4px -2px hsl(0 0% 0% / 0.3);
     --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -4px hsl(0 0% 0% / 0.4);
-    --shadow-pixel: 2px 2px 0px hsl(51 100% 50% / 0.3), 4px 4px 0px hsl(194 100% 50% / 0.2);
+    --shadow-pixel: 2px 2px 0px hsl(51 100% 50% / 0.3), 4px 4px 0px hsl(80 50% 45% / 0.2);
   }
   
   body {
