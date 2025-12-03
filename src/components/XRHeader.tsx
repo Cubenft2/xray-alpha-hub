@@ -131,13 +131,13 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-1">
-            {navigation.slice(0, 7).map((item) => (
+            {navigation.map((item) => (
               <Link key={item.name} to={item.href}>
-                  <Button
-                    variant={location.pathname === item.href ? "default" : "ghost"}
-                    size="sm"
-                    className={`xr-nav-text px-2 text-xs nav-hover-glow ${location.pathname === item.href ? "btn-hero" : ""}`}
-                  >
+                <Button
+                  variant={location.pathname === item.href ? "default" : "ghost"}
+                  size="sm"
+                  className={`xr-nav-text px-2 text-xs nav-hover-glow ${location.pathname === item.href ? "btn-hero" : ""}`}
+                >
                   {item.href === '/support' ? (
                     <Heart className="w-3.5 h-3.5 text-zoobie animate-pulse" fill="currentColor" />
                   ) : (
@@ -146,20 +146,6 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                 </Button>
               </Link>
             ))}
-            {/* Show remaining items only on xl screens */}
-            <div className="hidden xl:flex items-center space-x-1">
-              {navigation.slice(7).map((item) => (
-                <Link key={item.name} to={item.href}>
-                  <Button
-                    variant={location.pathname === item.href ? "default" : "ghost"}
-                    size="sm"
-                    className={`xr-nav-text px-2 text-xs nav-hover-glow ${location.pathname === item.href ? "btn-hero" : ""}`}
-                  >
-                    {item.name}
-                  </Button>
-                </Link>
-              ))}
-            </div>
           </nav>
 
           {/* Search & Theme Toggle */}
