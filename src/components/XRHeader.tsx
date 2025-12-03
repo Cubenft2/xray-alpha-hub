@@ -109,11 +109,11 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
                   alt="Zoobie Beret Dog" 
                   className="w-8 h-8 rounded-full hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-2 animate-zoobie-glow"
                 />
-                <span className="text-lg xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow">
+                <span className="text-lg xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow hover-glitch">
                   XRayCrypto™
                 </span>
               </div>
-              <span className="text-[10px] text-muted-foreground hidden md:block font-mono ml-10 -mt-1">
+              <span className="text-[10px] text-muted-foreground hidden md:block font-mono ml-10 -mt-1 animate-eerie-pulse">
                 Powered by XRay Dog
               </span>
               <div className="flex items-center space-x-1 sm:hidden">
