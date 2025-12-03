@@ -15,79 +15,83 @@
     --font-pixel: 'Orbitron', 'Space Mono', monospace;
     --font-mono: 'Space Mono', monospace;
     
-    /* Core Theme Colors - Spooky Haunted Palette 👻 */
-    --background: 270 15% 8%; /* Deep purple-black */
-    --foreground: 0 0% 90%; /* Ghostly white */
+    /* 👻☀️ HAUNTED LIGHT MODE - Ghostly Pale Theme */
+    --background: 270 10% 95%; /* Pale ghostly cream with purple tint */
+    --foreground: 270 40% 15%; /* Dark purple text */
 
-    --card: 270 20% 12%; /* Dark purple card */
-    --card-foreground: 0 0% 88%;
+    --card: 270 15% 98%; /* Nearly white card with hint of purple */
+    --card-foreground: 270 35% 20%;
 
-    --popover: 270 20% 12%;
-    --popover-foreground: 0 0% 88%;
+    --popover: 270 15% 98%;
+    --popover-foreground: 270 35% 20%;
 
-    /* Spooky Brand Colors */
-    --primary: 120 100% 35%; /* Toxic green 👻 */
-    --primary-foreground: 0 0% 5%;
+    /* Spooky Brand Colors - Adjusted for Light Mode */
+    --primary: 120 100% 28%; /* Darker toxic green for light bg */
+    --primary-foreground: 0 0% 98%;
 
-    --secondary: 270 30% 20%; /* Deep purple */
-    --secondary-foreground: 0 0% 90%;
+    --secondary: 270 20% 90%; /* Light purple tint */
+    --secondary-foreground: 270 40% 15%;
 
-    --muted: 270 20% 15%; /* Dark muted purple */
-    --muted-foreground: 0 0% 60%;
+    --muted: 270 15% 92%; /* Soft muted purple-gray */
+    --muted-foreground: 270 25% 40%;
 
-    --accent: 15 100% 50%; /* Eerie pumpkin orange 🎃 */
-    --accent-foreground: 0 0% 5%;
+    --accent: 15 90% 45%; /* Slightly muted pumpkin orange */
+    --accent-foreground: 0 0% 98%;
 
-    /* Spooky Feature Colors */
-    --pixel-orange: 0 100% 45%; /* Blood red 🩸 */
+    /* Spooky Feature Colors - Light Mode */
+    --pixel-orange: 0 90% 40%; /* Blood red - darker for light mode */
     --pixel-orange-foreground: 0 0% 98%;
     
-    --pixel-teal: 120 100% 40%; /* Toxic green glow */
-    --pixel-teal-foreground: 0 0% 5%;
+    --pixel-teal: 120 90% 32%; /* Toxic green glow */
+    --pixel-teal-foreground: 0 0% 98%;
 
-    --destructive: 0 100% 50%; /* Intense blood red */
+    --destructive: 0 85% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 270 20% 25%; /* Purple-tinted borders */
-    --input: 270 20% 18%;
-    --ring: 120 100% 35%;
+    --border: 270 20% 85%; /* Light purple-tinted borders */
+    --input: 270 15% 92%;
+    --ring: 120 100% 30%;
 
-    --success: 120 100% 35%; /* Toxic green */
-    --success-foreground: 0 0% 5%;
+    --success: 120 90% 30%; /* Toxic green */
+    --success-foreground: 0 0% 98%;
 
-    --warning: 15 100% 50%; /* Pumpkin orange */
-    --warning-foreground: 0 0% 5%;
+    --warning: 15 85% 48%; /* Pumpkin orange */
+    --warning-foreground: 0 0% 98%;
 
-    /* Zoobie Mauve - Muted Mascot Accent (Neutral Mauve-Taupe) */
-    --zoobie-pink: 350 25% 55%;
+    /* Zoobie Mauve - Muted Mascot Accent (Light Mode) */
+    --zoobie-pink: 350 30% 50%;
     --zoobie-pink-foreground: 0 0% 98%;
 
-    /* Spooky Gradients & Effects 👻 */
-    --gradient-primary: linear-gradient(135deg, hsl(120 100% 35%), hsl(120 100% 25%));
-    --gradient-accent: linear-gradient(135deg, hsl(15 100% 50%), hsl(0 100% 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(270 30% 15%) 0%, hsl(350 25% 50%) 30%, hsl(120 100% 35%) 60%, hsl(0 100% 45%) 100%);
-    --gradient-pixel: linear-gradient(45deg, hsl(120 100% 40%) 0%, hsl(0 100% 45%) 50%, hsl(270 30% 20%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(270 20% 12%) 0%, hsl(270 15% 10%) 100%);
-    --gradient-zoobie: linear-gradient(135deg, hsl(350 25% 55%), hsl(320 20% 45%));
-    --glow-zoobie: 0 0 20px hsl(350 25% 55% / 0.5);
+    /* Haunted Light Gradients & Effects 👻☀️ */
+    --gradient-primary: linear-gradient(135deg, hsl(120 100% 32%), hsl(120 100% 25%));
+    --gradient-accent: linear-gradient(135deg, hsl(15 90% 50%), hsl(0 85% 45%));
+    --gradient-hero: linear-gradient(135deg, hsl(270 20% 92%) 0%, hsl(350 20% 85%) 30%, hsl(120 60% 85%) 60%, hsl(0 60% 90%) 100%);
+    --gradient-pixel: linear-gradient(45deg, hsl(120 90% 35%) 0%, hsl(0 85% 45%) 50%, hsl(270 20% 85%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(270 15% 98%) 0%, hsl(270 10% 95%) 100%);
+    --gradient-zoobie: linear-gradient(135deg, hsl(350 30% 50%), hsl(320 25% 42%));
+    --glow-zoobie: 0 0 15px hsl(350 30% 50% / 0.3);
     
-    --glow-primary: 0 0 20px hsl(120 100% 40% / 0.5);
-    --glow-accent: 0 0 20px hsl(15 100% 50% / 0.5);
-    --glow-pixel: 0 0 30px hsl(120 100% 40% / 0.7), 0 0 60px hsl(0 100% 45% / 0.4);
-    --shadow-card: 0 4px 6px -1px hsl(270 50% 10% / 0.5), 0 2px 4px -2px hsl(0 0% 0% / 0.4);
-    --shadow-elevated: 0 10px 15px -3px hsl(0 0% 0% / 0.5), 0 4px 6px -4px hsl(120 100% 35% / 0.2);
-    --shadow-pixel: 2px 2px 0px hsl(0 0% 0% / 0.5), 4px 4px 0px hsl(120 100% 35% / 0.2);
+    /* Softer glows for light mode */
+    --glow-primary: 0 0 15px hsl(120 100% 35% / 0.3);
+    --glow-accent: 0 0 15px hsl(15 100% 50% / 0.3);
+    --glow-pixel: 0 0 20px hsl(120 100% 35% / 0.4), 0 0 40px hsl(0 100% 45% / 0.2);
+    
+    /* Light mode shadows - softer, purple-tinted */
+    --shadow-card: 0 4px 6px -1px hsl(270 30% 20% / 0.1), 0 2px 4px -2px hsl(270 30% 20% / 0.08);
+    --shadow-elevated: 0 10px 15px -3px hsl(270 30% 20% / 0.12), 0 4px 6px -4px hsl(120 100% 35% / 0.08);
+    --shadow-pixel: 2px 2px 0px hsl(270 30% 20% / 0.15), 4px 4px 0px hsl(120 100% 35% / 0.08);
 
     --radius: 0.5rem;
 
-    --sidebar-background: 270 20% 10%;
-    --sidebar-foreground: 0 0% 90%;
-    --sidebar-primary: 120 100% 40%;
-    --sidebar-primary-foreground: 0 0% 5%;
-    --sidebar-accent: 270 30% 18%;
-    --sidebar-accent-foreground: 0 0% 90%;
-    --sidebar-border: 270 20% 20%;
-    --sidebar-ring: 120 100% 35%;
+    /* Sidebar Light Mode */
+    --sidebar-background: 270 15% 96%;
+    --sidebar-foreground: 270 40% 15%;
+    --sidebar-primary: 120 100% 30%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 270 20% 90%;
+    --sidebar-accent-foreground: 270 40% 15%;
+    --sidebar-border: 270 15% 88%;
+    --sidebar-ring: 120 100% 30%;
   }
 
   @keyframes gradient {
