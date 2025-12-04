@@ -1,5 +1,8 @@
 project_id = "odncvfiuzliyohxrsigc"
 
+[functions.zombiedog-chat]
+verify_jwt = false
+
 [functions.populate-quotes-library]
 verify_jwt = false
 
@@ -10,7 +13,7 @@ verify_jwt = false
 verify_jwt = false
 
 [[functions.manual-price-sync.cron]]
-schedule = "0 * * * *"  # Every hour at minute 0
+schedule = "0 * * * *"
 
 [functions.generate-brief-claude]
 verify_jwt = false
@@ -19,19 +22,19 @@ verify_jwt = false
 verify_jwt = false
 
 [[functions.generate-brief-morning.cron]]
-schedule = "0 11 * * *"  # 7 AM ET (DST) / 6 AM ET (EST) = 11 AM UTC (morning brief)
+schedule = "0 11 * * *"
 
 [functions.generate-brief-evening]
 verify_jwt = false
 
 [[functions.generate-brief-evening.cron]]
-schedule = "0 23 * * *"  # 7 PM ET (DST) / 6 PM ET (EST) = 11 PM UTC (evening brief)
+schedule = "0 23 * * *"
 
 [functions.generate-sunday-special]
 verify_jwt = false
 
 [[functions.generate-sunday-special.cron]]
-schedule = "0 1 * * 1"  # Sunday 9 PM ET (DST) / 8 PM ET (EST) = Monday 1 AM UTC (Sunday Special)
+schedule = "0 1 * * 1"
 
 [functions.populate-token-addresses]
 verify_jwt = true
@@ -40,7 +43,7 @@ verify_jwt = true
 verify_jwt = false
 
 [[functions.exchange-data-aggregator.cron]]
-schedule = "*/15 * * * *"  # Every 15 minutes for fresh exchange price data
+schedule = "*/15 * * * *"
 
 [functions.enhance-ticker-data]
 verify_jwt = true
@@ -58,7 +61,7 @@ verify_jwt = true
 verify_jwt = false
 
 [[functions.exchange-sync.cron]]
-schedule = "0 2 * * *"  # Daily at 2 AM UTC to sync exchange trading pairs
+schedule = "0 2 * * *"
 
 [functions.symbol-intelligence]
 verify_jwt = true
@@ -79,13 +82,13 @@ verify_jwt = false
 verify_jwt = false
 
 [[functions.polygon-price-relay.cron]]
-schedule = "*/5 * * * *"  # Every 5 minutes to keep relay alive
+schedule = "*/5 * * * *"
 
 [functions.price-poller]
 verify_jwt = false
 
 [[functions.price-poller.cron]]
-schedule = "*/15 * * * * *"  # Every 15 seconds backup polling
+schedule = "*/15 * * * * *"
 
 [functions.polygon-historical-data]
 verify_jwt = false
