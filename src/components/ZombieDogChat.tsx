@@ -204,14 +204,14 @@ export const ZombieDogChat = ({ compact = false, className = '' }: ZombieDogChat
       <div 
         className={`flex-1 overflow-y-auto p-3 relative ${compact ? 'min-h-0' : 'min-h-[300px]'}`}
         style={{
-          backgroundImage: 'url(/zombiechat-bg.jpeg)',
+          backgroundImage: 'url(/zombiechat-bg.png)',
           backgroundRepeat: 'no-repeat',
           backgroundPosition: 'center center',
-          backgroundSize: '50%',
+          backgroundSize: 'contain',
         }}
       >
         {/* Semi-transparent overlay for readability */}
-        <div className="absolute inset-0 bg-card/85 pointer-events-none" />
+        <div className="absolute inset-0 bg-card/80 pointer-events-none" />
         
         {/* Messages content */}
         <div className="relative z-10 space-y-3">
