@@ -55,13 +55,13 @@ export const ZombieDogWidget = () => {
           <div 
             className="flex items-center justify-between px-3 py-2 border-b"
             style={{
-              backgroundColor: '#5a6b4a',
-              borderColor: '#4a6b4a',
+              backgroundColor: '#ffc8e8',
+              borderColor: '#ffb0d8',
             }}
           >
             <div className="flex items-center gap-2">
               <img src="/zombiedog-chat-pfp.webp" alt="ZombieDog" className="w-6 h-6 pixel-border object-cover rounded-sm" />
-              <span className="font-mono text-sm font-bold" style={{ color: '#e8e0c8' }}>ZombieChat</span>
+              <span className="font-mono text-sm font-bold" style={{ color: '#4a4a4a' }}>ZombieChat</span>
             </div>
             <div className="flex items-center gap-1">
               <button
