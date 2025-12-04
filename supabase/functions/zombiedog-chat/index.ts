@@ -353,13 +353,11 @@ async function fetchHistoricalContext(supabase: any, asset: ResolvedAsset): Prom
     const fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const from = fromDate.toISOString().split('T')[0];
     
-    // Determine ticker format
-    let ticker = asset.polygonTicker;
-    if (!ticker) {
-      ticker = asset.assetType === 'crypto' ? `X:${asset.symbol}USD` : asset.symbol;
-    }
+    // Use raw symbol - let the polygon function handle formatting
+    // Don't add X: prefix here as polygon-historical-data will add it
+    const ticker = asset.polygonTicker || asset.symbol;
     
-    console.log(`Fetching historical data for ${asset.symbol} (${ticker})`);
+    console.log(`Fetching historical data for ${asset.symbol} (ticker: ${ticker}, type: ${asset.assetType})`);
     
     const { data, error } = await supabase.functions.invoke('polygon-historical-data', {
       body: { 
@@ -372,7 +370,7 @@ async function fetchHistoricalContext(supabase: any, asset: ResolvedAsset): Prom
     });
     
     if (error || !data?.bars?.length) {
-      console.log(`No historical data for ${asset.symbol}`);
+      console.log(`No historical data for ${asset.symbol}: ${error?.message || 'no bars returned'}`);
       return null;
     }
     
@@ -402,29 +400,32 @@ async function fetchHistoricalContext(supabase: any, asset: ResolvedAsset): Prom
 // Fetch technical indicators from Polygon
 async function fetchTechnicalIndicators(supabase: any, asset: ResolvedAsset): Promise<TechnicalIndicators | null> {
   try {
-    // Determine ticker format
-    let ticker = asset.polygonTicker;
-    if (!ticker) {
-      ticker = asset.assetType === 'crypto' ? `X:${asset.symbol}USD` : asset.symbol;
-    }
+    // Use raw symbol - let the polygon function handle formatting
+    // Don't add X: prefix here as polygon-technical-indicators will add it
+    const ticker = asset.polygonTicker || asset.symbol;
     
-    console.log(`Fetching technical indicators for ${asset.symbol} (${ticker})`);
+    console.log(`Fetching technical indicators for ${asset.symbol} (ticker: ${ticker}, type: ${asset.assetType})`);
     
     const { data, error } = await supabase.functions.invoke('polygon-technical-indicators', {
       body: { 
         tickers: [ticker], 
         indicators: ['rsi', 'macd', 'sma_50', 'ema_20'],
-        timeframe: 'daily'
+        timeframe: 'daily',
+        asset_type: asset.assetType
       }
     });
     
     if (error || !data?.success) {
-      console.log(`No technical indicators for ${asset.symbol}`);
+      console.log(`No technical indicators for ${asset.symbol}: ${error?.message || 'request failed'}`);
       return null;
     }
     
-    const indicators = data.data?.[ticker];
-    if (!indicators) return null;
+    // Try multiple ticker formats in response (the function might use different formatting)
+    const indicators = data.data?.[ticker] || data.data?.[`X:${ticker}USD`] || data.data?.[asset.symbol];
+    if (!indicators) {
+      console.log(`No indicator data found for ${asset.symbol} in response keys: ${Object.keys(data.data || {}).join(', ')}`);
+      return null;
+    }
     
     const result: TechnicalIndicators = { symbol: asset.symbol };
     
@@ -723,9 +724,16 @@ ${similarSuggestion}
    - RSI < 30: "Oversold - could bounce"
    - MACD bullish + price up: "Strong momentum confirmation"
 
-6. Keep responses concise but data-rich (2-4 paragraphs max)
-7. Always remind users to DYOR (do your own research)
-8. Never give financial advice
+6. **HANDLING LIMITED DATA FOR NEWER COINS:**
+   - If an asset IS FOUND in the database, it EXISTS and IS TRADABLE
+   - NEVER say a coin is "not tradable yet" or "not available" if you found it in the data
+   - If historical/technical data is missing, say: "This is a newer listing - historical data is still being indexed"
+   - For coins like MON (Monad): It's live on Coinbase! Just note if chart history is limited
+   - Use whatever data IS available (price, social sentiment, etc.)
+
+7. Keep responses concise but data-rich (2-4 paragraphs max)
+8. Always remind users to DYOR (do your own research)
+9. Never give financial advice
 
 Remember: You're a helpful undead pup with REAL market data - use it! 🐕💀`;
 }
