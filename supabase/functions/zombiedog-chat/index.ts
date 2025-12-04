@@ -9,120 +9,6 @@ const corsHeaders = {
 // Top cryptos to fetch general prices for
 const TOP_CRYPTOS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'DOT', 'MATIC', 'SHIB', 'UNI', 'LTC', 'BCH', 'ATOM'];
 
-// Common crypto name mappings (names/nicknames -> symbol)
-const CRYPTO_NAME_MAP: Record<string, string> = {
-  // Major coins
-  'bitcoin': 'BTC', 'btc': 'BTC', 'corn': 'BTC', 'sats': 'BTC',
-  'ethereum': 'ETH', 'eth': 'ETH', 'ether': 'ETH',
-  'solana': 'SOL', 'sol': 'SOL',
-  'ripple': 'XRP', 'xrp': 'XRP',
-  'cardano': 'ADA', 'ada': 'ADA',
-  'bnb': 'BNB', 'binance': 'BNB', 'binance coin': 'BNB',
-  'litecoin': 'LTC', 'ltc': 'LTC', 'lite': 'LTC',
-  'polkadot': 'DOT', 'dot': 'DOT',
-  'polygon': 'MATIC', 'matic': 'MATIC',
-  'chainlink': 'LINK', 'link': 'LINK',
-  'avalanche': 'AVAX', 'avax': 'AVAX',
-  'uniswap': 'UNI', 'uni': 'UNI',
-  'cosmos': 'ATOM', 'atom': 'ATOM',
-  
-  // Memecoins
-  'dogecoin': 'DOGE', 'doge': 'DOGE', 'dogie': 'DOGE', 'the doge': 'DOGE',
-  'shiba': 'SHIB', 'shib': 'SHIB', 'shiba inu': 'SHIB', 'shib inu': 'SHIB', 'shibu': 'SHIB',
-  'pepe': 'PEPE', 'pepe coin': 'PEPE', 'pepecoin': 'PEPE', 'the frog': 'PEPE',
-  'bonk': 'BONK', 'bonk inu': 'BONK',
-  'floki': 'FLOKI', 'floki inu': 'FLOKI',
-  'wif': 'WIF', 'dogwifhat': 'WIF', 'dog wif hat': 'WIF', 'dog with hat': 'WIF',
-  'brett': 'BRETT', 'based brett': 'BRETT',
-  'mog': 'MOG', 'mog coin': 'MOG',
-  'popcat': 'POPCAT', 'pop cat': 'POPCAT',
-  'andy': 'ANDY',
-  'turbo': 'TURBO',
-  'cat in dogs world': 'MEW', 'mew': 'MEW',
-  'book of meme': 'BOME', 'bome': 'BOME',
-  'neiro': 'NEIRO',
-  
-  // Layer 2s & Alt L1s
-  'arbitrum': 'ARB', 'arb': 'ARB',
-  'optimism': 'OP', 'op': 'OP',
-  'base': 'BASE',
-  'sui': 'SUI',
-  'aptos': 'APT', 'apt': 'APT',
-  'sei': 'SEI',
-  'near': 'NEAR', 'near protocol': 'NEAR',
-  'celestia': 'TIA', 'tia': 'TIA',
-  'injective': 'INJ', 'inj': 'INJ',
-  'toncoin': 'TON', 'ton': 'TON', 'telegram coin': 'TON',
-  'monad': 'MON', 'mon': 'MON', 'mon protocol': 'MON',
-  'kaspa': 'KAS', 'kas': 'KAS',
-  'mantle': 'MNT', 'mnt': 'MNT',
-  'starknet': 'STRK', 'strk': 'STRK',
-  'zksync': 'ZK', 'zk': 'ZK',
-  
-  // AI coins
-  'render': 'RNDR', 'rndr': 'RNDR', 'render token': 'RNDR',
-  'fetch': 'FET', 'fet': 'FET', 'fetch ai': 'FET', 'fetchai': 'FET',
-  'worldcoin': 'WLD', 'wld': 'WLD', 'world coin': 'WLD',
-  'bittensor': 'TAO', 'tao': 'TAO',
-  'akash': 'AKT', 'akt': 'AKT', 'akash network': 'AKT',
-  'ocean': 'OCEAN', 'ocean protocol': 'OCEAN',
-  'singularitynet': 'AGIX', 'agix': 'AGIX',
-  
-  // DeFi
-  'aave': 'AAVE',
-  'maker': 'MKR', 'mkr': 'MKR', 'makerdao': 'MKR',
-  'compound': 'COMP', 'comp': 'COMP',
-  'curve': 'CRV', 'crv': 'CRV', 'curve finance': 'CRV',
-  'synthetix': 'SNX', 'snx': 'SNX',
-  'lido': 'LDO', 'ldo': 'LDO', 'lido dao': 'LDO',
-  'pancakeswap': 'CAKE', 'cake': 'CAKE', 'pancake': 'CAKE',
-  'sushiswap': 'SUSHI', 'sushi': 'SUSHI',
-  'jupiter': 'JUP', 'jup': 'JUP',
-  'raydium': 'RAY', 'ray': 'RAY',
-  'orca': 'ORCA',
-  'gmx': 'GMX',
-  'pendle': 'PENDLE',
-  'eigenlayer': 'EIGEN', 'eigen': 'EIGEN',
-  
-  // Gaming/Metaverse
-  'sandbox': 'SAND', 'sand': 'SAND', 'the sandbox': 'SAND',
-  'decentraland': 'MANA', 'mana': 'MANA',
-  'axie': 'AXS', 'axs': 'AXS', 'axie infinity': 'AXS',
-  'gala': 'GALA', 'gala games': 'GALA',
-  'immutable': 'IMX', 'imx': 'IMX', 'immutable x': 'IMX',
-  'enjin': 'ENJ', 'enj': 'ENJ',
-  'illuvium': 'ILV', 'ilv': 'ILV',
-  
-  // Stablecoins (for reference)
-  'tether': 'USDT', 'usdt': 'USDT',
-  'usdc': 'USDC', 'usd coin': 'USDC',
-  'dai': 'DAI',
-  
-  // Other popular
-  'hedera': 'HBAR', 'hbar': 'HBAR',
-  'algorand': 'ALGO', 'algo': 'ALGO',
-  'vechain': 'VET', 'vet': 'VET',
-  'filecoin': 'FIL', 'fil': 'FIL',
-  'theta': 'THETA',
-  'tezos': 'XTZ', 'xtz': 'XTZ',
-  'eos': 'EOS',
-  'iota': 'IOTA', 'miota': 'IOTA',
-  'monero': 'XMR', 'xmr': 'XMR',
-  'zcash': 'ZEC', 'zec': 'ZEC',
-  'stellar': 'XLM', 'xlm': 'XLM', 'lumens': 'XLM',
-  'internet computer': 'ICP', 'icp': 'ICP',
-  'the graph': 'GRT', 'grt': 'GRT',
-  'quant': 'QNT', 'qnt': 'QNT',
-  'cronos': 'CRO', 'cro': 'CRO',
-  'kucoin': 'KCS', 'kcs': 'KCS',
-  'okb': 'OKB',
-  'leo': 'LEO', 'unus sed leo': 'LEO',
-  'pyth': 'PYTH', 'pyth network': 'PYTH',
-  'jito': 'JTO', 'jto': 'JTO',
-  'wormhole': 'W',
-  'ethena': 'ENA', 'ena': 'ENA',
-};
-
 interface PriceData {
   symbol: string;
   price: number;
@@ -148,40 +34,188 @@ interface CoinDetail {
   fomoScore?: number;
 }
 
-// Extract coin symbols mentioned in user message
-function extractCoinMentions(message: string): string[] {
-  const symbols = new Set<string>();
-  const upperMessage = message.toUpperCase();
-  const lowerMessage = message.toLowerCase();
+interface ResolvedCoin {
+  symbol: string;
+  coingeckoId: string | null;
+  displayName: string;
+}
+
+// Extract potential symbols from message text
+function extractPotentialSymbols(message: string): string[] {
+  const symbols: string[] = [];
   
   // Match $SYMBOL patterns (e.g., $BTC, $MON)
   const dollarMatches = message.match(/\$([A-Za-z]{2,10})/g);
   if (dollarMatches) {
     dollarMatches.forEach(match => {
-      symbols.add(match.slice(1).toUpperCase());
+      symbols.push(match.slice(1).toUpperCase());
     });
   }
   
-  // Match standalone uppercase symbols (2-6 chars to avoid false positives)
+  // Match standalone uppercase symbols (2-6 chars)
   const upperMatches = message.match(/\b([A-Z]{2,6})\b/g);
   if (upperMatches) {
+    const commonWords = ['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'HAD', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'BOY', 'DID', 'GET', 'HAS', 'HIM', 'HIS', 'LET', 'PUT', 'SAY', 'TOO', 'USE', 'WHY'];
     upperMatches.forEach(match => {
-      // Filter out common words that might be uppercase
-      const commonWords = ['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'HAD', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'BOY', 'DID', 'GET', 'HAS', 'HIM', 'HIS', 'LET', 'PUT', 'SAY', 'TOO', 'USE', 'WHY'];
       if (!commonWords.includes(match)) {
-        symbols.add(match);
+        symbols.push(match);
       }
     });
   }
   
-  // Match full crypto names
-  for (const [name, symbol] of Object.entries(CRYPTO_NAME_MAP)) {
-    if (lowerMessage.includes(name)) {
-      symbols.add(symbol);
+  return [...new Set(symbols)]; // Dedupe
+}
+
+// Extract potential coin names from message for name-based search
+function extractPotentialNames(message: string): string[] {
+  const lowerMessage = message.toLowerCase();
+  const words = lowerMessage.split(/\s+/).filter(w => w.length >= 3);
+  
+  // Also look for multi-word names (up to 3 words)
+  const names: string[] = [];
+  const wordArray = lowerMessage.split(/\s+/);
+  
+  for (let i = 0; i < wordArray.length; i++) {
+    const word = wordArray[i];
+    if (word.length >= 3) {
+      names.push(word);
+    }
+    // Two-word combinations
+    if (i + 1 < wordArray.length) {
+      names.push(`${word} ${wordArray[i + 1]}`);
     }
   }
   
-  return Array.from(symbols).slice(0, 5); // Limit to 5 coins
+  return [...new Set(names)];
+}
+
+// Resolve coins from database using ticker_mappings and cg_master
+async function resolveCoinsFromDatabase(supabase: any, message: string): Promise<ResolvedCoin[]> {
+  const resolved: ResolvedCoin[] = [];
+  const foundSymbols = new Set<string>();
+  
+  const potentialSymbols = extractPotentialSymbols(message);
+  const potentialNames = extractPotentialNames(message);
+  
+  console.log(`Potential symbols: ${potentialSymbols.join(', ')}`);
+  console.log(`Potential names: ${potentialNames.slice(0, 10).join(', ')}...`);
+  
+  // Step 1: Check ticker_mappings for exact symbol matches and aliases
+  if (potentialSymbols.length > 0) {
+    for (const sym of potentialSymbols) {
+      // Check exact symbol match
+      const { data: exactMatch } = await supabase
+        .from('ticker_mappings')
+        .select('symbol, coingecko_id, display_name, aliases')
+        .eq('is_active', true)
+        .eq('type', 'crypto')
+        .ilike('symbol', sym)
+        .maybeSingle();
+      
+      if (exactMatch?.coingecko_id && !foundSymbols.has(exactMatch.symbol)) {
+        console.log(`Found exact match in ticker_mappings: ${sym} -> ${exactMatch.symbol} (${exactMatch.coingecko_id})`);
+        resolved.push({
+          symbol: exactMatch.symbol,
+          coingeckoId: exactMatch.coingecko_id,
+          displayName: exactMatch.display_name
+        });
+        foundSymbols.add(exactMatch.symbol);
+        continue;
+      }
+      
+      // Check aliases
+      const { data: aliasMatch } = await supabase
+        .from('ticker_mappings')
+        .select('symbol, coingecko_id, display_name, aliases')
+        .eq('is_active', true)
+        .eq('type', 'crypto')
+        .contains('aliases', [sym])
+        .maybeSingle();
+      
+      if (aliasMatch?.coingecko_id && !foundSymbols.has(aliasMatch.symbol)) {
+        console.log(`Found alias match in ticker_mappings: ${sym} -> ${aliasMatch.symbol} (${aliasMatch.coingecko_id})`);
+        resolved.push({
+          symbol: aliasMatch.symbol,
+          coingeckoId: aliasMatch.coingecko_id,
+          displayName: aliasMatch.display_name
+        });
+        foundSymbols.add(aliasMatch.symbol);
+        continue;
+      }
+      
+      // Fallback to cg_master for symbol match
+      const { data: cgMatch } = await supabase
+        .from('cg_master')
+        .select('symbol, cg_id, name')
+        .ilike('symbol', sym)
+        .limit(1)
+        .maybeSingle();
+      
+      if (cgMatch?.cg_id && !foundSymbols.has(cgMatch.symbol.toUpperCase())) {
+        console.log(`Found in cg_master: ${sym} -> ${cgMatch.symbol} (${cgMatch.cg_id})`);
+        resolved.push({
+          symbol: cgMatch.symbol.toUpperCase(),
+          coingeckoId: cgMatch.cg_id,
+          displayName: cgMatch.name
+        });
+        foundSymbols.add(cgMatch.symbol.toUpperCase());
+      }
+    }
+  }
+  
+  // Step 2: Search by name in ticker_mappings
+  for (const name of potentialNames.slice(0, 5)) {
+    if (name.length < 3) continue;
+    
+    const { data: nameMatch } = await supabase
+      .from('ticker_mappings')
+      .select('symbol, coingecko_id, display_name')
+      .eq('is_active', true)
+      .eq('type', 'crypto')
+      .ilike('display_name', `%${name}%`)
+      .limit(1)
+      .maybeSingle();
+    
+    if (nameMatch?.coingecko_id && !foundSymbols.has(nameMatch.symbol)) {
+      console.log(`Found name match in ticker_mappings: "${name}" -> ${nameMatch.symbol} (${nameMatch.coingecko_id})`);
+      resolved.push({
+        symbol: nameMatch.symbol,
+        coingeckoId: nameMatch.coingecko_id,
+        displayName: nameMatch.display_name
+      });
+      foundSymbols.add(nameMatch.symbol);
+      
+      if (resolved.length >= 5) break;
+    }
+  }
+  
+  // Step 3: Search by name in cg_master if still need more
+  if (resolved.length < 5) {
+    for (const name of potentialNames.slice(0, 5)) {
+      if (name.length < 4) continue;
+      
+      const { data: cgNameMatch } = await supabase
+        .from('cg_master')
+        .select('symbol, cg_id, name')
+        .ilike('name', `%${name}%`)
+        .limit(1)
+        .maybeSingle();
+      
+      if (cgNameMatch?.cg_id && !foundSymbols.has(cgNameMatch.symbol.toUpperCase())) {
+        console.log(`Found name match in cg_master: "${name}" -> ${cgNameMatch.symbol} (${cgNameMatch.cg_id})`);
+        resolved.push({
+          symbol: cgNameMatch.symbol.toUpperCase(),
+          coingeckoId: cgNameMatch.cg_id,
+          displayName: cgNameMatch.name
+        });
+        foundSymbols.add(cgNameMatch.symbol.toUpperCase());
+        
+        if (resolved.length >= 5) break;
+      }
+    }
+  }
+  
+  return resolved.slice(0, 5);
 }
 
 async function fetchLivePrices(supabase: any): Promise<PriceData[]> {
@@ -209,23 +243,26 @@ async function fetchLivePrices(supabase: any): Promise<PriceData[]> {
   }
 }
 
-async function fetchCoinDetail(supabase: any, symbol: string): Promise<CoinDetail | null> {
+async function fetchCoinDetail(supabase: any, coin: ResolvedCoin): Promise<CoinDetail | null> {
   try {
-    console.log(`Fetching LunarCrush detail for: ${symbol}`);
+    // Use coingeckoId if available, otherwise fall back to symbol
+    const lookupId = coin.coingeckoId || coin.symbol;
+    console.log(`Fetching LunarCrush detail for: ${coin.symbol} (lookup: ${lookupId})`);
+    
     const { data, error } = await supabase.functions.invoke('lunarcrush-coin-detail', {
-      body: { coin: symbol }
+      body: { coin: lookupId }
     });
 
     if (error) {
-      console.error(`Error fetching ${symbol} detail:`, error);
+      console.error(`Error fetching ${coin.symbol} detail:`, error);
       return null;
     }
 
     if (data?.success && data?.data) {
       const d = data.data;
       return {
-        symbol: d.symbol || symbol,
-        name: d.name || symbol,
+        symbol: d.symbol || coin.symbol,
+        name: d.name || coin.displayName || coin.symbol,
         price: d.price || 0,
         change24h: d.percent_change_24h || 0,
         change7d: d.percent_change_7d || 0,
@@ -244,19 +281,18 @@ async function fetchCoinDetail(supabase: any, symbol: string): Promise<CoinDetai
     }
     return null;
   } catch (e) {
-    console.error(`Failed to fetch ${symbol} detail:`, e);
+    console.error(`Failed to fetch ${coin.symbol} detail:`, e);
     return null;
   }
 }
 
-async function fetchMultipleCoinDetails(supabase: any, symbols: string[]): Promise<CoinDetail[]> {
+async function fetchMultipleCoinDetails(supabase: any, coins: ResolvedCoin[]): Promise<CoinDetail[]> {
   const results: CoinDetail[] = [];
   
   // Fetch in parallel but with a small delay to avoid rate limits
-  const promises = symbols.map(async (symbol, index) => {
-    // Small stagger to avoid hitting rate limits
+  const promises = coins.map(async (coin, index) => {
     await new Promise(resolve => setTimeout(resolve, index * 100));
-    return fetchCoinDetail(supabase, symbol);
+    return fetchCoinDetail(supabase, coin);
   });
   
   const details = await Promise.all(promises);
@@ -416,14 +452,14 @@ serve(async (req) => {
     const latestUserMessage = messages?.filter((m: any) => m.role === 'user').pop();
     const userQuery = latestUserMessage?.content || '';
     
-    // Extract coin symbols from user message
-    const mentionedCoins = extractCoinMentions(userQuery);
-    console.log(`Extracted coin mentions: ${mentionedCoins.join(', ') || 'none'}`);
+    // Resolve coins from database (19K+ coins available!)
+    const resolvedCoins = await resolveCoinsFromDatabase(supabase, userQuery);
+    console.log(`Resolved ${resolvedCoins.length} coins from database: ${resolvedCoins.map(c => c.symbol).join(', ') || 'none'}`);
 
     // Fetch data in parallel
     const [prices, coinDetails] = await Promise.all([
       fetchLivePrices(supabase),
-      mentionedCoins.length > 0 ? fetchMultipleCoinDetails(supabase, mentionedCoins) : Promise.resolve([])
+      resolvedCoins.length > 0 ? fetchMultipleCoinDetails(supabase, resolvedCoins) : Promise.resolve([])
     ]);
     
     console.log(`Fetched ${prices.length} general prices, ${coinDetails.length} detailed coin reports`);
