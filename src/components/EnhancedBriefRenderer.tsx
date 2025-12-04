@@ -11,9 +11,10 @@ interface EnhancedBriefRendererProps {
   onTickersExtracted?: (tickers: string[]) => void;
   stoicQuote?: string;
   stoicQuoteAuthor?: string;
+  disableLivePrices?: boolean;
 }
 
-export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted, stoicQuote, stoicQuoteAuthor }: EnhancedBriefRendererProps) {
+export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickersExtracted, stoicQuote, stoicQuoteAuthor, disableLivePrices = false }: EnhancedBriefRendererProps) {
   const navigate = useNavigate();
   const { getMapping } = useTickerMappings();
   
@@ -25,7 +26,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   const [extractedSymbols, setExtractedSymbols] = React.useState<string[]>([]);
   
   // Use same polling hook as crypto widget - 2 second updates
-  const { data: polygonData } = usePolygonPrices(extractedSymbols);
+  // Pass empty array if live prices are disabled (historical briefs)
+  const { data: polygonData } = usePolygonPrices(disableLivePrices ? [] : extractedSymbols);
 
   // Remove any inlined Stoic quote from the beginning or end of the article content
   const cleanedContent = React.useMemo(() => {

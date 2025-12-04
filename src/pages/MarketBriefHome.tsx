@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Share, Copy, ExternalLink, TrendingUp, BarChart3, Users, DollarSign } from 'lucide-react';
+import { Share, Copy, ExternalLink, TrendingUp, BarChart3, Users, DollarSign, ScrollText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useLivePrices } from '@/hooks/useLivePrices';
 import { MiniChart } from '@/components/MiniChart';
@@ -16,7 +16,7 @@ import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 import { getTickerMapping } from '@/config/tickerMappings';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
-import { format, startOfDay, addDays } from 'date-fns';
+import { format, startOfDay, addDays, isSameDay } from 'date-fns';
 import { NewsSentimentOverview } from '@/components/NewsSentimentOverview';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
 import { useSymbolValidation } from '@/hooks/useSymbolValidation';
@@ -66,6 +66,16 @@ export default function MarketBriefHome() {
   ], [extractedTickers]);
 
   const { prices: livePrices, loading: pricesLoading } = useLivePrices(allTickers);
+
+  // Determine if this is a historical brief (not from today)
+  const isHistoricalBrief = React.useMemo(() => {
+    if (!briefData?.published_at) return false;
+    const tz = 'America/New_York';
+    const now = new Date();
+    const nowET = toZonedTime(now, tz);
+    const publishedET = toZonedTime(new Date(briefData.published_at), tz);
+    return !isSameDay(nowET, publishedET);
+  }, [briefData?.published_at]);
 
   // Helper to determine appropriate brief type based on current time
   const deriveBriefType = () => {
@@ -779,8 +789,8 @@ export default function MarketBriefHome() {
               </div>
             )}
 
-            {/* Live Prices Indicator - Fixed Position */}
-            {pricesLoading && (
+            {/* Live Prices Indicator - Fixed Position (only for today's briefs) */}
+            {!isHistoricalBrief && pricesLoading && (
               <div className="fixed top-32 right-4 z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg px-3 py-2 shadow-lg">
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -789,10 +799,29 @@ export default function MarketBriefHome() {
               </div>
             )}
 
+            {/* Historical Brief Notice */}
+            {isHistoricalBrief && briefData?.published_at && (
+              <div className="mb-6 p-4 bg-muted/70 border border-border rounded-lg">
+                <div className="flex items-center gap-3 text-sm">
+                  <ScrollText className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                  <div>
+                    <span className="font-medium text-foreground">Historical Brief</span>
+                    <span className="text-muted-foreground">
+                      {' '}— Prices shown are from{' '}
+                      <strong className="text-foreground">
+                        {format(toZonedTime(new Date(briefData.published_at), 'America/New_York'), 'MMMM d, yyyy')}
+                      </strong>
+                      . Live price updates are disabled for archived content.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Article Content */}
             <div className="mb-6">
-              {/* Live Refs Timestamp */}
-              {quotesTimestamp && (
+              {/* Live Refs Timestamp - Only show for today's briefs */}
+              {!isHistoricalBrief && quotesTimestamp && (
                 <div className="mb-4 pb-3 border-b border-border/50 text-xs text-muted-foreground flex items-center gap-2">
                   <div className="w-2 h-2 bg-primary/60 rounded-full"></div>
                   <span>
@@ -807,13 +836,14 @@ export default function MarketBriefHome() {
               
               <EnhancedBriefRenderer 
                 content={brief.article_html || ''} 
-                enhancedTickers={{
+                enhancedTickers={isHistoricalBrief ? {} : {
                   ...briefData?.content_sections?.enhanced_tickers,
                   ...livePrices
                 }}
                 onTickersExtracted={handleTickersExtracted}
                 stoicQuote={briefData?.stoic_quote}
                 stoicQuoteAuthor={briefData?.stoic_quote_author}
+                disableLivePrices={isHistoricalBrief}
               />
             </div>
 
