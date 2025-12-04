@@ -201,7 +201,20 @@ export const ZombieDogChat = ({ compact = false, className = '' }: ZombieDogChat
   return (
     <div className={`flex flex-col ${className}`}>
       {/* Messages Area */}
-      <div className={`flex-1 overflow-y-auto p-3 space-y-3 ${compact ? 'min-h-0' : 'min-h-[300px]'}`}>
+      <div 
+        className={`flex-1 overflow-y-auto p-3 relative ${compact ? 'min-h-0' : 'min-h-[300px]'}`}
+        style={{
+          backgroundImage: 'url(/zombiechat-bg.jpeg)',
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'center center',
+          backgroundSize: '50%',
+        }}
+      >
+        {/* Semi-transparent overlay for readability */}
+        <div className="absolute inset-0 bg-card/85 pointer-events-none" />
+        
+        {/* Messages content */}
+        <div className="relative z-10 space-y-3">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -234,6 +247,7 @@ export const ZombieDogChat = ({ compact = false, className = '' }: ZombieDogChat
         )}
 
         <div ref={messagesEndRef} />
+        </div>
       </div>
 
       {/* Input Area */}
