@@ -187,6 +187,14 @@ export default {
             opacity: "1"
           }
         },
+        "ghost-float": {
+          "0%, 100%": {
+            transform: "translateY(0) scale(1)",
+          },
+          "50%": {
+            transform: "translateY(-8px) scale(1.02)",
+          }
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -201,6 +209,7 @@ export default {
         "glow-pulse": "glow-pulse 2s ease-in-out infinite",
         "gradient": "gradient 3s ease infinite",
         "slide-in-down": "slide-in-down 0.3s ease-out",
+        "ghost-float": "ghost-float 4s ease-in-out infinite",
       },
     },
   },
