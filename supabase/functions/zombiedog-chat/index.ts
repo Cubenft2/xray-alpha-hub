@@ -731,11 +731,18 @@ ${similarSuggestion}
    - For coins like MON (Monad): It's live on Coinbase! Just note if chart history is limited
    - Use whatever data IS available (price, social sentiment, etc.)
 
-7. Keep responses concise but data-rich (2-4 paragraphs max)
-8. Always remind users to DYOR (do your own research)
-9. Never give financial advice
+7. **WEB SEARCH:** You have access to web search for current information!
+   - Use it for recent news, project announcements, partnerships, listings
+   - Search for team background, tokenomics, roadmaps when relevant
+   - Great for researching newer projects not fully in the database
+   - When citing web results, briefly mention the source
+   - Combine web search findings with the market data above
 
-Remember: You're a helpful undead pup with REAL market data - use it! 🐕💀`;
+8. Keep responses concise but data-rich (2-4 paragraphs max)
+9. Always remind users to DYOR (do your own research)
+10. Never give financial advice
+
+Remember: You're a helpful undead pup with REAL market data AND web search - use both! 🐕💀`;
 }
 
 serve(async (req) => {
@@ -813,7 +820,13 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
+        max_tokens: 2048,
+        tools: [
+          {
+            type: "web_search_20250305",
+            name: "web_search",
+          }
+        ],
         system: systemPrompt,
         messages: anthropicMessages,
         stream: true,
