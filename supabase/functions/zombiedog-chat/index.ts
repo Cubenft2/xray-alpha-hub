@@ -34,15 +34,39 @@ interface CoinDetail {
   fomoScore?: number;
 }
 
-interface ResolvedCoin {
+interface ResolvedAsset {
   symbol: string;
   coingeckoId: string | null;
   displayName: string;
+  assetType: 'crypto' | 'stock';
+  polygonTicker?: string;
+}
+
+interface HistoricalContext {
+  symbol: string;
+  change30d: number;
+  high30d: number;
+  low30d: number;
+  avgVolume: number;
+}
+
+interface TechnicalIndicators {
+  symbol: string;
+  rsi?: { value: number; signal: string };
+  macd?: { histogram: number; signal: string };
+  sma50?: number;
+  ema20?: number;
+}
+
+interface SimilarAsset {
+  symbol: string;
+  displayName: string;
+  type: string;
+  similarity: number;
 }
 
 // Common words to filter out from symbol/name extraction
 const COMMON_WORDS = new Set([
-  // Common uppercase words
   'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 
   'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'HAD', 'HOW', 'ITS', 'MAY', 'NEW', 
   'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'BOY', 'DID', 'GET', 'HAS', 'HIM', 
@@ -55,7 +79,8 @@ const COMMON_WORDS = new Set([
   'LAST', 'LONG', 'MAKE', 'OVER', 'SUCH', 'TAKE', 'THAN', 'THEM',
   'THEN', 'THERE', 'THESE', 'THEY', 'TIME', 'VERY', 'WANT', 'WHAT',
   'YEAR', 'YOUR', 'LOOK', 'THINK', 'PRICE', 'COIN', 'CRYPTO', 'TOKEN',
-  'MARKET', 'BUY', 'SELL', 'HOLD', 'MOON', 'PUMP', 'DUMP'
+  'MARKET', 'BUY', 'SELL', 'HOLD', 'MOON', 'PUMP', 'DUMP', 'STOCK',
+  'STOCKS', 'ANALYSIS', 'ANALYZE', 'SHOW', 'GIVE', 'INFO', 'DATA'
 ]);
 
 const COMMON_WORDS_LOWER = new Set([
@@ -69,14 +94,15 @@ const COMMON_WORDS_LOWER = new Set([
   'there', 'where', 'when', 'which', 'know', 'just', 'only', 'also',
   'even', 'well', 'back', 'both', 'each', 'here', 'into', 'last',
   'long', 'make', 'over', 'such', 'take', 'than', 'then', 'time',
-  'very', 'want', 'year', 'your', 'some', 'many', 'much', 'most'
+  'very', 'want', 'year', 'your', 'some', 'many', 'much', 'most',
+  'stock', 'stocks', 'analysis', 'analyze', 'show', 'give', 'info', 'data'
 ]);
 
 // Extract potential symbols from message text
 function extractPotentialSymbols(message: string): string[] {
   const symbols: string[] = [];
   
-  // Match $SYMBOL patterns (e.g., $BTC, $MON)
+  // Match $SYMBOL patterns (e.g., $BTC, $MON, $AAPL)
   const dollarMatches = message.match(/\$([A-Za-z]{2,10})/g);
   if (dollarMatches) {
     dollarMatches.forEach(match => {
@@ -107,9 +133,81 @@ function extractPotentialNames(message: string): string[] {
   return [...new Set(words)];
 }
 
-// Resolve coins from database using ticker_mappings and cg_master
-async function resolveCoinsFromDatabase(supabase: any, message: string): Promise<ResolvedCoin[]> {
-  const resolved: ResolvedCoin[] = [];
+// Calculate simple string similarity (Levenshtein-based)
+function stringSimilarity(s1: string, s2: string): number {
+  const longer = s1.length > s2.length ? s1 : s2;
+  const shorter = s1.length > s2.length ? s2 : s1;
+  
+  if (longer.length === 0) return 1.0;
+  
+  const editDistance = (a: string, b: string): number => {
+    const matrix: number[][] = [];
+    for (let i = 0; i <= b.length; i++) {
+      matrix[i] = [i];
+    }
+    for (let j = 0; j <= a.length; j++) {
+      matrix[0][j] = j;
+    }
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    return matrix[b.length][a.length];
+  };
+  
+  return (longer.length - editDistance(longer, shorter)) / longer.length;
+}
+
+// Find similar assets when exact match not found
+async function findSimilarAssets(supabase: any, searchTerms: string[]): Promise<SimilarAsset[]> {
+  const similar: SimilarAsset[] = [];
+  
+  for (const term of searchTerms.slice(0, 3)) {
+    const termLower = term.toLowerCase();
+    const termUpper = term.toUpperCase();
+    
+    // Search by partial symbol match
+    const { data: symbolMatches } = await supabase
+      .from('ticker_mappings')
+      .select('symbol, display_name, type')
+      .eq('is_active', true)
+      .or(`symbol.ilike.%${termUpper}%,display_name.ilike.%${termLower}%`)
+      .limit(10);
+    
+    if (symbolMatches) {
+      for (const match of symbolMatches) {
+        const symSim = stringSimilarity(termUpper, match.symbol);
+        const nameSim = stringSimilarity(termLower, match.display_name.toLowerCase());
+        const maxSim = Math.max(symSim, nameSim);
+        
+        if (maxSim >= 0.4 && !similar.find(s => s.symbol === match.symbol)) {
+          similar.push({
+            symbol: match.symbol,
+            displayName: match.display_name,
+            type: match.type,
+            similarity: maxSim
+          });
+        }
+      }
+    }
+  }
+  
+  // Sort by similarity and return top 5
+  return similar.sort((a, b) => b.similarity - a.similarity).slice(0, 5);
+}
+
+// Resolve assets from database (crypto + stocks)
+async function resolveAssetsFromDatabase(supabase: any, message: string): Promise<{ assets: ResolvedAsset[], similar: SimilarAsset[] }> {
+  const resolved: ResolvedAsset[] = [];
   const foundSymbols = new Set<string>();
   
   const potentialSymbols = extractPotentialSymbols(message);
@@ -118,50 +216,52 @@ async function resolveCoinsFromDatabase(supabase: any, message: string): Promise
   console.log(`Potential symbols: ${potentialSymbols.join(', ')}`);
   console.log(`Potential names: ${potentialNames.slice(0, 10).join(', ')}...`);
   
-  // Step 1: Check ticker_mappings for exact symbol matches and aliases
+  // Step 1: Check ticker_mappings for exact symbol matches (crypto + stocks)
   if (potentialSymbols.length > 0) {
     for (const sym of potentialSymbols) {
-      // Check exact symbol match
+      // Check exact symbol match (any type)
       const { data: exactMatch } = await supabase
         .from('ticker_mappings')
-        .select('symbol, coingecko_id, display_name, aliases')
+        .select('symbol, coingecko_id, display_name, type, polygon_ticker')
         .eq('is_active', true)
-        .eq('type', 'crypto')
         .ilike('symbol', sym)
         .maybeSingle();
       
-      if (exactMatch?.coingecko_id && !foundSymbols.has(exactMatch.symbol)) {
-        console.log(`Found exact match in ticker_mappings: ${sym} -> ${exactMatch.symbol} (${exactMatch.coingecko_id})`);
+      if (exactMatch && !foundSymbols.has(exactMatch.symbol)) {
+        console.log(`Found exact match: ${sym} -> ${exactMatch.symbol} (${exactMatch.type})`);
         resolved.push({
           symbol: exactMatch.symbol,
           coingeckoId: exactMatch.coingecko_id,
-          displayName: exactMatch.display_name
+          displayName: exactMatch.display_name,
+          assetType: exactMatch.type === 'stock' ? 'stock' : 'crypto',
+          polygonTicker: exactMatch.polygon_ticker
         });
         foundSymbols.add(exactMatch.symbol);
         continue;
       }
       
-      // Check aliases
+      // Check aliases (crypto)
       const { data: aliasMatch } = await supabase
         .from('ticker_mappings')
-        .select('symbol, coingecko_id, display_name, aliases')
+        .select('symbol, coingecko_id, display_name, type, polygon_ticker, aliases')
         .eq('is_active', true)
-        .eq('type', 'crypto')
-        .contains('aliases', [sym])
+        .contains('aliases', [sym.toLowerCase()])
         .maybeSingle();
       
-      if (aliasMatch?.coingecko_id && !foundSymbols.has(aliasMatch.symbol)) {
-        console.log(`Found alias match in ticker_mappings: ${sym} -> ${aliasMatch.symbol} (${aliasMatch.coingecko_id})`);
+      if (aliasMatch && !foundSymbols.has(aliasMatch.symbol)) {
+        console.log(`Found alias match: ${sym} -> ${aliasMatch.symbol}`);
         resolved.push({
           symbol: aliasMatch.symbol,
           coingeckoId: aliasMatch.coingecko_id,
-          displayName: aliasMatch.display_name
+          displayName: aliasMatch.display_name,
+          assetType: aliasMatch.type === 'stock' ? 'stock' : 'crypto',
+          polygonTicker: aliasMatch.polygon_ticker
         });
         foundSymbols.add(aliasMatch.symbol);
         continue;
       }
       
-      // Fallback to cg_master for symbol match
+      // Fallback to cg_master for crypto symbol match
       const { data: cgMatch } = await supabase
         .from('cg_master')
         .select('symbol, cg_id, name')
@@ -174,55 +274,58 @@ async function resolveCoinsFromDatabase(supabase: any, message: string): Promise
         resolved.push({
           symbol: cgMatch.symbol.toUpperCase(),
           coingeckoId: cgMatch.cg_id,
-          displayName: cgMatch.name
+          displayName: cgMatch.name,
+          assetType: 'crypto'
         });
         foundSymbols.add(cgMatch.symbol.toUpperCase());
       }
     }
   }
   
-  // Step 2: Only search by name if no symbols were found (prevents over-matching)
+  // Step 2: Search by name if no symbols found
   if (resolved.length === 0 && potentialNames.length > 0) {
     for (const name of potentialNames.slice(0, 3)) {
       if (name.length < 4) continue;
       
-      // Try exact prefix match first (e.g., "monad" matches "Monad" or "monat" matches "mon...")
+      // Try name match in ticker_mappings
       const { data: nameMatch } = await supabase
         .from('ticker_mappings')
-        .select('symbol, coingecko_id, display_name, aliases')
+        .select('symbol, coingecko_id, display_name, type, polygon_ticker')
         .eq('is_active', true)
-        .eq('type', 'crypto')
         .or(`display_name.ilike.${name}%,display_name.ilike.%${name}%`)
         .limit(1)
         .maybeSingle();
       
-      if (nameMatch?.coingecko_id && !foundSymbols.has(nameMatch.symbol)) {
-        console.log(`Found name match in ticker_mappings: "${name}" -> ${nameMatch.symbol} (${nameMatch.coingecko_id})`);
+      if (nameMatch && !foundSymbols.has(nameMatch.symbol)) {
+        console.log(`Found name match: "${name}" -> ${nameMatch.symbol}`);
         resolved.push({
           symbol: nameMatch.symbol,
           coingeckoId: nameMatch.coingecko_id,
-          displayName: nameMatch.display_name
+          displayName: nameMatch.display_name,
+          assetType: nameMatch.type === 'stock' ? 'stock' : 'crypto',
+          polygonTicker: nameMatch.polygon_ticker
         });
         foundSymbols.add(nameMatch.symbol);
-        break; // Found one, stop searching
+        break;
       }
       
-      // Also check aliases for fuzzy matching (e.g., "monat" in aliases)
+      // Check aliases
       const { data: aliasNameMatch } = await supabase
         .from('ticker_mappings')
-        .select('symbol, coingecko_id, display_name, aliases')
+        .select('symbol, coingecko_id, display_name, type, polygon_ticker')
         .eq('is_active', true)
-        .eq('type', 'crypto')
         .contains('aliases', [name])
         .limit(1)
         .maybeSingle();
       
-      if (aliasNameMatch?.coingecko_id && !foundSymbols.has(aliasNameMatch.symbol)) {
+      if (aliasNameMatch && !foundSymbols.has(aliasNameMatch.symbol)) {
         console.log(`Found alias name match: "${name}" -> ${aliasNameMatch.symbol}`);
         resolved.push({
           symbol: aliasNameMatch.symbol,
           coingeckoId: aliasNameMatch.coingecko_id,
-          displayName: aliasNameMatch.display_name
+          displayName: aliasNameMatch.display_name,
+          assetType: aliasNameMatch.type === 'stock' ? 'stock' : 'crypto',
+          polygonTicker: aliasNameMatch.polygon_ticker
         });
         foundSymbols.add(aliasNameMatch.symbol);
         break;
@@ -230,32 +333,127 @@ async function resolveCoinsFromDatabase(supabase: any, message: string): Promise
     }
   }
   
-  // Step 3: Fallback to cg_master name search if still nothing
-  if (resolved.length === 0 && potentialNames.length > 0) {
-    for (const name of potentialNames.slice(0, 3)) {
-      if (name.length < 4) continue;
-      
-      const { data: cgNameMatch } = await supabase
-        .from('cg_master')
-        .select('symbol, cg_id, name')
-        .ilike('name', `${name}%`)
-        .limit(1)
-        .maybeSingle();
-      
-      if (cgNameMatch?.cg_id && !foundSymbols.has(cgNameMatch.symbol.toUpperCase())) {
-        console.log(`Found name match in cg_master: "${name}" -> ${cgNameMatch.symbol} (${cgNameMatch.cg_id})`);
-        resolved.push({
-          symbol: cgNameMatch.symbol.toUpperCase(),
-          coingeckoId: cgNameMatch.cg_id,
-          displayName: cgNameMatch.name
-        });
-        foundSymbols.add(cgNameMatch.symbol.toUpperCase());
-        break;
-      }
+  // Step 3: If still nothing found, find similar assets for suggestions
+  let similarAssets: SimilarAsset[] = [];
+  if (resolved.length === 0) {
+    const allTerms = [...potentialSymbols.map(s => s.toLowerCase()), ...potentialNames];
+    if (allTerms.length > 0) {
+      similarAssets = await findSimilarAssets(supabase, allTerms);
+      console.log(`Found ${similarAssets.length} similar assets for suggestions`);
     }
   }
   
-  return resolved.slice(0, 5);
+  return { assets: resolved.slice(0, 5), similar: similarAssets };
+}
+
+// Fetch historical context from Polygon
+async function fetchHistoricalContext(supabase: any, asset: ResolvedAsset): Promise<HistoricalContext | null> {
+  try {
+    const to = new Date().toISOString().split('T')[0];
+    const fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const from = fromDate.toISOString().split('T')[0];
+    
+    // Determine ticker format
+    let ticker = asset.polygonTicker;
+    if (!ticker) {
+      ticker = asset.assetType === 'crypto' ? `X:${asset.symbol}USD` : asset.symbol;
+    }
+    
+    console.log(`Fetching historical data for ${asset.symbol} (${ticker})`);
+    
+    const { data, error } = await supabase.functions.invoke('polygon-historical-data', {
+      body: { 
+        ticker, 
+        timeframe: '1day', 
+        from, 
+        to, 
+        asset_type: asset.assetType 
+      }
+    });
+    
+    if (error || !data?.bars?.length) {
+      console.log(`No historical data for ${asset.symbol}`);
+      return null;
+    }
+    
+    const bars = data.bars;
+    const firstPrice = bars[0].close;
+    const lastPrice = bars[bars.length - 1].close;
+    const change30d = ((lastPrice - firstPrice) / firstPrice) * 100;
+    const high30d = Math.max(...bars.map((b: any) => b.high));
+    const low30d = Math.min(...bars.map((b: any) => b.low));
+    const avgVolume = bars.reduce((sum: number, b: any) => sum + b.volume, 0) / bars.length;
+    
+    console.log(`Historical for ${asset.symbol}: ${change30d.toFixed(2)}% over 30d`);
+    
+    return {
+      symbol: asset.symbol,
+      change30d,
+      high30d,
+      low30d,
+      avgVolume
+    };
+  } catch (e) {
+    console.error(`Error fetching historical for ${asset.symbol}:`, e);
+    return null;
+  }
+}
+
+// Fetch technical indicators from Polygon
+async function fetchTechnicalIndicators(supabase: any, asset: ResolvedAsset): Promise<TechnicalIndicators | null> {
+  try {
+    // Determine ticker format
+    let ticker = asset.polygonTicker;
+    if (!ticker) {
+      ticker = asset.assetType === 'crypto' ? `X:${asset.symbol}USD` : asset.symbol;
+    }
+    
+    console.log(`Fetching technical indicators for ${asset.symbol} (${ticker})`);
+    
+    const { data, error } = await supabase.functions.invoke('polygon-technical-indicators', {
+      body: { 
+        tickers: [ticker], 
+        indicators: ['rsi', 'macd', 'sma_50', 'ema_20'],
+        timeframe: 'daily'
+      }
+    });
+    
+    if (error || !data?.success) {
+      console.log(`No technical indicators for ${asset.symbol}`);
+      return null;
+    }
+    
+    const indicators = data.data?.[ticker];
+    if (!indicators) return null;
+    
+    const result: TechnicalIndicators = { symbol: asset.symbol };
+    
+    if (indicators.rsi?.value) {
+      const rsiVal = indicators.rsi.value;
+      result.rsi = {
+        value: rsiVal,
+        signal: rsiVal > 70 ? 'Overbought ⚠️' : rsiVal < 30 ? 'Oversold ⚠️' : 'Neutral ✅'
+      };
+    }
+    
+    if (indicators.macd) {
+      const hist = indicators.macd.histogram || 0;
+      result.macd = {
+        histogram: hist,
+        signal: hist > 0 ? 'Bullish 🟢' : 'Bearish 🔴'
+      };
+    }
+    
+    if (indicators.sma_50?.value) result.sma50 = indicators.sma_50.value;
+    if (indicators.ema_20?.value) result.ema20 = indicators.ema_20.value;
+    
+    console.log(`Technical indicators for ${asset.symbol}: RSI=${result.rsi?.value}, MACD=${result.macd?.signal}`);
+    
+    return result;
+  } catch (e) {
+    console.error(`Error fetching technicals for ${asset.symbol}:`, e);
+    return null;
+  }
 }
 
 async function fetchLivePrices(supabase: any): Promise<PriceData[]> {
@@ -283,26 +481,27 @@ async function fetchLivePrices(supabase: any): Promise<PriceData[]> {
   }
 }
 
-async function fetchCoinDetail(supabase: any, coin: ResolvedCoin): Promise<CoinDetail | null> {
+async function fetchCoinDetail(supabase: any, asset: ResolvedAsset): Promise<CoinDetail | null> {
+  // Only fetch LunarCrush data for crypto
+  if (asset.assetType !== 'crypto') return null;
+  
   try {
-    // LunarCrush expects the symbol (e.g., "BTC", "MON"), not the CoinGecko ID
-    const lookupId = coin.symbol;
-    console.log(`Fetching LunarCrush detail for: ${coin.symbol} (display: ${coin.displayName})`);
+    console.log(`Fetching LunarCrush detail for: ${asset.symbol}`);
     
     const { data, error } = await supabase.functions.invoke('lunarcrush-coin-detail', {
-      body: { coin: lookupId }
+      body: { coin: asset.symbol }
     });
 
     if (error) {
-      console.error(`Error fetching ${coin.symbol} detail:`, error);
+      console.error(`Error fetching ${asset.symbol} detail:`, error);
       return null;
     }
 
     if (data?.success && data?.data) {
       const d = data.data;
       return {
-        symbol: d.symbol || coin.symbol,
-        name: d.name || coin.displayName || coin.symbol,
+        symbol: d.symbol || asset.symbol,
+        name: d.name || asset.displayName || asset.symbol,
         price: d.price || 0,
         change24h: d.percent_change_24h || 0,
         change7d: d.percent_change_7d || 0,
@@ -321,29 +520,9 @@ async function fetchCoinDetail(supabase: any, coin: ResolvedCoin): Promise<CoinD
     }
     return null;
   } catch (e) {
-    console.error(`Failed to fetch ${coin.symbol} detail:`, e);
+    console.error(`Failed to fetch ${asset.symbol} detail:`, e);
     return null;
   }
-}
-
-async function fetchMultipleCoinDetails(supabase: any, coins: ResolvedCoin[]): Promise<CoinDetail[]> {
-  const results: CoinDetail[] = [];
-  
-  // Fetch in parallel but with a small delay to avoid rate limits
-  const promises = coins.map(async (coin, index) => {
-    await new Promise(resolve => setTimeout(resolve, index * 100));
-    return fetchCoinDetail(supabase, coin);
-  });
-  
-  const details = await Promise.all(promises);
-  
-  for (const detail of details) {
-    if (detail) {
-      results.push(detail);
-    }
-  }
-  
-  return results;
 }
 
 function formatPrice(price: number): string {
@@ -378,9 +557,7 @@ function formatPriceContext(prices: PriceData[]): string {
 }
 
 function formatCoinDetails(coins: CoinDetail[]): string {
-  if (coins.length === 0) {
-    return "";
-  }
+  if (coins.length === 0) return "";
 
   const sections = coins.map(c => {
     const changeSymbol24h = c.change24h >= 0 ? '+' : '';
@@ -414,51 +591,137 @@ ${c.fomoScore ? `🔥 FOMO Score: ${c.fomoScore}` : ''}
 
   return `
 ═══════════════════════════════════════════
-🔍 DETAILED RESEARCH ON COINS USER ASKED ABOUT
+🔍 DETAILED CRYPTO RESEARCH
 ═══════════════════════════════════════════
 ${sections.join('\n')}`;
 }
 
-function buildSystemPrompt(priceContext: string, coinDetails: string): string {
-  return `You are ZombieDog 🧟🐕, the undead crypto market assistant for XRayCrypto™. You're a friendly, knowledgeable zombie dog who helps users understand crypto markets.
+function formatHistoricalContext(historical: HistoricalContext[]): string {
+  if (historical.length === 0) return "";
+  
+  const sections = historical.map(h => {
+    const changeSymbol = h.change30d >= 0 ? '+' : '';
+    return `📈 ${h.symbol} 30-Day History:
+  • Change: ${changeSymbol}${h.change30d.toFixed(2)}%
+  • Range: ${formatPrice(h.low30d)} - ${formatPrice(h.high30d)}
+  • Avg Daily Volume: ${formatLargeNumber(h.avgVolume)}`;
+  });
+  
+  return `
+═══════════════════════════════════════════
+📊 HISTORICAL PRICE DATA (30 Days)
+═══════════════════════════════════════════
+${sections.join('\n\n')}`;
+}
+
+function formatTechnicalIndicators(technicals: TechnicalIndicators[]): string {
+  if (technicals.length === 0) return "";
+  
+  const sections = technicals.map(t => {
+    let analysis = `📈 ${t.symbol} Technical Analysis:\n`;
+    if (t.rsi) analysis += `  • RSI(14): ${t.rsi.value.toFixed(1)} - ${t.rsi.signal}\n`;
+    if (t.macd) analysis += `  • MACD: ${t.macd.signal} (Hist: ${t.macd.histogram.toFixed(4)})\n`;
+    if (t.sma50) analysis += `  • SMA(50): ${formatPrice(t.sma50)}\n`;
+    if (t.ema20) analysis += `  • EMA(20): ${formatPrice(t.ema20)}\n`;
+    return analysis;
+  });
+  
+  return `
+═══════════════════════════════════════════
+🔬 TECHNICAL INDICATORS
+═══════════════════════════════════════════
+${sections.join('\n')}`;
+}
+
+function formatSimilarAssetsSuggestion(similar: SimilarAsset[], searchTerms: string[]): string {
+  if (similar.length === 0) {
+    return `
+═══════════════════════════════════════════
+❓ CLARIFICATION NEEDED
+═══════════════════════════════════════════
+I couldn't find any assets matching "${searchTerms.join('" or "')}" in my database.
+
+Could you help me by providing:
+• The ticker symbol (e.g., $BTC, $AAPL)
+• The full asset name (e.g., "Bitcoin", "Apple")
+• Or for newer tokens, the contract address
+
+*sniffs around for more clues* 🐕`;
+  }
+  
+  const suggestions = similar.map(s => `• ${s.displayName} (${s.symbol}) - ${s.type}`).join('\n');
+  
+  return `
+═══════════════════════════════════════════
+❓ DID YOU MEAN ONE OF THESE?
+═══════════════════════════════════════════
+I found these similar assets:
+${suggestions}
+
+Please confirm which one you're asking about, or provide:
+• The exact ticker symbol (e.g., $BTC)
+• The full name of the asset
+• Or a token contract address for newer coins
+
+*tilts head curiously* 🐕`;
+}
+
+function buildSystemPrompt(
+  priceContext: string, 
+  coinDetails: string,
+  historicalContext: string,
+  technicalContext: string,
+  similarSuggestion: string
+): string {
+  return `You are ZombieDog 🧟🐕, the undead market assistant for XRayCrypto™. You're a friendly, knowledgeable zombie dog who helps users understand crypto AND stock markets.
 
 Your personality:
 - Playful and approachable, using occasional dog and zombie references ("woof", "sniffing out deals", "digging up data", "my undead instincts", "*wags undead tail*")
-- Knowledgeable about crypto markets, trading, blockchain technology, DeFi, NFTs, and market analysis
+- Knowledgeable about crypto, stocks, trading, blockchain technology, DeFi, NFTs, and market analysis
 - Helpful and educational, explaining concepts clearly
 - Use emojis sparingly but appropriately (🧟🐕 💀 🦴 📈 📉 💰)
 
+═══════════════════════════════════════════
+🎯 YOUR RESEARCH CAPABILITIES
+═══════════════════════════════════════════
+You can research:
+• 🪙 2,000+ Cryptocurrencies (with social sentiment, trends, Galaxy Score)
+• 📈 Stocks (AAPL, NVDA, TSLA, COIN, MSTR, MARA, RIOT, etc.)
+• 📊 Technical indicators (RSI, MACD, Moving Averages)
+• 📉 30-day historical price data
+
 ${priceContext}
 ${coinDetails}
+${historicalContext}
+${technicalContext}
+${similarSuggestion}
 
 ═══════════════════════════════════════════
-📜 CRITICAL INSTRUCTIONS FOR ANSWERING
+📜 CRITICAL INSTRUCTIONS
 ═══════════════════════════════════════════
 
-1. **USE THE DATA ABOVE!** You have REAL, LIVE market data. Don't say you don't have access to real-time data!
+1. **USE THE DATA ABOVE!** You have REAL, LIVE market data. Never say you don't have access!
 
-2. When users ask about a specific coin:
-   - Quote the EXACT price, changes, and metrics from the data above
-   - Discuss the Galaxy Score and what it means for social momentum
-   - Mention the risk level and volatility
-   - Analyze the short/medium/long term trends
-   - Reference the Alt Rank if notable
+2. **IF CLARIFICATION NEEDED:** When the "DID YOU MEAN" or "CLARIFICATION NEEDED" section appears above:
+   - Present the suggestions conversationally
+   - Ask the user to clarify which asset they meant
+   - Be helpful, not robotic
+   - Example: "Hmm, I'm not sure which coin you mean by 'monat'. *sniffs* Did you perhaps mean Monad (MON)? Or something else? 🐕"
 
-3. **Format your analysis like a pro:**
-   - Lead with the current price and key change metrics
-   - Discuss sentiment (Galaxy Score, FOMO if available)
-   - Analyze trends (are short and long term aligned or diverging?)
-   - Mention risk factors if elevated
-   - Provide context on market cap and volume
+3. **For specific asset queries:**
+   - Quote EXACT price, changes, and metrics from the data
+   - For crypto: Discuss Galaxy Score, risk level, trends
+   - For stocks: Focus on price action, technicals, volume
+   - Mention RSI/MACD signals if available
 
 4. **Be specific, not generic:**
-   ❌ DON'T: "I don't have real-time data for MON"
-   ✅ DO: "MON is currently at $0.0102 (+1.19% today), but down -43.85% over 30 days..."
+   ❌ DON'T: "I don't have real-time data"
+   ✅ DO: "MON is at $0.0102 (+1.19% today), with RSI at 45 (neutral)..."
 
-5. **Interpret the trends:**
-   - If short-term bullish but long-term bearish: "Short-term relief rally within a broader downtrend"
-   - If all trends aligned bullish: "Strong momentum across all timeframes"
-   - If Galaxy Score low + bearish trends: "Weak social momentum compounds the bearish pressure"
+5. **Interpret technicals:**
+   - RSI > 70: "Overbought - potential pullback ahead"
+   - RSI < 30: "Oversold - could bounce"
+   - MACD bullish + price up: "Strong momentum confirmation"
 
 6. Keep responses concise but data-rich (2-4 paragraphs max)
 7. Always remind users to DYOR (do your own research)
@@ -488,26 +751,44 @@ serve(async (req) => {
 
     console.log(`ZombieDog chat request with ${messages?.length || 0} messages`);
 
-    // Get the latest user message to extract coin mentions
+    // Get the latest user message to extract asset mentions
     const latestUserMessage = messages?.filter((m: any) => m.role === 'user').pop();
     const userQuery = latestUserMessage?.content || '';
     
-    // Resolve coins from database (19K+ coins available!)
-    const resolvedCoins = await resolveCoinsFromDatabase(supabase, userQuery);
-    console.log(`Resolved ${resolvedCoins.length} coins from database: ${resolvedCoins.map(c => c.symbol).join(', ') || 'none'}`);
-
-    // Fetch data in parallel
-    const [prices, coinDetails] = await Promise.all([
+    // Resolve assets from database (crypto + stocks)
+    const { assets: resolvedAssets, similar: similarAssets } = await resolveAssetsFromDatabase(supabase, userQuery);
+    console.log(`Resolved ${resolvedAssets.length} assets: ${resolvedAssets.map(a => `${a.symbol}(${a.assetType})`).join(', ') || 'none'}`);
+    
+    // Fetch all data in parallel
+    const [prices, coinDetails, historicalData, technicalData] = await Promise.all([
       fetchLivePrices(supabase),
-      resolvedCoins.length > 0 ? fetchMultipleCoinDetails(supabase, resolvedCoins) : Promise.resolve([])
+      // Fetch LunarCrush details for crypto assets
+      Promise.all(resolvedAssets.filter(a => a.assetType === 'crypto').map(a => fetchCoinDetail(supabase, a))),
+      // Fetch historical data for all assets
+      Promise.all(resolvedAssets.map(a => fetchHistoricalContext(supabase, a))),
+      // Fetch technical indicators for all assets
+      Promise.all(resolvedAssets.map(a => fetchTechnicalIndicators(supabase, a)))
     ]);
     
-    console.log(`Fetched ${prices.length} general prices, ${coinDetails.length} detailed coin reports`);
+    const validCoinDetails = coinDetails.filter((c): c is CoinDetail => c !== null);
+    const validHistorical = historicalData.filter((h): h is HistoricalContext => h !== null);
+    const validTechnicals = technicalData.filter((t): t is TechnicalIndicators => t !== null);
+    
+    console.log(`Fetched: ${prices.length} prices, ${validCoinDetails.length} crypto details, ${validHistorical.length} historical, ${validTechnicals.length} technicals`);
 
-    // Build system prompt with all context
+    // Build context strings
     const priceContext = formatPriceContext(prices);
-    const coinDetailContext = formatCoinDetails(coinDetails);
-    const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext);
+    const coinDetailContext = formatCoinDetails(validCoinDetails);
+    const historicalContext = formatHistoricalContext(validHistorical);
+    const technicalContext = formatTechnicalIndicators(validTechnicals);
+    
+    // Generate suggestions if no assets found
+    const searchTerms = [...extractPotentialSymbols(userQuery), ...extractPotentialNames(userQuery)];
+    const similarSuggestion = resolvedAssets.length === 0 && searchTerms.length > 0 
+      ? formatSimilarAssetsSuggestion(similarAssets, searchTerms)
+      : '';
+    
+    const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion);
 
     // Convert messages format for Anthropic API
     const anthropicMessages = messages.map((m: { role: string; content: string }) => ({
