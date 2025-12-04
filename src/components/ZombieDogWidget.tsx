@@ -38,7 +38,7 @@ export const ZombieDogWidget = () => {
           }}
           aria-label="Open ZombieChat"
         >
-          <span className="text-xl">🧟</span>
+          <img src="/zombiedog-chat-pfp.webp" alt="ZombieDog" className="w-6 h-6 pixel-border object-cover rounded-sm" />
           <span>ZombieChat</span>
         </button>
       )}
@@ -60,7 +60,7 @@ export const ZombieDogWidget = () => {
             }}
           >
             <div className="flex items-center gap-2">
-              <span className="text-lg">🧟</span>
+              <img src="/zombiedog-chat-pfp.webp" alt="ZombieDog" className="w-6 h-6 pixel-border object-cover rounded-sm" />
               <span className="font-mono text-sm font-bold" style={{ color: '#e8e0c8' }}>ZombieChat</span>
             </div>
             <div className="flex items-center gap-1">
