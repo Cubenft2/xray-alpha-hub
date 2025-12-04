@@ -80,6 +80,11 @@ async function streamChat({
 
       try {
         const parsed = JSON.parse(jsonStr);
+        // Handle Anthropic's streaming format
+        if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+          onDelta(parsed.delta.text);
+        }
+        // Also handle OpenAI format as fallback
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
       } catch {
@@ -100,6 +105,11 @@ async function streamChat({
       if (jsonStr === '[DONE]') continue;
       try {
         const parsed = JSON.parse(jsonStr);
+        // Handle Anthropic's streaming format
+        if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+          onDelta(parsed.delta.text);
+        }
+        // Also handle OpenAI format as fallback
         const content = parsed.choices?.[0]?.delta?.content as string | undefined;
         if (content) onDelta(content);
       } catch { /* ignore */ }
