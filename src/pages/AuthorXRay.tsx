@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ExternalLink, FileText, Calendar, User } from 'lucide-react';
+import { ExternalLink, FileText, Calendar, User, Archive } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Brief {
@@ -64,10 +64,15 @@ export default function AuthorXRay() {
 
   useEffect(() => {
     async function fetchBriefs() {
+      // Calculate date 30 days ago
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
       const { data, error } = await supabase
         .from('market_briefs')
         .select('slug, title, published_at, brief_type')
         .eq('is_published', true)
+        .gte('published_at', thirtyDaysAgo.toISOString())
         .order('published_at', { ascending: false });
 
       if (!error && data) {
@@ -141,15 +146,15 @@ export default function AuthorXRay() {
         </CardContent>
       </Card>
 
-      {/* Published Briefs Section */}
+      {/* Recent Briefs Section */}
       <Card className="xr-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
             <FileText className="w-5 h-5 text-primary" />
-            Published Briefs
+            Recent Briefs
             {!loading && (
               <Badge variant="default" className="ml-auto">
-                {briefs.length} {briefs.length === 1 ? 'Brief' : 'Briefs'}
+                Last 30 Days • {briefs.length} {briefs.length === 1 ? 'Brief' : 'Briefs'}
               </Badge>
             )}
           </CardTitle>
@@ -163,7 +168,7 @@ export default function AuthorXRay() {
             </div>
           ) : briefs.length === 0 ? (
             <p className="text-muted-foreground text-center py-8">
-              No published briefs yet.
+              No recent briefs in the last 30 days.
             </p>
           ) : (
             <div className="space-y-2">
@@ -196,6 +201,18 @@ export default function AuthorXRay() {
               ))}
             </div>
           )}
+
+          {/* Archive Note */}
+          <div className="mt-6 pt-4 border-t border-border/30">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Archive className="w-4 h-4 flex-shrink-0" />
+              <span>
+                Older briefs are available in our{' '}
+                <span className="text-primary font-medium">Research Archive</span>
+                {' '}— early experimental content from XRay's development phase.
+              </span>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
