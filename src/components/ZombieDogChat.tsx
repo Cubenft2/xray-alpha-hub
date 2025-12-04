@@ -203,15 +203,17 @@ export const ZombieDogChat = ({ compact = false, className = '' }: ZombieDogChat
       {/* Messages Area */}
       <div 
         className={`flex-1 overflow-y-auto p-3 relative ${compact ? 'min-h-0' : 'min-h-[300px]'}`}
-        style={{
-          backgroundImage: 'url(/zombiechat-bg.png)',
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center center',
-          backgroundSize: 'contain',
-        }}
       >
+        {/* Animated zombie watermark */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <img 
+            src="/zombiechat-bg.png" 
+            alt="" 
+            className="w-3/4 h-3/4 object-contain opacity-20 animate-ghost-float"
+          />
+        </div>
         {/* Semi-transparent overlay for readability */}
-        <div className="absolute inset-0 bg-card/80 pointer-events-none" />
+        <div className="absolute inset-0 bg-card/70 pointer-events-none" />
         
         {/* Messages content */}
         <div className="relative z-10 space-y-3">
