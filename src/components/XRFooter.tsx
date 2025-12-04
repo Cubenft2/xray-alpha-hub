@@ -69,6 +69,10 @@ export function XRFooter() {
               About Us
             </a>
             <span className="text-zoobie/30">•</span>
+            <a href="/author/xray" className="text-muted-foreground hover:text-zoobie transition-colors">
+              Author
+            </a>
+            <span className="text-zoobie/30">•</span>
             <a href="/terms" className="text-muted-foreground hover:text-zoobie transition-colors">
               Terms of Service
             </a>
