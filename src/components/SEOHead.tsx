@@ -40,7 +40,7 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
         "@type": "WebPage",
         "@id": pageUrl
       },
-      "image": "https://xraycrypto.io/social-preview.jpg"
+      "image": ogImageUrl
     };
 
     // Create and inject JSON-LD script
@@ -75,6 +75,11 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
     setMetaTag('property', 'og:type', 'article');
     setMetaTag('property', 'og:title', title);
     setMetaTag('property', 'og:url', pageUrl);
+    setMetaTag('property', 'og:image', ogImageUrl);
+    setMetaTag('property', 'og:image:width', '1200');
+    setMetaTag('property', 'og:image:height', '630');
+    setMetaTag('name', 'twitter:card', 'summary_large_image');
+    setMetaTag('name', 'twitter:image', ogImageUrl);
     
     if (description) {
       setMetaTag('property', 'og:description', description);
