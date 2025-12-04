@@ -33,7 +33,7 @@ export default function AuthorXRay() {
         "name": "XRayCrypto™",
         "url": "https://xraycrypto.io"
       },
-      "description": "XRay is the creator of XRay Crypto and author of the daily market briefs. Combining AI-powered analysis with real-time market data to make crypto intelligence accessible.",
+      "description": "XRay is the creator of XRayCrypto™ and author of the daily market briefs. Combining AI-powered analysis with real-time market data to make crypto intelligence accessible.",
       "image": "https://xraycrypto.io/zoobie-pfp.webp"
     };
 
@@ -50,7 +50,7 @@ export default function AuthorXRay() {
     const metaDescription = document.querySelector('meta[name="description"]');
     const originalDescription = metaDescription?.getAttribute('content') || '';
     if (metaDescription) {
-      metaDescription.setAttribute('content', 'XRay is the creator of XRay Crypto and author of the daily market briefs. Combining AI-powered analysis with real-time market data.');
+      metaDescription.setAttribute('content', 'XRay is the creator of XRayCrypto™ and author of the daily market briefs. Combining AI-powered analysis with real-time market data.');
     }
 
     return () => {
@@ -115,7 +115,7 @@ export default function AuthorXRay() {
               </p>
               
               <p className="text-foreground/80 mb-6 max-w-xl">
-                XRay is the creator of XRay Crypto and author of the daily market briefs. 
+                XRay is the creator of XRayCrypto™ and author of the daily market briefs. 
                 Combining AI-powered analysis with real-time market data to make crypto 
                 intelligence accessible.
               </p>
