@@ -589,31 +589,39 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
               return `${sign}${change.toFixed(2)}%`;
             };
 
-            // Create separate spans for price and change
-            const priceSpan = document.createElement('span');
-            priceSpan.className = 'sym-price';
+            // Find existing or create new price span (prevents duplicates)
+            let priceSpan = el.querySelector('.sym-price') as HTMLElement | null;
+            if (!priceSpan) {
+              priceSpan = document.createElement('span');
+              priceSpan.className = 'sym-price';
+              el.insertBefore(priceSpan, closeParen);
+            }
             priceSpan.textContent = ` $${formatPrice(priceData.price)}`;
             
-            // Insert price before closing paren
-            el.insertBefore(priceSpan, closeParen);
-            
             if (priceData.change !== null && priceData.change !== undefined) {
+              // Find existing or create new change span (prevents duplicates)
+              let changeSpan = el.querySelector('.sym-change') as HTMLElement | null;
+              if (!changeSpan) {
+                changeSpan = document.createElement('span');
+                el.insertBefore(changeSpan, closeParen);
+              }
               const isPositive = priceData.change >= 0;
-              const changeSpan = document.createElement('span');
               changeSpan.className = isPositive ? 'sym-change positive' : 'sym-change negative';
               changeSpan.textContent = ` ${formatChange(priceData.change)}`;
-              
-              // Insert change before closing paren
-              el.insertBefore(changeSpan, closeParen);
             }
             
             console.log(`✅ Updated ${sym} with price $${priceData.price}`);
           } else if (capability.price_ok) {
-            // price_ok but no price data - show loading
-            const loadingSpan = document.createElement('span');
-            loadingSpan.className = 'text-muted-foreground';
-            loadingSpan.textContent = ' ...';
-            el.insertBefore(loadingSpan, closeParen);
+            // price_ok but no price data - show loading (only if no price/change spans exist)
+            if (!el.querySelector('.sym-price') && !el.querySelector('.sym-change')) {
+              let loadingSpan = el.querySelector('.sym-loading') as HTMLElement | null;
+              if (!loadingSpan) {
+                loadingSpan = document.createElement('span');
+                loadingSpan.className = 'sym-loading text-muted-foreground';
+                el.insertBefore(loadingSpan, closeParen);
+              }
+              loadingSpan.textContent = ' ...';
+            }
           }
         });
       } catch (error) {
