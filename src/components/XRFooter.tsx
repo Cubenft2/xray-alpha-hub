@@ -15,9 +15,9 @@ export function XRFooter() {
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
               <img 
-                src="/zoobie-pfp.webp" 
+                src="/zoobie-pfp-transparent.png" 
                 alt="Zoobie Beret Dog" 
-                className="w-5 h-5 opacity-80 animate-zoobie-glow pixel-border" 
+                className="w-5 h-5 opacity-80 animate-zoobie-glow" 
               />
               <span className="text-sm text-muted-foreground font-medium">
                 © {currentYear} XRayCrypto™
@@ -52,9 +52,9 @@ export function XRFooter() {
             <span className="flex items-center">
               Built with <span className="text-zoobie mx-1">💖</span> by the XRay Dog Pack 
               <img 
-                src="/zoobie-pfp.webp" 
+                src="/zoobie-pfp-transparent.png" 
                 alt="Zoobie Beret Dog" 
-                className="w-4 h-4 ml-1 animate-wiggle pixel-border" 
+                className="w-4 h-4 ml-1 animate-wiggle" 
               />
             </span>
             <span className="text-zoobie/50">•</span>

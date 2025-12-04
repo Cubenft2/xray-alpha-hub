@@ -106,9 +106,9 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
             <div className="flex flex-col">
               <div className="flex items-center space-x-2">
                 <img 
-                  src="/zoobie-pfp.webp" 
+                  src="/zoobie-pfp-transparent.png" 
                   alt="Zoobie Beret Dog" 
-                  className="w-8 h-8 hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-2 animate-zoobie-glow pixel-border"
+                  className="w-8 h-8 hidden sm:block transition-transform duration-300 group-hover:scale-110 mt-2 animate-zoobie-glow"
                 />
                 <span className="text-lg xr-pixel-text hidden sm:block leading-tight animate-radioactive-glow hover-glitch">
                   XRayCrypto™
@@ -119,9 +119,9 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
               </span>
               <div className="flex items-center space-x-1 sm:hidden">
                 <img 
-                  src="/zoobie-pfp.webp" 
+                  src="/zoobie-pfp-transparent.png" 
                   alt="Zoobie Beret Dog" 
-                  className="w-7 h-7 animate-zoobie-glow pixel-border"
+                  className="w-7 h-7 animate-zoobie-glow"
                 />
                 <span className="text-base xr-pixel-text animate-radioactive-glow">
                   XR™
