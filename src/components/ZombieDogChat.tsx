@@ -18,7 +18,10 @@ const welcomeMessage: Message = {
   timestamp: new Date(),
 };
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/zombiedog-chat`;
+// Hardcoded Supabase constants (env vars not available in this context)
+const SUPABASE_URL = "https://odncvfiuzliyohxrsigc.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbmN2Zml1emxpeW9oeHJzaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3Mzk4MjEsImV4cCI6MjA3NDMxNTgyMX0.7cnRatKpHqsylletKVel7WAprIYdpP85AXtXLswMYXQ";
+const CHAT_URL = `${SUPABASE_URL}/functions/v1/zombiedog-chat`;
 
 type Msg = { role: 'user' | 'assistant'; content: string };
 
@@ -37,7 +40,7 @@ async function streamChat({
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ messages }),
   });
