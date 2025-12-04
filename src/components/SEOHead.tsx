@@ -7,10 +7,13 @@ interface SEOHeadProps {
   description?: string;
 }
 
+const SUPABASE_URL = "https://odncvfiuzliyohxrsigc.supabase.co";
+
 export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProps) {
   useEffect(() => {
     const isoDate = new Date(publishedDate).toISOString();
     const pageUrl = `https://xraycrypto.io/marketbrief/${slug}`;
+    const ogImageUrl = `${SUPABASE_URL}/functions/v1/generate-og-image?slug=${encodeURIComponent(slug)}`;
     
     // Create Article JSON-LD schema
     const articleSchema = {
