@@ -93,16 +93,16 @@
     --sidebar-border: 130 24% 82%;
     --sidebar-ring: 120 100% 30%;
 
-    /* Header & Footer - Peachy Salmon Accent (Light Mode) 🍑 */
-    --header-footer-bg: 15 60% 88%;
-    --header-footer-bg-transparent: 15 60% 88% / 0.95;
-    --header-footer-border: 15 45% 78%;
-    --header-footer-text: 15 15% 25%;
+    /* Header & Footer - Matching Sage Green (Light Mode) 🌿 */
+    --header-footer-bg: 130 32% 85%;
+    --header-footer-bg-transparent: 130 32% 85% / 0.95;
+    --header-footer-border: 130 24% 75%;
+    --header-footer-text: 30 10% 15%;
 
     /* Beret Yellow - Golden Badge Color 🎖️ */
     --beret-yellow: 45 100% 50%;
     --beret-yellow-foreground: 30 20% 15%;
-    --header-footer-text-muted: 15 10% 45%;
+    --header-footer-text-muted: 130 15% 40%;
   }
 
   @keyframes gradient {
