@@ -204,12 +204,15 @@ export const ZombieDogChat = ({ compact = false, className = '' }: ZombieDogChat
       <div 
         className={`flex-1 overflow-y-auto p-3 relative ${compact ? 'min-h-0' : 'min-h-[300px]'}`}
       >
-        {/* Animated zombie watermark */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        {/* Animated zombie watermark with spooky glow */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
           <img 
             src="/zombiechat-bg.png" 
             alt="" 
-            className="w-3/4 h-3/4 object-contain opacity-20 animate-ghost-float"
+            className="w-[95%] h-[95%] object-contain opacity-25 animate-ghost-float"
+            style={{
+              filter: 'drop-shadow(0 0 15px hsl(120 100% 35% / 0.6)) drop-shadow(0 0 30px hsl(120 100% 35% / 0.3))'
+            }}
           />
         </div>
         {/* Semi-transparent overlay for readability */}
