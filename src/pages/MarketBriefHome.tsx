@@ -1028,21 +1028,19 @@ export default function MarketBriefHome() {
                   </CardContent>
                 </Card>
 
-                {/* Dynamic charts based on featured assets */}
-                {briefData?.featured_assets?.includes('SOL') && (
-                  <Card className="h-48">
-                    <CardContent className="p-3">
-                      <div className="text-sm font-medium mb-2 text-center">Solana (SOL)</div>
-                      <div className="h-36">
-                        <MiniChart 
-                          symbol={mapTickerToTradingView('SOL').symbol} 
-                          theme={theme}
-                          {...getAssetMetadata('SOL')}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                {/* Solana SOL */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Solana (SOL)</div>
+                    <div className="h-36">
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('SOL').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('SOL')}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* ASTER */}
                 <Card className="h-48">
