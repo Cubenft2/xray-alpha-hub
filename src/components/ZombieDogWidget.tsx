@@ -29,10 +29,17 @@ export const ZombieDogWidget = () => {
       {(!isOpen || isMinimized) && (
         <button
           onClick={toggleOpen}
-          className="fixed bottom-4 right-4 z-50 w-14 h-14 bg-primary/90 hover:bg-primary border-2 border-primary pixel-border rounded-lg flex items-center justify-center text-2xl shadow-lg animate-ghost-float transition-all duration-300 hover:scale-110"
-          aria-label="Open ZombieDog Chat"
+          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-lg pixel-border shadow-lg animate-ghost-float transition-all duration-300 hover:scale-105 font-mono text-sm font-bold border-2"
+          style={{
+            backgroundColor: '#5a6b4a',
+            borderColor: '#4a6b4a',
+            color: '#e8e0c8',
+            boxShadow: '0 4px 15px rgba(126, 207, 183, 0.3)',
+          }}
+          aria-label="Open ZombieChat"
         >
-          <span className="animate-pulse">🧟🐕</span>
+          <span className="text-xl">🧟</span>
+          <span>ZombieChat</span>
         </button>
       )}
 
@@ -45,10 +52,16 @@ export const ZombieDogWidget = () => {
           }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 bg-primary/20 border-b border-primary/30">
+          <div 
+            className="flex items-center justify-between px-3 py-2 border-b"
+            style={{
+              backgroundColor: '#5a6b4a',
+              borderColor: '#4a6b4a',
+            }}
+          >
             <div className="flex items-center gap-2">
-              <span className="text-lg">🧟🐕</span>
-              <span className="font-mono text-sm font-bold text-primary">ZombieDog</span>
+              <span className="text-lg">🧟</span>
+              <span className="font-mono text-sm font-bold" style={{ color: '#e8e0c8' }}>ZombieChat</span>
             </div>
             <div className="flex items-center gap-1">
               <button
