@@ -79,6 +79,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
     { name: 'Universe', href: '/crypto-universe' },
     { name: 'Watch', href: '/watchlist' },
     { name: 'News', href: '/news' },
+    { name: '🧟 ZombieDog', href: '/zombiedog' },
     { name: 'Chill', href: '/chill' },
     { name: 'Store', href: '/store' },
     { name: 'About', href: '/about' },
