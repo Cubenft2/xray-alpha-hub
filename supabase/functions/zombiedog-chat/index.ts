@@ -40,6 +40,38 @@ interface ResolvedCoin {
   displayName: string;
 }
 
+// Common words to filter out from symbol/name extraction
+const COMMON_WORDS = new Set([
+  // Common uppercase words
+  'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 
+  'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'HAD', 'HOW', 'ITS', 'MAY', 'NEW', 
+  'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'BOY', 'DID', 'GET', 'HAS', 'HIM', 
+  'HIS', 'LET', 'PUT', 'SAY', 'TOO', 'USE', 'WHY', 'WHAT', 'WHEN', 'WHERE',
+  'WHICH', 'THIS', 'THAT', 'WILL', 'WOULD', 'COULD', 'SHOULD', 'WITH',
+  'TELL', 'ABOUT', 'DOING', 'GOING', 'DOWN', 'LIKE', 'GOOD', 'BAD',
+  'BEST', 'WORST', 'MORE', 'MOST', 'SOME', 'MANY', 'MUCH', 'VERY',
+  'JUST', 'ONLY', 'ALSO', 'EVEN', 'WELL', 'BACK', 'BEEN', 'BEING',
+  'BOTH', 'EACH', 'FROM', 'HAVE', 'HERE', 'INTO', 'JUST', 'KNOW',
+  'LAST', 'LONG', 'MAKE', 'OVER', 'SUCH', 'TAKE', 'THAN', 'THEM',
+  'THEN', 'THERE', 'THESE', 'THEY', 'TIME', 'VERY', 'WANT', 'WHAT',
+  'YEAR', 'YOUR', 'LOOK', 'THINK', 'PRICE', 'COIN', 'CRYPTO', 'TOKEN',
+  'MARKET', 'BUY', 'SELL', 'HOLD', 'MOON', 'PUMP', 'DUMP'
+]);
+
+const COMMON_WORDS_LOWER = new Set([
+  'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'her',
+  'was', 'one', 'our', 'out', 'day', 'had', 'how', 'its', 'may', 'new',
+  'price', 'going', 'doing', 'down', 'tell', 'about', 'what', 'why',
+  'think', 'look', 'like', 'good', 'bad', 'best', 'worst', 'more',
+  'coin', 'crypto', 'token', 'market', 'buy', 'sell', 'hold', 'moon',
+  'pump', 'dump', 'will', 'would', 'could', 'should', 'with', 'from',
+  'have', 'been', 'being', 'this', 'that', 'these', 'they', 'them',
+  'there', 'where', 'when', 'which', 'know', 'just', 'only', 'also',
+  'even', 'well', 'back', 'both', 'each', 'here', 'into', 'last',
+  'long', 'make', 'over', 'such', 'take', 'than', 'then', 'time',
+  'very', 'want', 'year', 'your', 'some', 'many', 'much', 'most'
+]);
+
 // Extract potential symbols from message text
 function extractPotentialSymbols(message: string): string[] {
   const symbols: string[] = [];
@@ -55,9 +87,8 @@ function extractPotentialSymbols(message: string): string[] {
   // Match standalone uppercase symbols (2-6 chars)
   const upperMatches = message.match(/\b([A-Z]{2,6})\b/g);
   if (upperMatches) {
-    const commonWords = ['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'DAY', 'HAD', 'HOW', 'ITS', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'BOY', 'DID', 'GET', 'HAS', 'HIM', 'HIS', 'LET', 'PUT', 'SAY', 'TOO', 'USE', 'WHY'];
     upperMatches.forEach(match => {
-      if (!commonWords.includes(match)) {
+      if (!COMMON_WORDS.has(match)) {
         symbols.push(match);
       }
     });
@@ -66,27 +97,14 @@ function extractPotentialSymbols(message: string): string[] {
   return [...new Set(symbols)]; // Dedupe
 }
 
-// Extract potential coin names from message for name-based search
+// Extract potential coin names from message for name-based search (only meaningful words)
 function extractPotentialNames(message: string): string[] {
   const lowerMessage = message.toLowerCase();
-  const words = lowerMessage.split(/\s+/).filter(w => w.length >= 3);
+  const words = lowerMessage.split(/\s+/).filter(w => 
+    w.length >= 4 && !COMMON_WORDS_LOWER.has(w)
+  );
   
-  // Also look for multi-word names (up to 3 words)
-  const names: string[] = [];
-  const wordArray = lowerMessage.split(/\s+/);
-  
-  for (let i = 0; i < wordArray.length; i++) {
-    const word = wordArray[i];
-    if (word.length >= 3) {
-      names.push(word);
-    }
-    // Two-word combinations
-    if (i + 1 < wordArray.length) {
-      names.push(`${word} ${wordArray[i + 1]}`);
-    }
-  }
-  
-  return [...new Set(names)];
+  return [...new Set(words)];
 }
 
 // Resolve coins from database using ticker_mappings and cg_master
@@ -163,41 +181,64 @@ async function resolveCoinsFromDatabase(supabase: any, message: string): Promise
     }
   }
   
-  // Step 2: Search by name in ticker_mappings
-  for (const name of potentialNames.slice(0, 5)) {
-    if (name.length < 3) continue;
-    
-    const { data: nameMatch } = await supabase
-      .from('ticker_mappings')
-      .select('symbol, coingecko_id, display_name')
-      .eq('is_active', true)
-      .eq('type', 'crypto')
-      .ilike('display_name', `%${name}%`)
-      .limit(1)
-      .maybeSingle();
-    
-    if (nameMatch?.coingecko_id && !foundSymbols.has(nameMatch.symbol)) {
-      console.log(`Found name match in ticker_mappings: "${name}" -> ${nameMatch.symbol} (${nameMatch.coingecko_id})`);
-      resolved.push({
-        symbol: nameMatch.symbol,
-        coingeckoId: nameMatch.coingecko_id,
-        displayName: nameMatch.display_name
-      });
-      foundSymbols.add(nameMatch.symbol);
+  // Step 2: Only search by name if no symbols were found (prevents over-matching)
+  if (resolved.length === 0 && potentialNames.length > 0) {
+    for (const name of potentialNames.slice(0, 3)) {
+      if (name.length < 4) continue;
       
-      if (resolved.length >= 5) break;
+      // Try exact prefix match first (e.g., "monad" matches "Monad" or "monat" matches "mon...")
+      const { data: nameMatch } = await supabase
+        .from('ticker_mappings')
+        .select('symbol, coingecko_id, display_name, aliases')
+        .eq('is_active', true)
+        .eq('type', 'crypto')
+        .or(`display_name.ilike.${name}%,display_name.ilike.%${name}%`)
+        .limit(1)
+        .maybeSingle();
+      
+      if (nameMatch?.coingecko_id && !foundSymbols.has(nameMatch.symbol)) {
+        console.log(`Found name match in ticker_mappings: "${name}" -> ${nameMatch.symbol} (${nameMatch.coingecko_id})`);
+        resolved.push({
+          symbol: nameMatch.symbol,
+          coingeckoId: nameMatch.coingecko_id,
+          displayName: nameMatch.display_name
+        });
+        foundSymbols.add(nameMatch.symbol);
+        break; // Found one, stop searching
+      }
+      
+      // Also check aliases for fuzzy matching (e.g., "monat" in aliases)
+      const { data: aliasNameMatch } = await supabase
+        .from('ticker_mappings')
+        .select('symbol, coingecko_id, display_name, aliases')
+        .eq('is_active', true)
+        .eq('type', 'crypto')
+        .contains('aliases', [name])
+        .limit(1)
+        .maybeSingle();
+      
+      if (aliasNameMatch?.coingecko_id && !foundSymbols.has(aliasNameMatch.symbol)) {
+        console.log(`Found alias name match: "${name}" -> ${aliasNameMatch.symbol}`);
+        resolved.push({
+          symbol: aliasNameMatch.symbol,
+          coingeckoId: aliasNameMatch.coingecko_id,
+          displayName: aliasNameMatch.display_name
+        });
+        foundSymbols.add(aliasNameMatch.symbol);
+        break;
+      }
     }
   }
   
-  // Step 3: Search by name in cg_master if still need more
-  if (resolved.length < 5) {
-    for (const name of potentialNames.slice(0, 5)) {
+  // Step 3: Fallback to cg_master name search if still nothing
+  if (resolved.length === 0 && potentialNames.length > 0) {
+    for (const name of potentialNames.slice(0, 3)) {
       if (name.length < 4) continue;
       
       const { data: cgNameMatch } = await supabase
         .from('cg_master')
         .select('symbol, cg_id, name')
-        .ilike('name', `%${name}%`)
+        .ilike('name', `${name}%`)
         .limit(1)
         .maybeSingle();
       
@@ -209,8 +250,7 @@ async function resolveCoinsFromDatabase(supabase: any, message: string): Promise
           displayName: cgNameMatch.name
         });
         foundSymbols.add(cgNameMatch.symbol.toUpperCase());
-        
-        if (resolved.length >= 5) break;
+        break;
       }
     }
   }
@@ -245,9 +285,9 @@ async function fetchLivePrices(supabase: any): Promise<PriceData[]> {
 
 async function fetchCoinDetail(supabase: any, coin: ResolvedCoin): Promise<CoinDetail | null> {
   try {
-    // Use coingeckoId if available, otherwise fall back to symbol
-    const lookupId = coin.coingeckoId || coin.symbol;
-    console.log(`Fetching LunarCrush detail for: ${coin.symbol} (lookup: ${lookupId})`);
+    // LunarCrush expects the symbol (e.g., "BTC", "MON"), not the CoinGecko ID
+    const lookupId = coin.symbol;
+    console.log(`Fetching LunarCrush detail for: ${coin.symbol} (display: ${coin.displayName})`);
     
     const { data, error } = await supabase.functions.invoke('lunarcrush-coin-detail', {
       body: { coin: lookupId }
