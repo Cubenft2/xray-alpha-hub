@@ -60,7 +60,7 @@ export const ZombieDogWidget = () => {
             }}
           >
             <div className="flex items-center gap-2">
-              <img src="/zombiedog-chat-pfp.webp" alt="ZombieDog" className="w-6 h-6 pixel-border object-cover rounded-sm" />
+              <img src="/zombiedog-chat-pfp.webp" alt="ZombieDog" className="w-6 h-6 object-cover" />
               <span className="font-mono text-sm font-bold" style={{ color: '#4a4a4a' }}>ZombieChat</span>
             </div>
             <div className="flex items-center gap-1">
