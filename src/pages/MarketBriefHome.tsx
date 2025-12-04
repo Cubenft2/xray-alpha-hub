@@ -1142,6 +1142,34 @@ export default function MarketBriefHome() {
                   </CardContent>
                 </Card>
 
+                {/* Basic Attention Token BAT */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">Basic Attention Token (BAT)</div>
+                    <div className="h-36">
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('BAT').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('BAT')}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* MON Protocol */}
+                <Card className="h-48">
+                  <CardContent className="p-3">
+                    <div className="text-sm font-medium mb-2 text-center">MON Protocol (MON)</div>
+                    <div className="h-36">
+                      <MiniChart 
+                        symbol={mapTickerToTradingView('MON').symbol} 
+                        theme={theme}
+                        {...getAssetMetadata('MON')}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Add Gold when discussing safe havens */}
                 {(brief.article_html?.toLowerCase().includes('gold') || brief.article_html?.toLowerCase().includes('safe haven')) && (
                   <Card className="h-48">
