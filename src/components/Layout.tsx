@@ -5,6 +5,7 @@ import { XRTicker } from './XRTicker';
 import { PolygonTicker } from './PolygonTicker';
 import { XRFooter } from './XRFooter';
 import { ScrollToTop } from './ScrollToTop';
+import { ZombieDogWidget } from './ZombieDogWidget';
 
 interface LayoutContextType {
   onSearch: (term: string) => void;
@@ -74,6 +75,9 @@ export const Layout = ({ children }: LayoutProps) => {
 
         {/* Scroll to Top Button */}
         <ScrollToTop />
+
+        {/* ZombieDog Chat Widget */}
+        <ZombieDogWidget />
       </div>
     </LayoutContext.Provider>
   );
