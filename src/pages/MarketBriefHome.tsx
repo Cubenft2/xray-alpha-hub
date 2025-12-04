@@ -11,6 +11,7 @@ import { EnhancedBriefRenderer } from '@/components/EnhancedBriefRenderer';
 import { ComprehensiveTopMovers } from '@/components/ComprehensiveTopMovers';
 import { SocialSentimentBoard } from '@/components/SocialSentimentBoard';
 import { StoicQuote } from '@/components/StoicQuote';
+import { SEOHead } from '@/components/SEOHead';
 import { useTheme } from 'next-themes';
 import { supabase } from '@/integrations/supabase/client';
 import { getTickerMapping } from '@/config/tickerMappings';
@@ -633,6 +634,12 @@ export default function MarketBriefHome() {
 
   return (
     <div className="container mx-auto py-6">
+      <SEOHead 
+        title={brief.title} 
+        slug={brief.slug} 
+        publishedDate={briefCreatedAt || brief.date}
+        description={brief.summary}
+      />
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Brief Date & Type Header */}
         {briefCreatedAt && (
