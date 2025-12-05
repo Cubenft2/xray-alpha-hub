@@ -203,10 +203,10 @@ const ZombieDog = () => {
   };
 
   return (
-    <div className="min-h-screen relative">
+    <div className="flex flex-col min-h-[calc(100vh-200px)] sm:min-h-[calc(100vh-280px)] relative">
       {/* Zombie pattern background */}
       <div 
-        className="fixed inset-0 z-0"
+        className="fixed inset-0 z-0 pointer-events-none"
         style={{
           backgroundImage: 'url("/zombiedog-bg.png")',
           backgroundSize: 'cover',
@@ -215,97 +215,86 @@ const ZombieDog = () => {
         }}
       />
       {/* Dark overlay for readability */}
-      <div className="fixed inset-0 z-0 bg-background/80 dark:bg-background/85" />
+      <div className="fixed inset-0 z-0 bg-background/80 dark:bg-background/85 pointer-events-none" />
       
-      {/* Content wrapper */}
-      <div className="relative z-10 container mx-auto px-1 sm:px-4 py-1 sm:py-6 max-w-4xl lg:max-w-5xl">
-        {/* Header - Ultra compact on mobile, normal on desktop */}
-        <div className="text-center mb-2 sm:mb-6">
-          <div className="flex justify-center items-center gap-2 sm:flex-col sm:gap-0 mb-1 sm:mb-4">
-            {/* Placeholder for ZombieDog NFT image */}
-            <div className="w-10 h-10 sm:w-20 sm:h-20 bg-card border-2 border-primary/50 pixel-border flex items-center justify-center text-xl sm:text-3xl animate-ghost-float">
-              🧟🐕
-            </div>
-            {/* Title inline on mobile, stacked on desktop */}
-            <h1 className="text-xl sm:text-3xl md:text-4xl xr-pixel-title text-primary sm:mt-2">
+      {/* Full-screen chat container */}
+      <div className="relative z-10 flex flex-col flex-1 min-h-0">
+        {/* Minimal header bar */}
+        <div className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-3 border-b border-primary/20 bg-card/50 backdrop-blur-sm">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-card border-2 border-primary/50 pixel-border flex items-center justify-center text-base sm:text-xl animate-ghost-float flex-shrink-0">
+            🧟🐕
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl xr-pixel-title text-primary truncate">
               ZombieDog
             </h1>
+            <p className="hidden sm:block text-xs text-muted-foreground font-mono">
+              Your AI Market Assistant
+            </p>
           </div>
-          {/* Hide subtitle on mobile */}
-          <p className="hidden sm:block text-muted-foreground font-mono text-sm">
-            Your AI Market Assistant
-          </p>
         </div>
 
-        {/* Chat Container - Full width on mobile */}
-        <div className="xr-card border border-primary/20 rounded-lg overflow-hidden">
-          {/* Messages Area - Nearly full screen */}
-          <div className="h-[calc(100vh-160px)] sm:h-[calc(100vh-280px)] min-h-[450px] overflow-y-auto p-3 sm:p-4 space-y-4">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {message.role === 'assistant' && (
-                  <div className="w-8 h-8 mr-3 flex-shrink-0 bg-card border border-primary/30 pixel-border flex items-center justify-center text-sm">
-                    🧟
-                  </div>
-                )}
-                <div
-                  className={`max-w-[80%] md:max-w-[70%] rounded-lg px-4 py-3 ${
-                    message.role === 'user'
-                      ? 'bg-muted/80 text-foreground'
-                      : 'bg-primary/20 border border-primary/30 text-foreground'
-                  }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {/* Loading State */}
-            {isLoading && messages[messages.length - 1]?.role === 'user' && (
-              <div className="flex justify-start">
-                <div className="w-8 h-8 mr-3 flex-shrink-0 bg-card border border-primary/30 pixel-border flex items-center justify-center text-sm animate-pulse">
+        {/* Messages Area - Fills all remaining space */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              {message.role === 'assistant' && (
+                <div className="w-8 h-8 mr-2 sm:mr-3 flex-shrink-0 bg-card border border-primary/30 pixel-border flex items-center justify-center text-sm">
                   🧟
                 </div>
-                <div className="bg-primary/20 border border-primary/30 rounded-lg px-4 py-3">
-                  <p className="text-sm text-muted-foreground animate-pulse">
-                    ZombieDog is sniffing the data… 🐕👃
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input Area */}
-          <div className="border-t border-primary/20 p-4 bg-card/50">
-            <div className="flex items-center gap-3">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask ZombieDog anything about crypto..."
-                className="flex-1 bg-background/50 border-primary/30 focus:border-primary"
-                disabled={isLoading}
-              />
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="btn-hero px-4"
+              )}
+              <div
+                className={`max-w-[85%] sm:max-w-[80%] md:max-w-[70%] rounded-lg px-3 py-2 sm:px-4 sm:py-3 ${
+                  message.role === 'user'
+                    ? 'bg-muted/80 text-foreground'
+                    : 'bg-primary/20 border border-primary/30 text-foreground'
+                }`}
               >
-                <Send className="w-4 h-4" />
-              </Button>
+                <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              </div>
             </div>
-          </div>
+          ))}
+
+          {/* Loading State */}
+          {isLoading && messages[messages.length - 1]?.role === 'user' && (
+            <div className="flex justify-start">
+              <div className="w-8 h-8 mr-2 sm:mr-3 flex-shrink-0 bg-card border border-primary/30 pixel-border flex items-center justify-center text-sm animate-pulse">
+                🧟
+              </div>
+              <div className="bg-primary/20 border border-primary/30 rounded-lg px-3 py-2 sm:px-4 sm:py-3">
+                <p className="text-sm text-muted-foreground animate-pulse">
+                  ZombieDog is sniffing the data… 🐕👃
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
         </div>
 
-        {/* Footer Note - Hidden on mobile */}
-        <p className="hidden sm:block text-center text-xs text-muted-foreground mt-4 font-mono">
-          ZombieDog AI is powered by XRayCrypto™ • Not financial advice
-        </p>
+        {/* Input Area - Pinned at bottom */}
+        <div className="border-t border-primary/20 p-3 sm:p-4 bg-card/50 backdrop-blur-sm">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask ZombieDog..."
+              className="flex-1 bg-background/50 border-primary/30 focus:border-primary text-sm"
+              disabled={isLoading}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              className="btn-hero px-3 sm:px-4"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
