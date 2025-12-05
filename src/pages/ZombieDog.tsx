@@ -218,27 +218,27 @@ const ZombieDog = () => {
       <div className="fixed inset-0 z-0 bg-background/80 dark:bg-background/85" />
       
       {/* Content wrapper */}
-      <div className="relative z-10 container mx-auto px-4 py-6 max-w-3xl">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="flex justify-center mb-4">
+      <div className="relative z-10 container mx-auto px-2 sm:px-4 py-2 sm:py-6 max-w-4xl lg:max-w-5xl">
+        {/* Header - Compact on mobile */}
+        <div className="text-center mb-3 sm:mb-6">
+          <div className="flex justify-center mb-2 sm:mb-4">
             {/* Placeholder for ZombieDog NFT image */}
-            <div className="w-24 h-24 bg-card border-2 border-primary/50 pixel-border flex items-center justify-center text-4xl animate-ghost-float">
+            <div className="w-14 h-14 sm:w-24 sm:h-24 bg-card border-2 border-primary/50 pixel-border flex items-center justify-center text-2xl sm:text-4xl animate-ghost-float">
               🧟🐕
             </div>
           </div>
-          <h1 className="text-3xl md:text-4xl xr-pixel-title text-primary mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl xr-pixel-title text-primary mb-1 sm:mb-2">
             Ask ZombieDog
           </h1>
-          <p className="text-muted-foreground font-mono text-sm">
+          <p className="text-muted-foreground font-mono text-xs sm:text-sm">
             Your AI Market Assistant
           </p>
         </div>
 
-        {/* Chat Container */}
+        {/* Chat Container - Full width on mobile */}
         <div className="xr-card border border-primary/20 rounded-lg overflow-hidden">
-          {/* Messages Area */}
-          <div className="h-[calc(100vh-380px)] min-h-[300px] overflow-y-auto p-4 space-y-4">
+          {/* Messages Area - Larger height */}
+          <div className="h-[calc(100vh-240px)] sm:h-[calc(100vh-320px)] min-h-[400px] overflow-y-auto p-3 sm:p-4 space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
