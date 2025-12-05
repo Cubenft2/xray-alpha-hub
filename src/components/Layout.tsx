@@ -76,8 +76,8 @@ export const Layout = ({ children }: LayoutProps) => {
         {/* Scroll to Top Button */}
         <ScrollToTop />
 
-        {/* ZombieDog Chat Widget */}
-        <ZombieDogWidget />
+        {/* ZombieDog Chat Widget - Hidden on /zombiedog page */}
+        {location.pathname !== '/zombiedog' && <ZombieDogWidget />}
       </div>
     </LayoutContext.Provider>
   );
