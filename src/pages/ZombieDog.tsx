@@ -203,10 +203,10 @@ const ZombieDog = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-200px)] sm:min-h-[calc(100vh-280px)] relative">
-      {/* Zombie pattern background */}
+    <div className="relative">
+      {/* Zombie pattern background - contained within this component */}
       <div 
-        className="fixed inset-0 z-0 pointer-events-none"
+        className="absolute inset-0 z-0 pointer-events-none"
         style={{
           backgroundImage: 'url("/zombiedog-bg.png")',
           backgroundSize: 'cover',
@@ -215,10 +215,10 @@ const ZombieDog = () => {
         }}
       />
       {/* Dark overlay for readability */}
-      <div className="fixed inset-0 z-0 bg-background/80 dark:bg-background/85 pointer-events-none" />
+      <div className="absolute inset-0 z-0 bg-background/80 dark:bg-background/85 pointer-events-none" />
       
-      {/* Full-screen chat container */}
-      <div className="relative z-10 flex flex-col flex-1 min-h-0">
+      {/* Chat container with explicit height */}
+      <div className="relative z-10 flex flex-col">
         {/* Minimal header bar */}
         <div className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-3 border-b border-primary/20 bg-card/50 backdrop-blur-sm">
           <div className="w-8 h-8 sm:w-10 sm:h-10 bg-card border-2 border-primary/50 pixel-border flex items-center justify-center text-base sm:text-xl animate-ghost-float flex-shrink-0">
@@ -234,8 +234,8 @@ const ZombieDog = () => {
           </div>
         </div>
 
-        {/* Messages Area - Fills all remaining space */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
+        {/* Messages Area - Explicit height to account for Layout header/tickers/footer */}
+        <div className="h-[calc(100vh-320px)] sm:h-[calc(100vh-380px)] min-h-[300px] overflow-y-auto p-3 sm:p-4 space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
