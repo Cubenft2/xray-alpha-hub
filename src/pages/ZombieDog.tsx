@@ -203,8 +203,22 @@ const ZombieDog = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-3xl">
+    <div className="min-h-screen relative">
+      {/* Zombie pattern background */}
+      <div 
+        className="fixed inset-0 z-0"
+        style={{
+          backgroundImage: 'url("/zombiedog-bg.png")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
+      {/* Dark overlay for readability */}
+      <div className="fixed inset-0 z-0 bg-background/80 dark:bg-background/85" />
+      
+      {/* Content wrapper */}
+      <div className="relative z-10 container mx-auto px-4 py-6 max-w-3xl">
         {/* Header */}
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
