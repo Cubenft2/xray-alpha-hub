@@ -11,6 +11,7 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
   useEffect(() => {
     const isoDate = new Date(publishedDate).toISOString();
     const pageUrl = `https://xraycrypto.io/marketbrief/${slug}`;
+    const ogImageUrl = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/generate-og-image?slug=${slug}`;
     
     // Create Article JSON-LD schema
     const articleSchema = {
@@ -37,7 +38,7 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
         "@type": "WebPage",
         "@id": pageUrl
       },
-      "image": "https://xraycrypto.io/social-preview.jpg"
+      "image": ogImageUrl
     };
 
     // Create and inject JSON-LD script
@@ -73,10 +74,21 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
     setMetaTag('property', 'og:title', title);
     setMetaTag('property', 'og:url', pageUrl);
     
+    // Dynamic OG image for social sharing
+    setMetaTag('property', 'og:image', ogImageUrl);
+    setMetaTag('property', 'og:image:width', '1200');
+    setMetaTag('property', 'og:image:height', '630');
+    setMetaTag('property', 'og:image:type', 'image/png');
+    setMetaTag('name', 'twitter:card', 'summary_large_image');
+    setMetaTag('name', 'twitter:image', ogImageUrl);
+    
     if (description) {
       setMetaTag('property', 'og:description', description);
       setMetaTag('name', 'description', description);
+      setMetaTag('name', 'twitter:description', description);
     }
+    
+    setMetaTag('name', 'twitter:title', title);
 
     // Update page title
     const originalTitle = document.title;
