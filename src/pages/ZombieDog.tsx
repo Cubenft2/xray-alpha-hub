@@ -125,8 +125,16 @@ const ZombieDog = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Scroll to top when page loads
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Only scroll to new messages (not on initial load)
+  useEffect(() => {
+    if (messages.length > 1) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -203,7 +211,7 @@ const ZombieDog = () => {
   };
 
   return (
-    <div className="relative">
+    <div className="relative min-h-[calc(100dvh-180px)] sm:min-h-[calc(100dvh-220px)]">
       {/* Zombie pattern background - contained within this component */}
       <div 
         className="absolute inset-0 z-0 pointer-events-none"
@@ -220,7 +228,7 @@ const ZombieDog = () => {
       {/* Chat container with explicit height */}
       <div className="relative z-10 flex flex-col">
         {/* Messages Area - Maximized height without redundant header */}
-        <div className="h-[calc(100vh-260px)] sm:h-[calc(100vh-320px)] min-h-[400px] overflow-y-auto p-3 sm:p-4 space-y-4">
+        <div className="h-[calc(100dvh-240px)] sm:h-[calc(100dvh-300px)] min-h-[350px] overflow-y-auto p-3 sm:p-4 space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
