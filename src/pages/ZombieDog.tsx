@@ -219,23 +219,8 @@ const ZombieDog = () => {
       
       {/* Chat container with explicit height */}
       <div className="relative z-10 flex flex-col">
-        {/* Minimal header bar */}
-        <div className="flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-3 border-b border-primary/20 bg-card/50 backdrop-blur-sm">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-card border-2 border-primary/50 pixel-border flex items-center justify-center text-base sm:text-xl animate-ghost-float flex-shrink-0">
-            🧟🐕
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg sm:text-xl xr-pixel-title text-primary truncate">
-              ZombieDog
-            </h1>
-            <p className="hidden sm:block text-xs text-muted-foreground font-mono">
-              Your AI Market Assistant
-            </p>
-          </div>
-        </div>
-
-        {/* Messages Area - Explicit height to account for Layout header/tickers/footer */}
-        <div className="h-[calc(100vh-320px)] sm:h-[calc(100vh-380px)] min-h-[300px] overflow-y-auto p-3 sm:p-4 space-y-4">
+        {/* Messages Area - Maximized height without redundant header */}
+        <div className="h-[calc(100vh-260px)] sm:h-[calc(100vh-320px)] min-h-[400px] overflow-y-auto p-3 sm:p-4 space-y-4">
           {messages.map((message) => (
             <div
               key={message.id}
