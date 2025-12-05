@@ -218,27 +218,29 @@ const ZombieDog = () => {
       <div className="fixed inset-0 z-0 bg-background/80 dark:bg-background/85" />
       
       {/* Content wrapper */}
-      <div className="relative z-10 container mx-auto px-2 sm:px-4 py-2 sm:py-6 max-w-4xl lg:max-w-5xl">
-        {/* Header - Compact on mobile */}
-        <div className="text-center mb-3 sm:mb-6">
-          <div className="flex justify-center mb-2 sm:mb-4">
+      <div className="relative z-10 container mx-auto px-1 sm:px-4 py-1 sm:py-6 max-w-4xl lg:max-w-5xl">
+        {/* Header - Ultra compact on mobile, normal on desktop */}
+        <div className="text-center mb-2 sm:mb-6">
+          <div className="flex justify-center items-center gap-2 sm:flex-col sm:gap-0 mb-1 sm:mb-4">
             {/* Placeholder for ZombieDog NFT image */}
-            <div className="w-14 h-14 sm:w-24 sm:h-24 bg-card border-2 border-primary/50 pixel-border flex items-center justify-center text-2xl sm:text-4xl animate-ghost-float">
+            <div className="w-10 h-10 sm:w-20 sm:h-20 bg-card border-2 border-primary/50 pixel-border flex items-center justify-center text-xl sm:text-3xl animate-ghost-float">
               🧟🐕
             </div>
+            {/* Title inline on mobile, stacked on desktop */}
+            <h1 className="text-xl sm:text-3xl md:text-4xl xr-pixel-title text-primary sm:mt-2">
+              ZombieDog
+            </h1>
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl xr-pixel-title text-primary mb-1 sm:mb-2">
-            Ask ZombieDog
-          </h1>
-          <p className="text-muted-foreground font-mono text-xs sm:text-sm">
+          {/* Hide subtitle on mobile */}
+          <p className="hidden sm:block text-muted-foreground font-mono text-sm">
             Your AI Market Assistant
           </p>
         </div>
 
         {/* Chat Container - Full width on mobile */}
         <div className="xr-card border border-primary/20 rounded-lg overflow-hidden">
-          {/* Messages Area - Larger height */}
-          <div className="h-[calc(100vh-240px)] sm:h-[calc(100vh-320px)] min-h-[400px] overflow-y-auto p-3 sm:p-4 space-y-4">
+          {/* Messages Area - Nearly full screen */}
+          <div className="h-[calc(100vh-160px)] sm:h-[calc(100vh-280px)] min-h-[450px] overflow-y-auto p-3 sm:p-4 space-y-4">
             {messages.map((message) => (
               <div
                 key={message.id}
@@ -300,8 +302,8 @@ const ZombieDog = () => {
           </div>
         </div>
 
-        {/* Footer Note */}
-        <p className="text-center text-xs text-muted-foreground mt-4 font-mono">
+        {/* Footer Note - Hidden on mobile */}
+        <p className="hidden sm:block text-center text-xs text-muted-foreground mt-4 font-mono">
           ZombieDog AI is powered by XRayCrypto™ • Not financial advice
         </p>
       </div>
