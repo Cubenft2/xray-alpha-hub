@@ -212,10 +212,52 @@ serve(async (req) => {
     }
   }
 
-  // Add Polygon news to both crypto and stocks
+  // Known crypto tickers for categorization
+  const CRYPTO_TICKERS = new Set([
+    'BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'DOT', 'MATIC',
+    'SHIB', 'UNI', 'LTC', 'BCH', 'ATOM', 'XLM', 'ALGO', 'VET', 'FIL', 'HBAR',
+    'AAVE', 'MKR', 'COMP', 'SNX', 'SUSHI', 'YFI', 'CRV', 'APE', 'SAND', 'MANA',
+    'AXS', 'ENJ', 'GALA', 'CHZ', 'BAT', 'ZRX', '1INCH', 'ENS', 'LDO', 'OP',
+    'ARB', 'IMX', 'APT', 'SUI', 'SEI', 'TIA', 'NEAR', 'FTM', 'KAVA', 'RUNE',
+    'INJ', 'OSMO', 'ROSE', 'ZEC', 'DASH', 'XMR', 'ETC', 'NEO', 'EOS', 'TRX',
+    'XTZ', 'THETA', 'EGLD', 'FLOW', 'QNT', 'GRT', 'RNDR', 'FET', 'OCEAN', 'AGIX',
+    'WLD', 'PEPE', 'FLOKI', 'BONK', 'WIF', 'BOME', 'TRUMP', 'MELANIA', 'JUP', 'RAY',
+    'TON', 'NOT', 'PYTH', 'JTO', 'W', 'STRK', 'DYM', 'PIXEL', 'PORTAL', 'ALT',
+    'MEME', 'BLUR', 'ID', 'CYBER', 'ARKM', 'PENDLE', 'STX', 'ORDI', 'SATS', 'TAO'
+  ]);
+
+  // Check if ticker is crypto (handles X: prefix from Polygon)
+  const isCryptoTicker = (ticker: string): boolean => {
+    if (ticker.startsWith('X:')) return true; // Polygon crypto format
+    const normalized = ticker.replace('X:', '').toUpperCase();
+    return CRYPTO_TICKERS.has(normalized);
+  };
+
+  // Categorize Polygon news by ticker type
   if (polygonNews.length > 0) {
-    cryptoItems.push(...polygonNews);
-    stockItems.push(...polygonNews);
+    const polygonCrypto: NewsItem[] = [];
+    const polygonStocks: NewsItem[] = [];
+
+    for (const item of polygonNews) {
+      const tickers = item.tickers || [];
+      
+      if (tickers.length === 0) {
+        // No tickers - default to stocks (most Polygon news is stock-focused)
+        polygonStocks.push(item);
+        continue;
+      }
+
+      const hasCryptoTicker = tickers.some(t => isCryptoTicker(t));
+      const hasStockTicker = tickers.some(t => !isCryptoTicker(t));
+
+      if (hasCryptoTicker) polygonCrypto.push(item);
+      if (hasStockTicker) polygonStocks.push(item);
+    }
+
+    cryptoItems.push(...polygonCrypto);
+    stockItems.push(...polygonStocks);
+    
+    console.log(`📊 Polygon categorization: ${polygonCrypto.length} crypto, ${polygonStocks.length} stocks`);
   }
 
   // Sort newest first and limit
