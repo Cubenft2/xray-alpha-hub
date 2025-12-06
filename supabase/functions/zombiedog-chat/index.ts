@@ -9,6 +9,45 @@ const corsHeaders = {
 // Top cryptos to fetch general prices for
 const TOP_CRYPTOS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'DOT', 'MATIC', 'SHIB', 'UNI', 'LTC', 'BCH', 'ATOM'];
 
+// Common crypto aliases to recognize lowercase mentions
+const CRYPTO_ALIASES: Record<string, string> = {
+  'btc': 'BTC', 'bitcoin': 'BTC',
+  'eth': 'ETH', 'ethereum': 'ETH', 'ether': 'ETH',
+  'sol': 'SOL', 'solana': 'SOL',
+  'xrp': 'XRP', 'ripple': 'XRP',
+  'ada': 'ADA', 'cardano': 'ADA',
+  'doge': 'DOGE', 'dogecoin': 'DOGE',
+  'link': 'LINK', 'chainlink': 'LINK',
+  'avax': 'AVAX', 'avalanche': 'AVAX',
+  'dot': 'DOT', 'polkadot': 'DOT',
+  'matic': 'MATIC', 'polygon': 'MATIC',
+  'shib': 'SHIB', 'shiba': 'SHIB',
+  'uni': 'UNI', 'uniswap': 'UNI',
+  'ltc': 'LTC', 'litecoin': 'LTC',
+  'bch': 'BCH',
+  'atom': 'ATOM', 'cosmos': 'ATOM',
+  'mon': 'MON', 'monad': 'MON',
+  'bnb': 'BNB', 'binance': 'BNB',
+  'ton': 'TON', 'toncoin': 'TON',
+  'sui': 'SUI',
+  'apt': 'APT', 'aptos': 'APT',
+  'arb': 'ARB', 'arbitrum': 'ARB',
+  'op': 'OP', 'optimism': 'OP',
+  'pepe': 'PEPE',
+  'wif': 'WIF', 'dogwifhat': 'WIF',
+  'bonk': 'BONK',
+  'floki': 'FLOKI',
+  'near': 'NEAR',
+  'sei': 'SEI',
+  'render': 'RNDR', 'rndr': 'RNDR',
+  'inj': 'INJ', 'injective': 'INJ',
+  'fet': 'FET',
+  'fil': 'FIL', 'filecoin': 'FIL',
+  'hbar': 'HBAR', 'hedera': 'HBAR',
+  'xlm': 'XLM', 'stellar': 'XLM',
+  'algo': 'ALGO', 'algorand': 'ALGO',
+};
+
 interface PriceData {
   symbol: string;
   price: number;
@@ -118,6 +157,15 @@ function extractPotentialSymbols(message: string): string[] {
         symbols.push(match);
       }
     });
+  }
+  
+  // Check for known crypto aliases in lowercase text (e.g., "eth", "bitcoin", "solana")
+  const lowerMessage = message.toLowerCase();
+  const words = lowerMessage.split(/[^a-z]+/).filter(w => w.length >= 2);
+  for (const word of words) {
+    if (CRYPTO_ALIASES[word]) {
+      symbols.push(CRYPTO_ALIASES[word]);
+    }
   }
   
   return [...new Set(symbols)]; // Dedupe
@@ -674,7 +722,21 @@ function buildSystemPrompt(
   technicalContext: string,
   similarSuggestion: string
 ): string {
+  const currentDate = new Date().toLocaleDateString('en-US', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  const currentYear = new Date().getFullYear();
+  
   return `You are ZombieDog 🧟🐕, the undead market assistant for XRayCrypto™. You're a friendly, knowledgeable zombie dog who helps users understand crypto AND stock markets.
+
+═══════════════════════════════════════════
+📅 CURRENT DATE: ${currentDate}
+═══════════════════════════════════════════
+
+⚠️ CRITICAL: We are in ${currentYear}. Any predictions or price targets about "end of 2024" or past dates are OUTDATED and IRRELEVANT. Do NOT cite old predictions as if they are current. Focus ONLY on the LIVE data provided below and current market conditions.
 
 Your personality:
 - Playful and approachable, using occasional dog and zombie references ("woof", "sniffing out deals", "digging up data", "my undead instincts", "*wags undead tail*")
