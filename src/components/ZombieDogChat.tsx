@@ -119,10 +119,11 @@ async function streamChat({
 
 interface ZombieDogChatProps {
   compact?: boolean;
+  isFullScreen?: boolean;
   className?: string;
 }
 
-export const ZombieDogChat = ({ compact = false, className = '' }: ZombieDogChatProps) => {
+export const ZombieDogChat = ({ compact = false, isFullScreen = false, className = '' }: ZombieDogChatProps) => {
   const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -198,11 +199,20 @@ export const ZombieDogChat = ({ compact = false, className = '' }: ZombieDogChat
     }
   };
 
+  // Dynamic sizing based on full-screen mode
+  const textSize = isFullScreen ? 'text-sm' : 'text-xs';
+  const avatarSize = isFullScreen ? 'w-8 h-8' : 'w-6 h-6';
+  const inputHeight = isFullScreen ? 'h-10' : 'h-8';
+  const inputTextSize = isFullScreen ? 'text-sm' : 'text-xs';
+  const padding = isFullScreen ? 'p-4' : 'p-3';
+  const messageSpacing = isFullScreen ? 'space-y-4' : 'space-y-3';
+  const messagePadding = isFullScreen ? 'px-4 py-3' : 'px-3 py-2';
+
   return (
     <div className={`flex flex-col ${className}`}>
       {/* Messages Area */}
       <div 
-        className={`flex-1 overflow-y-auto p-3 relative ${compact ? 'min-h-0' : 'min-h-[300px]'}`}
+        className={`flex-1 overflow-y-auto ${padding} relative ${compact ? 'min-h-0' : 'min-h-[300px]'}`}
       >
         {/* Animated zombie watermark with spooky glow */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
@@ -219,32 +229,40 @@ export const ZombieDogChat = ({ compact = false, className = '' }: ZombieDogChat
         <div className="absolute inset-0 bg-card/70 pointer-events-none" />
         
         {/* Messages content */}
-        <div className="relative z-10 space-y-3">
+        <div className={`relative z-10 ${messageSpacing}`}>
         {messages.map((message) => (
           <div
             key={message.id}
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             {message.role === 'assistant' && (
-              <img src="/zombiedog-chat-pfp.webp" alt="ZombieDog" className="w-6 h-6 mr-2 flex-shrink-0 pixel-border object-cover rounded-sm" />
+              <img 
+                src="/zombiedog-chat-pfp.webp" 
+                alt="ZombieDog" 
+                className={`${avatarSize} mr-2 flex-shrink-0 pixel-border object-cover rounded-sm`} 
+              />
             )}
             <div
-              className={`max-w-[85%] rounded-lg px-3 py-2 ${
+              className={`max-w-[85%] rounded-lg ${messagePadding} ${
                 message.role === 'user'
                   ? 'bg-muted/80 text-foreground'
                   : 'bg-primary/20 border border-primary/30 text-foreground'
               }`}
             >
-              <p className="text-xs whitespace-pre-wrap">{message.content}</p>
+              <p className={`${textSize} whitespace-pre-wrap`}>{message.content}</p>
             </div>
           </div>
         ))}
 
         {isLoading && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex justify-start">
-            <img src="/zombiedog-chat-pfp.webp" alt="ZombieDog thinking" className="w-6 h-6 mr-2 flex-shrink-0 pixel-border object-cover rounded-sm animate-pulse" />
-            <div className="bg-primary/20 border border-primary/30 rounded-lg px-3 py-2">
-              <p className="text-xs text-muted-foreground animate-pulse">
+            <img 
+              src="/zombiedog-chat-pfp.webp" 
+              alt="ZombieDog thinking" 
+              className={`${avatarSize} mr-2 flex-shrink-0 pixel-border object-cover rounded-sm animate-pulse`} 
+            />
+            <div className={`bg-primary/20 border border-primary/30 rounded-lg ${messagePadding}`}>
+              <p className={`${textSize} text-muted-foreground animate-pulse`}>
                 Sniffing the data...
               </p>
             </div>
@@ -256,23 +274,23 @@ export const ZombieDogChat = ({ compact = false, className = '' }: ZombieDogChat
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-primary/20 p-2 bg-card/50">
+      <div className={`border-t border-primary/20 ${isFullScreen ? 'p-3' : 'p-2'} bg-card/50`}>
         <div className="flex items-center gap-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Ask ZombieDog..."
-            className="flex-1 h-8 text-xs bg-background/50 border-primary/30 focus:border-primary"
+            className={`flex-1 ${inputHeight} ${inputTextSize} bg-background/50 border-primary/30 focus:border-primary`}
             disabled={isLoading}
           />
           <Button
             onClick={handleSend}
             disabled={!input.trim() || isLoading}
-            size="sm"
-            className="btn-hero h-8 px-3"
+            size={isFullScreen ? "default" : "sm"}
+            className={`btn-hero ${isFullScreen ? 'h-10 px-4' : 'h-8 px-3'}`}
           >
-            <Send className="w-3 h-3" />
+            <Send className={isFullScreen ? "w-4 h-4" : "w-3 h-3"} />
           </Button>
         </div>
       </div>
