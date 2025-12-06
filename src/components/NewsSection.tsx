@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw, Clock } from 'lucide-react';
+import { RefreshCw, Clock, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { NewsAlertBanner } from './NewsAlertBanner';
+import { Badge } from '@/components/ui/badge';
 
 interface NewsItem {
   title: string;
@@ -47,7 +48,9 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [newItemsCount, setNewItemsCount] = useState({ crypto: 0, stocks: 0, trump: 0 });
   const [isFirstLoad, setIsFirstLoad] = useState(true);
-  const [viewMode, setViewMode] = useState<'all' | 'trending'>('all');
+  const [viewMode, setViewMode] = useState<'all' | 'trending' | 'polygon'>('all');
+  const [tickerFilter, setTickerFilter] = useState<string | null>(null);
+  const [sentimentFilter, setSentimentFilter] = useState<'all' | 'positive' | 'negative' | 'neutral'>('all');
   const [polygonAlert, setPolygonAlert] = useState<{
     count: number;
     latestHeadline: string;
@@ -229,7 +232,10 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     return num.toString();
   };
 
-  const NewsCard = ({ item, isNew = false }: { item: NewsItem; isNew?: boolean }) => {
+  // Popular tickers for quick filtering
+  const popularTickers = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'NVDA', 'AAPL', 'TSLA', 'MSTR'];
+
+  const NewsCard = ({ item, isNew = false, onTickerClick }: { item: NewsItem; isNew?: boolean; onTickerClick?: (ticker: string) => void }) => {
     const isBlockedSite = (() => {
       try {
         const host = new URL(item.url).hostname.replace('www.', '').toLowerCase();
@@ -241,9 +247,9 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     })();
     const getSentimentColor = () => {
       if (!item.sentiment) return '';
-      if (item.sentiment === 'positive') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      if (item.sentiment === 'negative') return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+      if (item.sentiment === 'positive') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 border border-green-500/30';
+      if (item.sentiment === 'negative') return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border border-red-500/30';
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400 border border-gray-500/30';
     };
     
     const getSentimentIcon = () => {
@@ -252,17 +258,26 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       if (item.sentiment === 'negative') return '🔴';
       return '⚪';
     };
+
+    const isPolygonSource = item.sourceType === 'polygon';
     
     // Derive a small favicon for the source and keep visuals subtle
     const hostname = (() => {
       try { return new URL(item.url).hostname.replace('www.', ''); } catch { return item.source; }
     })();
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+
+    // Card border glow based on sentiment
+    const sentimentBorderClass = item.sentiment === 'positive' 
+      ? 'border-green-500/40 shadow-[0_0_8px_rgba(34,197,94,0.15)]' 
+      : item.sentiment === 'negative' 
+        ? 'border-red-500/40 shadow-[0_0_8px_rgba(239,68,68,0.15)]' 
+        : '';
     
     return (
       <div className={`border border-border rounded-lg overflow-hidden hover-glow-news cursor-pointer transition-all duration-500 ${
         isNew ? 'animate-slide-in-top bg-primary/5 border-primary/30' : ''
-      } ${item.socialEngagement ? 'border-orange-500/30' : ''}`}>
+      } ${item.socialEngagement ? 'border-orange-500/30' : ''} ${sentimentBorderClass}`}>
         {item.imageUrl && (
           <div className="hidden">
             <img src={item.imageUrl} alt={item.title} loading="lazy" />
@@ -293,16 +308,21 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
             </div>
           )}
           <div className="flex items-start justify-between mb-2">
-            <div className="flex items-start gap-2 flex-1">
+            <div className="flex items-start gap-2 flex-1 flex-wrap">
               {isNew && (
                 <div className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-primary text-primary-foreground whitespace-nowrap">
                   NEW
                 </div>
               )}
+              {isPolygonSource && (
+                <div className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-500/30 whitespace-nowrap">
+                  📊 Premium
+                </div>
+              )}
               {item.sentiment && (
-                <div className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs ${getSentimentColor()} whitespace-nowrap`}
+                <div className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getSentimentColor()} whitespace-nowrap`}
                      title={item.sentimentReasoning || `${item.sentiment} sentiment`}>
-                  {getSentimentIcon()} {item.sentiment}
+                  {getSentimentIcon()} {item.sentiment.charAt(0).toUpperCase() + item.sentiment.slice(1)}
                 </div>
               )}
             </div>
@@ -316,9 +336,16 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           {item.tickers && item.tickers.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
               {item.tickers.slice(0, 5).map((ticker, idx) => (
-                <span key={idx} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary/10 text-primary">
+                <button 
+                  key={idx} 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTickerClick?.(ticker);
+                  }}
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                >
                   ${ticker}
-                </span>
+                </button>
               ))}
               {item.tickers.length > 5 && (
                 <span className="text-xs text-muted-foreground">+{item.tickers.length - 5} more</span>
@@ -392,35 +419,105 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     );
   };
 
-  // Filter news based on search term
+  // Filter news based on search term, ticker, and sentiment
   const filterNews = (news: NewsItem[]) => {
-    if (!searchTerm.trim()) return news;
-    const term = searchTerm.toLowerCase();
-    return news.filter(item => 
-      item.title.toLowerCase().includes(term) ||
-      item.description.toLowerCase().includes(term) ||
-      item.source.toLowerCase().includes(term)
-    );
+    let filtered = news;
+    
+    // Apply search term filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(item => 
+        item.title.toLowerCase().includes(term) ||
+        item.description.toLowerCase().includes(term) ||
+        item.source.toLowerCase().includes(term)
+      );
+    }
+    
+    // Apply ticker filter
+    if (tickerFilter) {
+      filtered = filtered.filter(item => 
+        item.tickers && item.tickers.some(t => t.toUpperCase() === tickerFilter.toUpperCase())
+      );
+    }
+    
+    // Apply sentiment filter
+    if (sentimentFilter !== 'all') {
+      filtered = filtered.filter(item => item.sentiment === sentimentFilter);
+    }
+    
+    return filtered;
+  };
+
+  // Calculate sentiment stats
+  const calculateSentimentStats = (news: NewsItem[]) => {
+    const withSentiment = news.filter(item => item.sentiment);
+    const total = withSentiment.length;
+    if (total === 0) return { positive: 0, negative: 0, neutral: 0, positiveCount: 0, negativeCount: 0, neutralCount: 0 };
+    
+    const positiveCount = withSentiment.filter(item => item.sentiment === 'positive').length;
+    const negativeCount = withSentiment.filter(item => item.sentiment === 'negative').length;
+    const neutralCount = withSentiment.filter(item => item.sentiment === 'neutral').length;
+    
+    return {
+      positive: Math.round((positiveCount / total) * 100),
+      negative: Math.round((negativeCount / total) * 100),
+      neutral: Math.round((neutralCount / total) * 100),
+      positiveCount,
+      negativeCount,
+      neutralCount
+    };
   };
 
   const filteredCryptoNews = filterNews(cryptoNews);
   const filteredStocksNews = filterNews(stocksNews);
   const filteredTrumpNews = filterNews(trumpNews);
 
-  // Apply trending filter
-  const applyTrendingFilter = (news: NewsItem[]) => {
-    if (viewMode === 'all') return news;
-    // Show only items with social engagement and sort by interactions
-    return news
-      .filter(item => item.socialEngagement && item.socialEngagement.interactions24h > 0)
-      .sort((a, b) => 
-        (b.socialEngagement?.interactions24h || 0) - (a.socialEngagement?.interactions24h || 0)
-      );
+  // Apply view mode filter (trending, polygon premium, or all with priority)
+  const applyViewModeFilter = (news: NewsItem[]) => {
+    if (viewMode === 'trending') {
+      // Show only items with social engagement and sort by interactions
+      return news
+        .filter(item => item.socialEngagement && item.socialEngagement.interactions24h > 0)
+        .sort((a, b) => 
+          (b.socialEngagement?.interactions24h || 0) - (a.socialEngagement?.interactions24h || 0)
+        );
+    }
+    
+    if (viewMode === 'polygon') {
+      // Show only Polygon.io sourced news, sorted by recency
+      return news
+        .filter(item => item.sourceType === 'polygon')
+        .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+    }
+    
+    // 'all' mode: prioritize Polygon news from last 2 hours, then rest by recency
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    const recentPolygon = news.filter(item => 
+      item.sourceType === 'polygon' && 
+      new Date(item.publishedAt).getTime() > twoHoursAgo
+    );
+    const rest = news.filter(item => 
+      !(item.sourceType === 'polygon' && new Date(item.publishedAt).getTime() > twoHoursAgo)
+    );
+    
+    return [...recentPolygon, ...rest];
   };
 
-  const displayCryptoNews = applyTrendingFilter(filteredCryptoNews);
-  const displayStocksNews = applyTrendingFilter(filteredStocksNews);
-  const displayTrumpNews = applyTrendingFilter(filteredTrumpNews);
+  const displayCryptoNews = applyViewModeFilter(filteredCryptoNews);
+  const displayStocksNews = applyViewModeFilter(filteredStocksNews);
+  const displayTrumpNews = applyViewModeFilter(filteredTrumpNews);
+
+  // Combine all news for sentiment stats
+  const allNews = useMemo(() => [...cryptoNews, ...stocksNews, ...trumpNews], [cryptoNews, stocksNews, trumpNews]);
+  const sentimentStats = useMemo(() => calculateSentimentStats(allNews), [allNews]);
+
+  // Check if any filters are active
+  const hasActiveFilters = tickerFilter || sentimentFilter !== 'all';
+
+  const clearAllFilters = () => {
+    setTickerFilter(null);
+    setSentimentFilter('all');
+  };
 
   return (
     <div className="xr-card p-4" ref={newsTopRef}>
@@ -457,7 +554,8 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         </div>
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
+      {/* View Mode Buttons */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Button
           variant={viewMode === 'all' ? 'default' : 'outline'}
           size="sm"
@@ -474,12 +572,126 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         >
           🔥 Trending
         </Button>
+        <Button
+          variant={viewMode === 'polygon' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewMode('polygon')}
+          className="h-8"
+        >
+          📊 Polygon Premium
+        </Button>
         {viewMode === 'trending' && (
           <span className="text-xs text-muted-foreground">
             Sorted by social engagement
           </span>
         )}
+        {viewMode === 'polygon' && (
+          <span className="text-xs text-muted-foreground">
+            Enhanced sentiment & ticker data
+          </span>
+        )}
       </div>
+
+      {/* Ticker Filter */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="text-xs text-muted-foreground">Ticker:</span>
+        {popularTickers.map(ticker => (
+          <Badge
+            key={ticker}
+            variant={tickerFilter === ticker ? 'default' : 'outline'}
+            className="cursor-pointer hover:bg-primary/20 transition-colors text-xs"
+            onClick={() => setTickerFilter(tickerFilter === ticker ? null : ticker)}
+          >
+            ${ticker}
+          </Badge>
+        ))}
+        {tickerFilter && !popularTickers.includes(tickerFilter) && (
+          <Badge variant="default" className="text-xs">
+            ${tickerFilter}
+          </Badge>
+        )}
+        {tickerFilter && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTickerFilter(null)}
+            className="h-6 px-2 text-xs"
+          >
+            <X className="w-3 h-3 mr-1" />
+            Clear
+          </Button>
+        )}
+      </div>
+
+      {/* Sentiment Filter */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="text-xs text-muted-foreground">Sentiment:</span>
+        <Badge
+          variant={sentimentFilter === 'all' ? 'default' : 'outline'}
+          className="cursor-pointer hover:bg-primary/20 transition-colors text-xs"
+          onClick={() => setSentimentFilter('all')}
+        >
+          All
+        </Badge>
+        <Badge
+          variant={sentimentFilter === 'positive' ? 'default' : 'outline'}
+          className="cursor-pointer hover:bg-green-500/20 transition-colors text-xs border-green-500/30"
+          onClick={() => setSentimentFilter(sentimentFilter === 'positive' ? 'all' : 'positive')}
+        >
+          🟢 Bullish ({sentimentStats.positiveCount})
+        </Badge>
+        <Badge
+          variant={sentimentFilter === 'negative' ? 'default' : 'outline'}
+          className="cursor-pointer hover:bg-red-500/20 transition-colors text-xs border-red-500/30"
+          onClick={() => setSentimentFilter(sentimentFilter === 'negative' ? 'all' : 'negative')}
+        >
+          🔴 Bearish ({sentimentStats.negativeCount})
+        </Badge>
+        <Badge
+          variant={sentimentFilter === 'neutral' ? 'default' : 'outline'}
+          className="cursor-pointer hover:bg-gray-500/20 transition-colors text-xs border-gray-500/30"
+          onClick={() => setSentimentFilter(sentimentFilter === 'neutral' ? 'all' : 'neutral')}
+        >
+          ⚪ Neutral ({sentimentStats.neutralCount})
+        </Badge>
+      </div>
+
+      {/* Sentiment Stats Bar */}
+      {sentimentStats.positiveCount + sentimentStats.negativeCount + sentimentStats.neutralCount > 0 && (
+        <div className="flex items-center gap-3 mb-4 text-xs text-muted-foreground">
+          <span>Today's Sentiment:</span>
+          <span className="text-green-500">{sentimentStats.positive}% Bullish</span>
+          <span>•</span>
+          <span className="text-gray-500">{sentimentStats.neutral}% Neutral</span>
+          <span>•</span>
+          <span className="text-red-500">{sentimentStats.negative}% Bearish</span>
+        </div>
+      )}
+
+      {/* Active Filters Indicator */}
+      {hasActiveFilters && (
+        <div className="flex items-center gap-2 mb-3 p-2 bg-primary/5 rounded-lg border border-primary/20">
+          <span className="text-xs text-muted-foreground">Active filters:</span>
+          {tickerFilter && (
+            <Badge variant="secondary" className="text-xs">
+              Ticker: ${tickerFilter}
+            </Badge>
+          )}
+          {sentimentFilter !== 'all' && (
+            <Badge variant="secondary" className="text-xs">
+              Sentiment: {sentimentFilter}
+            </Badge>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearAllFilters}
+            className="h-6 px-2 text-xs ml-auto"
+          >
+            Clear All
+          </Button>
+        </div>
+      )}
 
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
@@ -510,11 +722,14 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                   key={item.url || item.title} 
                   item={item} 
                   isNew={index < newItemsCount.crypto}
+                  onTickerClick={setTickerFilter}
                 />
               ))
             ) : (
               <div className="text-center text-muted-foreground py-4">
-                {viewMode === 'trending' ? 'No trending crypto news available' :
+                {hasActiveFilters ? 'No news matches your filters' :
+                 viewMode === 'polygon' ? 'No Polygon Premium news available' :
+                 viewMode === 'trending' ? 'No trending crypto news available' :
                  searchTerm ? `No crypto news found for "${searchTerm}"` : 'No crypto news available'}
               </div>
             )}
@@ -534,11 +749,14 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                   key={item.url || item.title} 
                   item={item} 
                   isNew={index < newItemsCount.stocks}
+                  onTickerClick={setTickerFilter}
                 />
               ))
             ) : (
               <div className="text-center text-muted-foreground py-4">
-                {viewMode === 'trending' ? 'No trending market news available' :
+                {hasActiveFilters ? 'No news matches your filters' :
+                 viewMode === 'polygon' ? 'No Polygon Premium news available' :
+                 viewMode === 'trending' ? 'No trending market news available' :
                  searchTerm ? `No market news found for "${searchTerm}"` : 'No market news available'}
               </div>
             )}
@@ -558,11 +776,14 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                   key={item.url || item.title} 
                   item={item} 
                   isNew={index < newItemsCount.trump}
+                  onTickerClick={setTickerFilter}
                 />
               ))
             ) : (
               <div className="text-center text-muted-foreground py-4">
-                {viewMode === 'trending' ? 'No trending Trump news available' :
+                {hasActiveFilters ? 'No news matches your filters' :
+                 viewMode === 'polygon' ? 'No Polygon Premium news available' :
+                 viewMode === 'trending' ? 'No trending Trump news available' :
                  searchTerm ? `No Trump news found for "${searchTerm}"` : 'No Trump news available'}
               </div>
             )}
