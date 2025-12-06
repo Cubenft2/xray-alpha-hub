@@ -49,7 +49,6 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const [newItemsCount, setNewItemsCount] = useState({ crypto: 0, stocks: 0, trump: 0 });
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [viewMode, setViewMode] = useState<'all' | 'trending' | 'polygon'>('all');
-  const [tickerFilter, setTickerFilter] = useState<string | null>(null);
   const [sentimentFilter, setSentimentFilter] = useState<'all' | 'positive' | 'negative' | 'neutral'>('all');
   const [polygonAlert, setPolygonAlert] = useState<{
     count: number;
@@ -232,10 +231,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
     return num.toString();
   };
 
-  // Popular tickers for quick filtering
-  const popularTickers = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'NVDA', 'AAPL', 'TSLA', 'MSTR'];
-
-  const NewsCard = ({ item, isNew = false, onTickerClick }: { item: NewsItem; isNew?: boolean; onTickerClick?: (ticker: string) => void }) => {
+  const NewsCard = ({ item, isNew = false }: { item: NewsItem; isNew?: boolean }) => {
     const isBlockedSite = (() => {
       try {
         const host = new URL(item.url).hostname.replace('www.', '').toLowerCase();
@@ -336,16 +332,12 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
           {item.tickers && item.tickers.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
               {item.tickers.slice(0, 5).map((ticker, idx) => (
-                <button 
+                <span 
                   key={idx} 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTickerClick?.(ticker);
-                  }}
-                  className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+                  className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-primary/10 text-primary"
                 >
                   ${ticker}
-                </button>
+                </span>
               ))}
               {item.tickers.length > 5 && (
                 <span className="text-xs text-muted-foreground">+{item.tickers.length - 5} more</span>
@@ -433,13 +425,6 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       );
     }
     
-    // Apply ticker filter
-    if (tickerFilter) {
-      filtered = filtered.filter(item => 
-        item.tickers && item.tickers.some(t => t.toUpperCase() === tickerFilter.toUpperCase())
-      );
-    }
-    
     // Apply sentiment filter
     if (sentimentFilter !== 'all') {
       filtered = filtered.filter(item => item.sentiment === sentimentFilter);
@@ -512,10 +497,9 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const sentimentStats = useMemo(() => calculateSentimentStats(allNews), [allNews]);
 
   // Check if any filters are active
-  const hasActiveFilters = tickerFilter || sentimentFilter !== 'all';
+  const hasActiveFilters = sentimentFilter !== 'all';
 
   const clearAllFilters = () => {
-    setTickerFilter(null);
     setSentimentFilter('all');
   };
 
@@ -592,37 +576,6 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         )}
       </div>
 
-      {/* Ticker Filter */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <span className="text-xs text-muted-foreground">Ticker:</span>
-        {popularTickers.map(ticker => (
-          <Badge
-            key={ticker}
-            variant={tickerFilter === ticker ? 'default' : 'outline'}
-            className="cursor-pointer hover:bg-primary/20 transition-colors text-xs"
-            onClick={() => setTickerFilter(tickerFilter === ticker ? null : ticker)}
-          >
-            ${ticker}
-          </Badge>
-        ))}
-        {tickerFilter && !popularTickers.includes(tickerFilter) && (
-          <Badge variant="default" className="text-xs">
-            ${tickerFilter}
-          </Badge>
-        )}
-        {tickerFilter && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setTickerFilter(null)}
-            className="h-6 px-2 text-xs"
-          >
-            <X className="w-3 h-3 mr-1" />
-            Clear
-          </Button>
-        )}
-      </div>
-
       {/* Sentiment Filter */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="text-xs text-muted-foreground">Sentiment:</span>
@@ -672,16 +625,9 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       {hasActiveFilters && (
         <div className="flex items-center gap-2 mb-3 p-2 bg-primary/5 rounded-lg border border-primary/20">
           <span className="text-xs text-muted-foreground">Active filters:</span>
-          {tickerFilter && (
-            <Badge variant="secondary" className="text-xs">
-              Ticker: ${tickerFilter}
-            </Badge>
-          )}
-          {sentimentFilter !== 'all' && (
-            <Badge variant="secondary" className="text-xs">
-              Sentiment: {sentimentFilter}
-            </Badge>
-          )}
+          <Badge variant="secondary" className="text-xs">
+            Sentiment: {sentimentFilter}
+          </Badge>
           <Button
             variant="ghost"
             size="sm"
@@ -722,7 +668,6 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                   key={item.url || item.title} 
                   item={item} 
                   isNew={index < newItemsCount.crypto}
-                  onTickerClick={setTickerFilter}
                 />
               ))
             ) : (
@@ -749,7 +694,6 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                   key={item.url || item.title} 
                   item={item} 
                   isNew={index < newItemsCount.stocks}
-                  onTickerClick={setTickerFilter}
                 />
               ))
             ) : (
@@ -776,7 +720,6 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                   key={item.url || item.title} 
                   item={item} 
                   isNew={index < newItemsCount.trump}
-                  onTickerClick={setTickerFilter}
                 />
               ))
             ) : (
