@@ -276,7 +276,7 @@ const ZombieDog = () => {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask ZombieDog..."
-              className="flex-1 bg-background/50 border-primary/30 focus:border-primary text-sm"
+              className="flex-1 bg-background/50 border-primary/30 focus:border-primary text-base sm:text-sm"
               disabled={isLoading}
             />
             <Button
