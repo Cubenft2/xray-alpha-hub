@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send } from 'lucide-react';
+import { Send, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+
+const CHAT_STORAGE_KEY = 'zombiedog-chat-history';
 
 interface Message {
   id: string;
@@ -124,14 +126,46 @@ interface ZombieDogChatProps {
 }
 
 export const ZombieDogChat = ({ compact = false, isFullScreen = false, className = '' }: ZombieDogChatProps) => {
-  const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
+  // Load messages from localStorage on mount
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const stored = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Restore Date objects from strings
+        return parsed.map((m: any) => ({
+          ...m,
+          timestamp: new Date(m.timestamp)
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to load chat history:', e);
+    }
+    return [welcomeMessage];
+  });
+  
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+    } catch (e) {
+      console.warn('Failed to save chat history:', e);
+    }
+  }, [messages]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const clearChat = useCallback(() => {
+    localStorage.removeItem(CHAT_STORAGE_KEY);
+    setMessages([{ ...welcomeMessage, timestamp: new Date() }]);
+    toast.success('Chat history cleared');
+  }, []);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -276,6 +310,15 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
       {/* Input Area */}
       <div className={`border-t border-primary/20 ${isFullScreen ? 'p-3' : 'p-2'} bg-card/50`}>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={clearChat}
+            variant="ghost"
+            size="sm"
+            className={`${isFullScreen ? 'h-10 w-10' : 'h-8 w-8'} p-0 text-muted-foreground hover:text-destructive`}
+            title="Clear chat history"
+          >
+            <Trash2 className={isFullScreen ? "w-4 h-4" : "w-3 h-3"} />
+          </Button>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
