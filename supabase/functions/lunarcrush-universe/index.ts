@@ -74,36 +74,40 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const cacheKey = 'lunarcrush:universe:v1';
-    const cacheTTL = 600; // 10 minutes
+    const cacheKey = 'lunarcrush:universe:v2';
+    const cacheTTL = 300; // 5 minutes
 
     // Try to get cached full dataset
     let allCoins: CoinData[] = [];
     let cacheHit = false;
 
+    // Check cache - use simpler approach with cached_at timestamp in the value
     const { data: cachedData } = await supabase
       .from('cache_kv')
-      .select('v, expires_at')
+      .select('v')
       .eq('k', cacheKey)
-      .gt('expires_at', new Date().toISOString())
       .maybeSingle();
 
-    if (cachedData?.v?.data) {
-      console.log('✅ Using cached LunarCrush universe data');
-      allCoins = cachedData.v.data;
-      cacheHit = true;
+    const now = Date.now();
+    if (cachedData?.v?.data && cachedData?.v?.cached_at) {
+      const cachedAt = new Date(cachedData.v.cached_at).getTime();
+      const age = (now - cachedAt) / 1000; // age in seconds
+      
+      if (age < cacheTTL) {
+        console.log(`✅ Using cached LunarCrush data (${Math.round(age)}s old)`);
+        allCoins = cachedData.v.data;
+        cacheHit = true;
+      } else {
+        console.log(`⏰ Cache expired (${Math.round(age)}s old, TTL: ${cacheTTL}s)`);
+      }
     }
 
     // If no cache, fetch from API
     if (!cacheHit) {
-      // Check for expired cache as fallback
-      const { data: expiredCache } = await supabase
-        .from('cache_kv')
-        .select('v, expires_at')
-        .eq('k', cacheKey)
-        .maybeSingle();
+      // Use expired cache data as fallback if available
+      const expiredCoins = cachedData?.v?.data || [];
 
-      console.log('Fetching fresh LunarCrush universe data...');
+      console.log('🔄 Fetching fresh LunarCrush universe data...');
       const response = await fetch('https://lunarcrush.com/api4/public/coins/list/v1', {
         headers: {
           'Authorization': `Bearer ${lunarCrushApiKey}`,
@@ -112,9 +116,9 @@ Deno.serve(async (req) => {
 
       if (!response.ok) {
         // If rate limited and we have expired cache, use that
-        if (response.status === 429 && expiredCache?.v?.data) {
-          console.log('⚠️ Rate limited! Using expired cache');
-          allCoins = expiredCache.v.data;
+        if (response.status === 429 && expiredCoins.length > 0) {
+          console.log('⚠️ Rate limited! Using expired cache as fallback');
+          allCoins = expiredCoins;
         } else {
           throw new Error(`LunarCrush API error: ${response.status} ${response.statusText}`);
         }
