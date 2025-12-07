@@ -345,6 +345,71 @@ async function resolveContractAddress(supabase: any, address: string, type: 'evm
   return null;
 }
 
+// CoinGecko contract address lookup (supports multiple EVM chains + Solana)
+async function lookupContractOnCoinGecko(address: string): Promise<{
+  symbol: string;
+  name: string;
+  description?: string;
+  marketData?: { price: number; marketCap: number; volume24h: number; change24h: number };
+  chain?: string;
+} | null> {
+  const COINGECKO_API_KEY = Deno.env.get('COINGECKO_API_KEY');
+  if (!COINGECKO_API_KEY) {
+    console.log('[CoinGecko Contract] No API key, skipping');
+    return null;
+  }
+  
+  const normalizedAddr = address.toLowerCase();
+  const isEvm = /^0x[a-fA-F0-9]{40}$/.test(normalizedAddr);
+  const isSolana = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address) && !normalizedAddr.startsWith('0x');
+  
+  // Define platform IDs to try based on address type
+  const platformsToTry = isEvm 
+    ? ['ethereum', 'polygon-pos', 'arbitrum-one', 'base', 'binance-smart-chain', 'avalanche', 'optimistic-ethereum']
+    : isSolana 
+    ? ['solana']
+    : [];
+  
+  if (platformsToTry.length === 0) {
+    console.log(`[CoinGecko Contract] Unknown address format: ${address.slice(0, 10)}...`);
+    return null;
+  }
+  
+  console.log(`[CoinGecko Contract] Trying ${platformsToTry.length} chains for ${normalizedAddr.slice(0, 10)}...`);
+  
+  for (const platform of platformsToTry) {
+    try {
+      const url = `https://pro-api.coingecko.com/api/v3/coins/${platform}/contract/${normalizedAddr}?x_cg_pro_api_key=${COINGECKO_API_KEY}`;
+      const response = await fetch(url);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`[CoinGecko Contract] Found on ${platform}: ${data.symbol?.toUpperCase()} (${data.name})`);
+        
+        return {
+          symbol: data.symbol?.toUpperCase() || 'UNKNOWN',
+          name: data.name || 'Unknown Token',
+          description: data.description?.en?.slice(0, 500) || undefined,
+          chain: platform,
+          marketData: data.market_data ? {
+            price: data.market_data.current_price?.usd || 0,
+            marketCap: data.market_data.market_cap?.usd || 0,
+            volume24h: data.market_data.total_volume?.usd || 0,
+            change24h: data.market_data.price_change_percentage_24h || 0
+          } : undefined
+        };
+      } else if (response.status !== 404) {
+        console.log(`[CoinGecko Contract] ${platform} returned ${response.status}`);
+      }
+    } catch (e) {
+      console.log(`[CoinGecko Contract] Error checking ${platform}:`, e.message);
+    }
+  }
+  
+  console.log(`[CoinGecko Contract] Not found on any chain: ${normalizedAddr.slice(0, 10)}...`);
+  return null;
+}
+
 // Web search for unknown contract addresses (LP tokens, DEX pairs, new tokens)
 async function lookupContractAddressOnWeb(address: string): Promise<{ description: string; tokenInfo: string } | null> {
   const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY');
@@ -535,21 +600,52 @@ async function resolveAssetsFromDatabase(supabase: any, message: string): Promis
     console.log(`Found ${contractAddresses.length} contract address(es) in message`);
     for (const { address, type } of contractAddresses) {
       contractsSearched.push(address);
+      
+      // 1. Check database first (instant)
       const contractAsset = await resolveContractAddress(supabase, address, type);
       if (contractAsset && !foundSymbols.has(contractAsset.symbol)) {
         resolved.push(contractAsset);
         foundSymbols.add(contractAsset.symbol);
-        console.log(`Resolved contract ${address} -> ${contractAsset.symbol}`);
-      } else {
-        // Not found in DB - try web lookup for LP tokens, DEX pairs, new tokens
-        const webResult = await lookupContractAddressOnWeb(address);
-        if (webResult) {
-          console.log(`[Contract] Web lookup found info for ${address}`);
-          contractWebLookups.push({
-            address,
-            info: `${webResult.tokenInfo}\n\nDetails:\n${webResult.description}`
-          });
+        console.log(`Resolved contract ${address} -> ${contractAsset.symbol} (from database)`);
+        continue;
+      }
+      
+      // 2. Try CoinGecko API (fast, ~200ms)
+      const cgResult = await lookupContractOnCoinGecko(address);
+      if (cgResult) {
+        console.log(`Resolved contract ${address} -> ${cgResult.symbol} (from CoinGecko ${cgResult.chain})`);
+        
+        // Add as resolved asset with market data context
+        resolved.push({
+          symbol: cgResult.symbol,
+          coingeckoId: null, // Could look up later if needed
+          displayName: cgResult.name,
+          assetType: 'crypto',
+        });
+        foundSymbols.add(cgResult.symbol);
+        
+        // Also add to web lookups for rich context in prompt
+        let contextInfo = `${cgResult.name} (${cgResult.symbol}) on ${cgResult.chain}`;
+        if (cgResult.marketData) {
+          contextInfo += `\nPrice: $${cgResult.marketData.price.toLocaleString()} (${cgResult.marketData.change24h >= 0 ? '+' : ''}${cgResult.marketData.change24h.toFixed(2)}%)`;
+          contextInfo += `\nMarket Cap: $${(cgResult.marketData.marketCap / 1e6).toFixed(2)}M`;
+          contextInfo += `\n24h Volume: $${(cgResult.marketData.volume24h / 1e6).toFixed(2)}M`;
         }
+        if (cgResult.description) {
+          contextInfo += `\n\n${cgResult.description}`;
+        }
+        contractWebLookups.push({ address, info: contextInfo });
+        continue;
+      }
+      
+      // 3. Fallback to web search for LP tokens, DEX pairs, very new tokens
+      const webResult = await lookupContractAddressOnWeb(address);
+      if (webResult) {
+        console.log(`[Contract] Web lookup found info for ${address}`);
+        contractWebLookups.push({
+          address,
+          info: `${webResult.tokenInfo}\n\nDetails:\n${webResult.description}`
+        });
       }
     }
   }
