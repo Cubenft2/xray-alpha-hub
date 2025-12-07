@@ -148,7 +148,7 @@ export function CryptoUniverseTable({
                   <SortIcon column="market_cap" />
                 </button>
               </TableHead>
-              <TableHead className="text-right hidden md:table-cell">
+              <TableHead className="text-right">
                 <button
                   onClick={() => onSort('volume_24h')}
                   className="flex items-center ml-auto hover:text-foreground"
@@ -166,7 +166,7 @@ export function CryptoUniverseTable({
                   <SortIcon column="galaxy_score" />
                 </button>
               </TableHead>
-              <TableHead className="hidden lg:table-cell">
+              <TableHead>
                 <button
                   onClick={() => onSort('alt_rank')}
                   className="flex items-center hover:text-foreground"
@@ -209,7 +209,7 @@ export function CryptoUniverseTable({
                 <TableCell className="py-2 text-right font-mono">
                   {formatCurrency(coin.market_cap)}
                 </TableCell>
-                <TableCell className="py-2 text-right font-mono hidden md:table-cell">
+                <TableCell className="py-2 text-right font-mono">
                   {formatCurrency(coin.volume_24h)}
                 </TableCell>
                 <TableCell className="py-2">
@@ -218,7 +218,7 @@ export function CryptoUniverseTable({
                     <span className="text-sm font-medium">{coin.galaxy_score}</span>
                   </div>
                 </TableCell>
-                <TableCell className="py-2 hidden lg:table-cell">{getAltRankBadge(coin.alt_rank)}</TableCell>
+                <TableCell className="py-2">{getAltRankBadge(coin.alt_rank)}</TableCell>
               </TableRow>
             ))}
             {coins.length === 0 && (
