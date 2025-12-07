@@ -6,8 +6,17 @@ import { PolygonTicker } from './PolygonTicker';
 import { XRFooter } from './XRFooter';
 import { ScrollToTop } from './ScrollToTop';
 
-// Lazy load ZombieDogWidget - not needed for initial render
-const ZombieDogWidget = lazy(() => import('./ZombieDogWidget').then(m => ({ default: m.ZombieDogWidget })));
+// Lazy load ZombieDogWidget - not needed for initial render, wrapped in try-catch
+const LazyZombieDogWidget = lazy(async () => {
+  try {
+    const module = await import('./ZombieDogWidget');
+    return { default: module.ZombieDogWidget };
+  } catch (error) {
+    console.error('Failed to load ZombieDogWidget:', error);
+    // Return a fallback empty component if loading fails
+    return { default: () => null };
+  }
+});
 
 interface LayoutContextType {
   onSearch: (term: string) => void;
@@ -81,7 +90,7 @@ export const Layout = ({ children }: LayoutProps) => {
         {/* ZombieDog Chat Widget - Lazy loaded, Hidden on /zombiedog page */}
         {location.pathname !== '/zombiedog' && (
           <Suspense fallback={null}>
-            <ZombieDogWidget />
+            <LazyZombieDogWidget />
           </Suspense>
         )}
       </div>
