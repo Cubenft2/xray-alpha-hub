@@ -229,6 +229,122 @@ const COMMON_WORDS_LOWER = new Set([
   'stock', 'stocks', 'analysis', 'analyze', 'show', 'give', 'info', 'data'
 ]);
 
+// Extract contract addresses from message text (EVM + Solana)
+function extractContractAddresses(message: string): { address: string; type: 'evm' | 'solana' }[] {
+  const addresses: { address: string; type: 'evm' | 'solana' }[] = [];
+  
+  // Match EVM addresses (0x + 40 hex chars)
+  const evmPattern = /0x[a-fA-F0-9]{40}/g;
+  const evmMatches = message.match(evmPattern);
+  if (evmMatches) {
+    evmMatches.forEach(addr => {
+      addresses.push({ address: addr.toLowerCase(), type: 'evm' });
+    });
+  }
+  
+  // Match Solana addresses (base58, 32-44 chars, no 0/O/I/l)
+  const solPattern = /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g;
+  const solMatches = message.match(solPattern);
+  if (solMatches) {
+    // Filter to likely Solana addresses (avoid matching regular words)
+    solMatches.forEach(addr => {
+      // Must contain at least some uppercase and lowercase mix + numbers
+      if (addr.length >= 32 && /[A-Z]/.test(addr) && /[a-z]/.test(addr) && /[0-9]/.test(addr)) {
+        addresses.push({ address: addr, type: 'solana' });
+      }
+    });
+  }
+  
+  return addresses;
+}
+
+// Resolve a contract address to an asset
+async function resolveContractAddress(supabase: any, address: string, type: 'evm' | 'solana'): Promise<ResolvedAsset | null> {
+  const normalizedAddr = address.toLowerCase();
+  console.log(`Resolving contract address: ${normalizedAddr} (${type})`);
+  
+  // 1. Check ticker_mappings.dex_address for direct match
+  const { data: dexMatch } = await supabase
+    .from('ticker_mappings')
+    .select('symbol, display_name, coingecko_id, polygon_ticker, type, dex_chain')
+    .eq('is_active', true)
+    .ilike('dex_address', normalizedAddr)
+    .maybeSingle();
+  
+  if (dexMatch) {
+    console.log(`Found contract in ticker_mappings.dex_address: ${dexMatch.symbol}`);
+    return {
+      symbol: dexMatch.symbol,
+      coingeckoId: dexMatch.coingecko_id,
+      displayName: dexMatch.display_name,
+      assetType: dexMatch.type === 'stock' ? 'stock' : 'crypto',
+      polygonTicker: dexMatch.polygon_ticker
+    };
+  }
+  
+  // 2. Check ticker_mappings.dex_platforms JSON for multi-chain addresses
+  const { data: platformMatches } = await supabase
+    .from('ticker_mappings')
+    .select('symbol, display_name, coingecko_id, polygon_ticker, type, dex_platforms')
+    .eq('is_active', true)
+    .not('dex_platforms', 'is', null);
+  
+  if (platformMatches) {
+    for (const match of platformMatches) {
+      if (match.dex_platforms) {
+        const platforms = typeof match.dex_platforms === 'string' 
+          ? JSON.parse(match.dex_platforms) 
+          : match.dex_platforms;
+        
+        // Check each platform's address
+        for (const [chain, addr] of Object.entries(platforms)) {
+          if (typeof addr === 'string' && addr.toLowerCase() === normalizedAddr) {
+            console.log(`Found contract in ticker_mappings.dex_platforms[${chain}]: ${match.symbol}`);
+            return {
+              symbol: match.symbol,
+              coingeckoId: match.coingecko_id,
+              displayName: match.display_name,
+              assetType: match.type === 'stock' ? 'stock' : 'crypto',
+              polygonTicker: match.polygon_ticker
+            };
+          }
+        }
+      }
+    }
+  }
+  
+  // 3. Check cg_master.platforms JSON for 18,000+ tokens
+  const { data: cgMatches } = await supabase
+    .from('cg_master')
+    .select('symbol, name, cg_id, platforms')
+    .not('platforms', 'is', null);
+  
+  if (cgMatches) {
+    for (const match of cgMatches) {
+      if (match.platforms) {
+        const platforms = typeof match.platforms === 'string'
+          ? JSON.parse(match.platforms)
+          : match.platforms;
+        
+        for (const [chain, addr] of Object.entries(platforms)) {
+          if (typeof addr === 'string' && addr.toLowerCase() === normalizedAddr) {
+            console.log(`Found contract in cg_master.platforms[${chain}]: ${match.symbol} (${match.cg_id})`);
+            return {
+              symbol: match.symbol.toUpperCase(),
+              coingeckoId: match.cg_id,
+              displayName: match.name,
+              assetType: 'crypto'
+            };
+          }
+        }
+      }
+    }
+  }
+  
+  console.log(`Contract address not found in database: ${normalizedAddr}`);
+  return null;
+}
+
 // Extract potential symbols from message text
 function extractPotentialSymbols(message: string): string[] {
   const symbols: string[] = [];
@@ -345,10 +461,26 @@ async function findSimilarAssets(supabase: any, searchTerms: string[]): Promise<
   return similar.sort((a, b) => b.similarity - a.similarity).slice(0, 5);
 }
 
-// Resolve assets from database (crypto + stocks)
-async function resolveAssetsFromDatabase(supabase: any, message: string): Promise<{ assets: ResolvedAsset[], similar: SimilarAsset[] }> {
+// Resolve assets from database (crypto + stocks + contract addresses)
+async function resolveAssetsFromDatabase(supabase: any, message: string): Promise<{ assets: ResolvedAsset[], similar: SimilarAsset[], contractsSearched: string[] }> {
   const resolved: ResolvedAsset[] = [];
   const foundSymbols = new Set<string>();
+  const contractsSearched: string[] = [];
+  
+  // Step 0: Check for contract addresses FIRST
+  const contractAddresses = extractContractAddresses(message);
+  if (contractAddresses.length > 0) {
+    console.log(`Found ${contractAddresses.length} contract address(es) in message`);
+    for (const { address, type } of contractAddresses) {
+      contractsSearched.push(address);
+      const contractAsset = await resolveContractAddress(supabase, address, type);
+      if (contractAsset && !foundSymbols.has(contractAsset.symbol)) {
+        resolved.push(contractAsset);
+        foundSymbols.add(contractAsset.symbol);
+        console.log(`Resolved contract ${address} -> ${contractAsset.symbol}`);
+      }
+    }
+  }
   
   const potentialSymbols = extractPotentialSymbols(message);
   const potentialNames = extractPotentialNames(message);
@@ -483,7 +615,7 @@ async function resolveAssetsFromDatabase(supabase: any, message: string): Promis
     }
   }
   
-  return { assets: resolved.slice(0, 5), similar: similarAssets };
+  return { assets: resolved.slice(0, 5), similar: similarAssets, contractsSearched };
 }
 
 // Fetch historical context from Polygon
@@ -1016,7 +1148,8 @@ function buildSystemPrompt(
   technicalContext: string,
   similarSuggestion: string,
   webSearchContext: string = "",
-  companyContext: string = ""
+  companyContext: string = "",
+  contractAddressContext: string = ""
 ): string {
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -1053,6 +1186,7 @@ You can research:
 • 💵 Dividend history and upcoming ex-dates
 • ✂️ Stock split history
 • 🔗 Related companies
+• 📋 CONTRACT ADDRESSES: Users can paste EVM (0x...) or Solana addresses and you'll identify the token!
 
 ${priceContext}
 ${coinDetails}
@@ -1060,6 +1194,7 @@ ${companyContext}
 ${historicalContext}
 ${technicalContext}
 ${webSearchContext}
+${contractAddressContext}
 ${similarSuggestion}
 
 ═══════════════════════════════════════════
@@ -1324,10 +1459,12 @@ serve(async (req) => {
     const latestUserMessage = messages?.filter((m: any) => m.role === 'user').pop();
     const userQuery = latestUserMessage?.content || '';
     
-    // Resolve assets from database (crypto + stocks)
-    const { assets: resolvedAssets, similar: similarAssets } = await resolveAssetsFromDatabase(supabase, userQuery);
+    // Resolve assets from database (crypto + stocks + contract addresses)
+    const { assets: resolvedAssets, similar: similarAssets, contractsSearched } = await resolveAssetsFromDatabase(supabase, userQuery);
     console.log(`Resolved ${resolvedAssets.length} assets: ${resolvedAssets.map(a => `${a.symbol}(${a.assetType})`).join(', ') || 'none'}`);
-    
+    if (contractsSearched.length > 0) {
+      console.log(`Contract addresses searched: ${contractsSearched.join(', ')}`);
+    }
     // Check if we should perform web search for news/current events
     const needsWebSearch = shouldPerformWebSearch(userQuery);
     console.log(`Web search needed: ${needsWebSearch}`);
@@ -1363,7 +1500,23 @@ serve(async (req) => {
       ? formatSimilarAssetsSuggestion(similarAssets, searchTerms)
       : '';
     
-    const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion, webSearchContext, companyContext);
+    // Format contract address context for unresolved contracts
+    const contractAddressContext = contractsSearched.length > 0 && resolvedAssets.length === 0
+      ? `
+═══════════════════════════════════════════
+📋 CONTRACT ADDRESS SEARCH
+═══════════════════════════════════════════
+User searched for contract address(es): ${contractsSearched.join(', ')}
+Result: Could not find these contract(s) in our database of 19,000+ tokens.
+
+Please let the user know you couldn't identify this contract address. Suggest they:
+1. Double-check the address is correct
+2. Tell you the token name or symbol instead
+3. The token might be very new or not listed on major exchanges yet
+`
+      : '';
+    
+    const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion, webSearchContext, companyContext, contractAddressContext);
 
     // Call AI with fallback chain
     const { response, provider, needsTransform } = await callAIWithFallback(messages, systemPrompt);
