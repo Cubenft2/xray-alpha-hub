@@ -12,6 +12,54 @@ type AIProvider = 'lovable' | 'openai' | 'anthropic';
 // Top cryptos to fetch general prices for
 const TOP_CRYPTOS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'DOT', 'MATIC', 'SHIB', 'UNI', 'LTC', 'BCH', 'ATOM'];
 
+// Message compression settings
+const RECENT_MESSAGES_TO_KEEP = 3;
+
+// Prepare messages for AI with hybrid compression (keep last 3 full, summarize rest)
+function prepareMessagesForAI(messages: any[]): any[] {
+  if (messages.length <= RECENT_MESSAGES_TO_KEEP) {
+    console.log(`[Message Prep] ${messages.length} messages - no compression needed`);
+    return messages;
+  }
+  
+  // Split: older messages vs recent 3
+  const olderMessages = messages.slice(0, -RECENT_MESSAGES_TO_KEEP);
+  const recentMessages = messages.slice(-RECENT_MESSAGES_TO_KEEP);
+  
+  // Compress older messages into a context summary
+  const summary = compressConversationHistory(olderMessages);
+  
+  console.log(`[Message Prep] Compressed ${olderMessages.length} older messages, keeping ${recentMessages.length} recent`);
+  
+  // Return: [compressed context] + [last 3 full messages]
+  return [
+    { role: 'user', content: `[PREVIOUS CONVERSATION CONTEXT: ${summary}]` },
+    ...recentMessages
+  ];
+}
+
+// Compress older conversation history into a summary
+function compressConversationHistory(messages: any[]): string {
+  // Extract user questions only (assistant responses are implied by context)
+  const userQuestions = messages
+    .filter(m => m.role === 'user')
+    .map(m => {
+      // Extract key content - symbols, questions, topics
+      const content = m.content.substring(0, 120).trim();
+      // Find any symbols mentioned
+      const symbols = content.match(/\$?[A-Z]{2,6}\b/g) || [];
+      const symbolStr = symbols.length > 0 ? ` (${symbols.join(', ')})` : '';
+      return content.length > 100 ? content.substring(0, 100) + '...' + symbolStr : content + symbolStr;
+    });
+  
+  if (userQuestions.length === 0) {
+    return 'General market discussion.';
+  }
+  
+  // Create compressed summary
+  return `User previously asked ${userQuestions.length} questions about: ${userQuestions.join(' | ').substring(0, 600)}`;
+}
+
 // Common crypto aliases to recognize lowercase mentions
 const CRYPTO_ALIASES: Record<string, string> = {
   'btc': 'BTC', 'bitcoin': 'BTC',
@@ -1072,6 +1120,8 @@ async function callLovableAI(messages: any[], systemPrompt: string): Promise<Res
     throw new Error("LOVABLE_API_KEY not configured");
   }
 
+  // Apply hybrid compression to messages
+  const preparedMessages = prepareMessagesForAI(messages);
   console.log("[Lovable AI] Calling Gemini 2.5 Flash...");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -1084,7 +1134,7 @@ async function callLovableAI(messages: any[], systemPrompt: string): Promise<Res
       model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
-        ...messages.map((m: any) => ({
+        ...preparedMessages.map((m: any) => ({
           role: m.role === 'assistant' ? 'assistant' : 'user',
           content: m.content,
         })),
@@ -1109,6 +1159,8 @@ async function callOpenAI(messages: any[], systemPrompt: string): Promise<Respon
     throw new Error("OPENAI_API_KEY not configured");
   }
 
+  // Apply hybrid compression to messages
+  const preparedMessages = prepareMessagesForAI(messages);
   console.log("[OpenAI] Calling GPT-4o-mini...");
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -1121,7 +1173,7 @@ async function callOpenAI(messages: any[], systemPrompt: string): Promise<Respon
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
-        ...messages.map((m: any) => ({
+        ...preparedMessages.map((m: any) => ({
           role: m.role === 'assistant' ? 'assistant' : 'user',
           content: m.content,
         })),
@@ -1147,6 +1199,8 @@ async function callAnthropic(messages: any[], systemPrompt: string): Promise<Res
     throw new Error("ANTHROPIC_API_KEY not configured");
   }
 
+  // Apply hybrid compression to messages
+  const preparedMessages = prepareMessagesForAI(messages);
   console.log("[Anthropic] Calling Claude Haiku...");
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -1160,7 +1214,7 @@ async function callAnthropic(messages: any[], systemPrompt: string): Promise<Res
       model: "claude-3-5-haiku-20241022",
       max_tokens: 1024,
       system: systemPrompt,
-      messages: messages.map((m: any) => ({
+      messages: preparedMessages.map((m: any) => ({
         role: m.role === 'assistant' ? 'assistant' : 'user',
         content: m.content,
       })),

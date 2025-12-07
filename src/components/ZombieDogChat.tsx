@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, Trash2 } from 'lucide-react';
+import { Send, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CHAT_STORAGE_KEY = 'zombiedog-chat-history';
+const MAX_USER_MESSAGES = 20;
 
 interface Message {
   id: string;
@@ -148,6 +149,14 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Count user messages (excluding welcome message)
+  const userMessageCount = useMemo(() => 
+    messages.filter(m => m.role === 'user').length, 
+    [messages]
+  );
+  const remainingMessages = MAX_USER_MESSAGES - userMessageCount;
+  const isLimitReached = userMessageCount >= MAX_USER_MESSAGES;
+
   // Save messages to localStorage whenever they change
   useEffect(() => {
     try {
@@ -168,7 +177,12 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
   }, []);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || isLimitReached) return;
+
+    // Show warning when approaching limit
+    if (remainingMessages === 5) {
+      toast.warning('🐕 5 messages left in this session!');
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -309,33 +323,59 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
 
       {/* Input Area */}
       <div className={`border-t border-primary/20 ${isFullScreen ? 'p-3' : 'p-2'} bg-card/50`}>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={clearChat}
-            variant="ghost"
-            size="sm"
-            className={`${isFullScreen ? 'h-10 w-10' : 'h-8 w-8'} p-0 text-muted-foreground hover:text-destructive`}
-            title="Clear chat history"
-          >
-            <Trash2 className={isFullScreen ? "w-4 h-4" : "w-3 h-3"} />
-          </Button>
-          <Input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask ZombieDog anything (any language!)..."
-            className={`flex-1 ${inputHeight} ${inputTextSize} bg-background/50 border-primary/30 focus:border-primary`}
-            disabled={isLoading}
-          />
-          <Button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            size={isFullScreen ? "default" : "sm"}
-            className={`btn-hero ${isFullScreen ? 'h-10 px-4' : 'h-8 px-3'}`}
-          >
-            <Send className={isFullScreen ? "w-4 h-4" : "w-3 h-3"} />
-          </Button>
-        </div>
+        {/* Message counter */}
+        {userMessageCount > 5 && (
+          <div className={`flex items-center justify-center gap-1 mb-2 ${remainingMessages <= 5 ? 'text-destructive' : 'text-muted-foreground'}`}>
+            <MessageCircle className="w-3 h-3" />
+            <span className="text-xs font-medium">
+              {remainingMessages > 0 ? `${remainingMessages} messages remaining` : 'Limit reached'}
+            </span>
+          </div>
+        )}
+        
+        {isLimitReached ? (
+          <div className="text-center py-2">
+            <p className="text-xs text-muted-foreground mb-2">
+              🧟 Woof! You've reached the 20-message limit.
+            </p>
+            <Button
+              onClick={clearChat}
+              variant="outline"
+              size="sm"
+              className="border-primary/50 hover:bg-primary/20 animate-pulse"
+            >
+              <Trash2 className="w-3 h-3 mr-1" /> Clear Chat to Continue
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={clearChat}
+              variant="ghost"
+              size="sm"
+              className={`${isFullScreen ? 'h-10 w-10' : 'h-8 w-8'} p-0 text-muted-foreground hover:text-destructive`}
+              title="Clear chat history"
+            >
+              <Trash2 className={isFullScreen ? "w-4 h-4" : "w-3 h-3"} />
+            </Button>
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask ZombieDog anything (any language!)..."
+              className={`flex-1 ${inputHeight} ${inputTextSize} bg-background/50 border-primary/30 focus:border-primary`}
+              disabled={isLoading}
+            />
+            <Button
+              onClick={handleSend}
+              disabled={!input.trim() || isLoading}
+              size={isFullScreen ? "default" : "sm"}
+              className={`btn-hero ${isFullScreen ? 'h-10 px-4' : 'h-8 px-3'}`}
+            >
+              <Send className={isFullScreen ? "w-4 h-4" : "w-3 h-3"} />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
