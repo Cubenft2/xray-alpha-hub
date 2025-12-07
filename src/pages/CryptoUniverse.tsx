@@ -31,7 +31,7 @@ export default function CryptoUniverse() {
           🌙 Crypto Universe
         </h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Powered by LunarCrush • Updates Every 10 Minutes
+          Powered by LunarCrush • Top 3000 by Market Cap • Updates Every 5 Minutes
           {metadata?.last_updated && (
             <span className="ml-2 text-xs opacity-70">
               (Last: {new Date(metadata.last_updated).toLocaleTimeString()})

@@ -74,8 +74,9 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const cacheKey = 'lunarcrush:universe:v2';
+    const cacheKey = 'lunarcrush:universe:v3';
     const cacheTTL = 300; // 5 minutes
+    const MAX_COINS = 3000; // Limit to top 3000 by market cap rank
 
     // Try to get cached full dataset
     let allCoins: CoinData[] = [];
@@ -126,15 +127,19 @@ Deno.serve(async (req) => {
         const apiData = await response.json();
         const rawCoins = apiData.data || [];
         
-        // Map API fields to our interface
-        allCoins = rawCoins.map((coin: any) => {
-          const social_volume = coin.interactions_24h || coin.social_volume_24h || coin.social_volume || 0;
-          return {
-            ...coin,
-            social_volume,
-            sentiment: coin.sentiment || 0,
-          };
-        });
+        // Map API fields to our interface and filter to top coins by market cap rank
+        allCoins = rawCoins
+          .filter((coin: any) => coin.market_cap_rank && coin.market_cap_rank <= MAX_COINS)
+          .map((coin: any) => {
+            const social_volume = coin.interactions_24h || coin.social_volume_24h || coin.social_volume || 0;
+            return {
+              ...coin,
+              social_volume,
+              sentiment: coin.sentiment || 0,
+            };
+          });
+
+        console.log(`📊 Filtered to ${allCoins.length} coins (top ${MAX_COINS} by market cap)`);
 
         // Cache the full dataset
         const expiresAt = new Date(Date.now() + cacheTTL * 1000).toISOString();
