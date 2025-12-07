@@ -131,6 +131,87 @@ export type Database = {
         }
         Relationships: []
       }
+      company_details: {
+        Row: {
+          cik: string | null
+          created_at: string | null
+          description: string | null
+          dividends: Json | null
+          employees: number | null
+          expires_at: string | null
+          fetched_at: string | null
+          headquarters: Json | null
+          icon_url: string | null
+          id: string
+          industry: string | null
+          last_financials: Json | null
+          list_date: string | null
+          logo_url: string | null
+          market_cap: number | null
+          name: string | null
+          related_companies: Json | null
+          sector: string | null
+          sic_code: string | null
+          sic_description: string | null
+          splits: Json | null
+          ticker: string
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          cik?: string | null
+          created_at?: string | null
+          description?: string | null
+          dividends?: Json | null
+          employees?: number | null
+          expires_at?: string | null
+          fetched_at?: string | null
+          headquarters?: Json | null
+          icon_url?: string | null
+          id?: string
+          industry?: string | null
+          last_financials?: Json | null
+          list_date?: string | null
+          logo_url?: string | null
+          market_cap?: number | null
+          name?: string | null
+          related_companies?: Json | null
+          sector?: string | null
+          sic_code?: string | null
+          sic_description?: string | null
+          splits?: Json | null
+          ticker: string
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          cik?: string | null
+          created_at?: string | null
+          description?: string | null
+          dividends?: Json | null
+          employees?: number | null
+          expires_at?: string | null
+          fetched_at?: string | null
+          headquarters?: Json | null
+          icon_url?: string | null
+          id?: string
+          industry?: string | null
+          last_financials?: Json | null
+          list_date?: string | null
+          logo_url?: string | null
+          market_cap?: number | null
+          name?: string | null
+          related_companies?: Json | null
+          sector?: string | null
+          sic_code?: string | null
+          sic_description?: string | null
+          splits?: Json | null
+          ticker?: string
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       daily_quotes: {
         Row: {
           author: string

@@ -96,6 +96,9 @@ verify_jwt = false
 [functions.polygon-technical-indicators]
 verify_jwt = false
 
+[functions.polygon-company-details]
+verify_jwt = false
+
 [functions.derivs]
 verify_jwt = false
 
