@@ -262,6 +262,128 @@ interface AssetSentimentSnapshot {
   trendDirection: string | null;
 }
 
+// ============================================
+// PHASE 5: SMART ROUTING - QUESTION TYPE DETECTION
+// ============================================
+
+type QuestionType = 'price' | 'news' | 'technical' | 'general' | 'social' | 'derivatives';
+
+interface SmartRouteConfig {
+  fetchTechnicals: boolean;
+  fetchDerivatives: boolean;
+  fetchSocial: boolean;
+  fetchNews: boolean;
+  fetchBriefs: boolean;
+  fetchWebSearch: boolean;
+}
+
+// Keywords that indicate specific question types
+const PRICE_KEYWORDS = new Set([
+  'price', 'cost', 'worth', 'value', 'market cap', 'mcap', 'volume', 
+  'change', 'up', 'down', 'pump', 'dump', 'ath', 'atl', 'high', 'low',
+  'how much', 'what is', "what's", 'current', 'today', 'now'
+]);
+
+const TECHNICAL_KEYWORDS = new Set([
+  'rsi', 'macd', 'sma', 'ema', 'moving average', 'bollinger', 'support',
+  'resistance', 'oversold', 'overbought', 'technical', 'indicator', 'chart',
+  'pattern', 'trend', 'momentum', 'divergence', 'signal', 'crossover'
+]);
+
+const NEWS_KEYWORDS = new Set([
+  'news', 'latest', 'update', 'announced', 'announcement', 'release',
+  'launch', 'partnership', 'why', 'happened', 'happening', 'event',
+  'regulation', 'sec', 'lawsuit', 'hack', 'exploit', 'rumor', 'today'
+]);
+
+const DERIVATIVES_KEYWORDS = new Set([
+  'funding', 'funding rate', 'liquidation', 'liquidated', 'leverage',
+  'long', 'short', 'open interest', 'oi', 'futures', 'perp', 'perpetual',
+  'derivatives', 'margin', 'longs', 'shorts', 'squeeze'
+]);
+
+const SOCIAL_KEYWORDS = new Set([
+  'sentiment', 'social', 'twitter', 'reddit', 'community', 'hype',
+  'trending', 'viral', 'influencer', 'galaxy score', 'altrank', 'fomo',
+  'fear', 'greed', 'bullish', 'bearish', 'mood', 'opinion'
+]);
+
+// Detect question type(s) from user message
+function detectQuestionTypes(message: string): Set<QuestionType> {
+  const lowerMessage = message.toLowerCase();
+  const types = new Set<QuestionType>();
+  
+  // Check each keyword set
+  for (const keyword of PRICE_KEYWORDS) {
+    if (lowerMessage.includes(keyword)) {
+      types.add('price');
+      break;
+    }
+  }
+  
+  for (const keyword of TECHNICAL_KEYWORDS) {
+    if (lowerMessage.includes(keyword)) {
+      types.add('technical');
+      break;
+    }
+  }
+  
+  for (const keyword of NEWS_KEYWORDS) {
+    if (lowerMessage.includes(keyword)) {
+      types.add('news');
+      break;
+    }
+  }
+  
+  for (const keyword of DERIVATIVES_KEYWORDS) {
+    if (lowerMessage.includes(keyword)) {
+      types.add('derivatives');
+      break;
+    }
+  }
+  
+  for (const keyword of SOCIAL_KEYWORDS) {
+    if (lowerMessage.includes(keyword)) {
+      types.add('social');
+      break;
+    }
+  }
+  
+  // If no specific type detected, treat as general (fetch everything relevant)
+  if (types.size === 0) {
+    types.add('general');
+  }
+  
+  return types;
+}
+
+// Generate smart routing config based on question types
+function getSmartRouteConfig(questionTypes: Set<QuestionType>, hasCrypto: boolean, hasStocks: boolean): SmartRouteConfig {
+  // General questions get everything relevant
+  if (questionTypes.has('general')) {
+    return {
+      fetchTechnicals: true,
+      fetchDerivatives: hasCrypto,
+      fetchSocial: hasCrypto,
+      fetchNews: true,
+      fetchBriefs: true,
+      fetchWebSearch: false // Only if news keywords detected
+    };
+  }
+  
+  // Build config based on specific question types
+  const config: SmartRouteConfig = {
+    fetchTechnicals: questionTypes.has('technical') || questionTypes.has('price'),
+    fetchDerivatives: hasCrypto && (questionTypes.has('derivatives') || questionTypes.has('price')),
+    fetchSocial: hasCrypto && (questionTypes.has('social') || questionTypes.has('news')),
+    fetchNews: questionTypes.has('news'),
+    fetchBriefs: questionTypes.has('news') || questionTypes.has('general'),
+    fetchWebSearch: questionTypes.has('news')
+  };
+  
+  return config;
+}
+
 // Common words to filter out from symbol/name extraction
 const COMMON_WORDS = new Set([
   'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 
@@ -2102,13 +2224,22 @@ serve(async (req) => {
     
     // Extract symbols for new data sources
     const cryptoSymbols = resolvedAssets.filter(a => a.assetType === 'crypto').map(a => a.symbol);
+    const stockSymbols = resolvedAssets.filter(a => a.assetType === 'stock').map(a => a.symbol);
     const allSymbols = resolvedAssets.map(a => a.symbol);
+    const hasCrypto = cryptoSymbols.length > 0;
+    const hasStocks = stockSymbols.length > 0;
     
-    // Check if we should perform web search for news/current events
-    const needsWebSearch = shouldPerformWebSearch(userQuery);
+    // PHASE 5: Smart routing - detect question type and skip unnecessary API calls
+    const questionTypes = detectQuestionTypes(userQuery);
+    const routeConfig = getSmartRouteConfig(questionTypes, hasCrypto, hasStocks);
+    console.log(`[Smart Route] Question types: ${Array.from(questionTypes).join(', ')}`);
+    console.log(`[Smart Route] Config: technicals=${routeConfig.fetchTechnicals}, derivs=${routeConfig.fetchDerivatives}, social=${routeConfig.fetchSocial}, news=${routeConfig.fetchNews}, briefs=${routeConfig.fetchBriefs}, webSearch=${routeConfig.fetchWebSearch}`);
+    
+    // Check if we should perform web search for news/current events (now uses smart routing)
+    const needsWebSearch = routeConfig.fetchWebSearch && shouldPerformWebSearch(userQuery);
     console.log(`Web search needed: ${needsWebSearch}`);
     
-    // Fetch ALL data in parallel (original + 4 new phases)
+    // Fetch data in parallel - SMART ROUTING skips unnecessary calls
     const [
       prices, 
       coinDetails, 
@@ -2116,24 +2247,44 @@ serve(async (req) => {
       historicalData, 
       technicalData, 
       webSearchResults,
-      // NEW: Phase 1-4 data
+      // Phase 1-4 data (conditionally fetched based on question type)
       relevantBriefs,
       derivativesData,
       socialData,
       newsData
     ] = await Promise.all([
-      // Original data fetches
+      // Always fetch: prices are cheap and always useful
       fetchLivePrices(supabase),
+      // Always fetch for resolved crypto assets
       Promise.all(resolvedAssets.filter(a => a.assetType === 'crypto').map(a => fetchCoinDetail(supabase, a))),
+      // Always fetch for resolved stock assets
       Promise.all(resolvedAssets.filter(a => a.assetType === 'stock').map(a => fetchCompanyDetails(supabase, a))),
-      Promise.all(resolvedAssets.map(a => fetchHistoricalContext(supabase, a))),
-      Promise.all(resolvedAssets.map(a => fetchTechnicalIndicators(supabase, a))),
+      // Historical: fetch if technicals requested
+      routeConfig.fetchTechnicals 
+        ? Promise.all(resolvedAssets.map(a => fetchHistoricalContext(supabase, a)))
+        : Promise.resolve([]),
+      // Technicals: RSI, MACD - only for technical/price questions
+      routeConfig.fetchTechnicals
+        ? Promise.all(resolvedAssets.map(a => fetchTechnicalIndicators(supabase, a)))
+        : Promise.resolve([]),
+      // Web search: only for news questions
       needsWebSearch ? searchTavily(userQuery) : Promise.resolve([]),
-      // NEW: Phase 1-4 fetches
-      fetchRelevantBriefs(supabase, allSymbols),
-      fetchDerivativesData(supabase, cryptoSymbols),
-      fetchSocialContext(supabase, cryptoSymbols),
-      fetchAggregatedNews(supabase, allSymbols)
+      // Phase 1: Market briefs - for news/general questions
+      routeConfig.fetchBriefs
+        ? fetchRelevantBriefs(supabase, allSymbols)
+        : Promise.resolve([]),
+      // Phase 2: Derivatives - for derivatives/price questions on crypto
+      routeConfig.fetchDerivatives
+        ? fetchDerivativesData(supabase, cryptoSymbols)
+        : Promise.resolve([]),
+      // Phase 3: Social sentiment - for social/news questions on crypto
+      routeConfig.fetchSocial
+        ? fetchSocialContext(supabase, cryptoSymbols)
+        : Promise.resolve([]),
+      // Phase 4: News - for news questions
+      routeConfig.fetchNews
+        ? fetchAggregatedNews(supabase, allSymbols)
+        : Promise.resolve({ news: [], sentiment: [] })
     ]);
     
     const validCoinDetails = coinDetails.filter((c): c is CoinDetail => c !== null);
@@ -2141,8 +2292,19 @@ serve(async (req) => {
     const validHistorical = historicalData.filter((h): h is HistoricalContext => h !== null);
     const validTechnicals = technicalData.filter((t): t is TechnicalIndicators => t !== null);
     
+    // Calculate API calls saved
+    const callsSkipped = [
+      !routeConfig.fetchTechnicals ? 'technicals' : null,
+      !routeConfig.fetchDerivatives ? 'derivatives' : null,
+      !routeConfig.fetchSocial ? 'social' : null,
+      !routeConfig.fetchNews ? 'news' : null,
+      !routeConfig.fetchBriefs ? 'briefs' : null,
+      !needsWebSearch ? 'webSearch' : null
+    ].filter(Boolean);
+    
     console.log(`Fetched: ${prices.length} prices, ${validCoinDetails.length} crypto details, ${validCompanyDetails.length} company details, ${validHistorical.length} historical, ${validTechnicals.length} technicals, ${webSearchResults.length} web results`);
-    console.log(`NEW: ${relevantBriefs.length} briefs, ${derivativesData.length} derivs, ${socialData.length} social, ${newsData.news.length} news, ${newsData.sentiment.length} sentiment`);
+    console.log(`Phase 1-4: ${relevantBriefs.length} briefs, ${derivativesData.length} derivs, ${socialData.length} social, ${newsData.news.length} news, ${newsData.sentiment.length} sentiment`);
+    console.log(`[Smart Route] Skipped API calls: ${callsSkipped.length > 0 ? callsSkipped.join(', ') : 'none (general question)'}`);
 
     // Build context strings (original)
     const priceContext = formatPriceContext(prices);
