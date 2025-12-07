@@ -34,7 +34,28 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Get LunarCrush API key from environment
+    // Parse pagination params from request body
+    let limit = 50;
+    let offset = 0;
+    let sortBy = 'market_cap_rank';
+    let sortDir: 'asc' | 'desc' = 'asc';
+    let search = '';
+    let changeFilter: 'all' | 'gainers' | 'losers' = 'all';
+
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        limit = Math.min(Math.max(body.limit || 50, 1), 200); // Cap at 200
+        offset = Math.max(body.offset || 0, 0);
+        sortBy = body.sortBy || 'market_cap_rank';
+        sortDir = body.sortDir === 'desc' ? 'desc' : 'asc';
+        search = (body.search || '').toLowerCase().trim();
+        changeFilter = body.changeFilter || 'all';
+      } catch {
+        // Use defaults if body parsing fails
+      }
+    }
+
     const lunarCrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY');
     
     if (!lunarCrushApiKey) {
@@ -54,101 +75,139 @@ Deno.serve(async (req) => {
     );
 
     const cacheKey = 'lunarcrush:universe:v1';
-    const cacheTTL = 600; // 10 minutes - fresh data for users
+    const cacheTTL = 600; // 10 minutes
 
-    // Check cache (fresh)
+    // Try to get cached full dataset
+    let allCoins: CoinData[] = [];
+    let cacheHit = false;
+
     const { data: cachedData } = await supabase
       .from('cache_kv')
       .select('v, expires_at')
       .eq('k', cacheKey)
       .gt('expires_at', new Date().toISOString())
-      .single();
+      .maybeSingle();
 
-    if (cachedData?.v) {
-      console.log('✅ Returning cached LunarCrush universe data');
-      return new Response(JSON.stringify(cachedData.v), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (cachedData?.v?.data) {
+      console.log('✅ Using cached LunarCrush universe data');
+      allCoins = cachedData.v.data;
+      cacheHit = true;
+    }
+
+    // If no cache, fetch from API
+    if (!cacheHit) {
+      // Check for expired cache as fallback
+      const { data: expiredCache } = await supabase
+        .from('cache_kv')
+        .select('v, expires_at')
+        .eq('k', cacheKey)
+        .maybeSingle();
+
+      console.log('Fetching fresh LunarCrush universe data...');
+      const response = await fetch('https://lunarcrush.com/api4/public/coins/list/v1', {
+        headers: {
+          'Authorization': `Bearer ${lunarCrushApiKey}`,
+        },
       });
+
+      if (!response.ok) {
+        // If rate limited and we have expired cache, use that
+        if (response.status === 429 && expiredCache?.v?.data) {
+          console.log('⚠️ Rate limited! Using expired cache');
+          allCoins = expiredCache.v.data;
+        } else {
+          throw new Error(`LunarCrush API error: ${response.status} ${response.statusText}`);
+        }
+      } else {
+        const apiData = await response.json();
+        const rawCoins = apiData.data || [];
+        
+        // Map API fields to our interface
+        allCoins = rawCoins.map((coin: any) => {
+          const social_volume = coin.interactions_24h || coin.social_volume_24h || coin.social_volume || 0;
+          return {
+            ...coin,
+            social_volume,
+            sentiment: coin.sentiment || 0,
+          };
+        });
+
+        // Cache the full dataset
+        const expiresAt = new Date(Date.now() + cacheTTL * 1000).toISOString();
+        await supabase
+          .from('cache_kv')
+          .upsert({
+            k: cacheKey,
+            v: { data: allCoins, cached_at: new Date().toISOString() },
+            expires_at: expiresAt,
+          });
+
+        console.log(`✅ Fetched and cached ${allCoins.length} coins from LunarCrush`);
+      }
     }
 
-    // Also get expired cache as fallback for rate limiting
-    const { data: expiredCache } = await supabase
-      .from('cache_kv')
-      .select('v, expires_at')
-      .eq('k', cacheKey)
-      .single();
+    // Apply server-side filtering
+    let filteredCoins = allCoins;
 
-    // Fetch fresh data
-    console.log('Fetching fresh LunarCrush universe data...');
-    const response = await fetch('https://lunarcrush.com/api4/public/coins/list/v1', {
-      headers: {
-        'Authorization': `Bearer ${lunarCrushApiKey}`,
-      },
-    });
-
-    if (!response.ok) {
-      // If rate limited and we have expired cache, return that instead
-      if (response.status === 429 && expiredCache?.v) {
-        console.log('⚠️ Rate limited! Returning expired cache for universe data');
-        return new Response(JSON.stringify(expiredCache.v), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      throw new Error(`LunarCrush API error: ${response.status} ${response.statusText}`);
+    // Search filter
+    if (search) {
+      filteredCoins = filteredCoins.filter(
+        (coin) =>
+          coin.symbol.toLowerCase().includes(search) ||
+          coin.name.toLowerCase().includes(search)
+      );
     }
 
-    const apiData = await response.json();
-    const rawCoins = apiData.data || [];
-    
-    // Map API fields to our interface, including social_volume from interactions_24h
-    const coins: CoinData[] = rawCoins.map((coin: any) => {
-      const social_volume = coin.interactions_24h || coin.social_volume_24h || coin.social_volume || 0;
+    // Change filter (gainers/losers)
+    if (changeFilter === 'gainers') {
+      filteredCoins = filteredCoins.filter((coin) => coin.percent_change_24h > 0);
+    } else if (changeFilter === 'losers') {
+      filteredCoins = filteredCoins.filter((coin) => coin.percent_change_24h < 0);
+    }
+
+    // Server-side sorting
+    const validSortKeys = ['market_cap_rank', 'price', 'percent_change_24h', 'market_cap', 'volume_24h', 'galaxy_score', 'alt_rank', 'name', 'symbol'];
+    const safeSortBy = validSortKeys.includes(sortBy) ? sortBy : 'market_cap_rank';
+
+    filteredCoins.sort((a: any, b: any) => {
+      const aVal = a[safeSortBy] ?? 0;
+      const bVal = b[safeSortBy] ?? 0;
       
-      // Debug: Log which field we're using for the first few coins
-      if (rawCoins.indexOf(coin) < 3) {
-        console.log(`📊 ${coin.symbol} social_volume mapping:`, {
-          interactions_24h: coin.interactions_24h,
-          social_volume_24h: coin.social_volume_24h,
-          social_volume: coin.social_volume,
-          final_value: social_volume
-        });
+      // Handle string comparison for name/symbol
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        const comparison = aVal.localeCompare(bVal);
+        return sortDir === 'asc' ? comparison : -comparison;
       }
       
-      return {
-        ...coin,
-        social_volume,
-        sentiment: coin.sentiment || 0,
-      };
+      const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return sortDir === 'asc' ? comparison : -comparison;
     });
 
-    console.log(`📊 Sample coin data:`, JSON.stringify(coins[0], null, 2));
+    const totalFiltered = filteredCoins.length;
+
+    // Apply pagination
+    const paginatedCoins = filteredCoins.slice(offset, offset + limit);
 
     // Calculate metadata
     const metadata = {
-      total_coins: coins.length,
-      total_market_cap: coins.reduce((sum, c) => sum + (c.market_cap || 0), 0),
-      total_volume_24h: coins.reduce((sum, c) => sum + (c.volume_24h || 0), 0),
-      average_galaxy_score: coins.reduce((sum, c) => sum + (c.galaxy_score || 0), 0) / coins.length,
+      total_coins: totalFiltered,
+      total_all_coins: allCoins.length,
+      total_market_cap: allCoins.reduce((sum, c) => sum + (c.market_cap || 0), 0),
+      total_volume_24h: allCoins.reduce((sum, c) => sum + (c.volume_24h || 0), 0),
+      average_galaxy_score: allCoins.reduce((sum, c) => sum + (c.galaxy_score || 0), 0) / allCoins.length,
       last_updated: new Date().toISOString(),
+      page_size: limit,
+      offset: offset,
+      has_more: offset + limit < totalFiltered,
     };
 
     const result = {
       success: true,
-      data: coins,
+      data: paginatedCoins,
       metadata,
     };
 
-    // Store in cache
-    const expiresAt = new Date(Date.now() + cacheTTL * 1000).toISOString();
-    await supabase
-      .from('cache_kv')
-      .upsert({
-        k: cacheKey,
-        v: result,
-        expires_at: expiresAt,
-      });
-
-    console.log(`✅ Fetched ${coins.length} coins from LunarCrush`);
+    console.log(`📊 Returning ${paginatedCoins.length}/${totalFiltered} coins (offset: ${offset}, limit: ${limit})`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

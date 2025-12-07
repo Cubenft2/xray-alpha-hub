@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -28,10 +28,14 @@ export interface CoinData {
 
 export interface UniverseMetadata {
   total_coins: number;
+  total_all_coins: number;
   total_market_cap: number;
   total_volume_24h: number;
   average_galaxy_score: number;
   last_updated: string;
+  page_size: number;
+  offset: number;
+  has_more: boolean;
 }
 
 export interface Filters {
@@ -47,7 +51,7 @@ export function useLunarCrushUniverse() {
   const [sortKey, setSortKey] = useState<keyof CoinData>('market_cap_rank');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize] = useState(50);
   const { toast } = useToast();
 
   const [filters, setFilters] = useState<Filters>({
@@ -59,32 +63,58 @@ export function useLunarCrushUniverse() {
     sentimentFilter: 'all',
   });
 
-  const fetchCoins = async () => {
-    const { data, error: funcError } = await supabase.functions.invoke('lunarcrush-universe');
+  // Debounced search for server requests
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.search);
+      setCurrentPage(1); // Reset to first page on search change
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.changeFilter]);
+
+  const fetchCoins = useCallback(async () => {
+    const offset = (currentPage - 1) * pageSize;
+
+    const { data, error: funcError } = await supabase.functions.invoke('lunarcrush-universe', {
+      body: {
+        limit: pageSize,
+        offset,
+        sortBy: sortKey,
+        sortDir: sortDirection,
+        search: debouncedSearch,
+        changeFilter: filters.changeFilter,
+      },
+    });
 
     if (funcError) throw funcError;
     if (!data?.success) throw new Error(data?.error || 'Failed to fetch data');
 
     return {
       coins: data.data || [],
-      metadata: data.metadata || null,
+      metadata: data.metadata as UniverseMetadata || null,
     };
-  };
+  }, [currentPage, pageSize, sortKey, sortDirection, debouncedSearch, filters.changeFilter]);
 
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['lunarcrush-universe'],
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ['lunarcrush-universe', currentPage, pageSize, sortKey, sortDirection, debouncedSearch, filters.changeFilter],
     queryFn: fetchCoins,
-    staleTime: 3 * 60 * 1000, // 3 minutes - data is fresh
-    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache
-    refetchOnWindowFocus: false, // Don't refetch on tab switch
-    refetchOnMount: false, // Don't refetch when component remounts
-    refetchOnReconnect: false, // Don't refetch on internet reconnect
-    refetchInterval: 3 * 60 * 1000, // Auto-refresh every 3 minutes if page is open
+    staleTime: 3 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    placeholderData: (previousData) => previousData, // Keep previous data while fetching
     retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Exponential backoff
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 
-  // Show toast on error (moved to useEffect to prevent infinite re-renders)
   useEffect(() => {
     if (error) {
       toast({
@@ -97,44 +127,8 @@ export function useLunarCrushUniverse() {
 
   const coins = data?.coins || [];
   const metadata = data?.metadata || null;
-
-  const filteredAndSortedCoins = useMemo(() => {
-    let result = [...coins];
-
-    // Apply filters
-    if (filters.search) {
-      const search = filters.search.toLowerCase();
-      result = result.filter(
-        (coin) =>
-          coin.symbol.toLowerCase().includes(search) ||
-          coin.name.toLowerCase().includes(search)
-      );
-    }
-
-    if (filters.changeFilter === 'gainers') {
-      result = result.filter((coin) => coin.percent_change_24h > 0);
-    } else if (filters.changeFilter === 'losers') {
-      result = result.filter((coin) => coin.percent_change_24h < 0);
-    }
-
-    result = result.filter(
-      (coin) =>
-        coin.market_cap >= filters.marketCapRange[0] &&
-        coin.market_cap <= filters.marketCapRange[1] &&
-        coin.galaxy_score >= filters.galaxyScoreRange[0] &&
-        coin.galaxy_score <= filters.galaxyScoreRange[1]
-    );
-
-    // Sort
-    result.sort((a, b) => {
-      const aVal = a[sortKey] ?? 0;
-      const bVal = b[sortKey] ?? 0;
-      const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-      return sortDirection === 'asc' ? comparison : -comparison;
-    });
-
-    return result;
-  }, [coins, filters, sortKey, sortDirection]);
+  const totalItems = metadata?.total_coins || 0;
+  const totalPages = Math.ceil(totalItems / pageSize);
 
   const handleSort = (key: keyof CoinData) => {
     if (sortKey === key) {
@@ -143,25 +137,27 @@ export function useLunarCrushUniverse() {
       setSortKey(key);
       setSortDirection('asc');
     }
-    setCurrentPage(1); // Reset to first page on sort
+    setCurrentPage(1);
   };
 
-  const totalPages = Math.ceil(filteredAndSortedCoins.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, filteredAndSortedCoins.length);
-  const paginatedCoins = filteredAndSortedCoins.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + coins.length, totalItems);
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const newPage = Math.max(1, Math.min(page, totalPages));
+    if (newPage !== currentPage) {
+      setCurrentPage(newPage);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   return {
-    coins: paginatedCoins,
-    allCoins: coins,
-    filteredCoins: filteredAndSortedCoins,
+    coins,
+    allCoins: coins, // For compatibility - now just returns current page
+    filteredCoins: coins, // For compatibility
     metadata,
     loading: isLoading,
+    isFetching, // For showing loading indicator during pagination
     error: error?.message || null,
     filters,
     setFilters,
@@ -172,10 +168,9 @@ export function useLunarCrushUniverse() {
     currentPage,
     totalPages,
     pageSize,
-    setPageSize,
     handlePageChange,
     startIndex,
     endIndex,
-    totalFilteredItems: filteredAndSortedCoins.length,
+    totalFilteredItems: totalItems,
   };
 }
