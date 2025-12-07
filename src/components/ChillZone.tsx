@@ -106,7 +106,7 @@ const chillChannels: ChillChannel[] = [
     id: '12',
     name: 'Reggae Chill',
     description: 'Classic reggae rhythms',
-    youtubeId: 'e76DpWphneg',
+    youtubeId: '5tq8XCwKqqQ',
     category: 'Reggae',
     live: true
   }
