@@ -56,6 +56,7 @@ async function logAIUsage(
     fallbackFrom?: string;
     userMessagePreview?: string;
     sessionId?: string;
+    clientIp?: string;
   }
 ): Promise<void> {
   try {
@@ -75,12 +76,123 @@ async function logAIUsage(
       fallback_from: metadata.fallbackFrom || null,
       user_message_preview: metadata.userMessagePreview?.substring(0, 200) || null,
       session_id: metadata.sessionId || null,
+      client_ip: metadata.clientIp || null,
     });
     
     console.log(`[AI Usage] Logged: ${provider} | ${inputTokens}in/${outputTokens}out | ${costMillicents/100000} USD | ${latencyMs}ms`);
   } catch (error) {
     console.error('[AI Usage] Failed to log usage:', error);
     // Don't throw - logging failure shouldn't break the chat
+  }
+}
+
+// ============================================
+// RATE LIMITING - 10 messages/day per IP (admins unlimited)
+// ============================================
+const DAILY_MESSAGE_LIMIT = 10;
+
+// Get client IP from request headers
+function getClientIP(req: Request): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
+         req.headers.get('x-real-ip') || 
+         'unknown';
+}
+
+// Check if user is admin (by JWT token)
+async function isAdminUser(req: Request, supabase: any): Promise<boolean> {
+  try {
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return false;
+    }
+    
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      return false;
+    }
+    
+    // Check user_roles table for admin role
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .single();
+    
+    return !!roleData;
+  } catch (error) {
+    console.error('[Rate Limit] Admin check error:', error);
+    return false;
+  }
+}
+
+// Check rate limit for a client IP
+async function checkRateLimit(supabase: any, clientIp: string): Promise<{ allowed: boolean; remaining: number; resetTime: string }> {
+  try {
+    // Get current date in ET timezone (midnight reset)
+    const now = new Date();
+    const etFormatter = new Intl.DateTimeFormat('en-CA', { 
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit'
+    });
+    const todayET = etFormatter.format(now); // Format: YYYY-MM-DD
+    
+    // Convert today's date in ET to a UTC timestamp for comparison
+    const startOfDayET = new Date(`${todayET}T00:00:00-05:00`); // Approximate ET offset
+    
+    // Count messages from this IP today
+    const { count, error } = await supabase
+      .from('ai_usage_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('client_ip', clientIp)
+      .gte('created_at', startOfDayET.toISOString());
+    
+    if (error) {
+      console.error('[Rate Limit] Count query error:', error);
+      // On error, allow the request (fail open for UX)
+      return { allowed: true, remaining: DAILY_MESSAGE_LIMIT, resetTime: 'midnight ET' };
+    }
+    
+    const messageCount = count || 0;
+    const remaining = Math.max(0, DAILY_MESSAGE_LIMIT - messageCount);
+    const allowed = messageCount < DAILY_MESSAGE_LIMIT;
+    
+    console.log(`[Rate Limit] IP ${clientIp}: ${messageCount}/${DAILY_MESSAGE_LIMIT} messages today, ${remaining} remaining`);
+    
+    return { allowed, remaining, resetTime: 'midnight ET' };
+  } catch (error) {
+    console.error('[Rate Limit] Check error:', error);
+    // Fail open for UX
+    return { allowed: true, remaining: DAILY_MESSAGE_LIMIT, resetTime: 'midnight ET' };
+  }
+}
+
+// Get usage count for a client IP (for frontend display)
+async function getUsageCount(supabase: any, clientIp: string): Promise<number> {
+  try {
+    const now = new Date();
+    const etFormatter = new Intl.DateTimeFormat('en-CA', { 
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit', 
+      day: '2-digit'
+    });
+    const todayET = etFormatter.format(now);
+    const startOfDayET = new Date(`${todayET}T00:00:00-05:00`);
+    
+    const { count, error } = await supabase
+      .from('ai_usage_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('client_ip', clientIp)
+      .gte('created_at', startOfDayET.toISOString());
+    
+    return error ? 0 : (count || 0);
+  } catch {
+    return 0;
   }
 }
 
@@ -2284,14 +2396,70 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { messages } = await req.json();
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  
+  // Get client IP for rate limiting
+  const clientIp = getClientIP(req);
+  console.log(`[Request] Client IP: ${clientIp}`);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+  try {
+    const body = await req.json();
+    
+    // Handle usage count request (for frontend to display remaining messages)
+    if (body.action === 'get_usage') {
+      const isAdmin = await isAdminUser(req, supabase);
+      if (isAdmin) {
+        return new Response(JSON.stringify({ 
+          count: 0, 
+          limit: -1, // -1 indicates unlimited
+          remaining: -1,
+          isAdmin: true 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      const count = await getUsageCount(supabase, clientIp);
+      return new Response(JSON.stringify({ 
+        count, 
+        limit: DAILY_MESSAGE_LIMIT,
+        remaining: Math.max(0, DAILY_MESSAGE_LIMIT - count),
+        isAdmin: false
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    const { messages } = body;
 
     console.log(`ZombieDog chat request with ${messages?.length || 0} messages`);
+    
+    // Check if user is admin (unlimited messages)
+    const isAdmin = await isAdminUser(req, supabase);
+    
+    if (!isAdmin) {
+      // Rate limiting for non-admin users
+      const { allowed, remaining, resetTime } = await checkRateLimit(supabase, clientIp);
+      
+      if (!allowed) {
+        console.log(`[Rate Limit] BLOCKED - IP ${clientIp} exceeded daily limit`);
+        return new Response(JSON.stringify({ 
+          error: 'rate_limit_exceeded',
+          message: `Daily limit of ${DAILY_MESSAGE_LIMIT} messages reached. Resets at ${resetTime}.`,
+          remaining: 0,
+          resetTime 
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      console.log(`[Rate Limit] Allowed - ${remaining} messages remaining today`);
+    } else {
+      console.log(`[Rate Limit] Admin user - unlimited messages`);
+    }
 
     // Get the latest user message to extract asset mentions
     const latestUserMessage = messages?.filter((m: any) => m.role === 'user').pop();
@@ -2503,7 +2671,7 @@ Please let the user know you couldn't identify this contract address. Suggest th
               // Stream complete - log usage
               const outputTokens = estimateTokens(outputText);
               
-              // Log in background (don't await)
+              // Log in background (don't await) - include client IP for rate limiting
               logAIUsage(supabase, provider, inputTokens, outputTokens, latencyMs, {
                 questionTypes: Array.from(questionTypes),
                 assetsQueried: allSymbols,
@@ -2511,6 +2679,7 @@ Please let the user know you couldn't identify this contract address. Suggest th
                 fallbackUsed,
                 fallbackFrom: fallbackFrom || undefined,
                 userMessagePreview: userQuery,
+                clientIp,
               }).catch(e => console.error('[AI Usage] Background log failed:', e));
               
               controller.close();
