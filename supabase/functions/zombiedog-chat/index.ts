@@ -84,9 +84,6 @@ async function logAIUsage(
   }
 }
 
-// Message compression settings
-const RECENT_MESSAGES_TO_KEEP = 3;
-
 // Prepare messages for AI with hybrid compression (keep last 3 full, summarize rest)
 function prepareMessagesForAI(messages: any[]): any[] {
   if (messages.length <= RECENT_MESSAGES_TO_KEEP) {
