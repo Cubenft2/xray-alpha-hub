@@ -1337,8 +1337,8 @@ async function fetchAggregatedNews(supabase: any, symbols: string[]): Promise<{ 
 // TAVILY WEB SEARCH
 // ============================================
 
-// Keywords that trigger web search for news/current events
-const NEWS_KEYWORDS = [
+// Keywords that trigger web search for news/current events (Tavily-specific)
+const TAVILY_NEWS_TRIGGERS = [
   'news', 'latest', 'recent', 'update', 'announcement', 'announce',
   'partnership', 'rumor', 'why is', 'what happened', 'breaking',
   'launch', 'launched', 'release',
@@ -1351,7 +1351,7 @@ const NEWS_KEYWORDS = [
 ];
 
 // Keywords that indicate price/market data questions - skip Tavily for these
-const PRICE_DATA_KEYWORDS = [
+const TAVILY_SKIP_KEYWORDS = [
   'price', 'cost', 'worth', 'value', 'how much',
   'market cap', 'marketcap', 'mcap', 
   'volume', '24h', '24 hour', 'daily change',
@@ -1369,14 +1369,14 @@ function shouldPerformWebSearch(message: string): boolean {
   
   // FIRST: Check if this is a price/market data question
   // If so, we already have this data from Polygon/LunarCrush - skip Tavily
-  const isPriceQuestion = PRICE_DATA_KEYWORDS.some(kw => lowerMsg.includes(kw));
+  const isPriceQuestion = TAVILY_SKIP_KEYWORDS.some(kw => lowerMsg.includes(kw));
   if (isPriceQuestion) {
     console.log("[Tavily] Skipping - detected price/market data question");
     return false;
   }
   
   // SECOND: Check for news/current events keywords
-  const isNewsQuestion = NEWS_KEYWORDS.some(kw => lowerMsg.includes(kw));
+  const isNewsQuestion = TAVILY_NEWS_TRIGGERS.some(kw => lowerMsg.includes(kw));
   if (isNewsQuestion) {
     console.log("[Tavily] Triggering - detected news/events question");
     return true;
