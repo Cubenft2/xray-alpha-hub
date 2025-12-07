@@ -16,7 +16,7 @@ interface Message {
 const welcomeMessage: Message = {
   id: '1',
   role: 'assistant',
-  content: "Hey fren! I'm ZombieDog, your undead market assistant. Ask me about crypto prices, market trends, or sentiment!",
+  content: "Hey fren! 🧟🐕 I'm ZombieDog, your undead market assistant!\n\n🌍 I speak your language! 🇺🇸 🇪🇸 🇫🇷 🇧🇷 🇩🇪 🇯🇵 🇰🇷 🇨🇳\n\nAsk me about crypto prices, market trends, or sentiment!",
   timestamp: new Date(),
 };
 
@@ -323,7 +323,7 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask ZombieDog..."
+            placeholder="Ask ZombieDog anything (any language!)..."
             className={`flex-1 ${inputHeight} ${inputTextSize} bg-background/50 border-primary/30 focus:border-primary`}
             disabled={isLoading}
           />
