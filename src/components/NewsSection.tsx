@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RefreshCw, Clock, X } from 'lucide-react';
+import { RefreshCw, Clock, X, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { NewsAlertBanner } from './NewsAlertBanner';
@@ -232,6 +232,17 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   };
 
   const NewsCard = ({ item, isNew = false }: { item: NewsItem; isNew?: boolean }) => {
+    const handleShareToX = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Build tweet text with title and cashtags
+      const cashtags = item.tickers?.slice(0, 3).map(t => `$${t}`).join(' ') || '';
+      const tweetText = `${item.title}${cashtags ? ' ' + cashtags : ''}\n\n${item.url}\n\n#XRayCrypto #Crypto via @XRayMarkets`;
+      
+      const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+      window.open(shareUrl, '_blank', 'width=550,height=420,noopener,noreferrer');
+    };
     const isBlockedSite = (() => {
       try {
         const host = new URL(item.url).hostname.replace('www.', '').toLowerCase();
@@ -358,53 +369,55 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
                 </span>
               )}
             </div>
-            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={(e) => {
-          if (item.url && item.url !== '#') {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Blocked sites: copy URL instead of opening
-            if (isBlockedSite) {
-              const siteName = hostname || 'This site';
-              navigator.clipboard.writeText(item.url).then(() => {
-                toast({
-                  title: "Link Copied",
-                  description: `${siteName} blocks direct access. Paste the URL into a new tab.`,
-                  duration: 4000
-                });
-              }).catch(() => {
-                alert(`${siteName} blocks direct access. Copy this URL manually:\n\n${item.url}`);
-              });
-            } else {
-              // Normal handling for other sites
-              try {
-                const newWindow = window.open(item.url, '_blank', 'noopener,noreferrer');
-                if (!newWindow) {
-                  // Popup blocked - copy to clipboard instead
-                  navigator.clipboard.writeText(item.url).then(() => {
-                    toast({
-                      title: "Popup Blocked",
-                      description: "Link copied to clipboard - paste in new tab.",
-                      duration: 3000
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={handleShareToX} title="Share to X">
+                <Share2 className="w-3 h-3 mr-1" />
+                <span className="hidden sm:inline">Share</span>
+              </Button>
+              <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={(e) => {
+                if (item.url && item.url !== '#') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  
+                  if (isBlockedSite) {
+                    const siteName = hostname || 'This site';
+                    navigator.clipboard.writeText(item.url).then(() => {
+                      toast({
+                        title: "Link Copied",
+                        description: `${siteName} blocks direct access. Paste the URL into a new tab.`,
+                        duration: 4000
+                      });
+                    }).catch(() => {
+                      alert(`${siteName} blocks direct access. Copy this URL manually:\n\n${item.url}`);
                     });
-                  });
+                  } else {
+                    try {
+                      const newWindow = window.open(item.url, '_blank', 'noopener,noreferrer');
+                      if (!newWindow) {
+                        navigator.clipboard.writeText(item.url).then(() => {
+                          toast({
+                            title: "Popup Blocked",
+                            description: "Link copied to clipboard - paste in new tab.",
+                            duration: 3000
+                          });
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Failed to open news link:', error, 'URL:', item.url);
+                      navigator.clipboard.writeText(item.url).then(() => {
+                        toast({
+                          title: "Link Issue",
+                          description: "URL copied to clipboard - paste in new tab.",
+                          duration: 3000
+                        });
+                      });
+                    }
+                  }
                 }
-              } catch (error) {
-                console.error('Failed to open news link:', error, 'URL:', item.url);
-                // Final fallback: copy to clipboard
-                navigator.clipboard.writeText(item.url).then(() => {
-                  toast({
-                    title: "Link Issue",
-                    description: "URL copied to clipboard - paste in new tab.",
-                    duration: 3000
-                  });
-                });
-              }
-            }
-          }
-            }}>
-              Read More
-            </Button>
+              }}>
+                Read More
+              </Button>
+            </div>
           </div>
         </div>
       </div>
