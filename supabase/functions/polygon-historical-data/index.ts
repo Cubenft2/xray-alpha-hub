@@ -76,10 +76,23 @@ serve(async (req) => {
 
     console.log(`🔄 Cache miss - fetching from Polygon.io`);
 
-    // Format ticker for Polygon.io
-    const polygonTicker = asset_type === 'crypto' 
-      ? `X:${ticker}USD` // Crypto format: X:BTCUSD
-      : ticker; // Stock format: AAPL
+    // Format ticker for Polygon.io (handle pre-formatted tickers from database)
+    let polygonTicker = ticker;
+    if (asset_type === 'crypto') {
+      // Already properly formatted (e.g., X:BTCUSD, X:ZECUSD from ticker_mappings)
+      if (ticker.startsWith('X:') && ticker.endsWith('USD')) {
+        polygonTicker = ticker;
+      }
+      // Has X: prefix but no USD suffix
+      else if (ticker.startsWith('X:')) {
+        polygonTicker = `${ticker}USD`;
+      }
+      // Raw symbol (e.g., BTC, ZEC)
+      else {
+        polygonTicker = `X:${ticker}USD`;
+      }
+    }
+    // Stock format stays as-is (e.g., AAPL)
 
     // Map timeframe to Polygon format
     const timeframeMap: Record<string, { multiplier: number; timespan: string }> = {
