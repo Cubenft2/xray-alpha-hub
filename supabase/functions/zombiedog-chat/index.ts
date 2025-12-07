@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// AI Provider types
+type AIProvider = 'lovable' | 'openai' | 'anthropic';
+
 // Top cryptos to fetch general prices for
 const TOP_CRYPTOS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'DOT', 'MATIC', 'SHIB', 'UNI', 'LTC', 'BCH', 'ATOM'];
 
@@ -401,8 +404,6 @@ async function fetchHistoricalContext(supabase: any, asset: ResolvedAsset): Prom
     const fromDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const from = fromDate.toISOString().split('T')[0];
     
-    // Use raw symbol - let the polygon function handle formatting
-    // Don't add X: prefix here as polygon-historical-data will add it
     const ticker = asset.polygonTicker || asset.symbol;
     
     console.log(`Fetching historical data for ${asset.symbol} (ticker: ${ticker}, type: ${asset.assetType})`);
@@ -448,8 +449,6 @@ async function fetchHistoricalContext(supabase: any, asset: ResolvedAsset): Prom
 // Fetch technical indicators from Polygon
 async function fetchTechnicalIndicators(supabase: any, asset: ResolvedAsset): Promise<TechnicalIndicators | null> {
   try {
-    // Use raw symbol - let the polygon function handle formatting
-    // Don't add X: prefix here as polygon-technical-indicators will add it
     const ticker = asset.polygonTicker || asset.symbol;
     
     console.log(`Fetching technical indicators for ${asset.symbol} (ticker: ${ticker}, type: ${asset.assetType})`);
@@ -468,7 +467,6 @@ async function fetchTechnicalIndicators(supabase: any, asset: ResolvedAsset): Pr
       return null;
     }
     
-    // Try multiple ticker formats in response (the function might use different formatting)
     const indicators = data.data?.[ticker] || data.data?.[`X:${ticker}USD`] || data.data?.[asset.symbol];
     if (!indicators) {
       console.log(`No indicator data found for ${asset.symbol} in response keys: ${Object.keys(data.data || {}).join(', ')}`);
@@ -531,7 +529,6 @@ async function fetchLivePrices(supabase: any): Promise<PriceData[]> {
 }
 
 async function fetchCoinDetail(supabase: any, asset: ResolvedAsset): Promise<CoinDetail | null> {
-  // Only fetch LunarCrush data for crypto
   if (asset.assetType !== 'crypto') return null;
   
   try {
@@ -794,34 +791,211 @@ ${similarSuggestion}
    - For coins like MON (Monad): It's live on Coinbase! Just note if chart history is limited
    - Use whatever data IS available (price, social sentiment, etc.)
 
-7. **WEB SEARCH:** You have access to web search for current information!
-   - Use it for recent news, project announcements, partnerships, listings
-   - Search for team background, tokenomics, roadmaps when relevant
-   - Great for researching newer projects not fully in the database
-   - When citing web results, briefly mention the source
-   - Combine web search findings with the market data above
+7. Keep responses concise but data-rich (2-4 paragraphs max)
+8. Always remind users to DYOR (do your own research)
+9. Never give financial advice
 
-8. Keep responses concise but data-rich (2-4 paragraphs max)
-9. Always remind users to DYOR (do your own research)
-10. Never give financial advice
-
-Remember: You're a helpful undead pup with REAL market data AND web search - use both! 🐕💀`;
+Remember: You're a helpful undead pup with REAL market data - use it! 🐕💀`;
 }
 
+// ============================================
+// AI PROVIDER IMPLEMENTATIONS
+// ============================================
+
+// Call Lovable AI (Gemini 2.5 Flash via gateway)
+async function callLovableAI(messages: any[], systemPrompt: string): Promise<Response> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    throw new Error("LOVABLE_API_KEY not configured");
+  }
+
+  console.log("[Lovable AI] Calling Gemini 2.5 Flash...");
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages.map((m: any) => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        })),
+      ],
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[Lovable AI] Error:", response.status, errorText);
+    throw new Error(`Lovable AI error: ${response.status}`);
+  }
+
+  return response;
+}
+
+// Call OpenAI (GPT-4o-mini)
+async function callOpenAI(messages: any[], systemPrompt: string): Promise<Response> {
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY not configured");
+  }
+
+  console.log("[OpenAI] Calling GPT-4o-mini...");
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages.map((m: any) => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        })),
+      ],
+      max_tokens: 1024,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[OpenAI] Error:", response.status, errorText);
+    throw new Error(`OpenAI error: ${response.status}`);
+  }
+
+  return response;
+}
+
+// Call Anthropic (Claude Haiku - cheaper)
+async function callAnthropic(messages: any[], systemPrompt: string): Promise<Response> {
+  const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY not configured");
+  }
+
+  console.log("[Anthropic] Calling Claude Haiku...");
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-3-5-haiku-20241022",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: messages.map((m: any) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      })),
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("[Anthropic] Error:", response.status, errorText);
+    throw new Error(`Anthropic error: ${response.status}`);
+  }
+
+  return response;
+}
+
+// Transform OpenAI/Lovable stream to match what frontend expects
+function transformOpenAIStream(response: Response): ReadableStream {
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = '';
+
+  return new ReadableStream({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      
+      if (done) {
+        controller.close();
+        return;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') {
+            controller.enqueue(encoder.encode('event: message_stop\ndata: {}\n\n'));
+            continue;
+          }
+          
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              // Transform to Anthropic-like format for frontend
+              const event = {
+                type: 'content_block_delta',
+                delta: { type: 'text_delta', text: content }
+              };
+              controller.enqueue(encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify(event)}\n\n`));
+            }
+          } catch {
+            // Skip malformed JSON
+          }
+        }
+      }
+    }
+  });
+}
+
+// Try providers in order with fallback
+async function callAIWithFallback(messages: any[], systemPrompt: string): Promise<{ response: Response, provider: AIProvider, needsTransform: boolean }> {
+  const providers: { name: AIProvider; fn: () => Promise<Response>; needsTransform: boolean }[] = [
+    { name: 'lovable', fn: () => callLovableAI(messages, systemPrompt), needsTransform: true },
+    { name: 'openai', fn: () => callOpenAI(messages, systemPrompt), needsTransform: true },
+    { name: 'anthropic', fn: () => callAnthropic(messages, systemPrompt), needsTransform: false },
+  ];
+
+  for (const provider of providers) {
+    try {
+      console.log(`[AI Fallback] Trying ${provider.name}...`);
+      const response = await provider.fn();
+      console.log(`[AI Fallback] ✅ ${provider.name} succeeded`);
+      return { response, provider: provider.name, needsTransform: provider.needsTransform };
+    } catch (error) {
+      console.error(`[AI Fallback] ❌ ${provider.name} failed:`, error);
+      continue;
+    }
+  }
+
+  throw new Error("All AI providers failed");
+}
+
+// ============================================
+// MAIN SERVER
+// ============================================
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { messages } = await req.json();
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    
-    if (!ANTHROPIC_API_KEY) {
-      console.error("ANTHROPIC_API_KEY is not configured");
-      throw new Error("ANTHROPIC_API_KEY is not configured");
-    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -840,11 +1014,8 @@ serve(async (req) => {
     // Fetch all data in parallel
     const [prices, coinDetails, historicalData, technicalData] = await Promise.all([
       fetchLivePrices(supabase),
-      // Fetch LunarCrush details for crypto assets
       Promise.all(resolvedAssets.filter(a => a.assetType === 'crypto').map(a => fetchCoinDetail(supabase, a))),
-      // Fetch historical data for all assets
       Promise.all(resolvedAssets.map(a => fetchHistoricalContext(supabase, a))),
-      // Fetch technical indicators for all assets
       Promise.all(resolvedAssets.map(a => fetchTechnicalIndicators(supabase, a)))
     ]);
     
@@ -868,60 +1039,15 @@ serve(async (req) => {
     
     const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion);
 
-    // Convert messages format for Anthropic API
-    const anthropicMessages = messages.map((m: { role: string; content: string }) => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content,
-    }));
+    // Call AI with fallback chain
+    const { response, provider, needsTransform } = await callAIWithFallback(messages, systemPrompt);
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2048,
-        tools: [
-          {
-            type: "web_search_20250305",
-            name: "web_search",
-          }
-        ],
-        system: systemPrompt,
-        messages: anthropicMessages,
-        stream: true,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Anthropic API error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 401) {
-        return new Response(JSON.stringify({ error: "API authentication failed." }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      return new Response(JSON.stringify({ error: "AI service temporarily unavailable" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    console.log("Streaming response from Anthropic API");
+    console.log(`Streaming response from ${provider}`);
     
-    return new Response(response.body, {
+    // Transform OpenAI/Lovable format to Anthropic format if needed
+    const responseBody = needsTransform ? transformOpenAIStream(response) : response.body;
+
+    return new Response(responseBody, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {
