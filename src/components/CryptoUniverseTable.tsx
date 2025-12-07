@@ -68,6 +68,48 @@ export function CryptoUniverseTable({
     return <span className="text-muted-foreground text-sm">#{rank}</span>;
   };
 
+  // Dynamic tier badge based on current sort column
+  const getTierBadge = (position: number, currentSortKey: keyof CoinData) => {
+    const sortEmoji: Record<string, string> = {
+      galaxy_score: '🌙',
+      market_cap: '💰',
+      percent_change_24h: '🔥',
+      volume_24h: '📊',
+      alt_rank: '⭐',
+      price: '💵',
+      symbol: '🔤',
+    };
+
+    const emoji = sortEmoji[currentSortKey] || '📈';
+
+    if (position <= 10) {
+      return <Badge className="text-xs bg-yellow-500 hover:bg-yellow-600 text-yellow-950">{emoji} Top 10</Badge>;
+    }
+    if (position <= 50) {
+      return <Badge variant="default" className="text-xs">{emoji} Top 50</Badge>;
+    }
+    if (position <= 100) {
+      return <Badge variant="secondary" className="text-xs">{emoji} Top 100</Badge>;
+    }
+    if (position <= 200) {
+      return <Badge variant="outline" className="text-xs">{emoji} Top 200</Badge>;
+    }
+    return null;
+  };
+
+  const getSortColumnLabel = () => {
+    const labels: Record<string, string> = {
+      galaxy_score: '🌙',
+      market_cap: '💰',
+      percent_change_24h: '🔥',
+      volume_24h: '📊',
+      alt_rank: '⭐',
+      price: '💵',
+      symbol: '🔤',
+    };
+    return labels[sortKey] || '📈';
+  };
+
   const getSentimentEmoji = (sentiment?: number) => {
     if (!sentiment) return '😐';
     if (sentiment >= 60) return '😊';
@@ -111,6 +153,11 @@ export function CryptoUniverseTable({
           <TableHeader>
             <TableRow>
               <TableHead className="w-12 sticky left-0 bg-card z-10">#</TableHead>
+              <TableHead className="w-24">
+                <span className="flex items-center gap-1 text-xs">
+                  {getSortColumnLabel()} Tier
+                </span>
+              </TableHead>
               <TableHead className="sticky left-12 bg-card z-10">
                 <button
                   onClick={() => onSort('symbol')}
@@ -187,6 +234,9 @@ export function CryptoUniverseTable({
                 <TableCell className="py-2 font-medium text-muted-foreground sticky left-0 bg-card">
                   {startIndex + index + 1}
                 </TableCell>
+                <TableCell className="py-2">
+                  {getTierBadge(startIndex + index + 1, sortKey)}
+                </TableCell>
                 <TableCell className="py-2 font-bold sticky left-12 bg-card">{coin.symbol}</TableCell>
                 <TableCell className="py-2">{coin.name}</TableCell>
                 <TableCell className="py-2 text-right font-mono">
@@ -223,7 +273,7 @@ export function CryptoUniverseTable({
             ))}
             {coins.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   No coins found matching your filters
                 </TableCell>
               </TableRow>
