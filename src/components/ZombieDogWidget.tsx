@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Minus, Maximize2, Minimize2, ExternalLink } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { X, Minus, Maximize2, Minimize2 } from 'lucide-react';
 import { ZombieDogChat } from './ZombieDogChat';
 import { cn } from '@/lib/utils';
 
@@ -8,7 +7,6 @@ export const ZombieDogWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const navigate = useNavigate();
 
   const toggleOpen = () => {
     if (isMinimized) {
@@ -31,11 +29,6 @@ export const ZombieDogWidget = () => {
 
   const toggleFullScreen = () => {
     setIsFullScreen(!isFullScreen);
-  };
-
-  const handleOpenFullPage = () => {
-    handleClose();
-    navigate('/zombiedog');
   };
 
   // Handle escape key to exit full-screen
@@ -125,15 +118,6 @@ export const ZombieDogWidget = () => {
               )}
             </div>
             <div className="flex items-center gap-1">
-              {/* Open in Full Page */}
-              <button
-                onClick={handleOpenFullPage}
-                className="p-1.5 hover:bg-primary/20 rounded transition-colors"
-                aria-label="Open full page"
-                title="Open full page"
-              >
-                <ExternalLink className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-              </button>
               {/* Toggle Full Screen */}
               <button
                 onClick={toggleFullScreen}
