@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_logs: {
+        Row: {
+          assets_queried: string[] | null
+          created_at: string | null
+          data_sources_used: string[] | null
+          estimated_cost_millicents: number
+          fallback_from: string | null
+          fallback_used: boolean | null
+          id: string
+          input_tokens: number
+          latency_ms: number | null
+          model: string
+          output_tokens: number
+          provider: string
+          question_type: string[] | null
+          session_id: string | null
+          total_tokens: number | null
+          user_message_preview: string | null
+        }
+        Insert: {
+          assets_queried?: string[] | null
+          created_at?: string | null
+          data_sources_used?: string[] | null
+          estimated_cost_millicents?: number
+          fallback_from?: string | null
+          fallback_used?: boolean | null
+          id?: string
+          input_tokens?: number
+          latency_ms?: number | null
+          model: string
+          output_tokens?: number
+          provider: string
+          question_type?: string[] | null
+          session_id?: string | null
+          total_tokens?: number | null
+          user_message_preview?: string | null
+        }
+        Update: {
+          assets_queried?: string[] | null
+          created_at?: string | null
+          data_sources_used?: string[] | null
+          estimated_cost_millicents?: number
+          fallback_from?: string | null
+          fallback_used?: boolean | null
+          id?: string
+          input_tokens?: number
+          latency_ms?: number | null
+          model?: string
+          output_tokens?: number
+          provider?: string
+          question_type?: string[] | null
+          session_id?: string | null
+          total_tokens?: number | null
+          user_message_preview?: string | null
+        }
+        Relationships: []
+      }
       asset_sentiment_snapshots: {
         Row: {
           asset_name: string

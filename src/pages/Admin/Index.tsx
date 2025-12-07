@@ -21,7 +21,8 @@ import {
   Moon, 
   RefreshCw, 
   Database,
-  MessageSquare, 
+  MessageSquare,
+  Dog,
 } from 'lucide-react';
 import { SymbolAdmin } from './SymbolAdmin';
 import { PendingTickerMappings } from './PendingTickerMappings';
@@ -33,6 +34,7 @@ import { LunarCrushDiagnostics } from './LunarCrushDiagnostics';
 import { CoinGeckoEnrich } from './CoinGeckoEnrich';
 import QuoteLibraryAdmin from './QuoteLibraryAdmin';
 import { ExchangeDataSync } from './ExchangeDataSync';
+import { ZombieDogAnalytics } from './ZombieDogAnalytics';
 
 function AdminContent() {
   const [activeView, setActiveView] = useState('generate-brief');
@@ -112,6 +114,15 @@ function AdminContent() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton 
+                  onClick={() => handleViewChange('zombiedog-analytics')}
+                  isActive={activeView === 'zombiedog-analytics'}
+                >
+                  <Dog className="mr-2 h-4 w-4" />
+                  <span>ZombieDog Analytics</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
                   onClick={() => handleViewChange('polygon-diagnostics')}
                   isActive={activeView === 'polygon-diagnostics'}
                 >
@@ -180,6 +191,7 @@ function AdminContent() {
           {activeView === 'missing-tickers' && <PendingTickerMappings />}
           {activeView === 'symbol-intelligence' && <SymbolAdmin />}
           {activeView === 'coingecko-enrich' && <CoinGeckoEnrich />}
+          {activeView === 'zombiedog-analytics' && <ZombieDogAnalytics />}
           {activeView === 'polygon-diagnostics' && <PolygonDiagnostics />}
           {activeView === 'lunarcrush-diagnostics' && <LunarCrushDiagnostics />}
           {activeView === 'exchange-sync' && <ExchangeDataSync />}
