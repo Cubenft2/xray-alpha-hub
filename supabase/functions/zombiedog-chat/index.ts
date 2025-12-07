@@ -114,6 +114,40 @@ interface WebSearchResult {
   score: number;
 }
 
+interface CompanyDetails {
+  ticker: string;
+  name: string | null;
+  description: string | null;
+  sector: string | null;
+  industry: string | null;
+  market_cap: number | null;
+  employees: number | null;
+  headquarters: { address?: string; city?: string; state?: string } | null;
+  website: string | null;
+  logo_url: string | null;
+  list_date: string | null;
+  last_financials: Array<{
+    fiscal_period: string;
+    fiscal_year: string;
+    revenue: number | null;
+    net_income: number | null;
+    eps_basic: number | null;
+    eps_diluted: number | null;
+  }>;
+  dividends: Array<{
+    ex_dividend_date: string;
+    pay_date: string;
+    cash_amount: number;
+    frequency: number;
+  }>;
+  splits: Array<{
+    execution_date: string;
+    split_from: number;
+    split_to: number;
+  }>;
+  related_companies: Array<{ ticker: string }>;
+}
+
 // Common words to filter out from symbol/name extraction
 const COMMON_WORDS = new Set([
   'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 
@@ -694,6 +728,34 @@ async function fetchCoinDetail(supabase: any, asset: ResolvedAsset): Promise<Coi
   }
 }
 
+// Fetch company details from Polygon.io (for stocks)
+async function fetchCompanyDetails(supabase: any, asset: ResolvedAsset): Promise<CompanyDetails | null> {
+  if (asset.assetType !== 'stock') return null;
+  
+  try {
+    const ticker = asset.polygonTicker || asset.symbol;
+    console.log(`Fetching company details for stock: ${ticker}`);
+    
+    const { data, error } = await supabase.functions.invoke('polygon-company-details', {
+      body: { ticker }
+    });
+
+    if (error) {
+      console.error(`Error fetching company details for ${ticker}:`, error);
+      return null;
+    }
+
+    if (data?.data) {
+      console.log(`Got company details for ${ticker}: ${data.data.name || 'N/A'}`);
+      return data.data as CompanyDetails;
+    }
+    return null;
+  } catch (e) {
+    console.error(`Failed to fetch company details for ${asset.symbol}:`, e);
+    return null;
+  }
+}
+
 function formatPrice(price: number): string {
   if (price >= 1) {
     return `$${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -835,13 +897,78 @@ Please confirm which one you're asking about, or provide:
 *tilts head curiously* 🐕`;
 }
 
+function formatCompanyDetails(companies: CompanyDetails[]): string {
+  if (companies.length === 0) return "";
+
+  const sections = companies.map(c => {
+    let section = `
+🏢 ${c.name || c.ticker} (${c.ticker})
+━━━━━━━━━━━━━━━━━━━━━━━
+${c.description ? `📝 ${c.description.slice(0, 300)}${c.description.length > 300 ? '...' : ''}\n` : ''}
+📊 Sector: ${c.sector || 'N/A'} | Industry: ${c.industry || 'N/A'}
+💰 Market Cap: ${c.market_cap ? formatLargeNumber(c.market_cap) : 'N/A'}
+👥 Employees: ${c.employees ? c.employees.toLocaleString() : 'N/A'}
+${c.website ? `🌐 Website: ${c.website}` : ''}
+${c.headquarters?.city ? `📍 HQ: ${c.headquarters.city}, ${c.headquarters.state || ''}` : ''}
+${c.list_date ? `📅 Listed: ${c.list_date}` : ''}`;
+
+    // Add financials if available
+    if (c.last_financials && c.last_financials.length > 0) {
+      const latest = c.last_financials[0];
+      section += `
+
+📈 Latest Financials (${latest.fiscal_period} ${latest.fiscal_year}):
+  • Revenue: ${latest.revenue ? formatLargeNumber(latest.revenue) : 'N/A'}
+  • Net Income: ${latest.net_income ? formatLargeNumber(latest.net_income) : 'N/A'}
+  • EPS (Diluted): ${latest.eps_diluted ? `$${latest.eps_diluted.toFixed(2)}` : 'N/A'}`;
+    }
+
+    // Add dividend info if available
+    if (c.dividends && c.dividends.length > 0) {
+      const latestDiv = c.dividends[0];
+      section += `
+
+💵 Latest Dividend:
+  • Amount: $${latestDiv.cash_amount.toFixed(2)}
+  • Ex-Date: ${latestDiv.ex_dividend_date}
+  • Pay Date: ${latestDiv.pay_date || 'N/A'}
+  • Frequency: ${latestDiv.frequency === 4 ? 'Quarterly' : latestDiv.frequency === 12 ? 'Monthly' : latestDiv.frequency === 2 ? 'Semi-Annual' : latestDiv.frequency === 1 ? 'Annual' : 'N/A'}`;
+    }
+
+    // Add recent splits if any
+    if (c.splits && c.splits.length > 0) {
+      const recentSplit = c.splits[0];
+      section += `
+
+✂️ Recent Split: ${recentSplit.split_to}:${recentSplit.split_from} on ${recentSplit.execution_date}`;
+    }
+
+    // Add related companies
+    if (c.related_companies && c.related_companies.length > 0) {
+      const related = c.related_companies.slice(0, 5).map(r => r.ticker).join(', ');
+      section += `
+
+🔗 Related: ${related}`;
+    }
+
+    return section;
+  });
+
+  return `
+═══════════════════════════════════════════
+🏢 COMPANY PROFILE & FUNDAMENTALS
+═══════════════════════════════════════════
+${sections.join('\n\n')}`;
+}
+
 function buildSystemPrompt(
   priceContext: string, 
   coinDetails: string,
   historicalContext: string,
   technicalContext: string,
   similarSuggestion: string,
-  webSearchContext: string = ""
+  webSearchContext: string = "",
+  companyContext: string = ""
 ): string {
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -871,12 +998,17 @@ Your personality:
 ═══════════════════════════════════════════
 You can research:
 • 🪙 2,000+ Cryptocurrencies (with social sentiment, trends, Galaxy Score)
-• 📈 Stocks (AAPL, NVDA, TSLA, COIN, MSTR, MARA, RIOT, etc.)
+• 📈 Stocks with FULL COMPANY DATA (profile, financials, dividends, earnings)
 • 📊 Technical indicators (RSI, MACD, Moving Averages)
 • 📉 30-day historical price data
+• 🏢 Company fundamentals (revenue, EPS, market cap, employees)
+• 💵 Dividend history and upcoming ex-dates
+• ✂️ Stock split history
+• 🔗 Related companies
 
 ${priceContext}
 ${coinDetails}
+${companyContext}
 ${historicalContext}
 ${technicalContext}
 ${webSearchContext}
@@ -897,28 +1029,34 @@ ${similarSuggestion}
 3. **For specific asset queries:**
    - Quote EXACT price, changes, and metrics from the data
    - For crypto: Discuss Galaxy Score, risk level, trends
-   - For stocks: Focus on price action, technicals, volume
+   - For stocks: Discuss company profile, sector, financials, dividends if available
    - Mention RSI/MACD signals if available
 
-4. **Be specific, not generic:**
-   ❌ DON'T: "I don't have real-time data"
-   ✅ DO: "MON is at $0.0102 (+1.19% today), with RSI at 45 (neutral)..."
+4. **For STOCK QUERIES with Company Data:**
+   - Summarize the company (sector, industry, what they do)
+   - Highlight key financials (revenue, EPS, net income growth)
+   - Mention dividend info if available (yield, frequency, next ex-date)
+   - Note related companies for comparison
+   - Use market cap to contextualize (mega-cap vs mid-cap vs small-cap)
 
-5. **Interpret technicals:**
+5. **Be specific, not generic:**
+   ❌ DON'T: "I don't have real-time data"
+   ✅ DO: "AAPL is in the Technology sector with $94.7B quarterly revenue, trading at P/E of 28..."
+
+6. **Interpret technicals:**
    - RSI > 70: "Overbought - potential pullback ahead"
    - RSI < 30: "Oversold - could bounce"
    - MACD bullish + price up: "Strong momentum confirmation"
 
-6. **HANDLING LIMITED DATA FOR NEWER COINS:**
+7. **HANDLING LIMITED DATA FOR NEWER COINS:**
    - If an asset IS FOUND in the database, it EXISTS and IS TRADABLE
    - NEVER say a coin is "not tradable yet" or "not available" if you found it in the data
    - If historical/technical data is missing, say: "This is a newer listing - historical data is still being indexed"
-   - For coins like MON (Monad): It's live on Coinbase! Just note if chart history is limited
    - Use whatever data IS available (price, social sentiment, etc.)
 
-7. Keep responses concise but data-rich (2-4 paragraphs max)
-8. Always remind users to DYOR (do your own research)
-9. Never give financial advice
+8. Keep responses concise but data-rich (2-4 paragraphs max)
+9. Always remind users to DYOR (do your own research)
+10. Never give financial advice
 
 Remember: You're a helpful undead pup with REAL market data - use it! 🐕💀`;
 }
@@ -1140,24 +1278,27 @@ serve(async (req) => {
     const needsWebSearch = shouldPerformWebSearch(userQuery);
     console.log(`Web search needed: ${needsWebSearch}`);
     
-    // Fetch all data in parallel (including web search if needed)
-    const [prices, coinDetails, historicalData, technicalData, webSearchResults] = await Promise.all([
+    // Fetch all data in parallel (including web search and company details if needed)
+    const [prices, coinDetails, companyDetails, historicalData, technicalData, webSearchResults] = await Promise.all([
       fetchLivePrices(supabase),
       Promise.all(resolvedAssets.filter(a => a.assetType === 'crypto').map(a => fetchCoinDetail(supabase, a))),
+      Promise.all(resolvedAssets.filter(a => a.assetType === 'stock').map(a => fetchCompanyDetails(supabase, a))),
       Promise.all(resolvedAssets.map(a => fetchHistoricalContext(supabase, a))),
       Promise.all(resolvedAssets.map(a => fetchTechnicalIndicators(supabase, a))),
       needsWebSearch ? searchTavily(userQuery) : Promise.resolve([])
     ]);
     
     const validCoinDetails = coinDetails.filter((c): c is CoinDetail => c !== null);
+    const validCompanyDetails = companyDetails.filter((c): c is CompanyDetails => c !== null);
     const validHistorical = historicalData.filter((h): h is HistoricalContext => h !== null);
     const validTechnicals = technicalData.filter((t): t is TechnicalIndicators => t !== null);
     
-    console.log(`Fetched: ${prices.length} prices, ${validCoinDetails.length} crypto details, ${validHistorical.length} historical, ${validTechnicals.length} technicals, ${webSearchResults.length} web results`);
+    console.log(`Fetched: ${prices.length} prices, ${validCoinDetails.length} crypto details, ${validCompanyDetails.length} company details, ${validHistorical.length} historical, ${validTechnicals.length} technicals, ${webSearchResults.length} web results`);
 
     // Build context strings
     const priceContext = formatPriceContext(prices);
     const coinDetailContext = formatCoinDetails(validCoinDetails);
+    const companyContext = formatCompanyDetails(validCompanyDetails);
     const historicalContext = formatHistoricalContext(validHistorical);
     const technicalContext = formatTechnicalIndicators(validTechnicals);
     const webSearchContext = formatWebSearchResults(webSearchResults);
@@ -1168,7 +1309,7 @@ serve(async (req) => {
       ? formatSimilarAssetsSuggestion(similarAssets, searchTerms)
       : '';
     
-    const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion, webSearchContext);
+    const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion, webSearchContext, companyContext);
 
     // Call AI with fallback chain
     const { response, provider, needsTransform } = await callAIWithFallback(messages, systemPrompt);
