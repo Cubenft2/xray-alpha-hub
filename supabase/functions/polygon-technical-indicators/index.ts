@@ -87,10 +87,19 @@ serve(async (req) => {
 
       console.log(`🔄 Fetching from Polygon for ${ticker}: ${missingIndicators.join(', ')}`);
 
-      // Format ticker for Polygon (crypto needs X: prefix)
-      const polygonTicker = ticker.length <= 5 && ticker === ticker.toUpperCase()
-        ? `X:${ticker}USD`
-        : ticker;
+      // Format ticker for Polygon (handle pre-formatted tickers from database)
+      let polygonTicker = ticker;
+      if (ticker.startsWith('X:') && ticker.endsWith('USD')) {
+        // Already properly formatted (e.g., X:BTCUSD, X:ZECUSD from ticker_mappings)
+        polygonTicker = ticker;
+      } else if (ticker.startsWith('X:')) {
+        // Has X: prefix but no USD suffix
+        polygonTicker = `${ticker}USD`;
+      } else if (ticker.length <= 5 && ticker === ticker.toUpperCase()) {
+        // Raw crypto symbol (e.g., BTC, ZEC)
+        polygonTicker = `X:${ticker}USD`;
+      }
+      // Stocks stay as-is (e.g., AAPL)
 
       const timespan = timeframe === 'daily' ? 'day' : 'hour';
 
