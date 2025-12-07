@@ -518,16 +518,49 @@ async function fetchTechnicalIndicators(supabase: any, asset: ResolvedAsset): Pr
 const NEWS_KEYWORDS = [
   'news', 'latest', 'recent', 'update', 'announcement', 'announce',
   'partnership', 'rumor', 'why is', 'what happened', 'breaking',
-  'today', 'yesterday', 'this week', 'launch', 'launched', 'release',
+  'launch', 'launched', 'release',
   'hack', 'hacked', 'exploit', 'sec', 'regulation', 'lawsuit',
   'listing', 'listed', 'delist', 'upgrade', 'fork', 'airdrop',
   'etf', 'approval', 'approved', 'rejected', 'bull run', 'crash',
-  'pump', 'dump', 'whale', 'elon', 'trump', 'gensler'
+  'whale', 'elon', 'trump', 'gensler', 'tokenomics', 'roadmap',
+  'founded', 'founder', 'team', 'whitepaper', 'who created',
+  'background', 'history'
+];
+
+// Keywords that indicate price/market data questions - skip Tavily for these
+const PRICE_DATA_KEYWORDS = [
+  'price', 'cost', 'worth', 'value', 'how much',
+  'market cap', 'marketcap', 'mcap', 
+  'volume', '24h', '24 hour', 'daily change',
+  'change', 'percent', 'percentage',
+  'ath', 'all time high', 'all-time high',
+  'atl', 'all time low', 'all-time low',
+  'rsi', 'macd', 'sma', 'ema', 'technical',
+  'overbought', 'oversold', 'support', 'resistance',
+  'galaxy score', 'alt rank', 'sentiment score',
+  'bullish', 'bearish', 'trend'
 ];
 
 function shouldPerformWebSearch(message: string): boolean {
   const lowerMsg = message.toLowerCase();
-  return NEWS_KEYWORDS.some(kw => lowerMsg.includes(kw));
+  
+  // FIRST: Check if this is a price/market data question
+  // If so, we already have this data from Polygon/LunarCrush - skip Tavily
+  const isPriceQuestion = PRICE_DATA_KEYWORDS.some(kw => lowerMsg.includes(kw));
+  if (isPriceQuestion) {
+    console.log("[Tavily] Skipping - detected price/market data question");
+    return false;
+  }
+  
+  // SECOND: Check for news/current events keywords
+  const isNewsQuestion = NEWS_KEYWORDS.some(kw => lowerMsg.includes(kw));
+  if (isNewsQuestion) {
+    console.log("[Tavily] Triggering - detected news/events question");
+    return true;
+  }
+  
+  console.log("[Tavily] Skipping - no news keywords detected");
+  return false;
 }
 
 async function searchTavily(query: string): Promise<WebSearchResult[]> {
