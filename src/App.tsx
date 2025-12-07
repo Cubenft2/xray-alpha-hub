@@ -32,7 +32,6 @@ const AdminIndex = lazy(() => import("./pages/Admin/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const CryptoUniverse = lazy(() => import("./pages/CryptoUniverse"));
 const CryptoUniverseDetail = lazy(() => import("./pages/CryptoUniverseDetail"));
-const ZombieDog = lazy(() => import("./pages/ZombieDog"));
 
 const queryClient = new QueryClient();
 
@@ -70,7 +69,6 @@ const App = () => (
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/crypto-universe" element={<CryptoUniverse />} />
                     <Route path="/crypto-universe/:symbol" element={<CryptoUniverseDetail />} />
-                    <Route path="/zombiedog" element={<ZombieDog />} />
                     <Route path="/admin" element={
                       <ProtectedRoute requireAdmin={true}>
                         <AdminIndex />
