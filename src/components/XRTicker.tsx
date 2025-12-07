@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTheme } from 'next-themes';
 
 interface XRTickerProps {
@@ -8,6 +8,7 @@ interface XRTickerProps {
 
 export function XRTicker({ type, symbols }: XRTickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
   const { theme } = useTheme();
 
   const defaultSymbols = {
@@ -15,8 +16,28 @@ export function XRTicker({ type, symbols }: XRTickerProps) {
     stocks: 'FOREXCOM:DJI,FOREXCOM:SPXUSD,FOREXCOM:NAS100,AMEX:SPY,NASDAQ:QQQ,NASDAQ:NVDA,NASDAQ:TSLA,NASDAQ:COIN,NASDAQ:MSTR,NASDAQ:MARA,NASDAQ:RIOT,NASDAQ:CLSK,NASDAQ:HUT,NASDAQ:BITF,NYSE:BBAI,NASDAQ:HOOD,NASDAQ:AAPL,NASDAQ:MSFT,NASDAQ:GOOGL,NASDAQ:AMZN,NASDAQ:META,NYSE:JPM,NYSE:BAC,NYSE:WFC,NYSE:GS,NYSE:MS,NASDAQ:NFLX,NYSE:DIS,NYSE:V,NYSE:MA,NYSE:JNJ,NYSE:PG,NYSE:KO,NYSE:PFE,NYSE:WMT,NYSE:HD,NYSE:UNH,NYSE:CVX,NYSE:XOM,NASDAQ:ADBE,NYSE:CRM,NYSE:ORCL,NYSE:IBM,NASDAQ:INTC,NASDAQ:AMD,NASDAQ:QCOM,NASDAQ:AVGO,NYSE:T,NYSE:VZ,NASDAQ:CMCSA,NYSE:NKE,NYSE:MCD,NASDAQ:SBUX,NASDAQ:PYPL,NASDAQ:SQ,NYSE:UBER,NASDAQ:LYFT,NYSE:TWTR,NYSE:SNAP,NYSE:PINS,NASDAQ:ROKU,NASDAQ:ZM,NASDAQ:DOCU,NASDAQ:SHOP,NYSE:SPOT,NYSE:NET,NYSE:SNOW,NASDAQ:PLTR,NYSE:RBLX,NASDAQ:ABNB,NASDAQ:EA,NASDAQ:MNPR,NYSE:IONQ'
   };
 
+  // Use Intersection Observer to defer loading until visible
   useEffect(() => {
     if (!containerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    observer.observe(containerRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Only load TradingView script when visible
+  useEffect(() => {
+    if (!isVisible || !containerRef.current) return;
 
     // Clear any existing widget
     containerRef.current.innerHTML = '';
@@ -47,11 +68,14 @@ export function XRTicker({ type, symbols }: XRTickerProps) {
         containerRef.current.innerHTML = '';
       }
     };
-  }, [type, symbols, theme]);
+  }, [type, symbols, theme, isVisible]);
 
   return (
     <div className="xr-ticker">
-      <div ref={containerRef} className="tradingview-widget-container">
+      <div ref={containerRef} className="tradingview-widget-container" style={{ minHeight: '46px' }}>
+        {!isVisible && (
+          <div className="h-[46px] bg-muted/50 animate-pulse" />
+        )}
         <div className="tradingview-widget-container__widget"></div>
       </div>
     </div>

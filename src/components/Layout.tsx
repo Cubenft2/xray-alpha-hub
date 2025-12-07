@@ -1,11 +1,13 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useLocation } from 'react-router-dom';
 import { XRHeader } from './XRHeader';
 import { XRTicker } from './XRTicker';
 import { PolygonTicker } from './PolygonTicker';
 import { XRFooter } from './XRFooter';
 import { ScrollToTop } from './ScrollToTop';
-import { ZombieDogWidget } from './ZombieDogWidget';
+
+// Lazy load ZombieDogWidget - not needed for initial render
+const ZombieDogWidget = lazy(() => import('./ZombieDogWidget').then(m => ({ default: m.ZombieDogWidget })));
 
 interface LayoutContextType {
   onSearch: (term: string) => void;
@@ -76,8 +78,12 @@ export const Layout = ({ children }: LayoutProps) => {
         {/* Scroll to Top Button */}
         <ScrollToTop />
 
-        {/* ZombieDog Chat Widget - Hidden on /zombiedog page */}
-        {location.pathname !== '/zombiedog' && <ZombieDogWidget />}
+        {/* ZombieDog Chat Widget - Lazy loaded, Hidden on /zombiedog page */}
+        {location.pathname !== '/zombiedog' && (
+          <Suspense fallback={null}>
+            <ZombieDogWidget />
+          </Suspense>
+        )}
       </div>
     </LayoutContext.Provider>
   );

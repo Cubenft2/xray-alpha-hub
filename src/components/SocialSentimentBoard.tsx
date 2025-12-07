@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import html2canvas from 'html2canvas';
+// html2canvas is dynamically imported when needed to reduce initial bundle size
 
 interface SocialAsset {
   name: string;
@@ -149,6 +149,9 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     
     setIsExporting(true);
     try {
+      // Dynamic import - only loads ~1.3MB html2canvas when user clicks export
+      const html2canvas = (await import('html2canvas')).default;
+      
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: '#0a0a0a',
         scale: 2,
@@ -188,6 +191,9 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
 
     setIsExporting(true);
     try {
+      // Dynamic import - only loads ~1.3MB html2canvas when user clicks share
+      const html2canvas = (await import('html2canvas')).default;
+      
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: '#0a0a0a',
         scale: 2,

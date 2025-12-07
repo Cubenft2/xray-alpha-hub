@@ -28,8 +28,10 @@ export function PolygonTicker() {
   const [logoCache, setLogoCache] = useState<Map<string, string>>(new Map());
   const [symbols, setSymbols] = useState<string[]>([]);
   const [symbolMetadata, setSymbolMetadata] = useState<Map<string, { displayName: string; coingecko_id: string | null }>>(new Map());
+  const [isVisible, setIsVisible] = useState(false);
   
   const tickerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   const offsetRef = useRef(0);
   const navigate = useNavigate();
@@ -37,8 +39,29 @@ export function PolygonTicker() {
   
   const speed = speedLevels[speedLevel];
 
-  // Load ticker mappings with featured tokens priority
+  // Use Intersection Observer to defer loading until visible
   useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    observer.observe(containerRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Load ticker mappings with featured tokens priority - only when visible
+  useEffect(() => {
+    if (!isVisible) return;
+
     const loadSymbols = async () => {
       // First fetch featured tokens
       const { data: featuredTickers } = await supabase
@@ -90,7 +113,7 @@ export function PolygonTicker() {
     };
 
     loadSymbols();
-  }, []);
+  }, [isVisible]);
 
   const fetchLogos = async (coingeckoIds: string[]) => {
     try {
@@ -105,8 +128,8 @@ export function PolygonTicker() {
     }
   };
 
-  // Use WebSocket hook
-  const { prices: wsPrices, status, lastUpdate } = usePolygonWebSocket(symbols);
+  // Use WebSocket hook - only connect when visible and have symbols
+  const { prices: wsPrices, status, lastUpdate } = usePolygonWebSocket(isVisible ? symbols : []);
 
   // Transform WebSocket prices to display format
   useEffect(() => {
@@ -127,7 +150,7 @@ export function PolygonTicker() {
 
   // Smooth scrolling animation
   useEffect(() => {
-    if (!tickerRef.current || isPaused || isHovered) return;
+    if (!tickerRef.current || isPaused || isHovered || !isVisible) return;
 
     let lastTimestamp = 0;
 
@@ -159,7 +182,7 @@ export function PolygonTicker() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isPaused, isHovered, speed]);
+  }, [isPaused, isHovered, speed, isVisible]);
 
   const formatPrice = (price: number) => {
     if (price >= 1000) return `$${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -192,9 +215,21 @@ export function PolygonTicker() {
     }
   };
 
+  // Show skeleton while not visible
+  if (!isVisible) {
+    return (
+      <div ref={containerRef} className="relative bg-background/95 border-y overflow-hidden">
+        <div className="container mx-auto py-2 flex items-center gap-2 md:gap-4">
+          <div className="h-8 w-8 bg-muted rounded-full animate-pulse" />
+          <div className="flex-1 h-6 bg-muted rounded animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider>
-      <div className="relative bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y overflow-hidden">
+      <div ref={containerRef} className="relative bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-y overflow-hidden">
         {/* Pause overlay for mobile */}
         {isMobile && isPaused && (
           <div
@@ -291,6 +326,7 @@ export function PolygonTicker() {
                         src={logoUrl} 
                         alt={price.displayName}
                         className="w-5 h-5 rounded-full"
+                        loading="lazy"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
                         }}
