@@ -345,6 +345,67 @@ async function resolveContractAddress(supabase: any, address: string, type: 'evm
   return null;
 }
 
+// Web search for unknown contract addresses (LP tokens, DEX pairs, new tokens)
+async function lookupContractAddressOnWeb(address: string): Promise<{ description: string; tokenInfo: string } | null> {
+  const TAVILY_API_KEY = Deno.env.get('TAVILY_API_KEY');
+  if (!TAVILY_API_KEY) {
+    console.log('[Contract Lookup] No Tavily API key, skipping web search');
+    return null;
+  }
+
+  try {
+    console.log(`[Contract Lookup] Searching web for address: ${address}`);
+    
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query: `${address} token contract crypto blockchain`,
+        search_depth: "basic",
+        max_results: 5,
+        include_answer: true,
+        include_domains: [
+          "etherscan.io", "bscscan.com", "polygonscan.com", "arbiscan.io",
+          "solscan.io", "dexscreener.com", "dextools.io", "geckoterminal.com",
+          "coingecko.com", "coinmarketcap.com", "defined.fi"
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`[Contract Lookup] Tavily error: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log(`[Contract Lookup] Found ${data.results?.length || 0} results`);
+    
+    if (!data.results || data.results.length === 0) {
+      return null;
+    }
+
+    // Extract relevant info from search results
+    const descriptions = data.results
+      .slice(0, 3)
+      .map((r: any) => `• ${r.title}: ${r.content?.slice(0, 200) || ''}`)
+      .join('\n');
+    
+    const sources = data.results
+      .slice(0, 3)
+      .map((r: any) => r.url)
+      .join(', ');
+
+    return {
+      description: descriptions,
+      tokenInfo: data.answer || `Web search found information about this address. Sources: ${sources}`
+    };
+  } catch (e) {
+    console.error("[Contract Lookup] Error:", e);
+    return null;
+  }
+}
+
 // Extract potential symbols from message text
 function extractPotentialSymbols(message: string): string[] {
   const symbols: string[] = [];
@@ -462,10 +523,11 @@ async function findSimilarAssets(supabase: any, searchTerms: string[]): Promise<
 }
 
 // Resolve assets from database (crypto + stocks + contract addresses)
-async function resolveAssetsFromDatabase(supabase: any, message: string): Promise<{ assets: ResolvedAsset[], similar: SimilarAsset[], contractsSearched: string[] }> {
+async function resolveAssetsFromDatabase(supabase: any, message: string): Promise<{ assets: ResolvedAsset[], similar: SimilarAsset[], contractsSearched: string[], contractWebLookups: Array<{address: string, info: string}> }> {
   const resolved: ResolvedAsset[] = [];
   const foundSymbols = new Set<string>();
   const contractsSearched: string[] = [];
+  const contractWebLookups: Array<{address: string, info: string}> = [];
   
   // Step 0: Check for contract addresses FIRST
   const contractAddresses = extractContractAddresses(message);
@@ -478,6 +540,16 @@ async function resolveAssetsFromDatabase(supabase: any, message: string): Promis
         resolved.push(contractAsset);
         foundSymbols.add(contractAsset.symbol);
         console.log(`Resolved contract ${address} -> ${contractAsset.symbol}`);
+      } else {
+        // Not found in DB - try web lookup for LP tokens, DEX pairs, new tokens
+        const webResult = await lookupContractAddressOnWeb(address);
+        if (webResult) {
+          console.log(`[Contract] Web lookup found info for ${address}`);
+          contractWebLookups.push({
+            address,
+            info: `${webResult.tokenInfo}\n\nDetails:\n${webResult.description}`
+          });
+        }
       }
     }
   }
@@ -615,7 +687,7 @@ async function resolveAssetsFromDatabase(supabase: any, message: string): Promis
     }
   }
   
-  return { assets: resolved.slice(0, 5), similar: similarAssets, contractsSearched };
+  return { assets: resolved.slice(0, 5), similar: similarAssets, contractsSearched, contractWebLookups };
 }
 
 // Fetch historical context from Polygon
@@ -1460,10 +1532,13 @@ serve(async (req) => {
     const userQuery = latestUserMessage?.content || '';
     
     // Resolve assets from database (crypto + stocks + contract addresses)
-    const { assets: resolvedAssets, similar: similarAssets, contractsSearched } = await resolveAssetsFromDatabase(supabase, userQuery);
+    const { assets: resolvedAssets, similar: similarAssets, contractsSearched, contractWebLookups } = await resolveAssetsFromDatabase(supabase, userQuery);
     console.log(`Resolved ${resolvedAssets.length} assets: ${resolvedAssets.map(a => `${a.symbol}(${a.assetType})`).join(', ') || 'none'}`);
     if (contractsSearched.length > 0) {
       console.log(`Contract addresses searched: ${contractsSearched.join(', ')}`);
+    }
+    if (contractWebLookups.length > 0) {
+      console.log(`Found web info for ${contractWebLookups.length} contract(s)`);
     }
     // Check if we should perform web search for news/current events
     const needsWebSearch = shouldPerformWebSearch(userQuery);
@@ -1500,21 +1575,38 @@ serve(async (req) => {
       ? formatSimilarAssetsSuggestion(similarAssets, searchTerms)
       : '';
     
-    // Format contract address context for unresolved contracts
-    const contractAddressContext = contractsSearched.length > 0 && resolvedAssets.length === 0
-      ? `
+    // Format contract address context
+    let contractAddressContext = '';
+    if (contractWebLookups.length > 0) {
+      // Web lookup found info about the contract (LP tokens, DEX pairs, etc.)
+      const lookupResults = contractWebLookups.map(l => 
+        `📋 Contract: ${l.address}\n${l.info}`
+      ).join('\n\n');
+      contractAddressContext = `
+═══════════════════════════════════════════
+🔗 CONTRACT ADDRESS LOOKUP RESULTS
+═══════════════════════════════════════════
+${lookupResults}
+
+Use this information to tell the user what this contract address is (token, LP pair, DEX pool, etc.).
+If it's a liquidity pool or DEX pair, explain which tokens are paired.
+`;
+    } else if (contractsSearched.length > 0 && resolvedAssets.length === 0) {
+      // Contract searched but nothing found in DB or web
+      contractAddressContext = `
 ═══════════════════════════════════════════
 📋 CONTRACT ADDRESS SEARCH
 ═══════════════════════════════════════════
 User searched for contract address(es): ${contractsSearched.join(', ')}
-Result: Could not find these contract(s) in our database of 19,000+ tokens.
+Result: Could not find these contract(s) in our database or via web search.
 
 Please let the user know you couldn't identify this contract address. Suggest they:
 1. Double-check the address is correct
 2. Tell you the token name or symbol instead
-3. The token might be very new or not listed on major exchanges yet
-`
-      : '';
+3. Check block explorers like Etherscan, Solscan directly
+4. The token/pool might be very new or unlisted
+`;
+    }
     
     const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion, webSearchContext, companyContext, contractAddressContext);
 
