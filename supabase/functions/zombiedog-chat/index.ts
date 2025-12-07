@@ -107,6 +107,13 @@ interface SimilarAsset {
   similarity: number;
 }
 
+interface WebSearchResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+}
+
 // Common words to filter out from symbol/name extraction
 const COMMON_WORDS = new Set([
   'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 
@@ -503,6 +510,89 @@ async function fetchTechnicalIndicators(supabase: any, asset: ResolvedAsset): Pr
   }
 }
 
+// ============================================
+// TAVILY WEB SEARCH
+// ============================================
+
+// Keywords that trigger web search for news/current events
+const NEWS_KEYWORDS = [
+  'news', 'latest', 'recent', 'update', 'announcement', 'announce',
+  'partnership', 'rumor', 'why is', 'what happened', 'breaking',
+  'today', 'yesterday', 'this week', 'launch', 'launched', 'release',
+  'hack', 'hacked', 'exploit', 'sec', 'regulation', 'lawsuit',
+  'listing', 'listed', 'delist', 'upgrade', 'fork', 'airdrop',
+  'etf', 'approval', 'approved', 'rejected', 'bull run', 'crash',
+  'pump', 'dump', 'whale', 'elon', 'trump', 'gensler'
+];
+
+function shouldPerformWebSearch(message: string): boolean {
+  const lowerMsg = message.toLowerCase();
+  return NEWS_KEYWORDS.some(kw => lowerMsg.includes(kw));
+}
+
+async function searchTavily(query: string): Promise<WebSearchResult[]> {
+  const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY");
+  if (!TAVILY_API_KEY) {
+    console.log("[Tavily] API key not configured, skipping web search");
+    return [];
+  }
+
+  try {
+    console.log(`[Tavily] Searching: "${query}"`);
+    
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
+        query: `${query} crypto cryptocurrency`,
+        search_depth: "basic",
+        max_results: 5,
+        include_answer: false,
+        include_domains: [
+          "coindesk.com", "cointelegraph.com", "decrypt.co",
+          "theblock.co", "bloomberg.com", "reuters.com",
+          "cnbc.com", "forbes.com", "cryptonews.com"
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      console.error(`[Tavily] Error: ${response.status}`);
+      return [];
+    }
+
+    const data = await response.json();
+    console.log(`[Tavily] Found ${data.results?.length || 0} results`);
+    
+    return (data.results || []).map((r: any) => ({
+      title: r.title,
+      url: r.url,
+      content: r.content?.slice(0, 300) || '',
+      score: r.score || 0
+    }));
+  } catch (e) {
+    console.error("[Tavily] Search error:", e);
+    return [];
+  }
+}
+
+function formatWebSearchResults(results: WebSearchResult[]): string {
+  if (results.length === 0) return "";
+  
+  const formattedResults = results.map((r, i) => 
+    `${i + 1}. **${r.title}**\n   ${r.content}\n   🔗 ${r.url}`
+  ).join('\n\n');
+  
+  return `
+═══════════════════════════════════════════
+🔍 LIVE NEWS & WEB SEARCH RESULTS
+═══════════════════════════════════════════
+${formattedResults}
+
+Note: These are real-time search results. Use this information to provide current context.`;
+}
+
 async function fetchLivePrices(supabase: any): Promise<PriceData[]> {
   try {
     const { data, error } = await supabase.functions.invoke('polygon-crypto-prices', {
@@ -717,7 +807,8 @@ function buildSystemPrompt(
   coinDetails: string,
   historicalContext: string,
   technicalContext: string,
-  similarSuggestion: string
+  similarSuggestion: string,
+  webSearchContext: string = ""
 ): string {
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -755,6 +846,7 @@ ${priceContext}
 ${coinDetails}
 ${historicalContext}
 ${technicalContext}
+${webSearchContext}
 ${similarSuggestion}
 
 ═══════════════════════════════════════════
@@ -1011,25 +1103,31 @@ serve(async (req) => {
     const { assets: resolvedAssets, similar: similarAssets } = await resolveAssetsFromDatabase(supabase, userQuery);
     console.log(`Resolved ${resolvedAssets.length} assets: ${resolvedAssets.map(a => `${a.symbol}(${a.assetType})`).join(', ') || 'none'}`);
     
-    // Fetch all data in parallel
-    const [prices, coinDetails, historicalData, technicalData] = await Promise.all([
+    // Check if we should perform web search for news/current events
+    const needsWebSearch = shouldPerformWebSearch(userQuery);
+    console.log(`Web search needed: ${needsWebSearch}`);
+    
+    // Fetch all data in parallel (including web search if needed)
+    const [prices, coinDetails, historicalData, technicalData, webSearchResults] = await Promise.all([
       fetchLivePrices(supabase),
       Promise.all(resolvedAssets.filter(a => a.assetType === 'crypto').map(a => fetchCoinDetail(supabase, a))),
       Promise.all(resolvedAssets.map(a => fetchHistoricalContext(supabase, a))),
-      Promise.all(resolvedAssets.map(a => fetchTechnicalIndicators(supabase, a)))
+      Promise.all(resolvedAssets.map(a => fetchTechnicalIndicators(supabase, a))),
+      needsWebSearch ? searchTavily(userQuery) : Promise.resolve([])
     ]);
     
     const validCoinDetails = coinDetails.filter((c): c is CoinDetail => c !== null);
     const validHistorical = historicalData.filter((h): h is HistoricalContext => h !== null);
     const validTechnicals = technicalData.filter((t): t is TechnicalIndicators => t !== null);
     
-    console.log(`Fetched: ${prices.length} prices, ${validCoinDetails.length} crypto details, ${validHistorical.length} historical, ${validTechnicals.length} technicals`);
+    console.log(`Fetched: ${prices.length} prices, ${validCoinDetails.length} crypto details, ${validHistorical.length} historical, ${validTechnicals.length} technicals, ${webSearchResults.length} web results`);
 
     // Build context strings
     const priceContext = formatPriceContext(prices);
     const coinDetailContext = formatCoinDetails(validCoinDetails);
     const historicalContext = formatHistoricalContext(validHistorical);
     const technicalContext = formatTechnicalIndicators(validTechnicals);
+    const webSearchContext = formatWebSearchResults(webSearchResults);
     
     // Generate suggestions if no assets found
     const searchTerms = [...extractPotentialSymbols(userQuery), ...extractPotentialNames(userQuery)];
@@ -1037,7 +1135,7 @@ serve(async (req) => {
       ? formatSimilarAssetsSuggestion(similarAssets, searchTerms)
       : '';
     
-    const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion);
+    const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion, webSearchContext);
 
     // Call AI with fallback chain
     const { response, provider, needsTransform } = await callAIWithFallback(messages, systemPrompt);
