@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { usePolygonWebSocket } from '@/hooks/usePolygonWebSocket';
+import { useCentralizedPrices } from '@/hooks/useCentralizedPrices';
 
 interface DisplayPriceData {
   symbol: string;
@@ -128,8 +128,8 @@ export function PolygonTicker() {
     }
   };
 
-  // Use WebSocket hook - only connect when visible and have symbols
-  const { prices: wsPrices, status, lastUpdate } = usePolygonWebSocket(isVisible ? symbols : []);
+  // Use centralized prices from live_prices table (NO per-user WebSocket)
+  const { prices: wsPrices, status, lastUpdate } = useCentralizedPrices(isVisible ? symbols : []);
 
   // Transform WebSocket prices to display format
   useEffect(() => {
@@ -199,14 +199,13 @@ export function PolygonTicker() {
             <Radio className="h-4 w-4 text-green-500 animate-pulse" />
           </div>
         );
-      case 'recovering':
       case 'connecting':
         return (
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-amber-600/20">
             <Radio className="h-4 w-4 text-amber-500" />
           </div>
         );
-      case 'fallback':
+      case 'stale':
         return (
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-600/20">
             <Radio className="h-4 w-4 text-red-500" />
@@ -253,19 +252,15 @@ export function PolygonTicker() {
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs font-semibold">
-                  {status === 'live' && 'STREAMING LIVE'}
+                  {status === 'live' && 'LIVE DATA'}
                   {status === 'connecting' && 'CONNECTING...'}
-                  {status === 'recovering' && 'RECOVERING...'}
-                  {status === 'fallback' && 'FALLBACK MODE'}
+                  {status === 'stale' && 'DATA MAY BE STALE'}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {lastUpdate 
                     ? `Updated ${Math.floor((Date.now() - lastUpdate) / 1000)}s ago`
                     : 'Connecting...'}
                 </p>
-                {status === 'fallback' && (
-                  <p className="text-xs text-amber-400 mt-1">Polling every 2s</p>
-                )}
               </TooltipContent>
             </Tooltip>
           </div>
