@@ -17,6 +17,7 @@ export type Database = {
       ai_usage_logs: {
         Row: {
           assets_queried: string[] | null
+          client_ip: string | null
           created_at: string | null
           data_sources_used: string[] | null
           estimated_cost_millicents: number
@@ -35,6 +36,7 @@ export type Database = {
         }
         Insert: {
           assets_queried?: string[] | null
+          client_ip?: string | null
           created_at?: string | null
           data_sources_used?: string[] | null
           estimated_cost_millicents?: number
@@ -53,6 +55,7 @@ export type Database = {
         }
         Update: {
           assets_queried?: string[] | null
+          client_ip?: string | null
           created_at?: string | null
           data_sources_used?: string[] | null
           estimated_cost_millicents?: number

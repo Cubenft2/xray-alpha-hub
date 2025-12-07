@@ -1,11 +1,12 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Send, Trash2, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const CHAT_STORAGE_KEY = 'zombiedog-chat-history';
-const MAX_USER_MESSAGES = 20;
+const DAILY_MESSAGE_LIMIT = 10;
 
 interface Message {
   id: string;
@@ -26,6 +27,38 @@ const SUPABASE_URL = "https://odncvfiuzliyohxrsigc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbmN2Zml1emxpeW9oeHJzaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3Mzk4MjEsImV4cCI6MjA3NDMxNTgyMX0.7cnRatKpHqsylletKVel7WAprIYdpP85AXtXLswMYXQ";
 const CHAT_URL = `${SUPABASE_URL}/functions/v1/zombiedog-chat`;
 
+// Fetch usage count from backend
+async function fetchUsageCount(): Promise<{ remaining: number; isAdmin: boolean }> {
+  try {
+    // Get auth token if user is logged in
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_PUBLISHABLE_KEY,
+    };
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
+    
+    const resp = await fetch(CHAT_URL, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ action: 'get_usage' }),
+    });
+    
+    if (resp.ok) {
+      const data = await resp.json();
+      return { 
+        remaining: data.isAdmin ? -1 : data.remaining, 
+        isAdmin: data.isAdmin || false 
+      };
+    }
+  } catch (e) {
+    console.warn('Failed to fetch usage count:', e);
+  }
+  return { remaining: DAILY_MESSAGE_LIMIT, isAdmin: false };
+}
+
 type Msg = { role: 'user' | 'assistant'; content: string };
 
 async function streamChat({
@@ -33,20 +66,35 @@ async function streamChat({
   onDelta,
   onDone,
   onError,
+  onRateLimited,
 }: {
   messages: Msg[];
   onDelta: (deltaText: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
+  onRateLimited: () => void;
 }) {
+  // Get auth token if user is logged in (for admin bypass)
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_PUBLISHABLE_KEY,
+  };
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
+  
   const resp = await fetch(CHAT_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-    },
+    headers,
     body: JSON.stringify({ messages }),
   });
+
+  // Handle rate limiting
+  if (resp.status === 429) {
+    onRateLimited();
+    return;
+  }
 
   if (!resp.ok) {
     const errorData = await resp.json().catch(() => ({ error: 'Unknown error' }));
@@ -147,15 +195,19 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
   
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [remainingMessages, setRemainingMessages] = useState<number>(DAILY_MESSAGE_LIMIT);
+  const [isAdmin, setIsAdmin] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Count user messages (excluding welcome message)
-  const userMessageCount = useMemo(() => 
-    messages.filter(m => m.role === 'user').length, 
-    [messages]
-  );
-  const remainingMessages = MAX_USER_MESSAGES - userMessageCount;
-  const isLimitReached = userMessageCount >= MAX_USER_MESSAGES;
+  const isLimitReached = !isAdmin && remainingMessages <= 0;
+
+  // Fetch usage count from server on mount
+  useEffect(() => {
+    fetchUsageCount().then(({ remaining, isAdmin: admin }) => {
+      setRemainingMessages(remaining);
+      setIsAdmin(admin);
+    });
+  }, []);
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
@@ -179,9 +231,9 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
   const handleSend = async () => {
     if (!input.trim() || isLoading || isLimitReached) return;
 
-    // Show warning when approaching limit
-    if (remainingMessages === 5) {
-      toast.warning('🐕 5 messages left in this session!');
+    // Show warning when approaching limit (non-admin only)
+    if (!isAdmin && remainingMessages === 3) {
+      toast.warning('🐕 3 messages left today!');
     }
 
     const userMessage: Message = {
@@ -222,7 +274,13 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
       await streamChat({
         messages: apiMessages,
         onDelta: (chunk) => upsertAssistant(chunk),
-        onDone: () => setIsLoading(false),
+        onDone: () => {
+          setIsLoading(false);
+          // Refresh usage count after successful message
+          if (!isAdmin) {
+            setRemainingMessages(prev => Math.max(0, prev - 1));
+          }
+        },
         onError: (error) => {
           toast.error(error);
           setIsLoading(false);
@@ -230,6 +288,17 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
             id: (Date.now() + 1).toString(),
             role: 'assistant',
             content: `Woof! Something went wrong... ${error}. Try again!`,
+            timestamp: new Date(),
+          }]);
+        },
+        onRateLimited: () => {
+          setIsLoading(false);
+          setRemainingMessages(0);
+          toast.error('Daily message limit reached! Resets at midnight ET.');
+          setMessages(prev => [...prev, {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: "🚫 Woof! You've reached your daily limit of 10 messages. Come back tomorrow at midnight ET for more market insights!",
             timestamp: new Date(),
           }]);
         },
@@ -323,12 +392,12 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
 
       {/* Input Area */}
       <div className={`border-t border-primary/20 ${isFullScreen ? 'p-3' : 'p-2'} bg-card/50`}>
-        {/* Message counter */}
-        {userMessageCount > 5 && (
-          <div className={`flex items-center justify-center gap-1 mb-2 ${remainingMessages <= 5 ? 'text-destructive' : 'text-muted-foreground'}`}>
+        {/* Message counter - hide for admins */}
+        {!isAdmin && remainingMessages < DAILY_MESSAGE_LIMIT && remainingMessages >= 0 && (
+          <div className={`flex items-center justify-center gap-1 mb-2 ${remainingMessages <= 3 ? 'text-destructive' : 'text-muted-foreground'}`}>
             <MessageCircle className="w-3 h-3" />
             <span className="text-xs font-medium">
-              {remainingMessages > 0 ? `${remainingMessages} messages remaining` : 'Limit reached'}
+              {remainingMessages > 0 ? `${remainingMessages}/${DAILY_MESSAGE_LIMIT} messages remaining today` : 'Daily limit reached'}
             </span>
           </div>
         )}
@@ -336,15 +405,18 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
         {isLimitReached ? (
           <div className="text-center py-2">
             <p className="text-xs text-muted-foreground mb-2">
-              🧟 Woof! You've reached the 20-message limit.
+              🧟 Woof! You've reached your daily limit of {DAILY_MESSAGE_LIMIT} messages.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Resets at midnight ET. Clear chat history if you want a fresh start:
             </p>
             <Button
               onClick={clearChat}
               variant="outline"
               size="sm"
-              className="border-primary/50 hover:bg-primary/20 animate-pulse"
+              className="mt-2 border-primary/50 hover:bg-primary/20"
             >
-              <Trash2 className="w-3 h-3 mr-1" /> Clear Chat to Continue
+              <Trash2 className="w-3 h-3 mr-1" /> Clear Chat History
             </Button>
           </div>
         ) : (
