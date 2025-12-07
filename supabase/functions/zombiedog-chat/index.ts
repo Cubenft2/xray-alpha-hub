@@ -196,6 +196,72 @@ interface CompanyDetails {
   related_companies: Array<{ ticker: string }>;
 }
 
+// ============================================
+// PHASE 1: MARKET BRIEFS INTERFACE
+// ============================================
+interface MarketBriefContext {
+  briefType: string;
+  title: string;
+  executiveSummary: string;
+  publishedAt: string;
+  featuredAssets: string[];
+  sentimentScore: number | null;
+}
+
+// ============================================
+// PHASE 2: DERIVATIVES INTERFACE
+// ============================================
+interface DerivativesData {
+  symbol: string;
+  fundingRate: number;
+  liquidations24h: {
+    long: number;
+    short: number;
+    total: number;
+  };
+  openInterest?: number;
+  source: string;
+}
+
+// ============================================
+// PHASE 3: SOCIAL SENTIMENT INTERFACE
+// ============================================
+interface SocialSentimentData {
+  symbol: string;
+  name: string;
+  galaxyScore: number;
+  altRank: number;
+  socialVolume: number;
+  socialDominance: number;
+  sentiment: number;
+  fomoScore: number;
+}
+
+// ============================================
+// PHASE 4: NEWS FEED INTERFACE
+// ============================================
+interface NewsItem {
+  title: string;
+  description: string;
+  url: string;
+  publishedAt: string;
+  source: string;
+  sentiment?: 'positive' | 'negative' | 'neutral';
+  tickers?: string[];
+}
+
+interface AssetSentimentSnapshot {
+  assetSymbol: string;
+  assetName: string;
+  sentimentScore: number;
+  sentimentLabel: string;
+  positiveCount: number;
+  negativeCount: number;
+  neutralCount: number;
+  totalArticles: number;
+  trendDirection: string | null;
+}
+
 // Common words to filter out from symbol/name extraction
 const COMMON_WORDS = new Set([
   'THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 
@@ -402,7 +468,7 @@ async function lookupContractOnCoinGecko(address: string): Promise<{
         console.log(`[CoinGecko Contract] ${platform} returned ${response.status}`);
       }
     } catch (e) {
-      console.log(`[CoinGecko Contract] Error checking ${platform}:`, e.message);
+      console.log(`[CoinGecko Contract] Error checking ${platform}:`, (e as Error).message);
     }
   }
   
@@ -893,6 +959,259 @@ async function fetchTechnicalIndicators(supabase: any, asset: ResolvedAsset): Pr
 }
 
 // ============================================
+// PHASE 1: FETCH RELEVANT MARKET BRIEFS
+// ============================================
+async function fetchRelevantBriefs(supabase: any, symbols: string[]): Promise<MarketBriefContext[]> {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    
+    console.log(`[Phase 1] Fetching briefs from last 7 days for symbols: ${symbols.join(', ')}`);
+    
+    // Fetch recent published briefs
+    const { data: briefs, error } = await supabase
+      .from('market_briefs')
+      .select('brief_type, title, executive_summary, published_at, featured_assets, sentiment_score')
+      .eq('is_published', true)
+      .gte('published_at', sevenDaysAgo)
+      .order('published_at', { ascending: false })
+      .limit(10);
+    
+    if (error || !briefs?.length) {
+      console.log(`[Phase 1] No recent briefs found: ${error?.message || 'empty result'}`);
+      return [];
+    }
+    
+    // Filter briefs that mention any of the symbols user asked about
+    const relevantBriefs: MarketBriefContext[] = [];
+    const symbolsLower = symbols.map(s => s.toLowerCase());
+    
+    for (const brief of briefs) {
+      const summaryLower = brief.executive_summary?.toLowerCase() || '';
+      const titleLower = brief.title?.toLowerCase() || '';
+      const featuredAssets = brief.featured_assets || [];
+      
+      // Check if brief mentions any of the symbols
+      const mentionsSymbol = symbolsLower.some(sym => 
+        summaryLower.includes(sym) || 
+        titleLower.includes(sym) ||
+        featuredAssets.some((a: string) => a.toLowerCase().includes(sym))
+      );
+      
+      if (mentionsSymbol || relevantBriefs.length < 3) {
+        relevantBriefs.push({
+          briefType: brief.brief_type,
+          title: brief.title,
+          executiveSummary: brief.executive_summary?.slice(0, 500) || '',
+          publishedAt: brief.published_at,
+          featuredAssets: brief.featured_assets || [],
+          sentimentScore: brief.sentiment_score
+        });
+      }
+      
+      if (relevantBriefs.length >= 5) break;
+    }
+    
+    console.log(`[Phase 1] Found ${relevantBriefs.length} relevant briefs`);
+    return relevantBriefs;
+  } catch (e) {
+    console.error('[Phase 1] Error fetching briefs:', e);
+    return [];
+  }
+}
+
+// ============================================
+// PHASE 2: FETCH DERIVATIVES DATA
+// ============================================
+async function fetchDerivativesData(supabase: any, symbols: string[]): Promise<DerivativesData[]> {
+  if (symbols.length === 0) return [];
+  
+  try {
+    // Only fetch for crypto symbols (derivatives don't apply to stocks)
+    const cryptoSymbols = symbols.slice(0, 5); // Limit to 5 to avoid rate limits
+    
+    console.log(`[Phase 2] Fetching derivatives for: ${cryptoSymbols.join(', ')}`);
+    
+    const { data, error } = await supabase.functions.invoke('derivs', {
+      body: {},
+      headers: {}
+    });
+    
+    // The derivs function uses query params, so we need to call it differently
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/derivs?symbols=${cryptoSymbols.join(',')}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      console.log(`[Phase 2] Derivs API error: ${response.status}`);
+      return [];
+    }
+    
+    const derivsData = await response.json();
+    
+    if (!derivsData?.derivatives?.length) {
+      console.log('[Phase 2] No derivatives data returned');
+      return [];
+    }
+    
+    console.log(`[Phase 2] Got derivatives for ${derivsData.derivatives.length} symbols`);
+    
+    return derivsData.derivatives.map((d: any) => ({
+      symbol: d.symbol,
+      fundingRate: d.fundingRate || 0,
+      liquidations24h: d.liquidations24h || { long: 0, short: 0, total: 0 },
+      openInterest: d.openInterest,
+      source: d.source || 'coinglass'
+    }));
+  } catch (e) {
+    console.error('[Phase 2] Error fetching derivatives:', e);
+    return [];
+  }
+}
+
+// ============================================
+// PHASE 3: FETCH SOCIAL SENTIMENT COMPARISON
+// ============================================
+async function fetchSocialContext(supabase: any, symbols: string[]): Promise<SocialSentimentData[]> {
+  if (symbols.length === 0) return [];
+  
+  try {
+    console.log(`[Phase 3] Fetching social sentiment for: ${symbols.join(', ')}`);
+    
+    const { data, error } = await supabase.functions.invoke('lunarcrush-social', {
+      body: {}
+    });
+    
+    if (error || !data?.data?.length) {
+      console.log(`[Phase 3] No social data: ${error?.message || 'empty result'}`);
+      return [];
+    }
+    
+    // Filter to symbols user asked about
+    const symbolsUpper = symbols.map(s => s.toUpperCase());
+    const relevantSocial = data.data
+      .filter((coin: any) => symbolsUpper.includes(coin.symbol?.toUpperCase()))
+      .map((coin: any) => ({
+        symbol: coin.symbol,
+        name: coin.name,
+        galaxyScore: coin.galaxy_score || 0,
+        altRank: coin.alt_rank || 0,
+        socialVolume: coin.social_volume || 0,
+        socialDominance: coin.social_dominance || 0,
+        sentiment: coin.sentiment || 0,
+        fomoScore: coin.fomo_score || 0
+      }));
+    
+    // Also get top 5 for comparison context
+    const top5 = data.data
+      .slice(0, 5)
+      .filter((coin: any) => !symbolsUpper.includes(coin.symbol?.toUpperCase()))
+      .map((coin: any) => ({
+        symbol: coin.symbol,
+        name: coin.name,
+        galaxyScore: coin.galaxy_score || 0,
+        altRank: coin.alt_rank || 0,
+        socialVolume: coin.social_volume || 0,
+        socialDominance: coin.social_dominance || 0,
+        sentiment: coin.sentiment || 0,
+        fomoScore: coin.fomo_score || 0
+      }));
+    
+    const result = [...relevantSocial, ...top5.slice(0, 3)];
+    console.log(`[Phase 3] Got social data for ${result.length} coins`);
+    
+    return result;
+  } catch (e) {
+    console.error('[Phase 3] Error fetching social:', e);
+    return [];
+  }
+}
+
+// ============================================
+// PHASE 4: FETCH AGGREGATED NEWS
+// ============================================
+async function fetchAggregatedNews(supabase: any, symbols: string[]): Promise<{ news: NewsItem[], sentiment: AssetSentimentSnapshot[] }> {
+  try {
+    console.log(`[Phase 4] Fetching news and sentiment for: ${symbols.join(', ')}`);
+    
+    // Fetch news and sentiment in parallel
+    const [newsResult, sentimentResult] = await Promise.all([
+      // Fetch aggregated news
+      supabase.functions.invoke('news-fetch', { body: { limit: 20 } }),
+      // Fetch asset sentiment snapshots
+      supabase
+        .from('asset_sentiment_snapshots')
+        .select('*')
+        .in('asset_symbol', symbols.map(s => s.toUpperCase()))
+        .gte('timestamp', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .order('timestamp', { ascending: false })
+        .limit(10)
+    ]);
+    
+    const news: NewsItem[] = [];
+    const sentiment: AssetSentimentSnapshot[] = [];
+    
+    // Process news
+    if (newsResult.data) {
+      const allNews = [...(newsResult.data.crypto || []), ...(newsResult.data.stocks || [])];
+      
+      // Filter to relevant symbols
+      const symbolsUpper = symbols.map(s => s.toUpperCase());
+      const relevantNews = allNews.filter((item: any) => {
+        if (item.tickers?.some((t: string) => symbolsUpper.includes(t.replace('X:', '').toUpperCase()))) return true;
+        const titleLower = item.title?.toLowerCase() || '';
+        return symbolsUpper.some(s => titleLower.includes(s.toLowerCase()));
+      });
+      
+      // Take top 10 most relevant
+      relevantNews.slice(0, 10).forEach((item: any) => {
+        news.push({
+          title: item.title,
+          description: item.description?.slice(0, 200) || '',
+          url: item.url,
+          publishedAt: item.publishedAt,
+          source: item.source,
+          sentiment: item.sentiment,
+          tickers: item.tickers
+        });
+      });
+    }
+    
+    // Process sentiment snapshots
+    if (sentimentResult.data) {
+      sentimentResult.data.forEach((snap: any) => {
+        sentiment.push({
+          assetSymbol: snap.asset_symbol,
+          assetName: snap.asset_name,
+          sentimentScore: snap.sentiment_score,
+          sentimentLabel: snap.sentiment_label,
+          positiveCount: snap.positive_count,
+          negativeCount: snap.negative_count,
+          neutralCount: snap.neutral_count,
+          totalArticles: snap.total_articles,
+          trendDirection: snap.trend_direction
+        });
+      });
+    }
+    
+    console.log(`[Phase 4] Got ${news.length} news items, ${sentiment.length} sentiment snapshots`);
+    
+    return { news, sentiment };
+  } catch (e) {
+    console.error('[Phase 4] Error fetching news:', e);
+    return { news: [], sentiment: [] };
+  }
+}
+
+// ============================================
 // TAVILY WEB SEARCH
 // ============================================
 
@@ -978,11 +1297,17 @@ async function searchTavily(query: string): Promise<WebSearchResult[]> {
     }
 
     const data = await response.json();
-    console.log(`[Tavily] Found ${data.results?.length || 0} results`);
     
-    return (data.results || []).map((r: any) => ({
-      title: r.title,
-      url: r.url,
+    if (!data.results?.length) {
+      console.log("[Tavily] No results found");
+      return [];
+    }
+
+    console.log(`[Tavily] Found ${data.results.length} results`);
+    
+    return data.results.map((r: any) => ({
+      title: r.title || 'Untitled',
+      url: r.url || '',
       content: r.content?.slice(0, 300) || '',
       score: r.score || 0
     }));
@@ -995,8 +1320,8 @@ async function searchTavily(query: string): Promise<WebSearchResult[]> {
 function formatWebSearchResults(results: WebSearchResult[]): string {
   if (results.length === 0) return "";
   
-  const formattedResults = results.map((r, i) => 
-    `${i + 1}. **${r.title}**\n   ${r.content}\n   🔗 ${r.url}`
+  const formattedResults = results.map(r => 
+    `📰 ${r.title}\n   ${r.content.slice(0, 200)}...\n   🔗 ${r.url}`
   ).join('\n\n');
   
   return `
@@ -1309,6 +1634,137 @@ ${c.list_date ? `📅 Listed: ${c.list_date}` : ''}`;
 ${sections.join('\n\n')}`;
 }
 
+// ============================================
+// FORMAT NEW DATA SOURCES
+// ============================================
+
+function formatMarketBriefs(briefs: MarketBriefContext[]): string {
+  if (briefs.length === 0) return "";
+  
+  const sections = briefs.map(b => {
+    const date = new Date(b.publishedAt).toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
+    const sentiment = b.sentimentScore !== null 
+      ? `${b.sentimentScore >= 60 ? '🟢' : b.sentimentScore >= 40 ? '🟡' : '🔴'} ${b.sentimentScore}/100`
+      : '';
+    
+    return `📋 ${b.title} (${b.briefType} - ${date})
+${sentiment}
+${b.executiveSummary.slice(0, 300)}${b.executiveSummary.length > 300 ? '...' : ''}
+Featured: ${b.featuredAssets.slice(0, 5).join(', ') || 'Various'}`;
+  });
+  
+  return `
+═══════════════════════════════════════════
+📚 OUR RECENT MARKET ANALYSIS (Last 7 Days)
+═══════════════════════════════════════════
+${sections.join('\n\n')}
+
+Use this context when referencing our previous analysis or when asked "what did you say about X?"`;
+}
+
+function formatDerivativesData(derivs: DerivativesData[]): string {
+  if (derivs.length === 0) return "";
+  
+  const sections = derivs.map(d => {
+    const fundingEmoji = d.fundingRate > 0 ? '🟢' : d.fundingRate < 0 ? '🔴' : '⚪';
+    const fundingSignal = d.fundingRate > 0.01 ? 'Bullish pressure (longs paying)' 
+                        : d.fundingRate < -0.01 ? 'Bearish pressure (shorts paying)'
+                        : 'Neutral';
+    
+    const totalLiq = d.liquidations24h.total;
+    const liqContext = totalLiq > 100_000_000 ? '🔥 Heavy liquidations!' 
+                     : totalLiq > 50_000_000 ? '⚠️ Elevated liquidations'
+                     : '✅ Normal liquidation levels';
+    
+    return `📊 ${d.symbol} Derivatives:
+  ${fundingEmoji} Funding Rate: ${(d.fundingRate * 100).toFixed(4)}% (${fundingSignal})
+  💥 24h Liquidations: ${formatLargeNumber(d.liquidations24h.total)}
+    • Longs: ${formatLargeNumber(d.liquidations24h.long)}
+    • Shorts: ${formatLargeNumber(d.liquidations24h.short)}
+  ${liqContext}`;
+  });
+  
+  return `
+═══════════════════════════════════════════
+📈 DERIVATIVES DATA (Funding & Liquidations)
+═══════════════════════════════════════════
+${sections.join('\n\n')}
+
+Interpretation:
+• Positive funding = longs pay shorts (bullish sentiment)
+• Negative funding = shorts pay longs (bearish sentiment)
+• High liquidations = volatile price action`;
+}
+
+function formatSocialComparison(social: SocialSentimentData[]): string {
+  if (social.length === 0) return "";
+  
+  const sections = social.map((s, i) => {
+    const galaxyEmoji = s.galaxyScore >= 70 ? '🌟' : s.galaxyScore >= 50 ? '✨' : '⭐';
+    const sentimentEmoji = s.sentiment > 0 ? '🟢' : s.sentiment < 0 ? '🔴' : '🟡';
+    
+    return `${i + 1}. ${s.name} (${s.symbol})
+  ${galaxyEmoji} Galaxy Score: ${s.galaxyScore}/100
+  🏆 Alt Rank: #${s.altRank}
+  📊 Social Volume: ${s.socialVolume.toLocaleString()}
+  ${sentimentEmoji} Sentiment: ${s.sentiment >= 0 ? '+' : ''}${(s.sentiment * 100).toFixed(1)}%
+  🔥 FOMO Score: ${s.fomoScore}`;
+  });
+  
+  return `
+═══════════════════════════════════════════
+🌍 SOCIAL SENTIMENT RANKINGS
+═══════════════════════════════════════════
+${sections.join('\n\n')}
+
+• Galaxy Score: Social engagement + sentiment combined
+• Alt Rank: Rank vs all altcoins by social metrics
+• FOMO Score: Fear of missing out indicator`;
+}
+
+function formatNewsAndSentiment(news: NewsItem[], sentiment: AssetSentimentSnapshot[]): string {
+  let result = '';
+  
+  if (sentiment.length > 0) {
+    const sentimentLines = sentiment.map(s => {
+      const emoji = s.sentimentLabel === 'positive' ? '🟢' : s.sentimentLabel === 'negative' ? '🔴' : '🟡';
+      const trendEmoji = s.trendDirection === 'up' ? '📈' : s.trendDirection === 'down' ? '📉' : '➡️';
+      return `${emoji} ${s.assetSymbol}: ${s.sentimentLabel} (${s.sentimentScore.toFixed(1)}/100) ${trendEmoji}
+    • ${s.positiveCount} positive / ${s.negativeCount} negative / ${s.neutralCount} neutral articles`;
+    });
+    
+    result += `
+═══════════════════════════════════════════
+📊 NEWS SENTIMENT ANALYSIS (Last 24h)
+═══════════════════════════════════════════
+${sentimentLines.join('\n')}
+`;
+  }
+  
+  if (news.length > 0) {
+    const newsLines = news.slice(0, 5).map(n => {
+      const sentimentEmoji = n.sentiment === 'positive' ? '🟢' : n.sentiment === 'negative' ? '🔴' : '🟡';
+      const date = new Date(n.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return `${sentimentEmoji} ${n.title}
+    ${n.source} • ${date}
+    ${n.description.slice(0, 150)}...`;
+    });
+    
+    result += `
+═══════════════════════════════════════════
+📰 LATEST RELEVANT NEWS
+═══════════════════════════════════════════
+${newsLines.join('\n\n')}
+`;
+  }
+  
+  return result;
+}
+
 function buildSystemPrompt(
   priceContext: string, 
   coinDetails: string,
@@ -1317,7 +1773,12 @@ function buildSystemPrompt(
   similarSuggestion: string,
   webSearchContext: string = "",
   companyContext: string = "",
-  contractAddressContext: string = ""
+  contractAddressContext: string = "",
+  // NEW: Phase 1-4 contexts
+  marketBriefsContext: string = "",
+  derivativesContext: string = "",
+  socialContext: string = "",
+  newsContext: string = ""
 ): string {
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -1343,9 +1804,9 @@ Your personality:
 - Respond in the SAME LANGUAGE the user writes in. If they speak Spanish, reply in Spanish. If German, reply in German. Mirror their language while keeping your ZombieDog personality intact.
 
 ═══════════════════════════════════════════
-🎯 YOUR RESEARCH CAPABILITIES
+🎯 YOUR RESEARCH CAPABILITIES (SUPERCHARGED!)
 ═══════════════════════════════════════════
-You can research:
+You now have access to:
 • 🪙 2,000+ Cryptocurrencies (with social sentiment, trends, Galaxy Score)
 • 📈 Stocks with FULL COMPANY DATA (profile, financials, dividends, earnings)
 • 📊 Technical indicators (RSI, MACD, Moving Averages)
@@ -1354,13 +1815,23 @@ You can research:
 • 💵 Dividend history and upcoming ex-dates
 • ✂️ Stock split history
 • 🔗 Related companies
-• 📋 CONTRACT ADDRESSES: Users can paste EVM (0x...) or Solana addresses and you'll identify the token!
+• 📋 CONTRACT ADDRESSES: Users can paste EVM (0x...) or Solana addresses!
+
+NEW SUPERPOWERS:
+• 📚 OUR PAST MARKET BRIEFS: Reference what we said before!
+• 📈 DERIVATIVES DATA: Funding rates, liquidations, market positioning
+• 🌍 SOCIAL RANKINGS: Compare assets by social sentiment
+• 📰 NEWS SENTIMENT: Categorized news with sentiment analysis
 
 ${priceContext}
 ${coinDetails}
 ${companyContext}
 ${historicalContext}
 ${technicalContext}
+${derivativesContext}
+${socialContext}
+${marketBriefsContext}
+${newsContext}
 ${webSearchContext}
 ${contractAddressContext}
 ${similarSuggestion}
@@ -1369,47 +1840,46 @@ ${similarSuggestion}
 📜 CRITICAL INSTRUCTIONS
 ═══════════════════════════════════════════
 
-1. **USE THE DATA ABOVE!** You have REAL, LIVE market data. Never say you don't have access!
+1. **USE ALL THE DATA ABOVE!** You have COMPREHENSIVE market intelligence. Never say you don't have access!
 
-2. **IF CLARIFICATION NEEDED:** When the "DID YOU MEAN" or "CLARIFICATION NEEDED" section appears above:
+2. **REFERENCE OUR BRIEFS:** When the "OUR RECENT MARKET ANALYSIS" section appears:
+   - Naturally reference what we said: "In our morning brief yesterday, we noted SOL was showing accumulation..."
+   - Compare current data to our previous analysis
+   - This makes you sound like you have memory of past discussions
+
+3. **USE DERIVATIVES DATA:** When funding rates/liquidations are available:
+   - Explain what they mean for market sentiment
+   - "BTC funding is +0.015%, meaning longs are paying shorts - bullish bias in derivatives"
+   - Mention if there were large liquidations
+
+4. **COMPARE SOCIAL RANKINGS:** When social data is available:
+   - "SOL ranks #3 in social volume today, outpacing ETH"
+   - Use Galaxy Score to assess community sentiment
+
+5. **IF CLARIFICATION NEEDED:** When the "DID YOU MEAN" or "CLARIFICATION NEEDED" section appears above:
    - Present the suggestions conversationally
    - Ask the user to clarify which asset they meant
    - Be helpful, not robotic
-   - Example: "Hmm, I'm not sure which coin you mean by 'monat'. *sniffs* Did you perhaps mean Monad (MON)? Or something else? 🐕"
 
-3. **For specific asset queries:**
+6. **For specific asset queries:**
    - Quote EXACT price, changes, and metrics from the data
-   - For crypto: Discuss Galaxy Score, risk level, trends
+   - For crypto: Discuss Galaxy Score, risk level, trends, AND derivatives if available
    - For stocks: Discuss company profile, sector, financials, dividends if available
    - Mention RSI/MACD signals if available
 
-4. **For STOCK QUERIES with Company Data:**
-   - Summarize the company (sector, industry, what they do)
-   - Highlight key financials (revenue, EPS, net income growth)
-   - Mention dividend info if available (yield, frequency, next ex-date)
-   - Note related companies for comparison
-   - Use market cap to contextualize (mega-cap vs mid-cap vs small-cap)
-
-5. **Be specific, not generic:**
+7. **Be specific, not generic:**
    ❌ DON'T: "I don't have real-time data"
-   ✅ DO: "AAPL is in the Technology sector with $94.7B quarterly revenue, trading at P/E of 28..."
+   ✅ DO: "SOL is at $148.32 (+5.2%), with funding at +0.012% and Galaxy Score 72/100. Our morning brief noted accumulation patterns..."
 
-6. **Interpret technicals:**
-   - RSI > 70: "Overbought - potential pullback ahead"
-   - RSI < 30: "Oversold - could bounce"
-   - MACD bullish + price up: "Strong momentum confirmation"
-
-7. **HANDLING LIMITED DATA FOR NEWER COINS:**
+8. **HANDLING LIMITED DATA FOR NEWER COINS:**
    - If an asset IS FOUND in the database, it EXISTS and IS TRADABLE
    - NEVER say a coin is "not tradable yet" or "not available" if you found it in the data
-   - If historical/technical data is missing, say: "This is a newer listing - historical data is still being indexed"
-   - Use whatever data IS available (price, social sentiment, etc.)
 
-8. Keep responses concise but data-rich (2-4 paragraphs max)
-9. Always remind users to DYOR (do your own research)
-10. Never give financial advice
+9. Keep responses concise but data-rich (2-4 paragraphs max)
+10. Always remind users to DYOR (do your own research)
+11. Never give financial advice - you're an AI assistant, not a financial advisor
 
-Remember: You're a helpful undead pup with REAL market data - use it! 🐕💀`;
+Remember: You're a SUPERCHARGED undead pup with comprehensive market intelligence - use it ALL! 🐕💀`;
 }
 
 // ============================================
@@ -1437,10 +1907,7 @@ async function callLovableAI(messages: any[], systemPrompt: string): Promise<Res
       model: "google/gemini-2.5-flash",
       messages: [
         { role: "system", content: systemPrompt },
-        ...preparedMessages.map((m: any) => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content,
-        })),
+        ...preparedMessages,
       ],
       stream: true,
     }),
@@ -1455,7 +1922,7 @@ async function callLovableAI(messages: any[], systemPrompt: string): Promise<Res
   return response;
 }
 
-// Call OpenAI (GPT-4o-mini)
+// Call OpenAI (gpt-4o-mini)
 async function callOpenAI(messages: any[], systemPrompt: string): Promise<Response> {
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_API_KEY) {
@@ -1476,12 +1943,8 @@ async function callOpenAI(messages: any[], systemPrompt: string): Promise<Respon
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
-        ...preparedMessages.map((m: any) => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content,
-        })),
+        ...preparedMessages,
       ],
-      max_tokens: 1024,
       stream: true,
     }),
   });
@@ -1495,7 +1958,7 @@ async function callOpenAI(messages: any[], systemPrompt: string): Promise<Respon
   return response;
 }
 
-// Call Anthropic (Claude Haiku - cheaper)
+// Call Anthropic (Claude Haiku)
 async function callAnthropic(messages: any[], systemPrompt: string): Promise<Response> {
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) {
@@ -1636,18 +2099,41 @@ serve(async (req) => {
     if (contractWebLookups.length > 0) {
       console.log(`Found web info for ${contractWebLookups.length} contract(s)`);
     }
+    
+    // Extract symbols for new data sources
+    const cryptoSymbols = resolvedAssets.filter(a => a.assetType === 'crypto').map(a => a.symbol);
+    const allSymbols = resolvedAssets.map(a => a.symbol);
+    
     // Check if we should perform web search for news/current events
     const needsWebSearch = shouldPerformWebSearch(userQuery);
     console.log(`Web search needed: ${needsWebSearch}`);
     
-    // Fetch all data in parallel (including web search and company details if needed)
-    const [prices, coinDetails, companyDetails, historicalData, technicalData, webSearchResults] = await Promise.all([
+    // Fetch ALL data in parallel (original + 4 new phases)
+    const [
+      prices, 
+      coinDetails, 
+      companyDetails, 
+      historicalData, 
+      technicalData, 
+      webSearchResults,
+      // NEW: Phase 1-4 data
+      relevantBriefs,
+      derivativesData,
+      socialData,
+      newsData
+    ] = await Promise.all([
+      // Original data fetches
       fetchLivePrices(supabase),
       Promise.all(resolvedAssets.filter(a => a.assetType === 'crypto').map(a => fetchCoinDetail(supabase, a))),
       Promise.all(resolvedAssets.filter(a => a.assetType === 'stock').map(a => fetchCompanyDetails(supabase, a))),
       Promise.all(resolvedAssets.map(a => fetchHistoricalContext(supabase, a))),
       Promise.all(resolvedAssets.map(a => fetchTechnicalIndicators(supabase, a))),
-      needsWebSearch ? searchTavily(userQuery) : Promise.resolve([])
+      needsWebSearch ? searchTavily(userQuery) : Promise.resolve([]),
+      // NEW: Phase 1-4 fetches
+      fetchRelevantBriefs(supabase, allSymbols),
+      fetchDerivativesData(supabase, cryptoSymbols),
+      fetchSocialContext(supabase, cryptoSymbols),
+      fetchAggregatedNews(supabase, allSymbols)
     ]);
     
     const validCoinDetails = coinDetails.filter((c): c is CoinDetail => c !== null);
@@ -1656,14 +2142,21 @@ serve(async (req) => {
     const validTechnicals = technicalData.filter((t): t is TechnicalIndicators => t !== null);
     
     console.log(`Fetched: ${prices.length} prices, ${validCoinDetails.length} crypto details, ${validCompanyDetails.length} company details, ${validHistorical.length} historical, ${validTechnicals.length} technicals, ${webSearchResults.length} web results`);
+    console.log(`NEW: ${relevantBriefs.length} briefs, ${derivativesData.length} derivs, ${socialData.length} social, ${newsData.news.length} news, ${newsData.sentiment.length} sentiment`);
 
-    // Build context strings
+    // Build context strings (original)
     const priceContext = formatPriceContext(prices);
     const coinDetailContext = formatCoinDetails(validCoinDetails);
     const companyContext = formatCompanyDetails(validCompanyDetails);
     const historicalContext = formatHistoricalContext(validHistorical);
     const technicalContext = formatTechnicalIndicators(validTechnicals);
     const webSearchContext = formatWebSearchResults(webSearchResults);
+    
+    // Build NEW context strings (Phases 1-4)
+    const marketBriefsContext = formatMarketBriefs(relevantBriefs);
+    const derivativesContext = formatDerivativesData(derivativesData);
+    const socialContext = formatSocialComparison(socialData);
+    const newsContext = formatNewsAndSentiment(newsData.news, newsData.sentiment);
     
     // Generate suggestions if no assets found
     const searchTerms = [...extractPotentialSymbols(userQuery), ...extractPotentialNames(userQuery)];
@@ -1704,7 +2197,22 @@ Please let the user know you couldn't identify this contract address. Suggest th
 `;
     }
     
-    const systemPrompt = buildSystemPrompt(priceContext, coinDetailContext, historicalContext, technicalContext, similarSuggestion, webSearchContext, companyContext, contractAddressContext);
+    // Build system prompt with ALL contexts
+    const systemPrompt = buildSystemPrompt(
+      priceContext, 
+      coinDetailContext, 
+      historicalContext, 
+      technicalContext, 
+      similarSuggestion, 
+      webSearchContext, 
+      companyContext, 
+      contractAddressContext,
+      // NEW: Phase 1-4 contexts
+      marketBriefsContext,
+      derivativesContext,
+      socialContext,
+      newsContext
+    );
 
     // Call AI with fallback chain
     const { response, provider, needsTransform } = await callAIWithFallback(messages, systemPrompt);
