@@ -15,6 +15,78 @@ const TOP_CRYPTOS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 
 // Message compression settings
 const RECENT_MESSAGES_TO_KEEP = 3;
 
+// ============================================
+// AI USAGE TRACKING - TOKEN ESTIMATION & COST
+// ============================================
+
+// Estimate tokens (~4 chars per token is a common approximation)
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+// Pricing per 1M tokens (in USD)
+const AI_PRICING: Record<string, { input: number; output: number; model: string }> = {
+  'lovable': { input: 0.15, output: 0.60, model: 'google/gemini-2.5-flash' },
+  'openai': { input: 0.15, output: 0.60, model: 'gpt-4o-mini' },
+  'anthropic': { input: 0.80, output: 4.00, model: 'claude-3-5-haiku-20241022' },
+};
+
+// Calculate cost in millicents (1 USD = 100,000 millicents)
+function calculateCostMillicents(provider: AIProvider, inputTokens: number, outputTokens: number): number {
+  const pricing = AI_PRICING[provider];
+  if (!pricing) return 0;
+  
+  const inputCost = (inputTokens / 1_000_000) * pricing.input;
+  const outputCost = (outputTokens / 1_000_000) * pricing.output;
+  return Math.ceil((inputCost + outputCost) * 100_000); // Convert to millicents
+}
+
+// Log AI usage to database
+async function logAIUsage(
+  supabase: any,
+  provider: AIProvider,
+  inputTokens: number,
+  outputTokens: number,
+  latencyMs: number,
+  metadata: {
+    questionTypes?: string[];
+    assetsQueried?: string[];
+    dataSourcesUsed?: string[];
+    fallbackUsed?: boolean;
+    fallbackFrom?: string;
+    userMessagePreview?: string;
+    sessionId?: string;
+  }
+): Promise<void> {
+  try {
+    const costMillicents = calculateCostMillicents(provider, inputTokens, outputTokens);
+    
+    await supabase.from('ai_usage_logs').insert({
+      provider,
+      model: AI_PRICING[provider]?.model || 'unknown',
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      estimated_cost_millicents: costMillicents,
+      latency_ms: latencyMs,
+      question_type: metadata.questionTypes || [],
+      assets_queried: metadata.assetsQueried || [],
+      data_sources_used: metadata.dataSourcesUsed || [],
+      fallback_used: metadata.fallbackUsed || false,
+      fallback_from: metadata.fallbackFrom || null,
+      user_message_preview: metadata.userMessagePreview?.substring(0, 200) || null,
+      session_id: metadata.sessionId || null,
+    });
+    
+    console.log(`[AI Usage] Logged: ${provider} | ${inputTokens}in/${outputTokens}out | ${costMillicents/100000} USD | ${latencyMs}ms`);
+  } catch (error) {
+    console.error('[AI Usage] Failed to log usage:', error);
+    // Don't throw - logging failure shouldn't break the chat
+  }
+}
+
+// Message compression settings
+const RECENT_MESSAGES_TO_KEEP = 3;
+
 // Prepare messages for AI with hybrid compression (keep last 3 full, summarize rest)
 function prepareMessagesForAI(messages: any[]): any[] {
   if (messages.length <= RECENT_MESSAGES_TO_KEEP) {
@@ -2168,21 +2240,37 @@ function transformOpenAIStream(response: Response): ReadableStream {
 }
 
 // Try providers in order with fallback
-async function callAIWithFallback(messages: any[], systemPrompt: string): Promise<{ response: Response, provider: AIProvider, needsTransform: boolean }> {
+async function callAIWithFallback(messages: any[], systemPrompt: string): Promise<{ 
+  response: Response; 
+  provider: AIProvider; 
+  needsTransform: boolean;
+  fallbackUsed: boolean;
+  fallbackFrom: string | null;
+}> {
   const providers: { name: AIProvider; fn: () => Promise<Response>; needsTransform: boolean }[] = [
     { name: 'lovable', fn: () => callLovableAI(messages, systemPrompt), needsTransform: true },
     { name: 'openai', fn: () => callOpenAI(messages, systemPrompt), needsTransform: true },
     { name: 'anthropic', fn: () => callAnthropic(messages, systemPrompt), needsTransform: false },
   ];
 
-  for (const provider of providers) {
+  let fallbackFrom: string | null = null;
+  
+  for (let i = 0; i < providers.length; i++) {
+    const provider = providers[i];
     try {
       console.log(`[AI Fallback] Trying ${provider.name}...`);
       const response = await provider.fn();
       console.log(`[AI Fallback] ✅ ${provider.name} succeeded`);
-      return { response, provider: provider.name, needsTransform: provider.needsTransform };
+      return { 
+        response, 
+        provider: provider.name, 
+        needsTransform: provider.needsTransform,
+        fallbackUsed: i > 0,
+        fallbackFrom
+      };
     } catch (error) {
       console.error(`[AI Fallback] ❌ ${provider.name} failed:`, error);
+      if (i === 0) fallbackFrom = provider.name;
       continue;
     }
   }
@@ -2376,15 +2464,82 @@ Please let the user know you couldn't identify this contract address. Suggest th
       newsContext
     );
 
-    // Call AI with fallback chain
-    const { response, provider, needsTransform } = await callAIWithFallback(messages, systemPrompt);
-
-    console.log(`Streaming response from ${provider}`);
+    // Track timing for latency measurement
+    const aiStartTime = Date.now();
     
-    // Transform OpenAI/Lovable format to Anthropic format if needed
-    const responseBody = needsTransform ? transformOpenAIStream(response) : response.body;
+    // Estimate input tokens (system prompt + messages)
+    const messagesText = messages.map((m: any) => m.content || '').join(' ');
+    const inputTokens = estimateTokens(systemPrompt + messagesText);
 
-    return new Response(responseBody, {
+    // Call AI with fallback chain
+    const { response, provider, needsTransform, fallbackUsed, fallbackFrom } = await callAIWithFallback(messages, systemPrompt);
+
+    const latencyMs = Date.now() - aiStartTime;
+    console.log(`Streaming response from ${provider} (latency: ${latencyMs}ms)`);
+    
+    // Collect data sources used for logging
+    const dataSourcesUsed: string[] = [];
+    if (prices.length > 0) dataSourcesUsed.push('polygon_prices');
+    if (validCoinDetails.length > 0) dataSourcesUsed.push('lunarcrush');
+    if (validCompanyDetails.length > 0) dataSourcesUsed.push('polygon_company');
+    if (validHistorical.length > 0) dataSourcesUsed.push('polygon_historical');
+    if (validTechnicals.length > 0) dataSourcesUsed.push('polygon_technicals');
+    if (webSearchResults.length > 0) dataSourcesUsed.push('tavily');
+    if (relevantBriefs.length > 0) dataSourcesUsed.push('market_briefs');
+    if (derivativesData.length > 0) dataSourcesUsed.push('derivatives');
+    if (socialData.length > 0) dataSourcesUsed.push('social_sentiment');
+    if (newsData.news.length > 0) dataSourcesUsed.push('news');
+    
+    // Create a stream wrapper to count output tokens and log after completion
+    const originalStream = needsTransform ? transformOpenAIStream(response) : response.body;
+    let outputText = '';
+    
+    const loggingStream = new ReadableStream({
+      async start(controller) {
+        const reader = originalStream!.getReader();
+        const decoder = new TextDecoder();
+        
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+              // Stream complete - log usage
+              const outputTokens = estimateTokens(outputText);
+              
+              // Log in background (don't await)
+              logAIUsage(supabase, provider, inputTokens, outputTokens, latencyMs, {
+                questionTypes: Array.from(questionTypes),
+                assetsQueried: allSymbols,
+                dataSourcesUsed,
+                fallbackUsed,
+                fallbackFrom: fallbackFrom || undefined,
+                userMessagePreview: userQuery,
+              }).catch(e => console.error('[AI Usage] Background log failed:', e));
+              
+              controller.close();
+              break;
+            }
+            
+            // Capture text from stream for token counting
+            const chunk = decoder.decode(value, { stream: true });
+            // Extract text content from SSE events for accurate token counting
+            const textMatch = chunk.match(/"text":"([^"]+)"/g);
+            if (textMatch) {
+              textMatch.forEach(m => {
+                const text = m.replace(/"text":"/, '').replace(/"$/, '');
+                outputText += text;
+              });
+            }
+            
+            controller.enqueue(value);
+          }
+        } catch (err) {
+          controller.error(err);
+        }
+      }
+    });
+
+    return new Response(loggingStream, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (error) {
