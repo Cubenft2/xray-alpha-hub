@@ -206,7 +206,7 @@
     overflow-x: hidden;
     /* Zombie Pattern Background - Light Mode Only 🧟‍♂️ */
     background-color: hsl(var(--background));
-    background-image: url('/images/zombie-pattern.png');
+    background-image: url('/images/zombie-pattern.webp');
     background-repeat: repeat;
     background-size: 300px 300px;
     background-attachment: fixed;
@@ -224,7 +224,7 @@
   
   /* Dark mode - zombie pattern with eerie glow effect 🧟‍♂️ */
   .dark body {
-    background-image: url('/images/zombie-pattern.png');
+    background-image: url('/images/zombie-pattern.webp');
     background-repeat: repeat;
     background-size: 300px 300px;
     background-attachment: fixed;
