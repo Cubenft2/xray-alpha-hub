@@ -5,6 +5,34 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Validation regex: Only uppercase letters and numbers, 2-10 characters
+const VALID_SYMBOL_REGEX = /^[A-Z0-9]{2,10}$/;
+
+// Characters that indicate an invalid symbol
+const INVALID_PATTERNS = [
+  /\$/, // Dollar sign prefix
+  /\s/, // Spaces
+  /[^\x00-\x7F]/, // Non-ASCII (emojis, special chars)
+  /^[0-9]+$/, // Numbers only
+  /[a-z]/, // Lowercase letters (symbols should be uppercase)
+];
+
+function isValidSymbol(symbol: string): boolean {
+  // Check against valid pattern
+  if (!VALID_SYMBOL_REGEX.test(symbol.toUpperCase())) {
+    return false;
+  }
+  
+  // Check for any invalid patterns
+  for (const pattern of INVALID_PATTERNS) {
+    if (pattern.test(symbol)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,7 +45,7 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🚀 Auto-mapping Polygon tickers for all crypto tokens...');
+    console.log('🚀 Auto-mapping Polygon tickers for crypto tokens with validation...');
 
     // Get all active crypto tokens WITHOUT polygon_ticker
     const { data: unmappedTokens, error: fetchError } = await supabase
@@ -39,7 +67,8 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           status: 'complete', 
           message: 'All tokens already mapped',
-          mapped: 0 
+          mapped: 0,
+          skipped: 0
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -47,12 +76,22 @@ Deno.serve(async (req) => {
 
     console.log(`📊 Found ${unmappedTokens.length} unmapped crypto tokens`);
 
-    // Process individually to avoid batch issues
     let mappedCount = 0;
+    let skippedCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
+    const skippedSamples: string[] = [];
 
     for (const token of unmappedTokens) {
+      // Validate symbol before mapping
+      if (!isValidSymbol(token.symbol)) {
+        skippedCount++;
+        if (skippedSamples.length < 10) {
+          skippedSamples.push(`${token.symbol} (${token.display_name})`);
+        }
+        continue;
+      }
+
       const polygonTicker = `X:${token.symbol.toUpperCase()}USD`;
       
       const { error: updateError } = await supabase
@@ -70,8 +109,8 @@ Deno.serve(async (req) => {
       }
       
       // Log progress every 500
-      if ((mappedCount + errorCount) % 500 === 0) {
-        console.log(`⏳ Progress: ${mappedCount + errorCount}/${unmappedTokens.length}`);
+      if ((mappedCount + errorCount + skippedCount) % 500 === 0) {
+        console.log(`⏳ Progress: ${mappedCount + errorCount + skippedCount}/${unmappedTokens.length}`);
       }
     }
 
@@ -87,20 +126,26 @@ Deno.serve(async (req) => {
 
     console.log(`🏁 Auto-mapping complete in ${duration}ms`);
     console.log(`   Mapped: ${mappedCount}`);
+    console.log(`   Skipped (invalid): ${skippedCount}`);
     console.log(`   Errors: ${errorCount}`);
     console.log(`   Remaining: ${remainingCount || 0}`);
+    if (skippedSamples.length > 0) {
+      console.log(`   Skipped samples: ${skippedSamples.join(', ')}`);
+    }
 
     return new Response(
       JSON.stringify({
         status: 'success',
         mapped: mappedCount,
+        skipped: skippedCount,
+        skipped_samples: skippedSamples,
         errors: errorCount,
         error_samples: errors,
         remaining: remainingCount || 0,
         duration_ms: duration,
         message: remainingCount && remainingCount > 0
-          ? `Mapped ${mappedCount} tokens. Run again to process ${remainingCount} more.`
-          : `All ${mappedCount} tokens mapped successfully!`
+          ? `Mapped ${mappedCount} tokens, skipped ${skippedCount} invalid. Run again to process more.`
+          : `All valid tokens mapped! ${skippedCount} invalid symbols skipped.`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
