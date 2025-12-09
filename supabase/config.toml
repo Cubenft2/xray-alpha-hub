@@ -61,7 +61,7 @@ verify_jwt = true
 verify_jwt = false
 
 [[functions.exchange-sync.cron]]
-schedule = "0 2 * * *"
+schedule = "0 */6 * * *"
 
 [functions.symbol-intelligence]
 verify_jwt = true
@@ -81,14 +81,17 @@ verify_jwt = false
 [functions.polygon-price-relay]
 verify_jwt = false
 
-[[functions.polygon-price-relay.cron]]
-schedule = "*/5 * * * *"
+[functions.polygon-rest-poller]
+verify_jwt = false
+
+[[functions.polygon-rest-poller.cron]]
+schedule = "*/2 * * * *"
 
 [functions.price-poller]
 verify_jwt = false
 
 [[functions.price-poller.cron]]
-schedule = "*/15 * * * * *"
+schedule = "*/5 * * * *"
 
 [functions.polygon-historical-data]
 verify_jwt = false
@@ -139,4 +142,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.sync-crypto-mappings]
+verify_jwt = false
+
+[functions.coingecko-chart-data]
 verify_jwt = false

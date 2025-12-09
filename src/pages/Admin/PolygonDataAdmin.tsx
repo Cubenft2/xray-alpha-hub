@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, TrendingUp, BarChart3 } from 'lucide-react';
@@ -12,6 +13,9 @@ export function PolygonDataAdmin() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [indicatorsLoading, setIndicatorsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [progressText, setProgressText] = useState('');
+  const [tickerCount, setTickerCount] = useState(0);
   
   // Historical data form state
   const [ticker, setTicker] = useState('BTC');
@@ -23,6 +27,21 @@ export function PolygonDataAdmin() {
     return date.toISOString().split('T')[0];
   });
   const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // Fetch ticker count on mount
+  useEffect(() => {
+    const fetchTickerCount = async () => {
+      const { count } = await supabase
+        .from('ticker_mappings')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'crypto')
+        .eq('is_active', true)
+        .not('polygon_ticker', 'is', null);
+      
+      setTickerCount(count || 0);
+    };
+    fetchTickerCount();
+  }, []);
 
   const handleFetchHistoricalData = async () => {
     setLoading(true);
@@ -61,25 +80,77 @@ export function PolygonDataAdmin() {
 
   const handleRefreshTechnicalIndicators = async () => {
     setIndicatorsLoading(true);
-    try {
-      console.log('📈 Refreshing technical indicators...');
-      
-      const { data, error } = await supabase.functions.invoke('polygon-technical-indicators', {
-        body: {
-          tickers: ['BTC', 'ETH', 'SOL', 'XRP', 'BNB', 'ADA', 'DOGE', 'AVAX', 'LINK', 'DOT'],
-          indicators: ['rsi', 'macd', 'sma_50', 'ema_20'],
-          timeframe: 'daily'
-        }
-      });
+    setProgress(0);
+    setProgressText('Fetching tickers...');
 
-      if (error) throw error;
+    try {
+      // Fetch ALL active crypto tickers with polygon_ticker
+      const { data: allTickers, error: tickerError } = await supabase
+        .from('ticker_mappings')
+        .select('symbol')
+        .eq('type', 'crypto')
+        .eq('is_active', true)
+        .not('polygon_ticker', 'is', null);
+
+      if (tickerError) throw tickerError;
+
+      if (!allTickers || allTickers.length === 0) {
+        throw new Error('No active crypto tickers found');
+      }
+
+      const symbols = allTickers.map(t => t.symbol);
+      console.log(`📈 Processing technical indicators for ${symbols.length} tickers...`);
+
+      // Process in batches of 50 to avoid timeouts
+      const batchSize = 50;
+      const batches = [];
+      for (let i = 0; i < symbols.length; i += batchSize) {
+        batches.push(symbols.slice(i, i + batchSize));
+      }
+
+      let totalProcessed = 0;
+      let totalSuccess = 0;
+
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        setProgressText(`Processing batch ${i + 1}/${batches.length} (${batch.length} tickers)...`);
+        setProgress(Math.round((i / batches.length) * 100));
+
+        try {
+          const { data, error } = await supabase.functions.invoke('polygon-technical-indicators', {
+            body: {
+              tickers: batch,
+              indicators: ['rsi', 'macd', 'sma_50', 'ema_20'],
+              timeframe: 'daily'
+            }
+          });
+
+          if (error) {
+            console.error(`Batch ${i + 1} error:`, error);
+          } else {
+            totalSuccess += data?.tickers_processed || batch.length;
+          }
+        } catch (batchError) {
+          console.error(`Batch ${i + 1} exception:`, batchError);
+        }
+
+        totalProcessed += batch.length;
+
+        // Small delay between batches
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+
+      setProgress(100);
+      setProgressText('Complete!');
 
       toast({
         title: 'Technical Indicators Refreshed',
-        description: `Indicators fetched for ${data.tickers_processed} tickers`,
+        description: `Processed ${totalProcessed} tickers in ${batches.length} batches`,
       });
 
-      console.log('✅ Technical indicators:', data);
+      console.log('✅ Technical indicators complete:', { totalProcessed, totalSuccess });
     } catch (error) {
       console.error('Error fetching technical indicators:', error);
       toast({
@@ -89,6 +160,10 @@ export function PolygonDataAdmin() {
       });
     } finally {
       setIndicatorsLoading(false);
+      setTimeout(() => {
+        setProgress(0);
+        setProgressText('');
+      }, 3000);
     }
   };
 
@@ -187,23 +262,34 @@ export function PolygonDataAdmin() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Technical Indicators (Priority 2)
+            Technical Indicators (All Tickers)
           </CardTitle>
           <CardDescription>
-            Refresh technical indicators (RSI, MACD, SMA, EMA) for key assets. Used in daily market briefs.
+            Refresh technical indicators (RSI, MACD, SMA, EMA) for ALL {tickerCount} active crypto tickers. Processed in batches.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <p className="font-medium">Default Tickers (Crypto Only):</p>
+            <p className="font-medium">Dynamic Ticker Processing:</p>
             <p className="text-sm text-muted-foreground">
-              BTC, ETH, SOL, XRP, BNB, ADA, DOGE, AVAX, LINK, DOT
+              Will process <strong>{tickerCount}</strong> active crypto tickers with Polygon mappings
             </p>
             <p className="font-medium mt-3">Indicators:</p>
             <p className="text-sm text-muted-foreground">
               RSI (14), MACD (12,26,9), SMA (50), EMA (20)
             </p>
+            <p className="font-medium mt-3">Batch Size:</p>
+            <p className="text-sm text-muted-foreground">
+              50 tickers per batch to avoid timeouts
+            </p>
           </div>
+
+          {indicatorsLoading && (
+            <div className="space-y-2">
+              <Progress value={progress} className="w-full" />
+              <p className="text-sm text-center text-muted-foreground">{progressText}</p>
+            </div>
+          )}
 
           <Button
             onClick={handleRefreshTechnicalIndicators}
@@ -211,13 +297,13 @@ export function PolygonDataAdmin() {
             className="w-full"
           >
             {indicatorsLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Refresh Technical Indicators
+            Refresh All Technical Indicators
           </Button>
 
           <div className="text-sm text-muted-foreground space-y-1 mt-4">
             <p><strong>Cache Duration:</strong> 1 hour</p>
             <p><strong>Integration:</strong> Automatically used in market brief generation</p>
-            <p><strong>Example Output:</strong> "Bitcoin (BTC): RSI 72 (overbought), MACD bullish crossover"</p>
+            <p><strong>Estimated Time:</strong> ~{Math.ceil(tickerCount / 50) * 2} seconds for {Math.ceil(tickerCount / 50)} batches</p>
           </div>
         </CardContent>
       </Card>

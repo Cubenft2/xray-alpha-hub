@@ -23,6 +23,7 @@ import {
   Database,
   MessageSquare,
   Dog,
+  Activity,
 } from 'lucide-react';
 import { SymbolAdmin } from './SymbolAdmin';
 import { PendingTickerMappings } from './PendingTickerMappings';
@@ -35,9 +36,10 @@ import { CoinGeckoEnrich } from './CoinGeckoEnrich';
 import QuoteLibraryAdmin from './QuoteLibraryAdmin';
 import { ExchangeDataSync } from './ExchangeDataSync';
 import { ZombieDogAnalytics } from './ZombieDogAnalytics';
+import { SystemHealth } from './SystemHealth';
 
 function AdminContent() {
-  const [activeView, setActiveView] = useState('generate-brief');
+  const [activeView, setActiveView] = useState('system-health');
   const { setOpenMobile } = useSidebar();
   const isMobile = useIsMobile();
 
@@ -52,6 +54,21 @@ function AdminContent() {
     <>
       <Sidebar className="border-r">
         <SidebarContent className="pt-4">
+          <SidebarGroup>
+            <SidebarGroupLabel>System</SidebarGroupLabel>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  onClick={() => handleViewChange('system-health')}
+                  isActive={activeView === 'system-health'}
+                >
+                  <Activity className="mr-2 h-4 w-4" />
+                  <span>System Health</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+
           <SidebarGroup>
             <SidebarGroupLabel>Content Management</SidebarGroupLabel>
             <SidebarMenu>
@@ -186,6 +203,7 @@ function AdminContent() {
         </header>
         
         <main className="flex-1 p-8 overflow-auto">
+          {activeView === 'system-health' && <SystemHealth />}
           {activeView === 'generate-brief' && <GenerateBrief />}
           {activeView === 'quote-library' && <QuoteLibraryAdmin />}
           {activeView === 'missing-tickers' && <PendingTickerMappings />}
