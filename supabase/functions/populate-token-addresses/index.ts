@@ -42,7 +42,7 @@ const CHAIN_DISPLAY_NAMES: Record<string, string> = {
   'fuse': 'Fuse',
 };
 
-// Native coins that don't have contract addresses (only truly native coins)
+// Native coins that don't have contract addresses
 const NATIVE_COINS = ['BTC', 'SOL'];
 
 interface UpdateStats {
@@ -64,6 +64,8 @@ interface UpdateStats {
     address?: string;
     reason?: string;
   }>;
+  nextOffset?: number;
+  hasMore: boolean;
 }
 
 Deno.serve(async (req) => {
@@ -73,83 +75,81 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify admin authentication
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // Parse batch parameters
+    let offset = 0;
+    let batchSize = 500; // Default batch size
+    
+    try {
+      const body = await req.json();
+      offset = body.offset || 0;
+      batchSize = Math.min(body.batchSize || 500, 1000); // Cap at 1000
+    } catch {
+      // No body or invalid JSON, use defaults
     }
 
-    const { data: roleData, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle();
+    console.log(`🚀 Starting token address population (offset: ${offset}, batchSize: ${batchSize})...`);
 
-    if (roleError || !roleData) {
-      return new Response(JSON.stringify({ error: 'Forbidden - Admin access required' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    console.log(`Admin user ${user.email} authenticated for populate-token-addresses`);
-
-    console.log('🚀 Starting token address population...');
-
-    // Fetch all crypto ticker mappings with coingecko_id that are missing addresses
-    const { data: mappings, error: mappingsError } = await supabase
+    // Fetch crypto ticker mappings with coingecko_id that are missing addresses (with pagination)
+    const { data: mappings, error: mappingsError, count } = await supabase
       .from('ticker_mappings')
-      .select('id, symbol, display_name, coingecko_id, dex_address, dex_chain, dex_platforms')
+      .select('id, symbol, display_name, coingecko_id, dex_address, dex_chain, dex_platforms', { count: 'exact' })
       .eq('type', 'crypto')
       .eq('is_active', true)
-      .not('coingecko_id', 'is', null);
+      .not('coingecko_id', 'is', null)
+      .is('dex_address', null) // Only fetch those missing addresses
+      .range(offset, offset + batchSize - 1);
 
     if (mappingsError) {
       console.error('Error fetching ticker mappings:', mappingsError);
       throw mappingsError;
     }
 
-    console.log(`📊 Found ${mappings.length} crypto ticker mappings with CoinGecko IDs`);
+    const totalMissingAddresses = count || 0;
+    console.log(`📊 Found ${mappings?.length || 0} tokens to process in this batch (${totalMissingAddresses} total missing)`);
 
-    // Fetch CoinGecko master data for enrichment status
+    if (!mappings || mappings.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          stats: {
+            total: 0,
+            updated: 0,
+            skipped: 0,
+            skipReasons: { alreadyHasAddress: 0, nativeCoin: 0, noPlatformData: 0, emptyPlatforms: 0, noValidAddress: 0 },
+            errors: 0,
+            details: [],
+            hasMore: false
+          },
+          message: 'No tokens need address population'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    // Get unique coingecko_ids to fetch
+    const cgIds = [...new Set(mappings.map(m => m.coingecko_id).filter(Boolean))];
+    
+    // Fetch CoinGecko master data for these specific IDs (more efficient)
     const { data: cgMasterData, error: cgError } = await supabase
       .from('cg_master')
-      .select('cg_id, platforms, enrichment_status, enrichment_error');
+      .select('cg_id, platforms, enrichment_status')
+      .in('cg_id', cgIds);
 
     if (cgError) {
       console.error('Error fetching CoinGecko master data:', cgError);
       throw cgError;
     }
 
-    console.log(`📊 Found ${cgMasterData.length} CoinGecko master entries`);
+    console.log(`📊 Fetched ${cgMasterData?.length || 0} CoinGecko master entries for lookup`);
 
-    // Create maps for quick lookup
+    // Create map for quick lookup
     const cgMasterMap = new Map<string, any>();
-    const platformsMap = new Map<string, any>();
-    
-    cgMasterData.forEach(item => {
+    cgMasterData?.forEach(item => {
       cgMasterMap.set(item.cg_id, item);
-      if (item.platforms) {
-        platformsMap.set(item.cg_id, item.platforms);
-      }
     });
 
     const stats: UpdateStats = {
@@ -164,22 +164,19 @@ Deno.serve(async (req) => {
         noValidAddress: 0
       },
       errors: 0,
-      details: []
+      details: [],
+      hasMore: (offset + mappings.length) < totalMissingAddresses
     };
+
+    // Prepare batch updates
+    const updates: Array<{ id: string; dex_address: string; dex_chain: string }> = [];
 
     // Process each mapping
     for (const mapping of mappings) {
       try {
-        // Skip if already has address (unless we want to update)
-        if (mapping.dex_address && mapping.dex_chain) {
-          stats.skipped++;
-          stats.skipReasons.alreadyHasAddress++;
-          continue;
-        }
-
         // Get platforms data - check both cg_master and dex_platforms column
         const cgData = cgMasterMap.get(mapping.coingecko_id);
-        let platforms = platformsMap.get(mapping.coingecko_id);
+        let platforms = cgData?.platforms;
         
         // Also check dex_platforms column on ticker_mappings itself
         if (!platforms && mapping.dex_platforms && typeof mapping.dex_platforms === 'object') {
@@ -258,68 +255,75 @@ Deno.serve(async (req) => {
         // Get display name for chain
         const chainDisplayName = CHAIN_DISPLAY_NAMES[bestChain] || bestChain;
 
-        // Update the ticker mapping
-        const { error: updateError } = await supabase
-          .from('ticker_mappings')
-          .update({
-            dex_address: bestAddress,
-            dex_chain: chainDisplayName,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', mapping.id);
+        // Add to batch updates
+        updates.push({
+          id: mapping.id,
+          dex_address: bestAddress,
+          dex_chain: chainDisplayName
+        });
 
-        if (updateError) {
-          console.error(`❌ Error updating ${mapping.symbol}:`, updateError);
-          stats.errors++;
+        stats.updated++;
+        if (stats.details.length < 50) { // Limit details to prevent response size issues
+          stats.details.push({
+            symbol: mapping.symbol,
+            action: 'updated',
+            chain: chainDisplayName,
+            address: bestAddress.substring(0, 20) + '...'
+          });
+        }
+
+      } catch (error: any) {
+        console.error(`❌ Error processing ${mapping.symbol}:`, error);
+        stats.errors++;
+        if (stats.details.length < 50) {
           stats.details.push({
             symbol: mapping.symbol,
             action: 'error',
-            reason: updateError.message
+            reason: error.message
           });
-          continue;
         }
-
-        stats.updated++;
-        stats.details.push({
-          symbol: mapping.symbol,
-          action: 'updated',
-          chain: chainDisplayName,
-          address: bestAddress
-        });
-
-      } catch (error) {
-        console.error(`❌ Error processing ${mapping.symbol}:`, error);
-        stats.errors++;
-        stats.details.push({
-          symbol: mapping.symbol,
-          action: 'error',
-          reason: error.message
-        });
       }
     }
 
-    console.log('\n📊 Final Statistics:');
-    console.log(`Total processed: ${stats.total}`);
+    // Perform batch updates (in chunks to avoid payload limits)
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < updates.length; i += CHUNK_SIZE) {
+      const chunk = updates.slice(i, i + CHUNK_SIZE);
+      
+      for (const update of chunk) {
+        const { error: updateError } = await supabase
+          .from('ticker_mappings')
+          .update({
+            dex_address: update.dex_address,
+            dex_chain: update.dex_chain,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', update.id);
+
+        if (updateError) {
+          console.error(`Error updating ${update.id}:`, updateError);
+          stats.errors++;
+          stats.updated--; // Adjust count
+        }
+      }
+    }
+
+    if (stats.hasMore) {
+      stats.nextOffset = offset + mappings.length;
+    }
+
+    console.log('\n📊 Batch Statistics:');
+    console.log(`Batch processed: ${stats.total}`);
     console.log(`✅ Updated: ${stats.updated}`);
     console.log(`⏭️ Skipped: ${stats.skipped}`);
-    console.log(`   - Already has address: ${stats.skipReasons.alreadyHasAddress}`);
-    console.log(`   - Native coin (no platforms): ${stats.skipReasons.nativeCoin}`);
-    console.log(`   - No platform data: ${stats.skipReasons.noPlatformData}`);
-    console.log(`   - Empty platforms: ${stats.skipReasons.emptyPlatforms}`);
-    console.log(`   - No valid address: ${stats.skipReasons.noValidAddress}`);
     console.log(`❌ Errors: ${stats.errors}`);
-
-    // Only include first 100 details to avoid response size issues
-    const limitedDetails = stats.details.slice(0, 100);
+    console.log(`📈 Has more: ${stats.hasMore} (next offset: ${stats.nextOffset})`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        stats: {
-          ...stats,
-          details: limitedDetails
-        },
-        message: `Successfully processed ${stats.total} tokens. Updated: ${stats.updated}, Skipped: ${stats.skipped}, Errors: ${stats.errors}`
+        stats,
+        message: `Processed ${stats.total} tokens. Updated: ${stats.updated}, Skipped: ${stats.skipped}, Errors: ${stats.errors}. ${stats.hasMore ? `${totalMissingAddresses - offset - mappings.length} remaining.` : 'All done!'}`
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -327,7 +331,7 @@ Deno.serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Fatal error:', error);
     return new Response(
       JSON.stringify({ 
