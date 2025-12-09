@@ -134,3 +134,6 @@ verify_jwt = false
 
 [functions.generate-og-image]
 verify_jwt = false
+
+[functions.sync-stock-mappings]
+verify_jwt = false
