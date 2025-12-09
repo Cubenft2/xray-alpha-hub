@@ -131,6 +131,36 @@ export type Database = {
         }
         Relationships: []
       }
+      assets: {
+        Row: {
+          created_at: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          symbol: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          symbol: string
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          symbol?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       cache_kv: {
         Row: {
           created_at: string
@@ -190,6 +220,48 @@ export type Database = {
           synced_at?: string | null
         }
         Relationships: []
+      }
+      coingecko_assets: {
+        Row: {
+          asset_id: string
+          categories: Json | null
+          coingecko_id: string
+          id: string
+          last_synced: string | null
+          market_cap_rank: number | null
+        }
+        Insert: {
+          asset_id: string
+          categories?: Json | null
+          coingecko_id: string
+          id?: string
+          last_synced?: string | null
+          market_cap_rank?: number | null
+        }
+        Update: {
+          asset_id?: string
+          categories?: Json | null
+          coingecko_id?: string
+          id?: string
+          last_synced?: string | null
+          market_cap_rank?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coingecko_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coingecko_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "ticker_mappings_v2"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_details: {
         Row: {
@@ -435,27 +507,93 @@ export type Database = {
       }
       live_prices: {
         Row: {
+          asset_id: string | null
           change24h: number
           display: string
           price: number
+          source: string | null
           ticker: string
           updated_at: string
         }
         Insert: {
+          asset_id?: string | null
           change24h: number
           display: string
           price: number
+          source?: string | null
           ticker: string
           updated_at?: string
         }
         Update: {
+          asset_id?: string | null
           change24h?: number
           display?: string
           price?: number
+          source?: string | null
           ticker?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "live_prices_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_prices_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "ticker_mappings_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lunarcrush_assets: {
+        Row: {
+          alt_rank: number | null
+          asset_id: string
+          galaxy_score: number | null
+          id: string
+          last_synced: string | null
+          lunarcrush_id: string | null
+          social_volume: number | null
+        }
+        Insert: {
+          alt_rank?: number | null
+          asset_id: string
+          galaxy_score?: number | null
+          id?: string
+          last_synced?: string | null
+          lunarcrush_id?: string | null
+          social_volume?: number | null
+        }
+        Update: {
+          alt_rank?: number | null
+          asset_id?: string
+          galaxy_score?: number | null
+          id?: string
+          last_synced?: string | null
+          lunarcrush_id?: string | null
+          social_volume?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lunarcrush_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lunarcrush_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "ticker_mappings_v2"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       market_alerts: {
         Row: {
@@ -780,6 +918,48 @@ export type Database = {
           type?: string | null
         }
         Relationships: []
+      }
+      polygon_assets: {
+        Row: {
+          asset_id: string
+          id: string
+          is_active: boolean | null
+          last_synced: string | null
+          market: string
+          polygon_ticker: string
+        }
+        Insert: {
+          asset_id: string
+          id?: string
+          is_active?: boolean | null
+          last_synced?: string | null
+          market: string
+          polygon_ticker: string
+        }
+        Update: {
+          asset_id?: string
+          id?: string
+          is_active?: boolean | null
+          last_synced?: string | null
+          market?: string
+          polygon_ticker?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polygon_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "polygon_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "ticker_mappings_v2"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       price_cache: {
         Row: {
@@ -1156,6 +1336,90 @@ export type Database = {
         }
         Relationships: []
       }
+      token_contracts: {
+        Row: {
+          asset_id: string
+          chain: string
+          contract_address: string
+          created_at: string | null
+          decimals: number | null
+          id: string
+          is_primary: boolean | null
+        }
+        Insert: {
+          asset_id: string
+          chain: string
+          contract_address: string
+          created_at?: string | null
+          decimals?: number | null
+          id?: string
+          is_primary?: boolean | null
+        }
+        Update: {
+          asset_id?: string
+          chain?: string
+          contract_address?: string
+          created_at?: string | null
+          decimals?: number | null
+          id?: string
+          is_primary?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_contracts_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "token_contracts_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "ticker_mappings_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tradingview_assets: {
+        Row: {
+          asset_id: string
+          exchange: string | null
+          id: string
+          is_supported: boolean | null
+          tradingview_symbol: string
+        }
+        Insert: {
+          asset_id: string
+          exchange?: string | null
+          id?: string
+          is_supported?: boolean | null
+          tradingview_symbol: string
+        }
+        Update: {
+          asset_id?: string
+          exchange?: string | null
+          id?: string
+          is_supported?: boolean | null
+          tradingview_symbol?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tradingview_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tradingview_assets_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "ticker_mappings_v2"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -1179,7 +1443,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ticker_mappings_v2: {
+        Row: {
+          alt_rank: number | null
+          coingecko_id: string | null
+          created_at: string | null
+          dex_address: string | null
+          dex_chain: string | null
+          display_name: string | null
+          galaxy_score: number | null
+          id: string | null
+          is_active: boolean | null
+          logo_url: string | null
+          polygon_ticker: string | null
+          symbol: string | null
+          tradingview_supported: boolean | null
+          tradingview_symbol: string | null
+          type: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       auto_approve_pending_mappings: {
