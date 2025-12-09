@@ -5,16 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface SyncStats {
-  processed: number;
-  mapped: number;
-  pending: number;
-  skipped: number;
-  errors: string[];
-}
-
 // Exchange priority for preferred exchange selection
-const EXCHANGE_PRIORITY = {
+const EXCHANGE_PRIORITY: Record<string, number> = {
   'kraken': 1,
   'kucoin': 2,
   'gate.io': 3,
@@ -52,76 +44,6 @@ function normalizeSymbol(symbol: string): string {
     .replace(/ETH$/, '');
 }
 
-function calculateSimilarity(s1: string, s2: string): number {
-  const longer = s1.length > s2.length ? s1 : s2;
-  const shorter = s1.length > s2.length ? s2 : s1;
-  
-  if (longer.length === 0) return 1.0;
-  
-  const editDistance = levenshteinDistance(longer, shorter);
-  return (longer.length - editDistance) / longer.length;
-}
-
-function levenshteinDistance(s1: string, s2: string): number {
-  const costs: number[] = [];
-  for (let i = 0; i <= s1.length; i++) {
-    let lastValue = i;
-    for (let j = 0; j <= s2.length; j++) {
-      if (i === 0) {
-        costs[j] = j;
-      } else if (j > 0) {
-        let newValue = costs[j - 1];
-        if (s1.charAt(i - 1) !== s2.charAt(j - 1)) {
-          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-        }
-        costs[j - 1] = lastValue;
-        lastValue = newValue;
-      }
-    }
-    if (i > 0) costs[s2.length] = lastValue;
-  }
-  return costs[s2.length];
-}
-
-async function fetchAllRows(supabase: any, table: string, columns: string, filters?: any): Promise<any[]> {
-  const BATCH_SIZE = 1000;
-  let allRows: any[] = [];
-  let from = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    let query = supabase
-      .from(table)
-      .select(columns)
-      .range(from, from + BATCH_SIZE - 1);
-
-    if (filters) {
-      for (const [key, value] of Object.entries(filters)) {
-        query = query.eq(key, value);
-      }
-    }
-
-    const { data, error } = await query;
-
-    if (error) throw error;
-
-    if (data && data.length > 0) {
-      allRows = allRows.concat(data);
-      console.log(`📥 Fetched ${allRows.length} rows from ${table}...`);
-      
-      if (data.length < BATCH_SIZE) {
-        hasMore = false;
-      } else {
-        from += BATCH_SIZE;
-      }
-    } else {
-      hasMore = false;
-    }
-  }
-
-  return allRows;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -132,26 +54,47 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🚀 Starting ticker mappings sync...');
+    // Parse request body for batch parameters
+    const body = await req.json().catch(() => ({}));
+    const batchSize = body.batchSize || 500;
+    const offset = body.offset || 0;
 
-    const stats: SyncStats = {
-      processed: 0,
-      mapped: 0,
-      pending: 0,
-      skipped: 0,
-      errors: [],
-    };
+    console.log(`🚀 Starting ticker mappings sync (offset: ${offset}, batch: ${batchSize})...`);
 
-    // 1. Get ALL exchange pairs with pagination
-    console.log('📥 Fetching all exchange pairs...');
-    const exchangePairs = await fetchAllRows(
-      supabase,
-      'exchange_pairs',
-      'base_asset, quote_asset, exchange, symbol',
-      { is_active: true }
-    );
+    // 1. Get existing symbols to skip (quick check)
+    const { data: existingMappings } = await supabase
+      .from('ticker_mappings')
+      .select('symbol');
 
-    console.log(`📊 Found ${exchangePairs.length} active exchange pairs`);
+    const existingSymbols = new Set<string>();
+    if (existingMappings) {
+      for (const m of existingMappings) {
+        existingSymbols.add(m.symbol.toUpperCase());
+      }
+    }
+    console.log(`✅ Found ${existingSymbols.size} existing mapped symbols`);
+
+    // 2. Get exchange pairs in batches
+    const { data: exchangePairs, error: pairsError } = await supabase
+      .from('exchange_pairs')
+      .select('base_asset, quote_asset, exchange, symbol')
+      .eq('is_active', true)
+      .range(offset, offset + batchSize - 1);
+
+    if (pairsError) throw pairsError;
+
+    if (!exchangePairs || exchangePairs.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'No more pairs to process',
+          stats: { processed: 0, mapped: 0, skipped: 0, hasMore: false },
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`📥 Processing ${exchangePairs.length} pairs (offset ${offset})...`);
 
     // Group by base asset
     const assetMap = new Map<string, {
@@ -161,6 +104,8 @@ Deno.serve(async (req) => {
 
     for (const pair of exchangePairs) {
       const normalized = normalizeSymbol(pair.base_asset);
+      if (!normalized) continue;
+      
       if (!assetMap.has(normalized)) {
         assetMap.set(normalized, { exchanges: new Set(), pairs: [] });
       }
@@ -173,99 +118,65 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`🔍 Identified ${assetMap.size} unique base assets`);
-
-    // 2. Get ALL CoinGecko master data with pagination
-    console.log('📥 Fetching all CoinGecko coins...');
-    const cgCoins = await fetchAllRows(
-      supabase,
-      'cg_master',
-      'cg_id, symbol, name'
-    );
-
-    console.log(`💰 Loaded ${cgCoins.length} CoinGecko coins for matching`);
-
-    // Create CoinGecko lookup maps
-    const cgBySymbol = new Map<string, typeof cgCoins[0]>();
-    const cgByName = new Map<string, typeof cgCoins[0]>();
+    // 3. Get CoinGecko lookup data (just symbols we need)
+    const symbolsToLookup = Array.from(assetMap.keys()).filter(s => !existingSymbols.has(s));
     
-    for (const coin of cgCoins) {
-      cgBySymbol.set(coin.symbol.toUpperCase(), coin);
-      cgByName.set(coin.name.toLowerCase(), coin);
+    if (symbolsToLookup.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'All symbols in this batch already mapped',
+          stats: { processed: assetMap.size, mapped: 0, skipped: assetMap.size, hasMore: exchangePairs.length === batchSize },
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // 3. Get existing ticker_mappings to avoid duplicates
-    const { data: existingMappings } = await supabase
-      .from('ticker_mappings')
-      .select('symbol, aliases');
+    // Fetch CoinGecko matches for symbols we need
+    const { data: cgCoins } = await supabase
+      .from('cg_master')
+      .select('cg_id, symbol, name')
+      .in('symbol', symbolsToLookup.map(s => s.toLowerCase()));
 
-    const existingSymbols = new Set<string>();
-    if (existingMappings) {
-      for (const mapping of existingMappings) {
-        existingSymbols.add(mapping.symbol.toUpperCase());
-        if (mapping.aliases) {
-          for (const alias of mapping.aliases) {
-            existingSymbols.add(alias.toUpperCase());
-          }
-        }
+    const cgBySymbol = new Map<string, { cg_id: string; name: string }>();
+    if (cgCoins) {
+      for (const coin of cgCoins) {
+        cgBySymbol.set(coin.symbol.toUpperCase(), { cg_id: coin.cg_id, name: coin.name });
       }
     }
 
-    console.log(`✅ Found ${existingSymbols.size} existing mapped symbols`);
+    console.log(`💰 Found ${cgBySymbol.size} CoinGecko matches`);
 
-    // 4. Process each unique asset
-    console.log(`🔄 Processing ${assetMap.size} unique assets...`);
+    // 4. Build mappings for batch upsert
+    const mappingsToUpsert: Array<{
+      symbol: string;
+      display_name: string;
+      type: string;
+      coingecko_id: string | null;
+      tradingview_symbol: string;
+      tradingview_supported: boolean;
+      polygon_ticker: string | null;
+      aliases: string[];
+      is_active: boolean;
+      preferred_exchange: string;
+    }> = [];
+
+    let skipped = 0;
+
     for (const [baseAsset, assetData] of assetMap) {
-      stats.processed++;
-
-      // Log progress every 500 assets
-      if (stats.processed % 500 === 0) {
-        console.log(`⏳ Progress: ${stats.processed}/${assetMap.size} assets processed...`);
-      }
-
-      // Skip if already mapped
+      // Skip if already exists
       if (existingSymbols.has(baseAsset)) {
-        stats.skipped++;
+        skipped++;
         continue;
       }
 
-      // Find CoinGecko match
-      let cgMatch = cgBySymbol.get(baseAsset);
-      let matchType = 'exact_symbol';
-      let confidence = 0.0;
-
-      if (!cgMatch) {
-        // Try fuzzy name matching
-        let bestMatch: typeof cgCoins[0] | null = null;
-        let bestSimilarity = 0;
-
-        for (const coin of cgCoins) {
-          const similarity = calculateSimilarity(
-            baseAsset,
-            coin.symbol.toUpperCase()
-          );
-          if (similarity > bestSimilarity && similarity >= 0.8) {
-            bestSimilarity = similarity;
-            bestMatch = coin;
-          }
-        }
-
-        if (bestMatch) {
-          cgMatch = bestMatch;
-          matchType = 'fuzzy_symbol';
-          confidence = bestSimilarity * 0.7; // Lower confidence for fuzzy
-        }
-      } else {
-        confidence = 0.9; // High confidence for exact match
-      }
-
-      // Determine preferred exchange - STRICT RULES
-      // NEVER default to Binance or Bybit as first choice
+      const cgMatch = cgBySymbol.get(baseAsset);
+      
+      // Determine preferred exchange
       const sortedExchanges = Array.from(assetData.exchanges).sort(
         (a, b) => (EXCHANGE_PRIORITY[a] || 999) - (EXCHANGE_PRIORITY[b] || 999)
       );
       
-      // Filter out Binance and Bybit for trusted exchanges
       const trustedExchanges = sortedExchanges.filter(e => 
         !['binance', 'bybit', 'binance.us'].includes(e.toLowerCase())
       );
@@ -274,7 +185,6 @@ Deno.serve(async (req) => {
         ? trustedExchanges[0] 
         : sortedExchanges[0];
 
-      // Only set TradingView symbol if we have a trusted exchange and multiple exchanges
       const hasTrustedExchange = trustedExchanges.length > 0;
       const hasMultipleExchanges = assetData.exchanges.size >= 3;
       const tradingViewSupported = hasTrustedExchange && hasMultipleExchanges;
@@ -289,101 +199,77 @@ Deno.serve(async (req) => {
         ) || assetData.pairs[0];
         tvSymbol = `${tvExchange}:${baseAsset}${mainPair.quote}`;
       } else {
-        // Neutral placeholder - requires manual review
         tvSymbol = `${baseAsset}USD`;
       }
 
-      // Generate aliases from all pair variations
       const aliases = Array.from(
         new Set(
           assetData.pairs.map(p => p.symbol).filter(s => s !== baseAsset)
         )
-      ).slice(0, 10); // Limit to 10 aliases
+      ).slice(0, 10);
 
-      // Boost confidence based on multi-exchange presence
-      if (assetData.exchanges.size >= 3) {
-        confidence += 0.1;
-      }
-
-      confidence = Math.min(confidence, 1.0);
-
-      const mappingData = {
-        symbol: baseAsset,
-        display_name: cgMatch?.name || baseAsset,
-        type: 'crypto',
-        coingecko_id: cgMatch?.cg_id || null,
-        tradingview_symbol: tvSymbol,
-        tradingview_supported: tradingViewSupported,
-        polygon_ticker: null,
-        aliases: aliases,
-        is_active: true,
-        preferred_exchange: preferredExchange,
-      };
-
-      try {
-        if (confidence >= 0.80) {
-          // High confidence: insert directly into ticker_mappings
-          const { error: insertError } = await supabase
-            .from('ticker_mappings')
-            .insert(mappingData);
-
-          if (insertError) {
-            console.error(`❌ Failed to insert ${baseAsset}:`, insertError.message);
-            stats.errors.push(`${baseAsset}: ${insertError.message}`);
-          } else {
-            stats.mapped++;
-            if (stats.mapped % 100 === 0) {
-              console.log(`✅ Mapped ${stats.mapped} symbols...`);
-            }
-          }
-        } else if (confidence >= 0.50) {
-          // Medium confidence: add to pending queue
-          const { error: pendingError } = await supabase
-            .from('pending_ticker_mappings')
-            .insert({
-              symbol: baseAsset,
-              normalized_symbol: baseAsset,
-              display_name: cgMatch?.name || null,
-              coingecko_id: cgMatch?.cg_id || null,
-              tradingview_symbol: tvSymbol,
-              match_type: matchType,
-              confidence_score: confidence,
-              context: {
-                exchanges: sortedExchanges,
-                pair_count: assetData.pairs.length,
-                preferred_exchange: preferredExchange,
-                tradingview_supported: tradingViewSupported,
-                needs_manual_tv_review: !tradingViewSupported,
-              },
-              status: 'pending',
-            });
-
-          if (pendingError) {
-            console.error(`⚠️ Failed to add ${baseAsset} to pending:`, pendingError.message);
-          } else {
-            stats.pending++;
-          }
-        } else {
-          stats.skipped++;
-        }
-      } catch (err) {
-        console.error(`❌ Error processing ${baseAsset}:`, err);
-        stats.errors.push(`${baseAsset}: ${err.message}`);
+      // Only add if has CoinGecko match or multiple exchanges (quality signal)
+      if (cgMatch || assetData.exchanges.size >= 2) {
+        mappingsToUpsert.push({
+          symbol: baseAsset,
+          display_name: cgMatch?.name || baseAsset,
+          type: 'crypto',
+          coingecko_id: cgMatch?.cg_id || null,
+          tradingview_symbol: tvSymbol,
+          tradingview_supported: tradingViewSupported,
+          polygon_ticker: null,
+          aliases: aliases,
+          is_active: true,
+          preferred_exchange: preferredExchange,
+        });
+      } else {
+        skipped++;
       }
     }
 
-    console.log('✅ Sync completed!');
-    console.log(`📊 Stats:`, stats);
+    console.log(`📦 Preparing to upsert ${mappingsToUpsert.length} mappings...`);
+
+    // 5. Batch upsert with conflict handling
+    let mapped = 0;
+    const errors: string[] = [];
+
+    if (mappingsToUpsert.length > 0) {
+      // Use upsert with onConflict to handle duplicates gracefully
+      const { error: upsertError, count } = await supabase
+        .from('ticker_mappings')
+        .upsert(mappingsToUpsert, { 
+          onConflict: 'symbol',
+          ignoreDuplicates: true 
+        });
+
+      if (upsertError) {
+        console.error('❌ Upsert error:', upsertError.message);
+        errors.push(upsertError.message);
+      } else {
+        mapped = mappingsToUpsert.length;
+        console.log(`✅ Upserted ${mapped} mappings`);
+      }
+    }
+
+    const hasMore = exchangePairs.length === batchSize;
+    const stats = {
+      processed: assetMap.size,
+      mapped,
+      skipped,
+      errors,
+      hasMore,
+      nextOffset: hasMore ? offset + batchSize : null,
+    };
+
+    console.log('✅ Batch completed!', stats);
 
     return new Response(
       JSON.stringify({
         success: true,
         stats,
-        message: `Processed ${stats.processed} assets: ${stats.mapped} mapped, ${stats.pending} pending review, ${stats.skipped} skipped`,
+        message: `Processed ${stats.processed} assets: ${stats.mapped} mapped, ${stats.skipped} skipped`,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('❌ Sync failed:', error);
