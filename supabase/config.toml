@@ -37,7 +37,7 @@ verify_jwt = false
 schedule = "0 1 * * 1"
 
 [functions.populate-token-addresses]
-verify_jwt = true
+verify_jwt = false
 
 [functions.exchange-data-aggregator]
 verify_jwt = false
