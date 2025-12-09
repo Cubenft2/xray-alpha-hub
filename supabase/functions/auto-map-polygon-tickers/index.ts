@@ -26,7 +26,8 @@ Deno.serve(async (req) => {
       .eq('type', 'crypto')
       .eq('is_active', true)
       .is('polygon_ticker', null)
-      .order('symbol');
+      .order('symbol')
+      .limit(2000);
 
     if (fetchError) {
       throw new Error(`Failed to fetch unmapped tokens: ${fetchError.message}`);
@@ -46,55 +47,59 @@ Deno.serve(async (req) => {
 
     console.log(`📊 Found ${unmappedTokens.length} unmapped crypto tokens`);
 
-    // Process in batches of 500 to avoid worker limits
-    const BATCH_SIZE = 500;
-    const MAX_PROCESS = 2000; // Process up to 2000 per run to stay within timeout
-    const toProcess = unmappedTokens.slice(0, MAX_PROCESS);
-    
+    // Process individually to avoid batch issues
     let mappedCount = 0;
     let errorCount = 0;
+    const errors: string[] = [];
 
-    for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
-      const batch = toProcess.slice(i, i + BATCH_SIZE);
+    for (const token of unmappedTokens) {
+      const polygonTicker = `X:${token.symbol.toUpperCase()}USD`;
       
-      // Create polygon_ticker mappings: X:{SYMBOL}USD format
-      const updates = batch.map(token => ({
-        id: token.id,
-        polygon_ticker: `X:${token.symbol.toUpperCase()}USD`
-      }));
-
-      // Batch update
       const { error: updateError } = await supabase
         .from('ticker_mappings')
-        .upsert(updates, { onConflict: 'id' });
+        .update({ polygon_ticker: polygonTicker })
+        .eq('id', token.id);
 
       if (updateError) {
-        console.error(`❌ Batch update error at ${i}:`, updateError);
-        errorCount += batch.length;
+        errorCount++;
+        if (errors.length < 5) {
+          errors.push(`${token.symbol}: ${updateError.message}`);
+        }
       } else {
-        mappedCount += batch.length;
-        console.log(`✅ Mapped batch ${Math.floor(i / BATCH_SIZE) + 1}: ${batch.length} tokens`);
+        mappedCount++;
+      }
+      
+      // Log progress every 500
+      if ((mappedCount + errorCount) % 500 === 0) {
+        console.log(`⏳ Progress: ${mappedCount + errorCount}/${unmappedTokens.length}`);
       }
     }
 
     const duration = Date.now() - startTime;
-    const remaining = unmappedTokens.length - MAX_PROCESS;
+
+    // Check how many remain
+    const { count: remainingCount } = await supabase
+      .from('ticker_mappings')
+      .select('*', { count: 'exact', head: true })
+      .eq('type', 'crypto')
+      .eq('is_active', true)
+      .is('polygon_ticker', null);
 
     console.log(`🏁 Auto-mapping complete in ${duration}ms`);
     console.log(`   Mapped: ${mappedCount}`);
     console.log(`   Errors: ${errorCount}`);
-    console.log(`   Remaining: ${remaining > 0 ? remaining : 0}`);
+    console.log(`   Remaining: ${remainingCount || 0}`);
 
     return new Response(
       JSON.stringify({
         status: 'success',
         mapped: mappedCount,
         errors: errorCount,
-        remaining: remaining > 0 ? remaining : 0,
-        total_unmapped: unmappedTokens.length,
+        error_samples: errors,
+        remaining: remainingCount || 0,
         duration_ms: duration,
-        message: remaining > 0 
-          ? `Mapped ${mappedCount} tokens. Run again to process ${remaining} more.`
+        message: remainingCount && remainingCount > 0
+          ? `Mapped ${mappedCount} tokens. Run again to process ${remainingCount} more.`
           : `All ${mappedCount} tokens mapped successfully!`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
