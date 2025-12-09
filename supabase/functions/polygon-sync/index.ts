@@ -56,7 +56,6 @@ serve(async (req) => {
       throw new Error('POLYGON_API_KEY not configured');
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
     console.log('🚀 Starting Polygon.io reference data sync with pagination...');
 
     let totalSynced = 0;
