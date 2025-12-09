@@ -108,27 +108,61 @@ Deno.serve(async (req) => {
 
     console.log(`✅ Total coins in cg_master: ${allCoins.length}`);
 
-    // Step 4: Filter and prepare new mappings
-    const newMappings: any[] = [];
-    let skippedExisting = 0;
-    let skippedDuplicate = 0;
-    const seenSymbols = new Set<string>();
-
+    // Step 4: Group coins by symbol and select best candidate for each
+    const coinsBySymbol = new Map<string, any[]>();
+    
     for (const coin of allCoins) {
       const symbol = coin.symbol.toUpperCase();
-      
-      // Skip if already in ticker_mappings (by symbol or coingecko_id)
-      if (existingSymbols.has(symbol) || existingCgIds.has(coin.cg_id)) {
+      if (!coinsBySymbol.has(symbol)) {
+        coinsBySymbol.set(symbol, []);
+      }
+      coinsBySymbol.get(symbol)!.push(coin);
+    }
+
+    console.log(`🔍 Found ${coinsBySymbol.size} unique symbols from ${allCoins.length} total coins`);
+
+    // Step 5: For each unique symbol, pick the best coin candidate
+    const newMappings: any[] = [];
+    let skippedExisting = 0;
+    let skippedDuplicates = 0;
+
+    for (const [symbol, coins] of coinsBySymbol) {
+      // Skip if already in ticker_mappings
+      if (existingSymbols.has(symbol)) {
         skippedExisting++;
         continue;
       }
 
-      // Skip duplicate symbols within this batch (keep first occurrence)
-      if (seenSymbols.has(symbol)) {
-        skippedDuplicate++;
+      // Sort coins to find the best candidate:
+      // 1. Prefer coins with exchange pairs (TradingView support)
+      // 2. Prefer coins with more platforms (widely adopted)
+      // 3. Prefer coins where name closely matches symbol
+      const sortedCoins = coins.sort((a, b) => {
+        const aHasExchange = symbolToExchange[symbol] ? 1 : 0;
+        const bHasExchange = symbolToExchange[symbol] ? 1 : 0;
+        
+        const aPlatforms = Object.keys(a.platforms || {}).length;
+        const bPlatforms = Object.keys(b.platforms || {}).length;
+        
+        // Name similarity to symbol (rough heuristic)
+        const aNameMatch = a.name.toUpperCase().includes(symbol) ? 1 : 0;
+        const bNameMatch = b.name.toUpperCase().includes(symbol) ? 1 : 0;
+        
+        // Score: exchange support (10) + platforms (1 each) + name match (5)
+        const aScore = (aHasExchange * 10) + aPlatforms + (aNameMatch * 5);
+        const bScore = (bHasExchange * 10) + bPlatforms + (bNameMatch * 5);
+        
+        return bScore - aScore; // Higher score first
+      });
+
+      const bestCoin = sortedCoins[0];
+      skippedDuplicates += coins.length - 1; // Count skipped duplicates
+
+      // Skip if this coingecko_id already exists
+      if (existingCgIds.has(bestCoin.cg_id)) {
+        skippedExisting++;
         continue;
       }
-      seenSymbols.add(symbol);
 
       // Determine TradingView symbol
       const exchangeInfo = symbolToExchange[symbol];
@@ -136,68 +170,76 @@ Deno.serve(async (req) => {
       let tradingviewSupported = false;
 
       if (exchangeInfo) {
-        // Has exchange pair - use proper format
         tradingviewSymbol = `${exchangeInfo.exchange}:${symbol}${exchangeInfo.quoteAsset}`;
         tradingviewSupported = true;
       } else {
-        // No exchange pair - use placeholder
         tradingviewSymbol = `${symbol}USD`;
         tradingviewSupported = false;
       }
 
       // Extract DEX platforms/contract addresses
-      const platforms = coin.platforms || {};
+      const platforms = bestCoin.platforms || {};
       const dexPlatforms = Object.keys(platforms).length > 0 ? platforms : null;
 
       newMappings.push({
         symbol,
-        display_name: coin.name,
+        display_name: bestCoin.name,
         type: 'crypto',
-        coingecko_id: coin.cg_id,
+        coingecko_id: bestCoin.cg_id,
         tradingview_symbol: tradingviewSymbol,
         tradingview_supported: tradingviewSupported,
         dex_platforms: dexPlatforms,
         is_active: true,
-        price_supported: true, // CoinGecko can provide prices
+        price_supported: true,
       });
     }
 
-    console.log(`📝 Prepared ${newMappings.length} new mappings to insert`);
-    console.log(`⏭️ Skipped ${skippedExisting} already existing, ${skippedDuplicate} duplicates`);
+    console.log(`📝 Prepared ${newMappings.length} new unique mappings to insert`);
+    console.log(`⏭️ Skipped ${skippedExisting} already existing, ${skippedDuplicates} duplicate coins`);
 
-    // Step 5: Batch insert new mappings
-    const INSERT_BATCH_SIZE = 500;
+    // Step 6: Batch upsert with ON CONFLICT DO NOTHING
+    const INSERT_BATCH_SIZE = 100; // Smaller batches for safer inserts
     let totalInserted = 0;
-    let totalErrors = 0;
+    let totalSkipped = 0;
     const errors: string[] = [];
 
     for (let i = 0; i < newMappings.length; i += INSERT_BATCH_SIZE) {
       const batch = newMappings.slice(i, i + INSERT_BATCH_SIZE);
       
-      const { error: insertError, count } = await supabase
+      // Use upsert with ignoreDuplicates to handle any remaining conflicts
+      const { data: inserted, error: insertError } = await supabase
         .from('ticker_mappings')
-        .insert(batch)
-        .select();
+        .upsert(batch, { 
+          onConflict: 'symbol',
+          ignoreDuplicates: true 
+        })
+        .select('symbol');
 
       if (insertError) {
         console.error(`❌ Insert error at batch ${i}: ${insertError.message}`);
         errors.push(insertError.message);
-        totalErrors += batch.length;
       } else {
-        totalInserted += batch.length;
-        console.log(`✅ Inserted batch ${i}-${i + batch.length} (${totalInserted} total)`);
+        const insertedCount = inserted?.length || 0;
+        totalInserted += insertedCount;
+        totalSkipped += batch.length - insertedCount;
+        
+        if ((i + INSERT_BATCH_SIZE) % 1000 === 0 || i + INSERT_BATCH_SIZE >= newMappings.length) {
+          console.log(`✅ Progress: ${i + batch.length}/${newMappings.length} processed (${totalInserted} inserted)`);
+        }
       }
     }
 
     const result = {
       success: true,
       totalCgMaster: allCoins.length,
+      uniqueSymbols: coinsBySymbol.size,
       existingMappings: existingSymbols.size,
       newMappingsInserted: totalInserted,
       skippedExisting,
-      skippedDuplicates: skippedDuplicate,
-      errors: totalErrors,
-      errorMessages: errors.slice(0, 5), // First 5 errors only
+      skippedDuplicateCoins: skippedDuplicates,
+      skippedConflicts: totalSkipped,
+      errors: errors.length,
+      errorMessages: errors.slice(0, 5),
       tradingviewSupported: newMappings.filter(m => m.tradingview_supported).length,
       tradingviewUnsupported: newMappings.filter(m => !m.tradingview_supported).length,
     };
