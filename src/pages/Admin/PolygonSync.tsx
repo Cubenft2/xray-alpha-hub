@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Zap, Radio, StopCircle, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
+import { Loader2, Zap, Radio, StopCircle, RefreshCw, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 
 interface RelayHealth {
   isActive: boolean;
@@ -13,20 +14,53 @@ interface RelayHealth {
   minutesStale: number | null;
 }
 
+interface StockSyncStats {
+  totalStocks: number;
+  existingMappings: number;
+}
+
 export function PolygonSync() {
   const [mapping, setMapping] = useState(false);
   const [relaying, setRelaying] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [syncingStocks, setSyncingStocks] = useState(false);
+  const [stockStats, setStockStats] = useState<StockSyncStats | null>(null);
   const [relayHealth, setRelayHealth] = useState<RelayHealth | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkRelayHealth();
-    const interval = setInterval(checkRelayHealth, 10000); // Check every 10 seconds for real-time monitoring
+    fetchStockStats();
+    const interval = setInterval(checkRelayHealth, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  const fetchStockStats = async () => {
+    try {
+      // Get total common stocks in poly_tickers
+      const { count: totalStocks } = await supabase
+        .from('poly_tickers')
+        .select('*', { count: 'exact', head: true })
+        .eq('market', 'stocks')
+        .eq('active', true)
+        .eq('type', 'CS');
+
+      // Get existing stock mappings
+      const { count: existingMappings } = await supabase
+        .from('ticker_mappings')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'stock');
+
+      setStockStats({
+        totalStocks: totalStocks || 0,
+        existingMappings: existingMappings || 0
+      });
+    } catch (error) {
+      console.error('Error fetching stock stats:', error);
+    }
+  };
 
   const checkRelayHealth = async () => {
     try {
@@ -184,6 +218,29 @@ export function PolygonSync() {
       });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleSyncStocks = async () => {
+    setSyncingStocks(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-stock-mappings');
+      
+      if (error) throw error;
+      
+      toast.success('Stock sync complete!', {
+        description: `Inserted: ${data.inserted}, Skipped: ${data.skipped}, Errors: ${data.errors}`
+      });
+      
+      // Refresh stats
+      fetchStockStats();
+    } catch (error: any) {
+      console.error('Error syncing stocks:', error);
+      toast.error('Failed to sync stocks', {
+        description: error.message
+      });
+    } finally {
+      setSyncingStocks(false);
     }
   };
 
@@ -409,6 +466,66 @@ export function PolygonSync() {
               {stopping ? 'Stopping...' : 'Force Stop'}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Stock Sync Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Sync All Stocks to ticker_mappings
+          </CardTitle>
+          <CardDescription>
+            Import all {stockStats?.totalStocks?.toLocaleString() || '~11,000'} common stocks from poly_tickers into ticker_mappings
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {stockStats && (
+            <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Common Stocks</p>
+                <p className="text-lg font-semibold">{stockStats.totalStocks.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Already in ticker_mappings</p>
+                <p className="text-lg font-semibold">{stockStats.existingMappings.toLocaleString()}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground mb-1">Coverage</p>
+                <Progress 
+                  value={stockStats.totalStocks > 0 ? (stockStats.existingMappings / stockStats.totalStocks) * 100 : 0} 
+                  className="h-2"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {((stockStats.existingMappings / stockStats.totalStocks) * 100).toFixed(1)}% synced
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <p className="text-sm text-muted-foreground">
+            This will sync all common stocks (type: CS) from Polygon.io's poly_tickers table into ticker_mappings 
+            with proper TradingView symbol formatting (e.g., NYSE:AAPL, NASDAQ:GOOGL).
+          </p>
+          
+          <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-1">
+            <p><strong>📊 What gets synced:</strong></p>
+            <p>• Common Stocks (CS) only - excludes warrants, units, rights, preferred shares</p>
+            <p>• TradingView symbol format: EXCHANGE:TICKER (NYSE, NASDAQ, AMEX, etc.)</p>
+            <p>• Skips existing mappings to avoid duplicates</p>
+            <p>• Enables ZombieDog AI research on all US stocks</p>
+          </div>
+          
+          <Button 
+            onClick={handleSyncStocks}
+            disabled={syncingStocks}
+            className="w-full"
+          >
+            {syncingStocks && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <TrendingUp className="mr-2 h-4 w-4" />
+            {syncingStocks ? 'Syncing Stocks...' : `Sync All ${stockStats?.totalStocks?.toLocaleString() || ''} Stocks`}
+          </Button>
         </CardContent>
       </Card>
     </div>
