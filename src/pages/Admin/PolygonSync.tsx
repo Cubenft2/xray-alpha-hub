@@ -3,16 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Zap, Radio, StopCircle, RefreshCw, AlertCircle, CheckCircle, TrendingUp, Coins } from 'lucide-react';
+import { Loader2, Zap, RefreshCw, CheckCircle, TrendingUp, Coins, Clock, Database } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-
-interface RelayHealth {
-  isActive: boolean;
-  lastHeartbeat: string | null;
-  instanceId: string | null;
-  minutesStale: number | null;
-}
 
 interface StockSyncStats {
   totalStocks: number;
@@ -24,35 +17,78 @@ interface CryptoSyncStats {
   existingCryptoMappings: number;
 }
 
+interface LivePricesStats {
+  totalPrices: number;
+  cryptoPrices: number;
+  stockPrices: number;
+  lastUpdated: string | null;
+}
+
 export function PolygonSync() {
   const [mapping, setMapping] = useState(false);
-  const [relaying, setRelaying] = useState(false);
-  const [stopping, setStopping] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [restarting, setRestarting] = useState(false);
   const [syncingStocks, setSyncingStocks] = useState(false);
   const [syncingCrypto, setSyncingCrypto] = useState(false);
+  const [pollingCrypto, setPollingCrypto] = useState(false);
+  const [pollingStocks, setPollingStocks] = useState(false);
   const [stockStats, setStockStats] = useState<StockSyncStats | null>(null);
   const [cryptoStats, setCryptoStats] = useState<CryptoSyncStats | null>(null);
-  const [relayHealth, setRelayHealth] = useState<RelayHealth | null>(null);
+  const [livePricesStats, setLivePricesStats] = useState<LivePricesStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkRelayHealth();
-    fetchStockStats();
-    fetchCryptoStats();
-    const interval = setInterval(checkRelayHealth, 10000);
+    fetchAllStats();
+    const interval = setInterval(fetchLivePricesStats, 30000);
     return () => clearInterval(interval);
   }, []);
 
+  const fetchAllStats = async () => {
+    await Promise.all([
+      fetchStockStats(),
+      fetchCryptoStats(),
+      fetchLivePricesStats()
+    ]);
+    setLoading(false);
+  };
+
+  const fetchLivePricesStats = async () => {
+    try {
+      // Get total prices count
+      const { count: totalPrices } = await supabase
+        .from('live_prices')
+        .select('*', { count: 'exact', head: true });
+
+      // Get crypto prices count
+      const { count: cryptoPrices } = await supabase
+        .from('live_prices')
+        .select('*', { count: 'exact', head: true })
+        .like('ticker', 'X:%');
+
+      // Get most recent update
+      const { data: recentPrice } = await supabase
+        .from('live_prices')
+        .select('updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      setLivePricesStats({
+        totalPrices: totalPrices || 0,
+        cryptoPrices: cryptoPrices || 0,
+        stockPrices: (totalPrices || 0) - (cryptoPrices || 0),
+        lastUpdated: recentPrice?.updated_at || null
+      });
+    } catch (error) {
+      console.error('Error fetching live prices stats:', error);
+    }
+  };
+
   const fetchCryptoStats = async () => {
     try {
-      // Get total coins in cg_master
       const { count: totalCgCoins } = await supabase
         .from('cg_master')
         .select('*', { count: 'exact', head: true });
 
-      // Get existing crypto mappings
       const { count: existingCryptoMappings } = await supabase
         .from('ticker_mappings')
         .select('*', { count: 'exact', head: true })
@@ -69,7 +105,6 @@ export function PolygonSync() {
 
   const fetchStockStats = async () => {
     try {
-      // Get total common stocks in poly_tickers
       const { count: totalStocks } = await supabase
         .from('poly_tickers')
         .select('*', { count: 'exact', head: true })
@@ -77,7 +112,6 @@ export function PolygonSync() {
         .eq('active', true)
         .eq('type', 'CS');
 
-      // Get existing stock mappings
       const { count: existingMappings } = await supabase
         .from('ticker_mappings')
         .select('*', { count: 'exact', head: true })
@@ -89,44 +123,6 @@ export function PolygonSync() {
       });
     } catch (error) {
       console.error('Error fetching stock stats:', error);
-    }
-  };
-
-  const checkRelayHealth = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('price_sync_leader')
-        .select('*')
-        .eq('id', 'singleton')
-        .maybeSingle();
-      
-      if (error) throw error;
-
-      if (!data) {
-        setRelayHealth({
-          isActive: false,
-          lastHeartbeat: null,
-          instanceId: null,
-          minutesStale: null
-        });
-      } else {
-        const heartbeatTime = new Date(data.heartbeat_at).getTime();
-        const now = Date.now();
-        const secondsStale = Math.floor((now - heartbeatTime) / 1000);
-        const minutesStale = Math.floor(secondsStale / 60);
-        const isActive = secondsStale < 30; // Consider active if heartbeat within 30 seconds
-
-        setRelayHealth({
-          isActive,
-          lastHeartbeat: data.heartbeat_at,
-          instanceId: data.instance_id,
-          minutesStale
-        });
-      }
-    } catch (error: any) {
-      console.error('Error checking relay health:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -150,81 +146,47 @@ export function PolygonSync() {
     }
   };
 
-  const handleStartRelay = async () => {
-    setRelaying(true);
+  const handlePollCryptoPrices = async () => {
+    setPollingCrypto(true);
     try {
-      const { data, error } = await supabase.functions.invoke('polygon-price-relay');
+      const { data, error } = await supabase.functions.invoke('polygon-rest-poller');
       
       if (error) throw error;
       
-      toast.success('Price relay started', {
-        description: data.message || 'WebSocket connection established'
+      toast.success('Crypto prices polled', {
+        description: `Updated: ${data.processed || 0} prices`
       });
+      
+      fetchLivePricesStats();
     } catch (error: any) {
-      console.error('Error starting relay:', error);
-      toast.error('Failed to start relay', {
+      console.error('Error polling crypto prices:', error);
+      toast.error('Failed to poll crypto prices', {
         description: error.message
       });
     } finally {
-      setRelaying(false);
+      setPollingCrypto(false);
     }
   };
 
-  const handleStopRelay = async () => {
-    setStopping(true);
+  const handlePollStockPrices = async () => {
+    setPollingStocks(true);
     try {
-      const { error } = await supabase
-        .from('price_sync_leader')
-        .delete()
-        .eq('id', 'singleton');
+      const { data, error } = await supabase.functions.invoke('polygon-stock-poller');
       
       if (error) throw error;
       
-      toast.success('Price relay stopped', {
-        description: 'Leadership released. Wait 30 seconds for cleanup, then restart if needed.'
+      toast.success('Stock prices polled', {
+        description: `Updated: ${data.processed || 0} prices (15-min delayed)`
       });
+      
+      fetchLivePricesStats();
     } catch (error: any) {
-      console.error('Error stopping relay:', error);
-      toast.error('Failed to stop relay', {
+      console.error('Error polling stock prices:', error);
+      toast.error('Failed to poll stock prices', {
         description: error.message
       });
     } finally {
-      setStopping(false);
-    }
-  };
-
-  const handleForceRestart = async () => {
-    setRestarting(true);
-    try {
-      // Step 1: Clear stale leader
-      const { error: deleteError } = await supabase
-        .from('price_sync_leader')
-        .delete()
-        .eq('id', 'singleton');
-      
-      if (deleteError) throw deleteError;
-
-      // Step 2: Wait a moment for cleanup
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Step 3: Start fresh relay
-      const { data, error: invokeError } = await supabase.functions.invoke('polygon-price-relay');
-      
-      if (invokeError) throw invokeError;
-      
-      toast.success('Price relay restarted successfully', {
-        description: data.message || 'Fresh WebSocket connection established'
-      });
-
-      // Step 4: Check health immediately
-      setTimeout(() => checkRelayHealth(), 2000);
-    } catch (error: any) {
-      console.error('Error restarting relay:', error);
-      toast.error('Failed to restart relay', {
-        description: error.message
-      });
-    } finally {
-      setRestarting(false);
+      setPollingStocks(false);
     }
   };
 
@@ -241,6 +203,8 @@ export function PolygonSync() {
       toast.success('Prices synced successfully', {
         description: `Synced ${data.synced} prices from ${data.source}. Matched ${breakdownText}`
       });
+      
+      fetchLivePricesStats();
     } catch (error: any) {
       console.error('Error syncing prices:', error);
       toast.error('Failed to sync prices', {
@@ -262,7 +226,6 @@ export function PolygonSync() {
         description: `Inserted: ${data.inserted}, Skipped: ${data.skipped}, Errors: ${data.errors}`
       });
       
-      // Refresh stats
       fetchStockStats();
     } catch (error: any) {
       console.error('Error syncing stocks:', error);
@@ -285,7 +248,6 @@ export function PolygonSync() {
         description: `Inserted: ${data.newMappingsInserted?.toLocaleString()}, Skipped: ${data.skippedExisting?.toLocaleString()}, TradingView: ${data.tradingviewSupported?.toLocaleString()}`
       });
       
-      // Refresh stats
       fetchCryptoStats();
     } catch (error: any) {
       console.error('Error syncing crypto:', error);
@@ -297,7 +259,7 @@ export function PolygonSync() {
     }
   };
 
-  const formatLastHeartbeat = (timestamp: string | null) => {
+  const formatLastUpdate = (timestamp: string | null) => {
     if (!timestamp) return 'Never';
     const date = new Date(timestamp);
     const now = new Date();
@@ -318,103 +280,86 @@ export function PolygonSync() {
 
   return (
     <div className="space-y-6">
-      {/* Health Status Card */}
+      {/* Live Prices Status Card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Radio className="h-5 w-5" />
-            Price Relay Health Status
+            <Database className="h-5 w-5" />
+            Live Prices Status
           </CardTitle>
           <CardDescription>
-            Real-time monitoring of the Polygon.io WebSocket price relay
+            REST API polling updates live_prices table (cron: crypto every 2min, stocks every 5min)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Checking relay status...</span>
+              <span>Loading stats...</span>
             </div>
-          ) : relayHealth ? (
+          ) : livePricesStats ? (
             <>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {relayHealth.isActive ? (
-                    <>
-                      <CheckCircle className="h-6 w-6 text-green-500" />
-                      <div>
-                        <p className="font-semibold text-green-500">Active & Healthy</p>
-                        <p className="text-sm text-muted-foreground">
-                          Last heartbeat: {formatLastHeartbeat(relayHealth.lastHeartbeat)}
-                        </p>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="h-6 w-6 text-destructive" />
-                      <div>
-                        <p className="font-semibold text-destructive">
-                          {relayHealth.lastHeartbeat ? 'Stale / Dead' : 'Not Running'}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {relayHealth.lastHeartbeat 
-                            ? `Last heartbeat: ${formatLastHeartbeat(relayHealth.lastHeartbeat)}`
-                            : 'No active relay instance found'}
-                        </p>
-                      </div>
-                    </>
-                  )}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Total Prices</p>
+                  <p className="text-2xl font-bold">{livePricesStats.totalPrices.toLocaleString()}</p>
                 </div>
-                <Badge variant={relayHealth.isActive ? "default" : "destructive"}>
-                  {relayHealth.isActive ? 'LIVE' : 'DOWN'}
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Crypto (X:*USD)</p>
+                  <p className="text-2xl font-bold text-primary">{livePricesStats.cryptoPrices.toLocaleString()}</p>
+                </div>
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Stocks</p>
+                  <p className="text-2xl font-bold">{livePricesStats.stockPrices.toLocaleString()}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <div className="flex-1">
+                  <p className="font-medium text-green-700 dark:text-green-300">REST Polling Active</p>
+                  <p className="text-sm text-muted-foreground">
+                    Last update: {formatLastUpdate(livePricesStats.lastUpdated)}
+                  </p>
+                </div>
+                <Badge variant="secondary">
+                  <Clock className="h-3 w-3 mr-1" />
+                  UNLIMITED API
                 </Badge>
               </div>
 
-              {!relayHealth.isActive && (
-                <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm">
-                  <p className="font-semibold text-destructive mb-1">⚠️ CRITICAL: Price Relay is DOWN</p>
-                  <p className="text-muted-foreground">
-                    Real-time prices are NOT updating. The ticker tape shows stale data. 
-                    Click "Force Restart" below to restore live WebSocket streaming.
-                  </p>
-                </div>
-              )}
-
-              {relayHealth.isActive && (
-                <div className="bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm">
-                  <p className="font-semibold text-green-700 dark:text-green-300 mb-1">✅ Live & Streaming</p>
-                  <p className="text-muted-foreground">
-                    WebSocket connected to Polygon.io. Auto-restart via cron every 5 minutes to maintain connection.
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t">
-                <div>
-                  <p className="text-xs text-muted-foreground">Instance ID</p>
-                  <p className="text-sm font-mono">{relayHealth.instanceId || 'None'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Minutes Since Heartbeat</p>
-                  <p className="text-sm font-mono">
-                    {relayHealth.minutesStale !== null ? relayHealth.minutesStale : 'N/A'}
-                  </p>
-                </div>
+              <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-1">
+                <p><strong>✅ Architecture:</strong> REST polling (unlimited calls) replaces WebSocket (limited connections)</p>
+                <p>• Crypto: polygon-rest-poller runs every 2 minutes</p>
+                <p>• Stocks: polygon-stock-poller runs every 5 minutes (15-min delayed data)</p>
+                <p>• Frontend reads from live_prices table via useCentralizedPrices hook</p>
               </div>
 
-              <Button 
-                onClick={handleForceRestart}
-                disabled={restarting}
-                variant={relayHealth.isActive ? "outline" : "default"}
-                className="w-full"
-              >
-                {restarting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <RefreshCw className="mr-2 h-4 w-4" />
-                {restarting ? 'Restarting...' : 'Force Restart Relay'}
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handlePollCryptoPrices}
+                  disabled={pollingCrypto}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {pollingCrypto && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {pollingCrypto ? 'Polling...' : 'Poll Crypto Now'}
+                </Button>
+                <Button 
+                  onClick={handlePollStockPrices}
+                  disabled={pollingStocks}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {pollingStocks && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {pollingStocks ? 'Polling...' : 'Poll Stocks Now'}
+                </Button>
+              </div>
             </>
           ) : (
-            <p className="text-muted-foreground">Unable to fetch relay status</p>
+            <p className="text-muted-foreground">Unable to fetch stats</p>
           )}
         </CardContent>
       </Card>
@@ -437,7 +382,6 @@ export function PolygonSync() {
           <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-1">
             <p><strong>💡 Use this when:</strong></p>
             <p>• Brief generation is failing due to missing price data</p>
-            <p>• The automated price relay is not running</p>
             <p>• You need fresh prices immediately</p>
           </div>
           <Button 
@@ -458,13 +402,13 @@ export function PolygonSync() {
             Map Polygon Tickers
           </CardTitle>
           <CardDescription>
-            Map the 71 target crypto symbols to Polygon.io ticker format (X:SYMBOLUSD)
+            Map crypto symbols to Polygon.io ticker format (X:SYMBOLUSD)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            This will query the poly_tickers table and update ticker_mappings with the correct polygon_ticker values
-            for all target cryptocurrencies (BTC, ETH, SOL, etc.).
+            This will update ticker_mappings with the correct polygon_ticker values for valid crypto symbols.
+            Validates symbols to prevent emoji/special character mappings.
           </p>
           <Button 
             onClick={handleMapTickers} 
@@ -474,51 +418,6 @@ export function PolygonSync() {
             {mapping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {mapping ? 'Mapping Tickers...' : 'Map Polygon Tickers'}
           </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Radio className="h-5 w-5" />
-            Price Relay Control
-          </CardTitle>
-          <CardDescription>
-            Start or stop the centralized WebSocket connection to stream live prices
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            This will establish a single WebSocket connection to Polygon.io and subscribe to all mapped crypto tickers.
-            Prices will be buffered and upserted to the live_prices table every second.
-          </p>
-          <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-1">
-            <p><strong>⚠️ Important:</strong> Run "Map Polygon Tickers" first!</p>
-            <p>The relay will automatically subscribe to all tickers with polygon_ticker values in ticker_mappings.</p>
-            <p><strong>⏰ Auto-Restart:</strong> Cron job runs every 5 minutes to keep the relay alive and maintain the WebSocket connection.</p>
-            <p><strong>🛑 If stuck:</strong> Use "Force Stop" to clear leadership and wait 30 seconds before restarting.</p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleStartRelay} 
-              disabled={relaying || stopping}
-              className="flex-1"
-              variant="default"
-            >
-              {relaying && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {relaying ? 'Starting...' : 'Start Relay'}
-            </Button>
-            <Button 
-              onClick={handleStopRelay} 
-              disabled={stopping || relaying}
-              className="flex-1"
-              variant="destructive"
-            >
-              {stopping && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <StopCircle className="mr-2 h-4 w-4" />
-              {stopping ? 'Stopping...' : 'Force Stop'}
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
