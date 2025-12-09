@@ -51,6 +51,9 @@ verify_jwt = true
 [functions.news-fetch]
 verify_jwt = false
 
+[[functions.news-fetch.cron]]
+schedule = "30 * * * *"
+
 [functions.symbol-validation]
 verify_jwt = false
 
@@ -81,11 +84,40 @@ verify_jwt = false
 [functions.polygon-price-relay]
 verify_jwt = false
 
+# Crypto price polling - every 2 minutes
 [functions.polygon-rest-poller]
 verify_jwt = false
 
 [[functions.polygon-rest-poller.cron]]
 schedule = "*/2 * * * *"
+
+# Stock price polling - every 5 minutes
+[functions.polygon-stock-poller]
+verify_jwt = false
+
+[[functions.polygon-stock-poller.cron]]
+schedule = "*/5 * * * *"
+
+# Technical indicators refresh - hourly
+[functions.polygon-indicators-refresh]
+verify_jwt = false
+
+[[functions.polygon-indicators-refresh.cron]]
+schedule = "0 * * * *"
+
+# Company details prefetch - every 4 hours
+[functions.polygon-company-prefetch]
+verify_jwt = false
+
+[[functions.polygon-company-prefetch.cron]]
+schedule = "0 */4 * * *"
+
+# Auto-map polygon tickers - daily
+[functions.auto-map-polygon-tickers]
+verify_jwt = false
+
+[[functions.auto-map-polygon-tickers.cron]]
+schedule = "0 2 * * *"
 
 [functions.price-poller]
 verify_jwt = false
