@@ -19,12 +19,30 @@ Deno.serve(async (req) => {
 
     // Step 1: Create assets from ticker_mappings
     console.log('Step 1: Migrating assets...');
-    const { data: tickerMappings, error: fetchError } = await supabase
-      .from('ticker_mappings')
-      .select('symbol, display_name, type, created_at, polygon_ticker, coingecko_id, tradingview_symbol, tradingview_supported, dex_address, dex_chain')
-      .eq('is_active', true);
-
-    if (fetchError) throw new Error(`Failed to fetch ticker_mappings: ${fetchError.message}`);
+    
+    // Fetch ALL ticker_mappings in batches (Supabase has 1000 row limit per query)
+    const tickerMappings: any[] = [];
+    let offset = 0;
+    const batchSize = 1000;
+    
+    while (true) {
+      const { data, error: fetchError } = await supabase
+        .from('ticker_mappings')
+        .select('symbol, display_name, type, created_at, polygon_ticker, coingecko_id, tradingview_symbol, tradingview_supported, dex_address, dex_chain')
+        .eq('is_active', true)
+        .range(offset, offset + batchSize - 1);
+      
+      if (fetchError) throw new Error(`Failed to fetch ticker_mappings: ${fetchError.message}`);
+      if (!data || data.length === 0) break;
+      
+      tickerMappings.push(...data);
+      console.log(`Fetched ${tickerMappings.length} ticker_mappings so far...`);
+      
+      if (data.length < batchSize) break;
+      offset += batchSize;
+    }
+    
+    console.log(`Total ticker_mappings fetched: ${tickerMappings.length}`);
 
     // Deduplicate by symbol + type
     const uniqueAssets = new Map<string, any>();
@@ -59,12 +77,25 @@ Deno.serve(async (req) => {
     }
     results.assets_inserted = assetsInserted;
 
-    // Fetch all assets to get their IDs
-    const { data: allAssets, error: assetsError } = await supabase
-      .from('assets')
-      .select('id, symbol, type');
+    // Fetch all assets to get their IDs (paginated)
+    const allAssets: any[] = [];
+    offset = 0;
     
-    if (assetsError) throw new Error(`Failed to fetch assets: ${assetsError.message}`);
+    while (true) {
+      const { data, error: assetsError } = await supabase
+        .from('assets')
+        .select('id, symbol, type')
+        .range(offset, offset + batchSize - 1);
+      
+      if (assetsError) throw new Error(`Failed to fetch assets: ${assetsError.message}`);
+      if (!data || data.length === 0) break;
+      
+      allAssets.push(...data);
+      if (data.length < batchSize) break;
+      offset += batchSize;
+    }
+    
+    console.log(`Total assets fetched: ${allAssets.length}`);
 
     // Create lookup map
     const assetLookup = new Map<string, string>();
@@ -171,12 +202,18 @@ Deno.serve(async (req) => {
     }
 
     let contractsInserted = 0;
+    console.log(`Preparing to insert ${contractRecords.length} token contracts...`);
+    
     for (let i = 0; i < contractRecords.length; i += 500) {
       const batch = contractRecords.slice(i, i + 500);
       const { error } = await supabase
         .from('token_contracts')
-        .upsert(batch, { onConflict: 'asset_id,chain,contract_address', ignoreDuplicates: true });
-      if (!error) contractsInserted += batch.length;
+        .upsert(batch, { onConflict: 'chain,contract_address', ignoreDuplicates: true });
+      if (error) {
+        console.error(`Token contracts batch ${i / 500} error:`, error.message);
+      } else {
+        contractsInserted += batch.length;
+      }
     }
     results.token_contracts_inserted = contractsInserted;
 
