@@ -30,19 +30,19 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    console.log('🚀 Polygon REST Crypto Poller starting...');
+    console.log('🚀 Polygon Stock Poller starting...');
 
     // Get offset from request body or default to 0
     const body = await req.json().catch(() => ({}));
     const offset = body.offset || 0;
-    const batchLimit = 500; // Process 500 crypto per run
+    const batchLimit = 500; // Process 500 stocks per run
 
-    // Get ALL active crypto tickers with polygon_ticker (no limit!)
+    // Get all active stock tickers with polygon_ticker
     const { data: tickers, error: tickerError } = await supabase
       .from('ticker_mappings')
       .select('symbol, polygon_ticker, display_name')
       .not('polygon_ticker', 'is', null)
-      .eq('type', 'crypto')
+      .eq('type', 'stock')
       .eq('is_active', true)
       .order('symbol')
       .range(offset, offset + batchLimit - 1);
@@ -52,14 +52,14 @@ Deno.serve(async (req) => {
     }
 
     if (!tickers || tickers.length === 0) {
-      console.log('✅ No more crypto tickers to process');
+      console.log('✅ No more stock tickers to process');
       return new Response(
-        JSON.stringify({ status: 'complete', message: 'All crypto processed' }),
+        JSON.stringify({ status: 'complete', message: 'All stocks processed' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`📊 Fetching prices for ${tickers.length} crypto tickers (offset: ${offset})`);
+    console.log(`📊 Fetching prices for ${tickers.length} stocks (offset: ${offset})`);
 
     const priceUpdates: PriceUpdate[] = [];
     const batchSize = 50; // Parallel batch size
@@ -74,13 +74,12 @@ Deno.serve(async (req) => {
         try {
           const polygonTicker = ticker.polygon_ticker;
           
-          // Use Polygon's previous close endpoint (unlimited REST API)
+          // Use Polygon's previous close endpoint for stocks
           const url = `https://api.polygon.io/v2/aggs/ticker/${polygonTicker}/prev?apiKey=${polygonKey}`;
           
           const response = await fetch(url);
           
           if (!response.ok) {
-            // 404 is common for low-volume crypto, don't log
             if (response.status !== 404) {
               console.warn(`⚠️ Failed to fetch ${ticker.symbol}: ${response.status}`);
             }
@@ -121,7 +120,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Small delay between batches to avoid rate limiting
+      // Small delay between batches
       if (i + batchSize < tickers.length) {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
@@ -142,7 +141,7 @@ Deno.serve(async (req) => {
       if (upsertError) {
         console.error('❌ Upsert error:', upsertError);
       } else {
-        console.log(`✅ Updated ${priceUpdates.length} crypto prices in live_prices`);
+        console.log(`✅ Updated ${priceUpdates.length} stock prices in live_prices`);
       }
     }
 
@@ -155,7 +154,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         status: 'success',
-        crypto_processed: tickers.length,
+        stocks_processed: tickers.length,
         prices_updated: priceUpdates.length,
         errors: errorCount,
         offset: offset,
@@ -167,7 +166,7 @@ Deno.serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('❌ Polygon REST Crypto Poller error:', error);
+    console.error('❌ Polygon Stock Poller error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
