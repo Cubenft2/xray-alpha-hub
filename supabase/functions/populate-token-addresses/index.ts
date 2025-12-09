@@ -114,10 +114,10 @@ Deno.serve(async (req) => {
 
     console.log('🚀 Starting token address population...');
 
-    // Fetch all crypto ticker mappings with coingecko_id
+    // Fetch all crypto ticker mappings with coingecko_id that are missing addresses
     const { data: mappings, error: mappingsError } = await supabase
       .from('ticker_mappings')
-      .select('id, symbol, display_name, coingecko_id, dex_address, dex_chain')
+      .select('id, symbol, display_name, coingecko_id, dex_address, dex_chain, dex_platforms')
       .eq('type', 'crypto')
       .eq('is_active', true)
       .not('coingecko_id', 'is', null);
@@ -129,21 +129,24 @@ Deno.serve(async (req) => {
 
     console.log(`📊 Found ${mappings.length} crypto ticker mappings with CoinGecko IDs`);
 
-    // Fetch CoinGecko master data
-    const { data: cgData, error: cgError } = await supabase
+    // Fetch CoinGecko master data for enrichment status
+    const { data: cgMasterData, error: cgError } = await supabase
       .from('cg_master')
-      .select('cg_id, platforms');
+      .select('cg_id, platforms, enrichment_status, enrichment_error');
 
     if (cgError) {
       console.error('Error fetching CoinGecko master data:', cgError);
       throw cgError;
     }
 
-    console.log(`📊 Found ${cgData.length} CoinGecko master entries`);
+    console.log(`📊 Found ${cgMasterData.length} CoinGecko master entries`);
 
-    // Create a map of coingecko_id -> platforms
+    // Create maps for quick lookup
+    const cgMasterMap = new Map<string, any>();
     const platformsMap = new Map<string, any>();
-    cgData.forEach(item => {
+    
+    cgMasterData.forEach(item => {
+      cgMasterMap.set(item.cg_id, item);
       if (item.platforms) {
         platformsMap.set(item.cg_id, item.platforms);
       }
@@ -169,83 +172,52 @@ Deno.serve(async (req) => {
       try {
         // Skip if already has address (unless we want to update)
         if (mapping.dex_address && mapping.dex_chain) {
-          console.log(`⏭️ Skipping ${mapping.symbol} - already has address`);
           stats.skipped++;
           stats.skipReasons.alreadyHasAddress++;
-          stats.details.push({
-            symbol: mapping.symbol,
-            action: 'skipped',
-            reason: 'Already has address'
-          });
           continue;
         }
 
-    // Get platforms data for this coin
-    const cgData = cgMaster.find(c => c.cg_id === mapping.coingecko_id);
-    const platforms = platformsMap.get(mapping.coingecko_id);
-    
-    // Skip if coin enrichment failed or has no platforms
-    if (cgData?.enrichment_status === 'no_platforms') {
-      console.log(`⏭️ Skipping ${mapping.symbol} - marked as no_platforms in enrichment`);
-      stats.skipped++;
-      stats.skipReasons.nativeCoin++;
-      stats.details.push({
-        symbol: mapping.symbol,
-        action: 'skipped',
-        reason: 'No platforms (native coin or non-ERC token)'
-      });
-      continue;
-    }
-    
-    if (cgData?.enrichment_status === 'error') {
-      console.log(`⚠️ ${mapping.symbol} - enrichment error: ${cgData.enrichment_error}`);
-      stats.skipped++;
-      stats.skipReasons.noValidAddress++;
-      stats.details.push({
-        symbol: mapping.symbol,
-        action: 'skipped',
-        reason: `Enrichment error: ${cgData.enrichment_error}`
-      });
-      continue;
-    }
+        // Get platforms data - check both cg_master and dex_platforms column
+        const cgData = cgMasterMap.get(mapping.coingecko_id);
+        let platforms = platformsMap.get(mapping.coingecko_id);
         
+        // Also check dex_platforms column on ticker_mappings itself
+        if (!platforms && mapping.dex_platforms && typeof mapping.dex_platforms === 'object') {
+          platforms = mapping.dex_platforms;
+        }
+
+        // Skip if coin enrichment failed or has no platforms
+        if (cgData?.enrichment_status === 'no_platforms') {
+          stats.skipped++;
+          stats.skipReasons.nativeCoin++;
+          continue;
+        }
+
+        if (cgData?.enrichment_status === 'error') {
+          stats.skipped++;
+          stats.skipReasons.noValidAddress++;
+          continue;
+        }
+
         // Skip native coins ONLY if they also have no platform data
         if (NATIVE_COINS.includes(mapping.symbol) && 
             (!platforms || typeof platforms !== 'object' || Object.keys(platforms).length === 0)) {
-          console.log(`⏭️ Skipping ${mapping.symbol} - native coin without contract`);
           stats.skipped++;
           stats.skipReasons.nativeCoin++;
-          stats.details.push({
-            symbol: mapping.symbol,
-            action: 'skipped',
-            reason: 'Native coin without contract'
-          });
           continue;
         }
 
         // Skip if no platform data
         if (!platforms) {
-          console.log(`⚠️ No platform data for ${mapping.symbol} (${mapping.coingecko_id})`);
           stats.skipped++;
           stats.skipReasons.noPlatformData++;
-          stats.details.push({
-            symbol: mapping.symbol,
-            action: 'skipped',
-            reason: 'No platform data'
-          });
           continue;
         }
 
         // Skip if platforms is not an object or is empty
         if (typeof platforms !== 'object' || Object.keys(platforms).length === 0) {
-          console.log(`⚠️ Empty platforms object for ${mapping.symbol} (${mapping.coingecko_id})`);
           stats.skipped++;
           stats.skipReasons.emptyPlatforms++;
-          stats.details.push({
-            symbol: mapping.symbol,
-            action: 'skipped',
-            reason: 'Empty platforms object'
-          });
           continue;
         }
 
@@ -278,14 +250,8 @@ Deno.serve(async (req) => {
         }
 
         if (!bestChain || !bestAddress) {
-          console.log(`⚠️ No valid address found for ${mapping.symbol}`);
           stats.skipped++;
           stats.skipReasons.noValidAddress++;
-          stats.details.push({
-            symbol: mapping.symbol,
-            action: 'skipped',
-            reason: 'No valid address in platforms'
-          });
           continue;
         }
 
@@ -313,7 +279,6 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        console.log(`✅ Updated ${mapping.symbol}: ${chainDisplayName} - ${bestAddress.substring(0, 10)}...`);
         stats.updated++;
         stats.details.push({
           symbol: mapping.symbol,
@@ -344,10 +309,16 @@ Deno.serve(async (req) => {
     console.log(`   - No valid address: ${stats.skipReasons.noValidAddress}`);
     console.log(`❌ Errors: ${stats.errors}`);
 
+    // Only include first 100 details to avoid response size issues
+    const limitedDetails = stats.details.slice(0, 100);
+
     return new Response(
       JSON.stringify({
         success: true,
-        stats,
+        stats: {
+          ...stats,
+          details: limitedDetails
+        },
         message: `Successfully processed ${stats.total} tokens. Updated: ${stats.updated}, Skipped: ${stats.skipped}, Errors: ${stats.errors}`
       }),
       { 
