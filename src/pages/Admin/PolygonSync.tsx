@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2, Zap, Radio, StopCircle, RefreshCw, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
+import { Loader2, Zap, Radio, StopCircle, RefreshCw, AlertCircle, CheckCircle, TrendingUp, Coins } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 
@@ -19,6 +19,11 @@ interface StockSyncStats {
   existingMappings: number;
 }
 
+interface CryptoSyncStats {
+  totalCgCoins: number;
+  existingCryptoMappings: number;
+}
+
 export function PolygonSync() {
   const [mapping, setMapping] = useState(false);
   const [relaying, setRelaying] = useState(false);
@@ -26,16 +31,41 @@ export function PolygonSync() {
   const [syncing, setSyncing] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const [syncingStocks, setSyncingStocks] = useState(false);
+  const [syncingCrypto, setSyncingCrypto] = useState(false);
   const [stockStats, setStockStats] = useState<StockSyncStats | null>(null);
+  const [cryptoStats, setCryptoStats] = useState<CryptoSyncStats | null>(null);
   const [relayHealth, setRelayHealth] = useState<RelayHealth | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     checkRelayHealth();
     fetchStockStats();
+    fetchCryptoStats();
     const interval = setInterval(checkRelayHealth, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  const fetchCryptoStats = async () => {
+    try {
+      // Get total coins in cg_master
+      const { count: totalCgCoins } = await supabase
+        .from('cg_master')
+        .select('*', { count: 'exact', head: true });
+
+      // Get existing crypto mappings
+      const { count: existingCryptoMappings } = await supabase
+        .from('ticker_mappings')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'crypto');
+
+      setCryptoStats({
+        totalCgCoins: totalCgCoins || 0,
+        existingCryptoMappings: existingCryptoMappings || 0
+      });
+    } catch (error) {
+      console.error('Error fetching crypto stats:', error);
+    }
+  };
 
   const fetchStockStats = async () => {
     try {
@@ -241,6 +271,29 @@ export function PolygonSync() {
       });
     } finally {
       setSyncingStocks(false);
+    }
+  };
+
+  const handleSyncCrypto = async () => {
+    setSyncingCrypto(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-crypto-mappings');
+      
+      if (error) throw error;
+      
+      toast.success('Crypto sync complete!', {
+        description: `Inserted: ${data.newMappingsInserted?.toLocaleString()}, Skipped: ${data.skippedExisting?.toLocaleString()}, TradingView: ${data.tradingviewSupported?.toLocaleString()}`
+      });
+      
+      // Refresh stats
+      fetchCryptoStats();
+    } catch (error: any) {
+      console.error('Error syncing crypto:', error);
+      toast.error('Failed to sync crypto', {
+        description: error.message
+      });
+    } finally {
+      setSyncingCrypto(false);
     }
   };
 
@@ -525,6 +578,66 @@ export function PolygonSync() {
             {syncingStocks && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             <TrendingUp className="mr-2 h-4 w-4" />
             {syncingStocks ? 'Syncing Stocks...' : `Sync All ${stockStats?.totalStocks?.toLocaleString() || ''} Stocks`}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Crypto Sync Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Coins className="h-5 w-5" />
+            Sync All CoinGecko Coins to ticker_mappings
+          </CardTitle>
+          <CardDescription>
+            Import all {cryptoStats?.totalCgCoins?.toLocaleString() || '~19,000'} CoinGecko coins for maximum ZombieDog coverage
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {cryptoStats && (
+            <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+              <div>
+                <p className="text-xs text-muted-foreground">Total CoinGecko Coins</p>
+                <p className="text-lg font-semibold">{cryptoStats.totalCgCoins.toLocaleString()}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Already in ticker_mappings</p>
+                <p className="text-lg font-semibold">{cryptoStats.existingCryptoMappings.toLocaleString()}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-xs text-muted-foreground mb-1">Coverage</p>
+                <Progress 
+                  value={cryptoStats.totalCgCoins > 0 ? (cryptoStats.existingCryptoMappings / cryptoStats.totalCgCoins) * 100 : 0} 
+                  className="h-2"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {((cryptoStats.existingCryptoMappings / cryptoStats.totalCgCoins) * 100).toFixed(1)}% synced
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <p className="text-sm text-muted-foreground">
+            This will import ALL cryptocurrencies from CoinGecko's master list into ticker_mappings, 
+            including obscure tokens. Enables ZombieDog to research any coin users ask about.
+          </p>
+          
+          <div className="bg-muted/50 p-3 rounded-lg text-xs space-y-1">
+            <p><strong>🪙 What gets synced:</strong></p>
+            <p>• All 19,276 CoinGecko coins with coingecko_id for price lookups</p>
+            <p>• TradingView symbols for coins with exchange pairs (Coinbase, Binance, etc.)</p>
+            <p>• DEX platforms/contract addresses for on-chain tokens</p>
+            <p>• Skips existing mappings to avoid duplicates</p>
+          </div>
+          
+          <Button 
+            onClick={handleSyncCrypto}
+            disabled={syncingCrypto}
+            className="w-full"
+          >
+            {syncingCrypto && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Coins className="mr-2 h-4 w-4" />
+            {syncingCrypto ? 'Syncing Crypto (this may take a minute)...' : `Sync All ${cryptoStats?.totalCgCoins?.toLocaleString() || ''} Crypto`}
           </Button>
         </CardContent>
       </Card>
