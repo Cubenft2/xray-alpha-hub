@@ -137,3 +137,6 @@ verify_jwt = false
 
 [functions.sync-stock-mappings]
 verify_jwt = false
+
+[functions.sync-crypto-mappings]
+verify_jwt = false
