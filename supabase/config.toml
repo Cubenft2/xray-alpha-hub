@@ -6,9 +6,6 @@ verify_jwt = false
 [functions.populate-quotes-library]
 verify_jwt = false
 
-[functions.polygon-websocket-proxy]
-verify_jwt = false
-
 [functions.manual-price-sync]
 verify_jwt = false
 
@@ -81,17 +78,14 @@ verify_jwt = false
 [functions.map-polygon-tickers]
 verify_jwt = false
 
-[functions.polygon-price-relay]
-verify_jwt = false
-
-# Crypto price polling - every 2 minutes
+# Crypto price polling - every 2 minutes (REST API - UNLIMITED calls)
 [functions.polygon-rest-poller]
 verify_jwt = false
 
 [[functions.polygon-rest-poller.cron]]
 schedule = "*/2 * * * *"
 
-# Stock price polling - every 5 minutes
+# Stock price polling - every 5 minutes (REST API - UNLIMITED calls, 15-min delayed)
 [functions.polygon-stock-poller]
 verify_jwt = false
 
@@ -112,7 +106,7 @@ verify_jwt = false
 [[functions.polygon-company-prefetch.cron]]
 schedule = "0 */4 * * *"
 
-# Auto-map polygon tickers - daily
+# Auto-map polygon tickers - daily at 2 AM
 [functions.auto-map-polygon-tickers]
 verify_jwt = false
 
@@ -177,4 +171,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.coingecko-chart-data]
+verify_jwt = false
+
+[functions.polygon-crypto-prices]
 verify_jwt = false
