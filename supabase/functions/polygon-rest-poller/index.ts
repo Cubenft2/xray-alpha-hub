@@ -10,6 +10,8 @@ interface PriceUpdate {
   price: number;
   change24h: number;
   display: string;
+  asset_id: string;
+  source: string;
 }
 
 Deno.serve(async (req) => {
@@ -37,14 +39,21 @@ Deno.serve(async (req) => {
     const offset = body.offset || 0;
     const batchLimit = 500; // Process 500 crypto per run
 
-    // Get ALL active crypto tickers with polygon_ticker (no limit!)
+    // Query NEW normalized schema: polygon_assets joined with assets
     const { data: tickers, error: tickerError } = await supabase
-      .from('ticker_mappings')
-      .select('symbol, polygon_ticker, display_name')
-      .not('polygon_ticker', 'is', null)
-      .eq('type', 'crypto')
+      .from('polygon_assets')
+      .select(`
+        polygon_ticker,
+        asset_id,
+        assets!inner (
+          id,
+          symbol,
+          name
+        )
+      `)
+      .eq('market', 'crypto')
       .eq('is_active', true)
-      .order('symbol')
+      .order('polygon_ticker')
       .range(offset, offset + batchLimit - 1);
 
     if (tickerError) {
@@ -70,9 +79,10 @@ Deno.serve(async (req) => {
     for (let i = 0; i < tickers.length; i += batchSize) {
       const batch = tickers.slice(i, i + batchSize);
       
-      const promises = batch.map(async (ticker) => {
+      const promises = batch.map(async (ticker: any) => {
         try {
           const polygonTicker = ticker.polygon_ticker;
+          const asset = ticker.assets;
           
           // Use Polygon's previous close endpoint (unlimited REST API)
           const url = `https://api.polygon.io/v2/aggs/ticker/${polygonTicker}/prev?apiKey=${polygonKey}`;
@@ -82,7 +92,7 @@ Deno.serve(async (req) => {
           if (!response.ok) {
             // 404 is common for low-volume crypto, don't log
             if (response.status !== 404) {
-              console.warn(`⚠️ Failed to fetch ${ticker.symbol}: ${response.status}`);
+              console.warn(`⚠️ Failed to fetch ${asset.symbol}: ${response.status}`);
             }
             return null;
           }
@@ -99,13 +109,15 @@ Deno.serve(async (req) => {
               ticker: polygonTicker,
               price,
               change24h: Math.round(change24h * 100) / 100,
-              display: ticker.display_name || ticker.symbol,
+              display: asset.name || asset.symbol,
+              asset_id: ticker.asset_id,
+              source: 'polygon',
             };
           }
           
           return null;
         } catch (error) {
-          console.error(`❌ Error fetching ${ticker.symbol}:`, error);
+          console.error(`❌ Error fetching ${ticker.assets?.symbol}:`, error);
           return null;
         }
       });
@@ -127,13 +139,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Batch upsert to live_prices
+    // Batch upsert to live_prices with asset_id and source
     if (priceUpdates.length > 0) {
       const { error: upsertError } = await supabase
         .from('live_prices')
         .upsert(
           priceUpdates.map(update => ({
-            ...update,
+            ticker: update.ticker,
+            price: update.price,
+            change24h: update.change24h,
+            display: update.display,
+            asset_id: update.asset_id,
+            source: update.source,
             updated_at: new Date().toISOString()
           })),
           { onConflict: 'ticker', ignoreDuplicates: false }
