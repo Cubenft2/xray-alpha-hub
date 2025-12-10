@@ -456,13 +456,31 @@ serve(async (req) => {
   }
   
   try {
-    const { symbols } = await req.json();
+    // Parse request body safely - handle empty body for cron/manual triggers
+    let symbols: string[] = [];
     
-    if (!symbols || !Array.isArray(symbols)) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid symbols array provided' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    try {
+      const body = await req.text();
+      if (body && body.trim()) {
+        const parsed = JSON.parse(body);
+        if (parsed.symbols && Array.isArray(parsed.symbols)) {
+          symbols = parsed.symbols;
+        }
+      }
+    } catch (parseError) {
+      console.log('No body provided, using default symbols');
+    }
+    
+    // If no symbols provided, fetch top crypto symbols from ticker_mappings
+    if (symbols.length === 0) {
+      const { data: mappings } = await supabase
+        .from('ticker_mappings')
+        .select('symbol')
+        .eq('type', 'crypto')
+        .eq('is_active', true)
+        .limit(20);
+      
+      symbols = mappings?.map(m => m.symbol) || ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'DOT', 'MATIC'];
     }
     
     console.log(`Processing exchange data for symbols: ${symbols.join(', ')}`);
