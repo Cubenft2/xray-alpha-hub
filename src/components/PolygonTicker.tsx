@@ -58,52 +58,88 @@ export function PolygonTicker() {
     return () => observer.disconnect();
   }, []);
 
-  // Load ticker mappings with featured tokens priority - only when visible
+  // Load top 100 cryptos with FRESH prices only - prioritize featured symbols
   useEffect(() => {
     if (!isVisible) return;
 
-    const loadSymbols = async () => {
-      // First fetch featured tokens
-      const { data: featuredTickers } = await supabase
+    const loadFreshCryptos = async () => {
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      
+      // Fetch fresh prices from live_prices (updated within 15 min)
+      const { data: freshPrices } = await supabase
+        .from('live_prices')
+        .select('ticker, display, price, change24h, updated_at')
+        .gt('updated_at', fifteenMinutesAgo)
+        .order('price', { ascending: false })
+        .limit(500);
+
+      if (!freshPrices || freshPrices.length === 0) return;
+
+      // Get ticker mappings to filter for crypto only
+      const { data: cryptoMappings } = await supabase
         .from('ticker_mappings')
         .select('symbol, display_name, coingecko_id')
         .eq('type', 'crypto')
         .eq('is_active', true)
-        .in('symbol', FEATURED_SYMBOLS);
+        .in('symbol', freshPrices.map(p => p.ticker));
 
-      // Then fetch remaining tokens to fill up to 60
-      const remainingLimit = 60 - (featuredTickers?.length || 0);
-      const { data: otherTickers } = await supabase
-        .from('ticker_mappings')
-        .select('symbol, display_name, coingecko_id')
-        .eq('type', 'crypto')
-        .eq('is_active', true)
-        .not('symbol', 'in', `(${FEATURED_SYMBOLS.join(',')})`)
-        .limit(remainingLimit);
+      if (!cryptoMappings || cryptoMappings.length === 0) return;
 
-      const allTickers = [...(featuredTickers || []), ...(otherTickers || [])];
-      if (allTickers.length === 0) return;
+      // Create lookup for crypto symbols
+      const cryptoLookup = new Map(
+        cryptoMappings.map(m => [m.symbol, { displayName: m.display_name, coingecko_id: m.coingecko_id }])
+      );
 
-      // Sort to ensure featured tokens appear first in order
-      const sortedTickers = allTickers.sort((a, b) => {
+      // Filter fresh prices to only crypto and merge with metadata
+      const cryptoWithPrices = freshPrices
+        .filter(p => cryptoLookup.has(p.ticker))
+        .map(p => ({
+          symbol: p.ticker,
+          displayName: cryptoLookup.get(p.ticker)?.displayName || p.display,
+          price: p.price,
+          change24h: p.change24h,
+          coingecko_id: cryptoLookup.get(p.ticker)?.coingecko_id
+        }));
+
+      // Sort: Featured symbols first (in FEATURED_SYMBOLS order), then by price descending
+      const sortedCryptos = cryptoWithPrices.sort((a, b) => {
         const aIdx = FEATURED_SYMBOLS.indexOf(a.symbol);
         const bIdx = FEATURED_SYMBOLS.indexOf(b.symbol);
+        
+        // Both are featured: sort by featured order
         if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+        // Only a is featured: a comes first
         if (aIdx !== -1) return -1;
+        // Only b is featured: b comes first
         if (bIdx !== -1) return 1;
-        return 0;
+        // Neither featured: sort by price descending
+        return b.price - a.price;
       });
 
-      const symbolList = sortedTickers.map(t => t.symbol);
+      // Take top 100
+      const top100 = sortedCryptos.slice(0, 100);
+      
+      const symbolList = top100.map(t => t.symbol);
       const metadata = new Map(
-        sortedTickers.map(t => [t.symbol, { displayName: t.display_name, coingecko_id: t.coingecko_id }])
+        top100.map(t => [t.symbol, { displayName: t.displayName, coingecko_id: t.coingecko_id }])
       );
 
       setSymbols(symbolList);
       setSymbolMetadata(metadata);
 
+      // Set initial display prices immediately (don't wait for useCentralizedPrices)
+      const initialDisplay = top100.map(t => ({
+        symbol: t.symbol,
+        displayName: t.displayName,
+        price: t.price,
+        change24h: t.change24h,
+        coingecko_id: t.coingecko_id,
+        logo_url: undefined
+      }));
+      setDisplayPrices([...initialDisplay, ...initialDisplay]);
+
       // Fetch logos
-      const coingeckoIds = sortedTickers
+      const coingeckoIds = top100
         .map(t => t.coingecko_id)
         .filter(id => id && id.trim().length > 0) as string[];
 
@@ -112,7 +148,7 @@ export function PolygonTicker() {
       }
     };
 
-    loadSymbols();
+    loadFreshCryptos();
   }, [isVisible]);
 
   const fetchLogos = async (coingeckoIds: string[]) => {
@@ -128,25 +164,32 @@ export function PolygonTicker() {
     }
   };
 
-  // Use centralized prices from live_prices table (NO per-user WebSocket)
+  // Use centralized prices from live_prices table for real-time updates
   const { prices: wsPrices, status, lastUpdate } = useCentralizedPrices(isVisible ? symbols : []);
 
-  // Transform WebSocket prices to display format
+  // Update display prices when realtime prices come in (maintain sort order)
   useEffect(() => {
-    const priceArray = Object.entries(wsPrices).map(([symbol, priceData]) => {
-      const meta = symbolMetadata.get(symbol);
-      return {
-        symbol,
-        displayName: meta?.displayName || symbol,
-        price: priceData.price,
-        change24h: priceData.change24h,
-        coingecko_id: meta?.coingecko_id,
-        logo_url: meta?.coingecko_id ? logoCache.get(meta.coingecko_id) : undefined
-      };
-    });
+    if (Object.keys(wsPrices).length === 0) return;
 
-    setDisplayPrices([...priceArray, ...priceArray]); // Duplicate for seamless loop
-  }, [wsPrices, symbolMetadata, logoCache]);
+    const priceArray = symbols
+      .filter(symbol => wsPrices[symbol]) // Only symbols with prices
+      .map(symbol => {
+        const priceData = wsPrices[symbol];
+        const meta = symbolMetadata.get(symbol);
+        return {
+          symbol,
+          displayName: meta?.displayName || symbol,
+          price: priceData.price,
+          change24h: priceData.change24h,
+          coingecko_id: meta?.coingecko_id,
+          logo_url: meta?.coingecko_id ? logoCache.get(meta.coingecko_id) : undefined
+        };
+      });
+
+    if (priceArray.length > 0) {
+      setDisplayPrices([...priceArray, ...priceArray]); // Duplicate for seamless loop
+    }
+  }, [wsPrices, symbols, symbolMetadata, logoCache]);
 
   // Smooth scrolling animation
   useEffect(() => {
