@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
 import { 
   Loader2, 
   RefreshCw, 
@@ -13,7 +14,8 @@ import {
   Activity,
   Database,
   Wifi,
-  Clock
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -24,10 +26,53 @@ interface HealthStatus {
   details?: string;
 }
 
+interface CronJob {
+  jobid: number;
+  schedule: string;
+  command: string;
+  nodename: string;
+  nodeport: number;
+  database: string;
+  username: string;
+  active: boolean;
+  jobname: string | null;
+}
+
+// Expected cron jobs based on config.toml
+const EXPECTED_CRON_JOBS = [
+  { name: 'polygon-rest-poller', schedule: '*/2 * * * *', description: 'Crypto prices every 2 min' },
+  { name: 'polygon-stock-poller', schedule: '*/5 * * * *', description: 'Stock prices every 5 min' },
+  { name: 'polygon-indicators-refresh', schedule: '0 * * * *', description: 'Technical indicators hourly' },
+  { name: 'exchange-sync', schedule: '0 2 * * *', description: 'Exchange pairs daily 2 AM' },
+  { name: 'exchange-data-aggregator', schedule: '*/15 * * * *', description: 'Exchange prices every 15 min' },
+  { name: 'coingecko-sync', schedule: '0 3 * * *', description: 'CoinGecko sync daily 3 AM' },
+  { name: 'lunarcrush-universe', schedule: '*/5 * * * *', description: 'LunarCrush every 5 min' },
+];
+
 export function SystemHealth() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [healthData, setHealthData] = useState<HealthStatus[]>([]);
+
+  // Query cron jobs - will return null if function doesn't exist
+  const { data: cronJobs, isLoading: cronLoading, refetch: refetchCron } = useQuery({
+    queryKey: ['cron-jobs'],
+    queryFn: async () => {
+      try {
+        // Try to call the RPC function - it may not exist yet
+        const { data, error } = await supabase.rpc('get_cron_jobs' as any);
+        if (error) {
+          console.log('get_cron_jobs function not available:', error.message);
+          return null;
+        }
+        return data as CronJob[] | null;
+      } catch (err) {
+        console.log('Cron jobs query failed:', err);
+        return null;
+      }
+    },
+    refetchInterval: 60000
+  });
 
   const checkHealth = async () => {
     setLoading(true);
@@ -40,7 +85,7 @@ export function SystemHealth() {
         .select('updated_at')
         .order('updated_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (livePrices) {
         const lastUpdate = new Date(livePrices.updated_at);
@@ -71,7 +116,7 @@ export function SystemHealth() {
           .eq('exchange', exchange)
           .order('updated_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (exchangeData) {
           const lastUpdate = new Date(exchangeData.updated_at);
@@ -111,7 +156,7 @@ export function SystemHealth() {
         .select('created_at')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (indicators) {
         const lastUpdate = new Date(indicators.created_at);
@@ -137,7 +182,7 @@ export function SystemHealth() {
         .from('price_sync_leader')
         .select('heartbeat_at, instance_id')
         .eq('id', 'singleton')
-        .single();
+        .maybeSingle();
 
       if (leader) {
         const lastHeartbeat = new Date(leader.heartbeat_at);
@@ -249,6 +294,16 @@ export function SystemHealth() {
     }
   };
 
+  // Check which expected jobs are actually scheduled
+  const getCronJobStatus = (expectedName: string) => {
+    if (!cronJobs) return 'unknown';
+    const found = cronJobs.find(job => 
+      job.command?.includes(expectedName) || job.jobname?.includes(expectedName)
+    );
+    if (!found) return 'missing';
+    return found.active ? 'active' : 'inactive';
+  };
+
   const overallHealth = healthData.length > 0
     ? healthData.some(h => h.status === 'error')
       ? 'error'
@@ -256,6 +311,9 @@ export function SystemHealth() {
         ? 'warning'
         : 'healthy'
     : 'unknown';
+
+  const scheduledCount = cronJobs?.filter(j => j.active).length || 0;
+  const missingCount = EXPECTED_CRON_JOBS.filter(e => getCronJobStatus(e.name) === 'missing').length;
 
   return (
     <div className="space-y-6">
@@ -304,6 +362,146 @@ export function SystemHealth() {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Cron Jobs Status */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Cron Jobs Status
+              </CardTitle>
+              <CardDescription>
+                Scheduled jobs in pg_cron vs expected from config
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={missingCount > 0 ? 'destructive' : 'default'}>
+                {scheduledCount} scheduled
+              </Badge>
+              {missingCount > 0 && (
+                <Badge variant="outline" className="bg-red-500/10 text-red-500">
+                  {missingCount} missing
+                </Badge>
+              )}
+              <Button variant="outline" size="sm" onClick={() => refetchCron()} disabled={cronLoading}>
+                {cronLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {cronJobs === null ? (
+            <div className="p-4 border rounded-lg bg-yellow-500/10 border-yellow-500/20">
+              <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                <strong>Note:</strong> Cannot query cron.job table. You need to create a database function to expose cron job data.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Run this SQL in Supabase SQL Editor to enable cron job monitoring:
+              </p>
+              <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-x-auto">
+{`CREATE OR REPLACE FUNCTION public.get_cron_jobs()
+RETURNS TABLE (
+  jobid bigint,
+  schedule text,
+  command text,
+  nodename text,
+  nodeport integer,
+  database text,
+  username text,
+  active boolean,
+  jobname text
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT jobid, schedule, command, nodename, nodeport, database, username, active, jobname
+  FROM cron.job;
+$$;`}
+              </pre>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {EXPECTED_CRON_JOBS.map((expected) => {
+                const status = getCronJobStatus(expected.name);
+                const actualJob = cronJobs?.find(j => 
+                  j.command?.includes(expected.name) || j.jobname?.includes(expected.name)
+                );
+                
+                return (
+                  <div
+                    key={expected.name}
+                    className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                  >
+                    <div className="flex items-center gap-3">
+                      {status === 'active' ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      ) : status === 'inactive' ? (
+                        <AlertCircle className="h-5 w-5 text-yellow-500" />
+                      ) : (
+                        <XCircle className="h-5 w-5 text-red-500" />
+                      )}
+                      <div>
+                        <p className="font-medium font-mono text-sm">{expected.name}</p>
+                        <p className="text-xs text-muted-foreground">{expected.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <code className="text-xs bg-muted px-2 py-1 rounded">
+                        {actualJob?.schedule || expected.schedule}
+                      </code>
+                      <Badge 
+                        variant="outline" 
+                        className={
+                          status === 'active' 
+                            ? 'bg-green-500/10 text-green-500 border-green-500/20'
+                            : status === 'inactive'
+                              ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20'
+                              : 'bg-red-500/10 text-red-500 border-red-500/20'
+                        }
+                      >
+                        {status === 'active' ? 'Scheduled' : status === 'inactive' ? 'Inactive' : 'Not Scheduled'}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Show any additional jobs not in expected list */}
+              {cronJobs?.filter(job => 
+                !EXPECTED_CRON_JOBS.some(e => job.command?.includes(e.name) || job.jobname?.includes(e.name))
+              ).map((job) => (
+                <div
+                  key={job.jobid}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-muted/50"
+                >
+                  <div className="flex items-center gap-3">
+                    {job.active ? (
+                      <CheckCircle2 className="h-5 w-5 text-blue-500" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                    )}
+                    <div>
+                      <p className="font-medium font-mono text-sm">{job.jobname || `Job #${job.jobid}`}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-md">
+                        {job.command?.substring(0, 80)}...
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs bg-muted px-2 py-1 rounded">{job.schedule}</code>
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-500">
+                      Custom
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
