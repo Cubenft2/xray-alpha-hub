@@ -444,6 +444,55 @@ interface AssetSentimentSnapshot {
 }
 
 // ============================================
+// PHASE 5: TOKEN SECURITY & ON-CHAIN DATA
+// ============================================
+interface GoTokenSecurity {
+  isHoneypot: boolean;
+  isOpenSource: boolean;
+  isProxy: boolean;
+  isMintable: boolean;
+  canTakeBackOwnership: boolean;
+  ownerPercent: number;
+  creatorPercent: number;
+  holderCount: number;
+  lpHolderCount: number;
+  lpTotalSupplyLocked: number;
+  buyTax: number;
+  sellTax: number;
+  isAntiWhale: boolean;
+  slippageModifiable: boolean;
+  isBlacklisted: boolean;
+  tradingCooldown: boolean;
+  transferPausable: boolean;
+  tokenName: string;
+  tokenSymbol: string;
+}
+
+interface DexScreenerData {
+  symbol: string;
+  name: string;
+  priceUsd: number;
+  priceChange24h: number;
+  volume24h: number;
+  liquidity: number;
+  fdv: number;
+  pairAddress: string;
+  pairCreatedAt: string;
+  dexId: string;
+  chainId: string;
+  txns24h: { buys: number; sells: number };
+}
+
+interface TokenSecurityContext {
+  symbol: string;
+  contractAddress: string;
+  chain: string;
+  goplus: GoTokenSecurity | null;
+  dexscreener: DexScreenerData | null;
+  warnings: string[];
+}
+
+// ============================================
 // PHASE 5: AI-POWERED QUESTION UNDERSTANDING (Gemini)
 // ============================================
 
@@ -460,12 +509,13 @@ interface SmartRouteConfig {
 
 // AI-parsed question understanding
 interface QuestionUnderstanding {
-  intent: 'price' | 'news' | 'analysis' | 'comparison' | 'general' | 'greeting';
+  intent: 'price' | 'news' | 'analysis' | 'comparison' | 'general' | 'greeting' | 'safety';
   assets: Array<{
     symbol: string;
     name: string;
     type: 'crypto' | 'stock' | 'unknown';
     confidence: number;
+    contractAddress?: string;
   }>;
   needsClarification: boolean;
   clarificationMessage: string | null;
@@ -477,6 +527,7 @@ interface QuestionUnderstanding {
     webSearch: boolean;
     derivatives: boolean;
     social: boolean;
+    securityCheck: boolean;
   };
 }
 
@@ -508,8 +559,8 @@ async function understandQuestion(userMessage: string): Promise<QuestionUndersta
 
 Return this exact JSON structure:
 {
-  "intent": "price|news|analysis|comparison|general|greeting",
-  "assets": [{"symbol": "BTC", "name": "Bitcoin", "type": "crypto", "confidence": 0.95}],
+  "intent": "price|news|analysis|comparison|general|greeting|safety",
+  "assets": [{"symbol": "BTC", "name": "Bitcoin", "type": "crypto", "confidence": 0.95, "contractAddress": null}],
   "needsClarification": false,
   "clarificationMessage": null,
   "fetchData": {
@@ -519,12 +570,13 @@ Return this exact JSON structure:
     "companyDetails": false,
     "webSearch": false,
     "derivatives": false,
-    "social": false
+    "social": false,
+    "securityCheck": false
   }
 }
 
 CRITICAL RULES:
-1. Common question words are NOT assets: news, latest, price, stock, crypto, market, update, what, how, why, tell, show, find, today, current
+1. Common question words are NOT assets: news, latest, price, stock, crypto, market, update, what, how, why, tell, show, find, today, current, safe, risk, scam
 2. "news about NVIDIA" → asset is {symbol:"NVDA", name:"NVIDIA", type:"stock"}, intent is "news"
 3. "what's the price of ETH" → asset is {symbol:"ETH", name:"Ethereum", type:"crypto"}, intent is "price"
 4. Greetings like "hi", "hello", "hey" → intent:"greeting", assets:[], no data fetching needed
@@ -536,8 +588,11 @@ CRITICAL RULES:
    - "comparison" questions → prices:true, social:true
    - "greeting" → all false
    - companyDetails:true ONLY for stocks
-7. Stock symbols: AAPL, NVDA, TSLA, MSFT, GOOG, AMZN, META, COIN, MSTR, etc.
-8. Crypto symbols: BTC, ETH, SOL, XRP, ADA, DOGE, LINK, AVAX, etc.
+   - "safety" questions → securityCheck:true, social:true, news:true
+7. SAFETY INTENT: Questions about safety, scams, rugs, risks, legitimacy, honeypots, "should I buy", "is X legit", "is X safe" → intent:"safety", securityCheck:true
+8. Stock symbols: AAPL, NVDA, TSLA, MSFT, GOOG, AMZN, META, COIN, MSTR, etc.
+9. Crypto symbols: BTC, ETH, SOL, XRP, ADA, DOGE, LINK, AVAX, etc.
+10. If user provides a contract address (0x... or Solana base58), include it in contractAddress field
 
 Return ONLY the JSON object, nothing else.`
         }]
@@ -592,6 +647,10 @@ function understandingToQuestionTypes(understanding: QuestionUnderstanding): Set
       types.add('social');
       types.add('price');
       break;
+    case 'safety':
+      types.add('social');
+      types.add('news');
+      break;
     case 'greeting':
       types.add('general');
       break;
@@ -608,15 +667,21 @@ function understandingToQuestionTypes(understanding: QuestionUnderstanding): Set
   return types;
 }
 
+// Extended smart routing config with security
+interface SmartRouteConfigExtended extends SmartRouteConfig {
+  fetchSecurityCheck: boolean;
+}
+
 // Generate smart routing config from AI understanding
-function getSmartRouteConfigFromUnderstanding(understanding: QuestionUnderstanding): SmartRouteConfig {
+function getSmartRouteConfigFromUnderstanding(understanding: QuestionUnderstanding): SmartRouteConfigExtended {
   return {
     fetchTechnicals: understanding.fetchData.technicals || understanding.fetchData.prices,
     fetchDerivatives: understanding.fetchData.derivatives,
     fetchSocial: understanding.fetchData.social,
     fetchNews: understanding.fetchData.news,
     fetchBriefs: understanding.fetchData.news || understanding.intent === 'analysis',
-    fetchWebSearch: understanding.fetchData.webSearch
+    fetchWebSearch: understanding.fetchData.webSearch,
+    fetchSecurityCheck: understanding.fetchData.securityCheck || understanding.intent === 'safety'
   };
 }
 
@@ -2173,6 +2238,334 @@ ${newsLines.join('\n\n')}
   return result;
 }
 
+// ============================================
+// GOPLUS SECURITY & DEXSCREENER INTEGRATION
+// ============================================
+
+// Chain IDs for GoPlus API
+const GOPLUS_CHAIN_IDS: Record<string, string> = {
+  'ethereum': '1',
+  'bsc': '56',
+  'polygon': '137',
+  'arbitrum': '42161',
+  'base': '8453',
+  'avalanche': '43114',
+  'optimism': '10',
+  'fantom': '250',
+  'cronos': '25',
+  'solana': 'solana'
+};
+
+// Fetch token security data from GoPlus (FREE, no API key needed)
+async function fetchGoTokenSecurity(contractAddress: string, chain: string = 'ethereum'): Promise<GoTokenSecurity | null> {
+  try {
+    const chainId = GOPLUS_CHAIN_IDS[chain.toLowerCase()] || '1';
+    const normalizedAddr = contractAddress.toLowerCase();
+    
+    console.log(`[GoPlus] Fetching security for ${normalizedAddr} on chain ${chainId}`);
+    
+    const url = `https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${normalizedAddr}`;
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      console.error(`[GoPlus] Error: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    const result = data.result?.[normalizedAddr];
+    
+    if (!result) {
+      console.log(`[GoPlus] No data found for ${normalizedAddr}`);
+      return null;
+    }
+    
+    console.log(`[GoPlus] Found security data for ${result.token_symbol || 'unknown'}`);
+    
+    return {
+      isHoneypot: result.is_honeypot === '1',
+      isOpenSource: result.is_open_source === '1',
+      isProxy: result.is_proxy === '1',
+      isMintable: result.is_mintable === '1',
+      canTakeBackOwnership: result.can_take_back_ownership === '1',
+      ownerPercent: parseFloat(result.owner_percent || '0') * 100,
+      creatorPercent: parseFloat(result.creator_percent || '0') * 100,
+      holderCount: parseInt(result.holder_count || '0'),
+      lpHolderCount: parseInt(result.lp_holder_count || '0'),
+      lpTotalSupplyLocked: parseFloat(result.lp_total_supply_locked || '0') * 100,
+      buyTax: parseFloat(result.buy_tax || '0') * 100,
+      sellTax: parseFloat(result.sell_tax || '0') * 100,
+      isAntiWhale: result.is_anti_whale === '1',
+      slippageModifiable: result.slippage_modifiable === '1',
+      isBlacklisted: result.is_blacklisted === '1',
+      tradingCooldown: result.trading_cooldown === '1',
+      transferPausable: result.transfer_pausable === '1',
+      tokenName: result.token_name || '',
+      tokenSymbol: result.token_symbol || ''
+    };
+  } catch (error) {
+    console.error('[GoPlus] Fetch error:', error);
+    return null;
+  }
+}
+
+// Fetch token data from DexScreener (FREE, no API key needed)
+async function fetchDexScreenerData(contractAddress: string): Promise<DexScreenerData | null> {
+  try {
+    const normalizedAddr = contractAddress.toLowerCase();
+    console.log(`[DexScreener] Fetching data for ${normalizedAddr}`);
+    
+    const url = `https://api.dexscreener.com/latest/dex/tokens/${normalizedAddr}`;
+    const response = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      console.error(`[DexScreener] Error: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    const pairs = data.pairs;
+    
+    if (!pairs || pairs.length === 0) {
+      console.log(`[DexScreener] No pairs found for ${normalizedAddr}`);
+      return null;
+    }
+    
+    // Get the highest liquidity pair
+    const bestPair = pairs.reduce((best: any, current: any) => {
+      const bestLiq = parseFloat(best.liquidity?.usd || '0');
+      const currentLiq = parseFloat(current.liquidity?.usd || '0');
+      return currentLiq > bestLiq ? current : best;
+    }, pairs[0]);
+    
+    console.log(`[DexScreener] Found pair on ${bestPair.dexId} with $${bestPair.liquidity?.usd || 0} liquidity`);
+    
+    return {
+      symbol: bestPair.baseToken?.symbol || '',
+      name: bestPair.baseToken?.name || '',
+      priceUsd: parseFloat(bestPair.priceUsd || '0'),
+      priceChange24h: parseFloat(bestPair.priceChange?.h24 || '0'),
+      volume24h: parseFloat(bestPair.volume?.h24 || '0'),
+      liquidity: parseFloat(bestPair.liquidity?.usd || '0'),
+      fdv: parseFloat(bestPair.fdv || '0'),
+      pairAddress: bestPair.pairAddress || '',
+      pairCreatedAt: bestPair.pairCreatedAt || '',
+      dexId: bestPair.dexId || '',
+      chainId: bestPair.chainId || '',
+      txns24h: {
+        buys: bestPair.txns?.h24?.buys || 0,
+        sells: bestPair.txns?.h24?.sells || 0
+      }
+    };
+  } catch (error) {
+    console.error('[DexScreener] Fetch error:', error);
+    return null;
+  }
+}
+
+// Generate security warnings based on GoPlus and DexScreener data
+function generateSecurityWarnings(goplus: GoTokenSecurity | null, dex: DexScreenerData | null): string[] {
+  const warnings: string[] = [];
+  
+  if (goplus) {
+    // Critical warnings (🚨)
+    if (goplus.isHoneypot) {
+      warnings.push("🚨 HONEYPOT DETECTED - Cannot sell tokens! DO NOT BUY!");
+    }
+    if (goplus.canTakeBackOwnership) {
+      warnings.push("🚨 Owner can reclaim contract ownership - extreme risk");
+    }
+    if (goplus.sellTax > 50) {
+      warnings.push(`🚨 Extremely high sell tax: ${goplus.sellTax.toFixed(1)}%`);
+    }
+    if (goplus.isBlacklisted) {
+      warnings.push("🚨 Contract has blacklist function - can block wallets");
+    }
+    
+    // High risk warnings (⚠️)
+    if (goplus.ownerPercent > 50) {
+      warnings.push(`⚠️ Owner holds ${goplus.ownerPercent.toFixed(1)}% of supply - high concentration`);
+    } else if (goplus.ownerPercent > 20) {
+      warnings.push(`⚠️ Owner holds ${goplus.ownerPercent.toFixed(1)}% of supply`);
+    }
+    
+    if (goplus.isMintable) {
+      warnings.push("⚠️ Token supply can be increased (mintable)");
+    }
+    if (goplus.transferPausable) {
+      warnings.push("⚠️ Transfers can be paused by owner");
+    }
+    if (goplus.slippageModifiable) {
+      warnings.push("⚠️ Slippage/taxes can be modified by owner");
+    }
+    if (goplus.tradingCooldown) {
+      warnings.push("⚠️ Trading cooldown enabled");
+    }
+    if (!goplus.isOpenSource) {
+      warnings.push("⚠️ Contract is not verified/open source");
+    }
+    if (goplus.isProxy) {
+      warnings.push("⚠️ Proxy contract - logic can be changed");
+    }
+    if (goplus.buyTax > 10) {
+      warnings.push(`⚠️ High buy tax: ${goplus.buyTax.toFixed(1)}%`);
+    }
+    if (goplus.sellTax > 10 && goplus.sellTax <= 50) {
+      warnings.push(`⚠️ High sell tax: ${goplus.sellTax.toFixed(1)}%`);
+    }
+    if (goplus.lpTotalSupplyLocked < 50 && goplus.lpTotalSupplyLocked > 0) {
+      warnings.push(`⚠️ Only ${goplus.lpTotalSupplyLocked.toFixed(1)}% of LP locked`);
+    }
+    
+    // Positive indicators (✅)
+    if (!goplus.isHoneypot && goplus.isOpenSource && !goplus.isMintable && goplus.ownerPercent < 5) {
+      warnings.push("✅ No major contract red flags detected");
+    }
+  }
+  
+  if (dex) {
+    // Liquidity warnings
+    if (dex.liquidity < 5000) {
+      warnings.push(`🚨 Extremely low liquidity: $${formatLargeNumber(dex.liquidity)} - high slippage risk`);
+    } else if (dex.liquidity < 50000) {
+      warnings.push(`⚠️ Low liquidity: $${formatLargeNumber(dex.liquidity)} - may cause slippage`);
+    }
+    
+    // Pair age warnings
+    if (dex.pairCreatedAt) {
+      const pairAge = Date.now() - new Date(dex.pairCreatedAt).getTime();
+      const pairAgeDays = pairAge / (1000 * 60 * 60 * 24);
+      if (pairAgeDays < 1) {
+        warnings.push("🚨 Pair is less than 24 hours old - extremely new");
+      } else if (pairAgeDays < 7) {
+        warnings.push(`⚠️ Pair is only ${Math.floor(pairAgeDays)} days old`);
+      }
+    }
+    
+    // Buy/sell ratio
+    if (dex.txns24h.buys + dex.txns24h.sells > 10) {
+      const sellRatio = dex.txns24h.sells / (dex.txns24h.buys + dex.txns24h.sells);
+      if (sellRatio > 0.7) {
+        warnings.push(`⚠️ High sell pressure: ${(sellRatio * 100).toFixed(0)}% of transactions are sells`);
+      }
+    }
+    
+    // Volume warnings
+    if (dex.volume24h < 1000 && dex.liquidity > 10000) {
+      warnings.push("⚠️ Very low trading volume - may indicate low interest");
+    }
+    
+    // Positive liquidity
+    if (dex.liquidity >= 100000) {
+      warnings.push(`✅ Healthy liquidity: $${formatLargeNumber(dex.liquidity)}`);
+    }
+  }
+  
+  return warnings;
+}
+
+// Fetch security context for a contract address
+async function fetchTokenSecurityContext(contractAddress: string, chain: string = 'ethereum'): Promise<TokenSecurityContext | null> {
+  if (!contractAddress || !contractAddress.startsWith('0x')) {
+    return null;
+  }
+  
+  console.log(`[Security] Fetching security context for ${contractAddress} on ${chain}`);
+  
+  // Fetch GoPlus and DexScreener in parallel
+  const [goplus, dexscreener] = await Promise.all([
+    fetchGoTokenSecurity(contractAddress, chain),
+    fetchDexScreenerData(contractAddress)
+  ]);
+  
+  const warnings = generateSecurityWarnings(goplus, dexscreener);
+  
+  return {
+    symbol: goplus?.tokenSymbol || dexscreener?.symbol || 'UNKNOWN',
+    contractAddress,
+    chain,
+    goplus,
+    dexscreener,
+    warnings
+  };
+}
+
+// Format security context for system prompt
+function formatSecurityContext(security: TokenSecurityContext[]): string {
+  if (security.length === 0) return "";
+  
+  const sections = security.map(s => {
+    let section = `
+🔐 ${s.symbol} Security Analysis (${s.chain})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 Contract: ${s.contractAddress}`;
+
+    if (s.goplus) {
+      section += `
+
+📊 Contract Analysis (GoPlus):
+  • Honeypot: ${s.goplus.isHoneypot ? '🚨 YES - CANNOT SELL!' : '✅ No'}
+  • Open Source: ${s.goplus.isOpenSource ? '✅ Yes' : '⚠️ No'}
+  • Proxy Contract: ${s.goplus.isProxy ? '⚠️ Yes' : '✅ No'}
+  • Mintable: ${s.goplus.isMintable ? '⚠️ Yes' : '✅ No'}
+  • Owner Can Reclaim: ${s.goplus.canTakeBackOwnership ? '🚨 Yes' : '✅ No'}
+  • Owner Holdings: ${s.goplus.ownerPercent.toFixed(2)}%
+  • Buy Tax: ${s.goplus.buyTax.toFixed(1)}%
+  • Sell Tax: ${s.goplus.sellTax.toFixed(1)}%
+  • Holder Count: ${s.goplus.holderCount.toLocaleString()}
+  • LP Locked: ${s.goplus.lpTotalSupplyLocked.toFixed(1)}%`;
+    }
+
+    if (s.dexscreener) {
+      const pairAge = s.dexscreener.pairCreatedAt 
+        ? `${Math.floor((Date.now() - new Date(s.dexscreener.pairCreatedAt).getTime()) / (1000 * 60 * 60 * 24))} days`
+        : 'Unknown';
+      
+      section += `
+
+💹 Market Data (DexScreener):
+  • Price: $${s.dexscreener.priceUsd.toFixed(8)}
+  • 24h Change: ${s.dexscreener.priceChange24h >= 0 ? '+' : ''}${s.dexscreener.priceChange24h.toFixed(2)}%
+  • Liquidity: $${formatLargeNumber(s.dexscreener.liquidity)}
+  • 24h Volume: $${formatLargeNumber(s.dexscreener.volume24h)}
+  • FDV: $${formatLargeNumber(s.dexscreener.fdv)}
+  • Pair Age: ${pairAge}
+  • DEX: ${s.dexscreener.dexId} on ${s.dexscreener.chainId}
+  • 24h Txns: ${s.dexscreener.txns24h.buys} buys / ${s.dexscreener.txns24h.sells} sells`;
+    }
+
+    if (s.warnings.length > 0) {
+      section += `
+
+🚦 SECURITY WARNINGS:
+${s.warnings.map(w => `  ${w}`).join('\n')}`;
+    } else {
+      section += `
+
+🚦 No significant warnings detected.`;
+    }
+
+    return section;
+  });
+  
+  return `
+═══════════════════════════════════════════
+🛡️ TOKEN SECURITY & ON-CHAIN ANALYSIS
+═══════════════════════════════════════════
+${sections.join('\n\n')}
+
+⚠️ IMPORTANT CONTEXT FOR AI:
+• High social volume does NOT mean bullish - check if the buzz is about a hack, scam, or whale dump
+• Galaxy Score measures ENGAGEMENT, not whether sentiment is positive or negative
+• Always combine social metrics with on-chain data for a complete picture
+• If security warnings exist, prominently display them to the user
+• Never recommend buying tokens with honeypot or high-risk flags`;
+}
+
 function buildSystemPrompt(
   priceContext: string, 
   coinDetails: string,
@@ -2186,7 +2579,9 @@ function buildSystemPrompt(
   marketBriefsContext: string = "",
   derivativesContext: string = "",
   socialContext: string = "",
-  newsContext: string = ""
+  newsContext: string = "",
+  // NEW: Phase 5 security context
+  securityContext: string = ""
 ): string {
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -2230,6 +2625,7 @@ NEW SUPERPOWERS:
 • 📈 DERIVATIVES DATA: Funding rates, liquidations, market positioning
 • 🌍 SOCIAL RANKINGS: Compare assets by social sentiment
 • 📰 NEWS SENTIMENT: Categorized news with sentiment analysis
+• 🛡️ TOKEN SECURITY: Contract risks, honeypot detection, liquidity analysis
 
 ${priceContext}
 ${coinDetails}
@@ -2240,6 +2636,7 @@ ${derivativesContext}
 ${socialContext}
 ${marketBriefsContext}
 ${newsContext}
+${securityContext}
 ${webSearchContext}
 ${contractAddressContext}
 ${similarSuggestion}
@@ -2263,6 +2660,8 @@ ${similarSuggestion}
 4. **COMPARE SOCIAL RANKINGS:** When social data is available:
    - "SOL ranks #3 in social volume today, outpacing ETH"
    - Use Galaxy Score to assess community sentiment
+   - ⚠️ IMPORTANT: High social volume does NOT mean bullish! Check if buzz is positive or negative.
+   - Always provide context: "Galaxy Score measures engagement, not whether sentiment is positive"
 
 5. **IF CLARIFICATION NEEDED:** When the "DID YOU MEAN" or "CLARIFICATION NEEDED" section appears above:
    - Present the suggestions conversationally
@@ -2283,11 +2682,23 @@ ${similarSuggestion}
    - If an asset IS FOUND in the database, it EXISTS and IS TRADABLE
    - NEVER say a coin is "not tradable yet" or "not available" if you found it in the data
 
-9. Keep responses concise but data-rich (2-4 paragraphs max)
-10. Always remind users to DYOR (do your own research)
-11. Never give financial advice - you're an AI assistant, not a financial advisor
+9. **🛡️ SECURITY & SAFETY ANALYSIS (NEW!):**
+   - When TOKEN SECURITY data is available, ALWAYS prominently display warnings
+   - Structure your response with security data FIRST if user asks about safety
+   - 🚨 HONEYPOT = DO NOT BUY, tell user they cannot sell
+   - ⚠️ High owner concentration = explain the risk clearly
+   - ⚠️ Low liquidity = explain slippage risk
+   - Distinguish between positive social buzz vs. negative (people discussing hacks, scams)
+   - Example format:
+     "📊 PEPE Social Metrics: Galaxy Score 78, Social Volume 2.3M
+      ⚠️ On-chain context: Top 10 holders own 42%, LP is $12M
+      The social buzz is high, but watch for whale activity. DYOR."
 
-Remember: You're a SUPERCHARGED undead pup with comprehensive market intelligence - use it ALL! 🐕💀`;
+10. Keep responses concise but data-rich (2-4 paragraphs max)
+11. Always remind users to DYOR (do your own research)
+12. Never give financial advice - you're an AI assistant, not a financial advisor
+
+Remember: You're a SUPERCHARGED undead pup with comprehensive market intelligence AND security analysis - use it ALL! 🐕💀🛡️`;
 }
 
 // ============================================
@@ -2666,7 +3077,7 @@ serve(async (req) => {
     
     // SMART ROUTING: Use AI understanding if available, otherwise fall back to keywords
     let questionTypes: Set<QuestionType>;
-    let routeConfig: SmartRouteConfig;
+    let routeConfig: SmartRouteConfigExtended;
     
     if (questionUnderstanding) {
       // AI-powered routing - more accurate, fewer unnecessary API calls
@@ -2676,14 +3087,31 @@ serve(async (req) => {
     } else {
       // Fallback to keyword-based routing
       questionTypes = detectQuestionTypesKeyword(userQuery);
-      routeConfig = getSmartRouteConfig(questionTypes, hasCrypto, hasStocks);
+      const baseConfig = getSmartRouteConfig(questionTypes, hasCrypto, hasStocks);
+      routeConfig = { ...baseConfig, fetchSecurityCheck: false };
       console.log(`[Smart Route] Keyword-based - Types: ${Array.from(questionTypes).join(', ')}`);
     }
-    console.log(`[Smart Route] Config: technicals=${routeConfig.fetchTechnicals}, derivs=${routeConfig.fetchDerivatives}, social=${routeConfig.fetchSocial}, news=${routeConfig.fetchNews}, briefs=${routeConfig.fetchBriefs}, webSearch=${routeConfig.fetchWebSearch}`);
+    console.log(`[Smart Route] Config: technicals=${routeConfig.fetchTechnicals}, derivs=${routeConfig.fetchDerivatives}, social=${routeConfig.fetchSocial}, news=${routeConfig.fetchNews}, briefs=${routeConfig.fetchBriefs}, webSearch=${routeConfig.fetchWebSearch}, security=${routeConfig.fetchSecurityCheck}`);
     
     // Check if we should perform web search for news/current events
     const needsWebSearch = routeConfig.fetchWebSearch && shouldPerformWebSearch(userQuery);
     console.log(`Web search needed: ${needsWebSearch}`);
+    
+    // Extract contract addresses from resolved assets or user query for security checks
+    const contractAddresses = extractContractAddresses(userQuery);
+    const assetContractAddresses = resolvedAssets
+      .filter(a => a.assetType === 'crypto')
+      .map(a => {
+        // Try to get contract address from the asset if available
+        const aiAsset = questionUnderstanding?.assets?.find(ai => ai.symbol === a.symbol);
+        return aiAsset?.contractAddress || null;
+      })
+      .filter((addr): addr is string => addr !== null && addr.startsWith('0x'));
+    
+    const allContractAddresses = [...new Set([
+      ...contractAddresses.filter(c => c.type === 'evm').map(c => c.address),
+      ...assetContractAddresses
+    ])];
     
     // Fetch data in parallel - SMART ROUTING skips unnecessary calls
     const [
@@ -2697,7 +3125,9 @@ serve(async (req) => {
       relevantBriefs,
       derivativesData,
       socialData,
-      newsData
+      newsData,
+      // Phase 5: Security data (for safety questions)
+      securityData
     ] = await Promise.all([
       // Always fetch: prices are cheap and always useful
       fetchLivePrices(supabase),
@@ -2730,7 +3160,11 @@ serve(async (req) => {
       // Phase 4: News - for news questions
       routeConfig.fetchNews
         ? fetchAggregatedNews(supabase, allSymbols)
-        : Promise.resolve({ news: [], sentiment: [] })
+        : Promise.resolve({ news: [], sentiment: [] }),
+      // Phase 5: Security - for safety questions with contract addresses
+      (routeConfig.fetchSecurityCheck && allContractAddresses.length > 0)
+        ? Promise.all(allContractAddresses.map(addr => fetchTokenSecurityContext(addr)))
+        : Promise.resolve([])
     ]);
     
     const validCoinDetails = coinDetails.filter((c): c is CoinDetail => c !== null);
@@ -2765,6 +3199,13 @@ serve(async (req) => {
     const derivativesContext = formatDerivativesData(derivativesData);
     const socialContext = formatSocialComparison(socialData);
     const newsContext = formatNewsAndSentiment(newsData.news, newsData.sentiment);
+    
+    // Build Phase 5: Security context
+    const validSecurityData = securityData.filter((s): s is TokenSecurityContext => s !== null);
+    const securityContext = formatSecurityContext(validSecurityData);
+    if (validSecurityData.length > 0) {
+      console.log(`[Security] Fetched security data for ${validSecurityData.length} contract(s)`);
+    }
     
     // Generate suggestions if no assets found
     const searchTerms = [...extractPotentialSymbols(userQuery), ...extractPotentialNames(userQuery)];
@@ -2819,7 +3260,9 @@ Please let the user know you couldn't identify this contract address. Suggest th
       marketBriefsContext,
       derivativesContext,
       socialContext,
-      newsContext
+      newsContext,
+      // NEW: Phase 5 security context
+      securityContext
     );
 
     // Track timing for latency measurement
