@@ -478,7 +478,7 @@ serve(async (req) => {
         .select('symbol')
         .eq('type', 'crypto')
         .eq('is_active', true)
-        .limit(20);
+        .limit(250);
       
       symbols = mappings?.map(m => m.symbol) || ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'DOT', 'MATIC'];
     }
