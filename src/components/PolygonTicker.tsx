@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { useCentralizedPrices } from '@/hooks/useCentralizedPrices';
-
+import { getMarketCapRank } from '@/config/top100MarketCap';
 interface DisplayPriceData {
   symbol: string;
   displayName: string;
@@ -88,35 +88,28 @@ export function PolygonTicker() {
 
       if (!freshCryptos || freshCryptos.length === 0) return;
 
-      // Get coingecko data including market_cap_rank
+      // Get coingecko data for logos
       const assetIds = freshCryptos.map(c => c.asset_id).filter(Boolean);
       const { data: cgAssets } = await supabase
         .from('coingecko_assets')
-        .select('asset_id, coingecko_id, market_cap_rank')
+        .select('asset_id, coingecko_id')
         .in('asset_id', assetIds);
 
       const cgLookup = new Map(
-        (cgAssets || []).map(cg => [cg.asset_id, { 
-          coingecko_id: cg.coingecko_id, 
-          market_cap_rank: cg.market_cap_rank 
-        }])
+        (cgAssets || []).map(cg => [cg.asset_id, cg.coingecko_id])
       );
 
-      // Map to display format with market cap rank
-      const cryptoWithPrices = freshCryptos.map(p => {
-        const cgData = cgLookup.get(p.asset_id);
-        return {
-          symbol: p.ticker,
-          displayName: (p.assets as any)?.name || p.display,
-          price: p.price,
-          change24h: p.change24h,
-          coingecko_id: cgData?.coingecko_id || null,
-          logo_url: (p.assets as any)?.logo_url || null,
-          market_cap_rank: cgData?.market_cap_rank || 9999
-        };
-      });
+      // Map to display format
+      const cryptoWithPrices = freshCryptos.map(p => ({
+        symbol: p.ticker,
+        displayName: (p.assets as any)?.name || p.display,
+        price: p.price,
+        change24h: p.change24h,
+        coingecko_id: cgLookup.get(p.asset_id) || null,
+        logo_url: (p.assets as any)?.logo_url || null
+      }));
 
-      // Sort: Featured symbols first (in FEATURED_SYMBOLS order), then by market cap rank ascending
+      // Sort: Featured symbols first (in FEATURED_SYMBOLS order), then by static market cap rank
       const sortedCryptos = cryptoWithPrices.sort((a, b) => {
         const aIdx = FEATURED_SYMBOLS.indexOf(a.symbol);
         const bIdx = FEATURED_SYMBOLS.indexOf(b.symbol);
@@ -127,8 +120,8 @@ export function PolygonTicker() {
         if (aIdx !== -1) return -1;
         // Only b is featured: b comes first
         if (bIdx !== -1) return 1;
-        // Neither featured: sort by market cap rank ascending (lower = higher market cap)
-        return (a.market_cap_rank || 9999) - (b.market_cap_rank || 9999);
+        // Neither featured: sort by static market cap rank (from config)
+        return getMarketCapRank(a.symbol) - getMarketCapRank(b.symbol);
       });
 
       // Take top 100
