@@ -154,19 +154,29 @@ Deno.serve(async (req) => {
     // If cron secret is provided and matches, allow access
     const isCronJob = cronSecret && cronSecretHeader === cronSecret;
     
-    if (!isCronJob && authHeader) {
-      // Verify JWT if not a cron job
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    let isAuthenticated = false;
+    
+    if (isCronJob) {
+      isAuthenticated = true;
+      console.log('⏰ Cron job authentication successful');
+    } else if (authHeader) {
+      // Verify JWT using the anon client (for user tokens)
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const anonClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      
+      const { data: { user }, error: authError } = await anonClient.auth.getUser();
       
       if (authError || !user) {
+        console.error('Auth error:', authError?.message);
         return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
           status: 401,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
 
-      // Verify admin role
+      // Verify admin role using service role client
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
@@ -181,8 +191,11 @@ Deno.serve(async (req) => {
         });
       }
       
+      isAuthenticated = true;
       console.log('✅ Admin user authenticated:', user.email);
-    } else if (!isCronJob) {
+    }
+    
+    if (!isAuthenticated) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
