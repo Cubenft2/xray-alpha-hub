@@ -14,32 +14,21 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   FileText, 
-  Target, 
-  Brain, 
-  Coins, 
-  BarChart3, 
-  Moon, 
-  RefreshCw, 
-  Database,
   MessageSquare,
   Dog,
   Activity,
+  Database,
+  Wrench
 } from 'lucide-react';
-import { SymbolAdmin } from './SymbolAdmin';
-import { PendingTickerMappings } from './PendingTickerMappings';
 import { GenerateBrief } from './GenerateBrief';
-import { PolygonSync } from './PolygonSync';
-import { PolygonDataAdmin } from './PolygonDataAdmin';
-import { PolygonDiagnostics } from './PolygonDiagnostics';
-import { LunarCrushDiagnostics } from './LunarCrushDiagnostics';
-import { CoinGeckoEnrich } from './CoinGeckoEnrich';
 import QuoteLibraryAdmin from './QuoteLibraryAdmin';
-import { ExchangeDataSync } from './ExchangeDataSync';
 import { ZombieDogAnalytics } from './ZombieDogAnalytics';
 import { SystemHealth } from './SystemHealth';
+import { DataSources } from './DataSources';
+import { Diagnostics } from './Diagnostics';
 
 function AdminContent() {
-  const [activeView, setActiveView] = useState('system-health');
+  const [activeView, setActiveView] = useState('dashboard');
   const { setOpenMobile } = useSidebar();
   const isMobile = useIsMobile();
 
@@ -54,143 +43,62 @@ function AdminContent() {
     <>
       <Sidebar className="border-r">
         <SidebarContent className="pt-4">
-          <SidebarGroup>
-            <SidebarGroupLabel>System</SidebarGroupLabel>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('system-health')}
-                  isActive={activeView === 'system-health'}
-                >
-                  <Activity className="mr-2 h-4 w-4" />
-                  <span>System Health</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-
-          <SidebarGroup>
-            <SidebarGroupLabel>Content Management</SidebarGroupLabel>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('generate-brief')}
-                  isActive={activeView === 'generate-brief'}
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  <span>Generate Brief</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('quote-library')}
-                  isActive={activeView === 'quote-library'}
-                >
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  <span>Quote Library</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-          
-          <SidebarGroup>
-            <SidebarGroupLabel>Data Operations</SidebarGroupLabel>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('missing-tickers')}
-                  isActive={activeView === 'missing-tickers'}
-                >
-                  <Target className="mr-2 h-4 w-4" />
-                  <span>Pending Ticker Mappings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('symbol-intelligence')}
-                  isActive={activeView === 'symbol-intelligence'}
-                >
-                  <Brain className="mr-2 h-4 w-4" />
-                  <span>Symbol Intelligence</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('coingecko-enrich')}
-                  isActive={activeView === 'coingecko-enrich'}
-                >
-                  <Coins className="mr-2 h-4 w-4" />
-                  <span>CoinGecko Enrich</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-          
-          <SidebarGroup>
-            <SidebarGroupLabel>Diagnostics</SidebarGroupLabel>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('zombiedog-analytics')}
-                  isActive={activeView === 'zombiedog-analytics'}
-                >
-                  <Dog className="mr-2 h-4 w-4" />
-                  <span>ZombieDog Analytics</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('polygon-diagnostics')}
-                  isActive={activeView === 'polygon-diagnostics'}
-                >
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  <span>Polygon Diagnostics</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('lunarcrush-diagnostics')}
-                  isActive={activeView === 'lunarcrush-diagnostics'}
-                >
-                  <Moon className="mr-2 h-4 w-4" />
-                  <span>LunarCrush Diagnostics</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-          
-          <SidebarGroup>
-            <SidebarGroupLabel>Sync Operations</SidebarGroupLabel>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('exchange-sync')}
-                  isActive={activeView === 'exchange-sync'}
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  <span>Exchange Data Sync</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('polygon-sync')}
-                  isActive={activeView === 'polygon-sync'}
-                >
-                  <Database className="mr-2 h-4 w-4" />
-                  <span>Polygon Sync</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => handleViewChange('polygon-data')}
-                  isActive={activeView === 'polygon-data'}
-                >
-                  <Database className="mr-2 h-4 w-4" />
-                  <span>Polygon Data Admin</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => handleViewChange('dashboard')}
+                isActive={activeView === 'dashboard'}
+              >
+                <Activity className="mr-2 h-4 w-4" />
+                <span>Dashboard</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => handleViewChange('generate-brief')}
+                isActive={activeView === 'generate-brief'}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                <span>Generate Brief</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => handleViewChange('quote-library')}
+                isActive={activeView === 'quote-library'}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                <span>Quote Library</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => handleViewChange('data-sources')}
+                isActive={activeView === 'data-sources'}
+              >
+                <Database className="mr-2 h-4 w-4" />
+                <span>Data Sources</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => handleViewChange('zombiedog-analytics')}
+                isActive={activeView === 'zombiedog-analytics'}
+              >
+                <Dog className="mr-2 h-4 w-4" />
+                <span>ZombieDog Analytics</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => handleViewChange('diagnostics')}
+                isActive={activeView === 'diagnostics'}
+              >
+                <Wrench className="mr-2 h-4 w-4" />
+                <span>Diagnostics</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </SidebarContent>
       </Sidebar>
       
@@ -203,18 +111,12 @@ function AdminContent() {
         </header>
         
         <main className="flex-1 p-8 overflow-auto">
-          {activeView === 'system-health' && <SystemHealth />}
+          {activeView === 'dashboard' && <SystemHealth />}
           {activeView === 'generate-brief' && <GenerateBrief />}
           {activeView === 'quote-library' && <QuoteLibraryAdmin />}
-          {activeView === 'missing-tickers' && <PendingTickerMappings />}
-          {activeView === 'symbol-intelligence' && <SymbolAdmin />}
-          {activeView === 'coingecko-enrich' && <CoinGeckoEnrich />}
+          {activeView === 'data-sources' && <DataSources />}
           {activeView === 'zombiedog-analytics' && <ZombieDogAnalytics />}
-          {activeView === 'polygon-diagnostics' && <PolygonDiagnostics />}
-          {activeView === 'lunarcrush-diagnostics' && <LunarCrushDiagnostics />}
-          {activeView === 'exchange-sync' && <ExchangeDataSync />}
-          {activeView === 'polygon-sync' && <PolygonSync />}
-          {activeView === 'polygon-data' && <PolygonDataAdmin />}
+          {activeView === 'diagnostics' && <Diagnostics />}
         </main>
       </div>
     </>
