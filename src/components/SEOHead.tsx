@@ -2,58 +2,13 @@ import { useEffect } from 'react';
 
 interface SEOHeadProps {
   title: string;
-  slug: string;
-  publishedDate: string;
+  slug?: string;
+  publishedDate?: string;
   description?: string;
 }
 
 export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProps) {
   useEffect(() => {
-    const isoDate = new Date(publishedDate).toISOString();
-    const pageUrl = `https://xraycrypto.io/marketbrief/${slug}`;
-    const ogImageUrl = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/generate-og-image?slug=${slug}`;
-    
-    // Create Article JSON-LD schema
-    const articleSchema = {
-      "@context": "https://schema.org",
-      "@type": "Article",
-      "headline": title,
-      "datePublished": isoDate,
-      "dateModified": isoDate,
-      "author": {
-        "@type": "Person",
-        "name": "XRay",
-        "url": "https://x.com/XRayMarkets"
-      },
-      "publisher": {
-        "@type": "Organization",
-        "name": "XRayCrypto™",
-        "url": "https://xraycrypto.io",
-        "logo": {
-          "@type": "ImageObject",
-          "url": "https://xraycrypto.io/zoobie-pfp.webp"
-        }
-      },
-      "mainEntityOfPage": {
-        "@type": "WebPage",
-        "@id": pageUrl
-      },
-      "image": ogImageUrl
-    };
-
-    // Create and inject JSON-LD script
-    const schemaScript = document.createElement('script');
-    schemaScript.type = 'application/ld+json';
-    schemaScript.id = 'article-schema';
-    schemaScript.textContent = JSON.stringify(articleSchema);
-    
-    // Remove existing article schema if present
-    const existingSchema = document.getElementById('article-schema');
-    if (existingSchema) {
-      existingSchema.remove();
-    }
-    document.head.appendChild(schemaScript);
-
     // Helper to create/update meta tags
     const setMetaTag = (attribute: string, value: string, content: string) => {
       let meta = document.querySelector(`meta[${attribute}="${value}"]`) as HTMLMetaElement;
@@ -65,39 +20,88 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
       meta.content = content;
     };
 
-    // Set author meta tags
-    setMetaTag('name', 'author', 'XRay');
-    setMetaTag('property', 'article:author', 'XRay');
-    setMetaTag('property', 'article:published_time', isoDate);
-    setMetaTag('property', 'twitter:creator', '@XRayMarkets');
-    setMetaTag('property', 'og:type', 'article');
-    setMetaTag('property', 'og:title', title);
-    setMetaTag('property', 'og:url', pageUrl);
-    
-    // Dynamic OG image for social sharing
-    setMetaTag('property', 'og:image', ogImageUrl);
-    setMetaTag('property', 'og:image:width', '1200');
-    setMetaTag('property', 'og:image:height', '630');
-    setMetaTag('property', 'og:image:type', 'image/png');
-    setMetaTag('name', 'twitter:card', 'summary_large_image');
-    setMetaTag('name', 'twitter:image', ogImageUrl);
-    
-    if (description) {
-      setMetaTag('property', 'og:description', description);
-      setMetaTag('name', 'description', description);
-      setMetaTag('name', 'twitter:description', description);
-    }
-    
-    setMetaTag('name', 'twitter:title', title);
-
     // Update page title
     const originalTitle = document.title;
     document.title = `${title} | XRayCrypto™`;
 
+    // Set basic meta tags
+    if (description) {
+      setMetaTag('name', 'description', description);
+      setMetaTag('property', 'og:description', description);
+      setMetaTag('name', 'twitter:description', description);
+    }
+    setMetaTag('property', 'og:title', title);
+    setMetaTag('name', 'twitter:title', title);
+
+    // Only add article schema if we have slug and publishedDate (for market briefs)
+    if (slug && publishedDate) {
+      const isoDate = new Date(publishedDate).toISOString();
+      const pageUrl = `https://xraycrypto.io/marketbrief/${slug}`;
+      const ogImageUrl = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/generate-og-image?slug=${slug}`;
+
+      const articleSchema = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": title,
+        "datePublished": isoDate,
+        "dateModified": isoDate,
+        "author": {
+          "@type": "Person",
+          "name": "XRay",
+          "url": "https://x.com/XRayMarkets"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "XRayCrypto™",
+          "url": "https://xraycrypto.io",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://xraycrypto.io/zoobie-pfp.webp"
+          }
+        },
+        "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": pageUrl
+        },
+        "image": ogImageUrl
+      };
+
+      // Create and inject JSON-LD script
+      const schemaScript = document.createElement('script');
+      schemaScript.type = 'application/ld+json';
+      schemaScript.id = 'article-schema';
+      schemaScript.textContent = JSON.stringify(articleSchema);
+      
+      // Remove existing article schema if present
+      const existingSchema = document.getElementById('article-schema');
+      if (existingSchema) {
+        existingSchema.remove();
+      }
+      document.head.appendChild(schemaScript);
+
+      // Set article-specific meta tags
+      setMetaTag('name', 'author', 'XRay');
+      setMetaTag('property', 'article:author', 'XRay');
+      setMetaTag('property', 'article:published_time', isoDate);
+      setMetaTag('property', 'twitter:creator', '@XRayMarkets');
+      setMetaTag('property', 'og:type', 'article');
+      setMetaTag('property', 'og:url', pageUrl);
+      
+      // Dynamic OG image for social sharing
+      setMetaTag('property', 'og:image', ogImageUrl);
+      setMetaTag('property', 'og:image:width', '1200');
+      setMetaTag('property', 'og:image:height', '630');
+      setMetaTag('property', 'og:image:type', 'image/png');
+      setMetaTag('name', 'twitter:card', 'summary_large_image');
+      setMetaTag('name', 'twitter:image', ogImageUrl);
+    }
+
     // Cleanup on unmount
     return () => {
-      const schema = document.getElementById('article-schema');
-      if (schema) schema.remove();
+      if (slug && publishedDate) {
+        const schema = document.getElementById('article-schema');
+        if (schema) schema.remove();
+      }
       document.title = originalTitle;
     };
   }, [title, slug, publishedDate, description]);

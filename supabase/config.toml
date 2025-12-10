@@ -178,3 +178,6 @@ verify_jwt = false
 
 [functions.migrate-ticker-data]
 verify_jwt = false
+
+[functions.polygon-crypto-snapshot]
+verify_jwt = false
