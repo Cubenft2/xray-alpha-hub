@@ -595,7 +595,11 @@ const COMMON_WORDS_LOWER = new Set([
   'even', 'well', 'back', 'both', 'each', 'here', 'into', 'last',
   'long', 'make', 'over', 'such', 'take', 'than', 'then', 'time',
   'very', 'want', 'year', 'your', 'some', 'many', 'much', 'most',
-  'stock', 'stocks', 'analysis', 'analyze', 'show', 'give', 'info', 'data'
+  'stock', 'stocks', 'analysis', 'analyze', 'show', 'give', 'info', 'data',
+  // Question/news words that shouldn't match company names
+  'news', 'latest', 'recent', 'today', 'update', 'updates',
+  'happening', 'currently', 'right', 'now', 'whats', "what's",
+  'find', 'search', 'prices', 'cost', 'worth', 'value', 'markets'
 ]);
 
 // Extract contract addresses from message text (EVM + Solana)
