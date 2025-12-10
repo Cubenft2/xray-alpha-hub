@@ -107,8 +107,8 @@ export function SystemHealth() {
         });
       }
 
-      // Check exchange_ticker_data freshness per exchange
-      const exchanges = ['binance', 'bybit', 'okx', 'kucoin', 'coinbase'];
+      // Check exchange_ticker_data freshness per exchange (Title Case to match database)
+      const exchanges = ['Binance', 'Bybit', 'OKX', 'KuCoin', 'Coinbase', 'Kraken', 'HTX', 'MEXC', 'Bitget'];
       for (const exchange of exchanges) {
         const { data: exchangeData } = await supabase
           .from('exchange_ticker_data')
@@ -123,14 +123,14 @@ export function SystemHealth() {
           const ageHours = (Date.now() - lastUpdate.getTime()) / 3600000;
 
           statuses.push({
-            name: `Exchange: ${exchange.charAt(0).toUpperCase() + exchange.slice(1)}`,
+            name: `Exchange: ${exchange}`,
             status: ageHours < 1 ? 'healthy' : ageHours < 24 ? 'warning' : 'error',
             lastUpdate: exchangeData.updated_at,
             details: ageHours < 1 ? `${Math.round(ageHours * 60)} min ago` : `${Math.round(ageHours)} hours old`,
           });
         } else {
           statuses.push({
-            name: `Exchange: ${exchange.charAt(0).toUpperCase() + exchange.slice(1)}`,
+            name: `Exchange: ${exchange}`,
             status: 'unknown',
             lastUpdate: null,
             details: 'No data',
