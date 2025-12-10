@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
             const change24h = open > 0 ? ((price - open) / open) * 100 : 0;
 
             return {
-              ticker: polygonTicker,
+              ticker: asset.symbol,  // Use simple format (AAPL) not Polygon format
               price,
               change24h: Math.round(change24h * 100) / 100,
               display: asset.name || asset.symbol,
