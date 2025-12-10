@@ -1485,6 +1485,20 @@ export type Database = {
       cleanup_expired_cache: { Args: never; Returns: undefined }
       cleanup_expired_price_cache: { Args: never; Returns: undefined }
       cleanup_old_asset_sentiments: { Args: never; Returns: undefined }
+      get_cron_jobs: {
+        Args: never
+        Returns: {
+          active: boolean
+          command: string
+          database: string
+          jobid: number
+          jobname: string
+          nodename: string
+          nodeport: number
+          schedule: string
+          username: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
