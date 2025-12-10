@@ -16,6 +16,8 @@ export interface CryptoSnapshot {
   low24h: number;
   open24h: number;
   updated: number;
+  market_cap: number | null;
+  market_cap_rank: number | null;
 }
 
 async function fetchSnapshot(): Promise<CryptoSnapshot[]> {

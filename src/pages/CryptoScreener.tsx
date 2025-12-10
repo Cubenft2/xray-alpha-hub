@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Search, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 
-type SortField = 'name' | 'price' | 'changePercent' | 'volume24h' | 'vwap' | 'high24h' | 'low24h';
+type SortField = 'name' | 'price' | 'changePercent' | 'volume24h' | 'vwap' | 'high24h' | 'low24h' | 'market_cap' | 'market_cap_rank';
 type SortDirection = 'asc' | 'desc';
 
 function formatPrice(price: number): string {
@@ -24,6 +24,14 @@ function formatVolume(volume: number): string {
   return `$${volume.toFixed(2)}`;
 }
 
+function formatMarketCap(cap: number | null): string {
+  if (!cap) return '—';
+  if (cap >= 1e12) return `$${(cap / 1e12).toFixed(2)}T`;
+  if (cap >= 1e9) return `$${(cap / 1e9).toFixed(2)}B`;
+  if (cap >= 1e6) return `$${(cap / 1e6).toFixed(2)}M`;
+  return `$${cap.toLocaleString()}`;
+}
+
 function formatChange(change: number): string {
   const sign = change >= 0 ? '+' : '';
   return `${sign}${change.toFixed(2)}%`;
@@ -32,15 +40,16 @@ function formatChange(change: number): string {
 export default function CryptoScreener() {
   const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = usePolygonSnapshot();
   const [search, setSearch] = useState('');
-  const [sortField, setSortField] = useState<SortField>('volume24h');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [sortField, setSortField] = useState<SortField>('market_cap_rank');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      setSortDirection('desc');
+      // Default to ascending for rank, descending for everything else
+      setSortDirection(field === 'market_cap_rank' ? 'asc' : 'desc');
     }
   };
 
@@ -55,6 +64,13 @@ export default function CryptoScreener() {
     result.sort((a, b) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
+      
+      // Handle null values for market cap fields - nulls go to end
+      if (sortField === 'market_cap' || sortField === 'market_cap_rank') {
+        if (aVal === null && bVal === null) return 0;
+        if (aVal === null) return 1;
+        if (bVal === null) return -1;
+      }
       
       if (typeof aVal === 'string') {
         aVal = aVal.toLowerCase();
@@ -83,7 +99,7 @@ export default function CryptoScreener() {
     <>
       <SEOHead 
         title="Crypto Screener | XRayCrypto™"
-        description="Real-time cryptocurrency screener with live prices, volume, and market data from Polygon.io"
+        description="Real-time cryptocurrency screener with live prices, market cap rankings, volume, and market data from Polygon.io"
       />
       
       <div className="min-h-screen bg-[#0a0a0a] text-foreground">
@@ -132,7 +148,11 @@ export default function CryptoScreener() {
               <table className="w-full">
                 <thead className="bg-[#141414] sticky top-0 z-10">
                   <tr className="text-xs text-muted-foreground uppercase tracking-wider">
-                    <th className="px-4 py-3 text-left w-12">#</th>
+                    <th className="px-3 py-3 text-center w-14">
+                      <button onClick={() => handleSort('market_cap_rank')} className="flex items-center gap-1 mx-auto hover:text-foreground">
+                        # <SortIcon field="market_cap_rank" />
+                      </button>
+                    </th>
                     <th className="px-4 py-3 text-left min-w-[180px]">
                       <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-foreground">
                         Name <SortIcon field="name" />
@@ -149,6 +169,11 @@ export default function CryptoScreener() {
                       </button>
                     </th>
                     <th className="px-4 py-3 text-right">
+                      <button onClick={() => handleSort('market_cap')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                        Market Cap <SortIcon field="market_cap" />
+                      </button>
+                    </th>
+                    <th className="px-4 py-3 text-right">
                       <button onClick={() => handleSort('volume24h')} className="flex items-center gap-1 ml-auto hover:text-foreground">
                         Volume <SortIcon field="volume24h" />
                       </button>
@@ -158,16 +183,7 @@ export default function CryptoScreener() {
                         VWAP <SortIcon field="vwap" />
                       </button>
                     </th>
-                    <th className="px-4 py-3 text-right">
-                      <button onClick={() => handleSort('high24h')} className="flex items-center gap-1 ml-auto hover:text-foreground">
-                        High <SortIcon field="high24h" />
-                      </button>
-                    </th>
-                    <th className="px-4 py-3 text-right">
-                      <button onClick={() => handleSort('low24h')} className="flex items-center gap-1 ml-auto hover:text-foreground">
-                        Low <SortIcon field="low24h" />
-                      </button>
-                    </th>
+                    <th className="px-4 py-3 text-right">High / Low</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -175,7 +191,7 @@ export default function CryptoScreener() {
                     // Loading skeletons
                     Array.from({ length: 20 }).map((_, i) => (
                       <tr key={i} className="border-t border-[#1a1a1a]">
-                        <td className="px-4 py-3"><Skeleton className="h-4 w-6" /></td>
+                        <td className="px-3 py-3 text-center"><Skeleton className="h-4 w-6 mx-auto" /></td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <Skeleton className="h-8 w-8 rounded-full" />
@@ -189,8 +205,8 @@ export default function CryptoScreener() {
                         <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
                         <td className="px-4 py-3"><Skeleton className="h-4 w-20 ml-auto" /></td>
                         <td className="px-4 py-3"><Skeleton className="h-4 w-20 ml-auto" /></td>
-                        <td className="px-4 py-3"><Skeleton className="h-4 w-20 ml-auto" /></td>
-                        <td className="px-4 py-3"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                        <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                        <td className="px-4 py-3"><Skeleton className="h-4 w-28 ml-auto" /></td>
                       </tr>
                     ))
                   ) : filteredData.length === 0 ? (
@@ -200,13 +216,13 @@ export default function CryptoScreener() {
                       </td>
                     </tr>
                   ) : (
-                    filteredData.map((item, index) => (
+                    filteredData.map((item) => (
                       <tr 
                         key={item.ticker} 
                         className="border-t border-[#1a1a1a] hover:bg-[#141414] transition-colors"
                       >
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-sm">
-                          {index + 1}
+                        <td className="px-3 py-3 text-center text-muted-foreground font-mono text-sm">
+                          {item.market_cap_rank ? `#${item.market_cap_rank}` : '—'}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
@@ -239,16 +255,18 @@ export default function CryptoScreener() {
                           {formatChange(item.changePercent)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
+                          {formatMarketCap(item.market_cap)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
                           {formatVolume(item.volume24h)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
                           {formatPrice(item.vwap)}
                         </td>
-                        <td className="px-4 py-3 text-right font-mono text-sm text-green-500/70">
-                          {formatPrice(item.high24h)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono text-sm text-red-500/70">
-                          {formatPrice(item.low24h)}
+                        <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
+                          <span className="text-green-500/70">{formatPrice(item.high24h)}</span>
+                          {' / '}
+                          <span className="text-red-500/70">{formatPrice(item.low24h)}</span>
                         </td>
                       </tr>
                     ))
@@ -260,7 +278,7 @@ export default function CryptoScreener() {
 
           {/* Footer info */}
           <div className="mt-4 text-center text-xs text-muted-foreground">
-            Data provided by Polygon.io • Auto-refreshes every 30 seconds
+            Prices from Polygon.io • Market cap from CoinGecko • Auto-refreshes every 30 seconds
           </div>
         </div>
       </div>
