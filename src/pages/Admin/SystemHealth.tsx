@@ -93,17 +93,16 @@ export function SystemHealth() {
         }
       }
 
-      // Check ticker_mappings count
-      const { count: tickerCount } = await supabase
-        .from('ticker_mappings')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
+      // Check assets count
+      const { count: assetCount } = await supabase
+        .from('assets')
+        .select('*', { count: 'exact', head: true });
 
       statuses.push({
-        name: 'Ticker Mappings',
-        status: (tickerCount || 0) > 100 ? 'healthy' : 'warning',
+        name: 'Assets',
+        status: (assetCount || 0) > 100 ? 'healthy' : 'warning',
         lastUpdate: null,
-        details: `${tickerCount || 0} active mappings`,
+        details: `${assetCount || 0} total assets`,
       });
 
       // Check technical_indicators freshness
