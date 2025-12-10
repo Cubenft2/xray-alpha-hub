@@ -82,8 +82,8 @@ const EXCHANGE_CONFIGS = {
     symbolFormat: (symbol: string) => `${symbol.toLowerCase()}usdt`
   },
   bybit: {
-    baseUrl: 'https://api.bybit.com/v5',
-    tickerEndpoint: '/market/tickers',
+    baseUrls: ['https://api.bybit.com', 'https://api.bytick.com', 'https://api.bybit.nl'],
+    tickerEndpoint: '/v5/market/tickers',
     symbolFormat: (symbol: string) => `${symbol}USDT`
   },
   mexc: {
@@ -92,18 +92,46 @@ const EXCHANGE_CONFIGS = {
     symbolFormat: (symbol: string) => `${symbol}USDT`
   },
   binance: {
-    baseUrl: 'https://api.binance.com/api/v3',
-    tickerEndpoint: '/ticker/24hr',
+    baseUrls: ['https://api.binance.com', 'https://api1.binance.com', 'https://api2.binance.com', 'https://api3.binance.com', 'https://api4.binance.com'],
+    tickerEndpoint: '/api/v3/ticker/24hr',
     symbolFormat: (symbol: string) => `${symbol}USDT`
   }
 };
 
+// Helper: try multiple endpoints until one works
+async function fetchWithEndpointFallback(
+  baseUrls: string[],
+  path: string,
+  timeoutMs = 5000
+): Promise<Response | null> {
+  for (const baseUrl of baseUrls) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      const response = await fetch(`${baseUrl}${path}`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (response.ok) {
+        return response;
+      }
+    } catch (error) {
+      // Try next endpoint
+    }
+  }
+  return null;
+}
+
 async function fetchBinanceData(symbol: string): Promise<ExchangeData | null> {
   try {
-    const formattedSymbol = EXCHANGE_CONFIGS.binance.symbolFormat(symbol);
-    const response = await fetch(`${EXCHANGE_CONFIGS.binance.baseUrl}${EXCHANGE_CONFIGS.binance.tickerEndpoint}?symbol=${formattedSymbol}`);
+    const config = EXCHANGE_CONFIGS.binance;
+    const formattedSymbol = config.symbolFormat(symbol);
     
-    if (!response.ok) return null;
+    // Try multiple endpoints
+    const response = await fetchWithEndpointFallback(
+      config.baseUrls,
+      `${config.tickerEndpoint}?symbol=${formattedSymbol}`
+    );
+    
+    if (!response) return null;
     
     const data = await response.json();
     return {
@@ -160,10 +188,16 @@ async function fetchCoinbaseData(symbol: string): Promise<ExchangeData | null> {
 
 async function fetchBybitData(symbol: string): Promise<ExchangeData | null> {
   try {
-    const formattedSymbol = EXCHANGE_CONFIGS.bybit.symbolFormat(symbol);
-    const response = await fetch(`${EXCHANGE_CONFIGS.bybit.baseUrl}${EXCHANGE_CONFIGS.bybit.tickerEndpoint}?category=spot&symbol=${formattedSymbol}`);
+    const config = EXCHANGE_CONFIGS.bybit;
+    const formattedSymbol = config.symbolFormat(symbol);
     
-    if (!response.ok) return null;
+    // Try multiple endpoints
+    const response = await fetchWithEndpointFallback(
+      config.baseUrls,
+      `${config.tickerEndpoint}?category=spot&symbol=${formattedSymbol}`
+    );
+    
+    if (!response) return null;
     
     const data = await response.json();
     if (!data.result?.list?.[0]) return null;

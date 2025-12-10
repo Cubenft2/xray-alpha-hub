@@ -82,13 +82,36 @@ interface CoinGeckoTicker {
   market?: { name?: string };
 }
 
+// Regional endpoints for geo-blocked exchanges
+const BINANCE_ENDPOINTS = [
+  'https://api.binance.com',
+  'https://api1.binance.com',
+  'https://api2.binance.com',
+  'https://api3.binance.com',
+  'https://api4.binance.com',
+];
+
+const BYBIT_ENDPOINTS = [
+  'https://api.bybit.com',
+  'https://api.bytick.com',
+  'https://api.bybit.nl',
+];
+
 // Helper: fetch with timeout and retry
-async function fetchWithTimeout(url: string, timeoutMs = 8000, retries = 1): Promise<Response> {
+async function fetchWithTimeout(
+  url: string, 
+  timeoutMs = 8000, 
+  retries = 1,
+  options: RequestInit = {}
+): Promise<Response> {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      const response = await fetch(url, { signal: controller.signal });
+      const response = await fetch(url, { 
+        ...options,
+        signal: controller.signal 
+      });
       clearTimeout(timeoutId);
       return response;
     } catch (error) {
@@ -98,6 +121,27 @@ async function fetchWithTimeout(url: string, timeoutMs = 8000, retries = 1): Pro
     }
   }
   throw new Error('Fetch failed after retries');
+}
+
+// Helper: try multiple endpoints until one works
+async function fetchWithEndpointFallback(
+  endpoints: string[],
+  path: string,
+  timeoutMs = 8000
+): Promise<{ response: Response; endpoint: string } | null> {
+  for (const endpoint of endpoints) {
+    try {
+      const url = `${endpoint}${path}`;
+      const response = await fetchWithTimeout(url, timeoutMs, 0);
+      if (response.ok) {
+        return { response, endpoint };
+      }
+      console.log(`⚠️ ${endpoint} returned ${response.status}, trying next...`);
+    } catch (error) {
+      console.log(`⚠️ ${endpoint} failed: ${error.message}, trying next...`);
+    }
+  }
+  return null;
 }
 
 // Helper: fetch CoinGecko tickers with pagination
@@ -110,8 +154,11 @@ async function fetchCoinGeckoTickers(exchangeId: string, cgApiKey?: string): Pro
   
   while (true) {
     const url = `${baseUrl}?page=${page}`;
-    const headers = cgApiKey ? { 'x-cg-pro-api-key': cgApiKey } : {};
-    const response = await fetchWithTimeout(url);
+    // FIX: Actually pass the API key headers to fetch
+    const fetchOptions: RequestInit = cgApiKey 
+      ? { headers: { 'x-cg-pro-api-key': cgApiKey } }
+      : {};
+    const response = await fetchWithTimeout(url, 8000, 1, fetchOptions);
     
     if (!response.ok) {
       console.error(`CoinGecko API error for ${exchangeId} page ${page}: ${response.status}`);
@@ -173,23 +220,26 @@ Deno.serve(async (req) => {
       htx: { synced: 0, active: 0 },
     };
 
-    // Sync Binance
+    // Sync Binance - try multiple endpoints to bypass geo-blocking
     try {
       const startTime = Date.now();
-      console.log('🔄 Fetching Binance data...');
+      console.log('🔄 Fetching Binance data (trying multiple endpoints)...');
       
-      let binanceResponse = await fetchWithTimeout('https://api.binance.com/api/v3/exchangeInfo');
+      // Try all Binance endpoints first
+      const binanceResult = await fetchWithEndpointFallback(BINANCE_ENDPOINTS, '/api/v3/exchangeInfo');
+      let binanceResponse: Response | null = binanceResult?.response || null;
       let exchangeName = 'binance';
       let usedFallback = false;
       
-      console.log(`📊 Binance API responded: ${binanceResponse.status} ${binanceResponse.statusText} (${Date.now() - startTime}ms)`);
-      
-      // If geo-blocked (451/403), try Binance.US
-      if (!binanceResponse.ok && (binanceResponse.status === 451 || binanceResponse.status === 403)) {
-        console.log('⚠️ Binance.com blocked, trying Binance.US...');
+      if (binanceResult) {
+        console.log(`✅ Binance API success via ${binanceResult.endpoint} (${Date.now() - startTime}ms)`);
+      } else {
+        console.log('⚠️ All Binance.com endpoints blocked, trying Binance.US...');
         binanceResponse = await fetchWithTimeout('https://api.binance.us/api/v3/exchangeInfo');
-        exchangeName = 'binance_us';
-        console.log(`📊 Binance.US API responded: ${binanceResponse.status} ${binanceResponse.statusText}`);
+        if (binanceResponse.ok) {
+          exchangeName = 'binance_us';
+          console.log(`✅ Binance.US API responded: ${binanceResponse.status} (${Date.now() - startTime}ms)`);
+        }
       }
       
       // If both failed, try CoinGecko fallback
@@ -320,15 +370,21 @@ Deno.serve(async (req) => {
       console.error('Error syncing Coinbase:', error);
     }
 
-    // Sync Bybit
+    // Sync Bybit - try multiple endpoints to bypass geo-blocking
     try {
       const startTime = Date.now();
-      console.log('🔄 Fetching Bybit data...');
+      console.log('🔄 Fetching Bybit data (trying multiple endpoints)...');
       
-      let bybitResponse = await fetchWithTimeout('https://api.bybit.com/v5/market/instruments-info?category=spot');
-      console.log(`📊 Bybit API responded: ${bybitResponse.status} ${bybitResponse.statusText} (${Date.now() - startTime}ms)`);
+      // Try all Bybit endpoints first
+      const bybitResult = await fetchWithEndpointFallback(BYBIT_ENDPOINTS, '/v5/market/instruments-info?category=spot');
+      let bybitResponse: Response | null = bybitResult?.response || null;
       
-      if (!bybitResponse.ok && bybitResponse.status === 403) {
+      if (bybitResult) {
+        console.log(`✅ Bybit API success via ${bybitResult.endpoint} (${Date.now() - startTime}ms)`);
+      }
+      
+      if (!bybitResult) {
+        console.log('⚠️ All Bybit endpoints blocked, using CoinGecko fallback...');
         console.log('⚠️ Bybit.com blocked, using CoinGecko fallback...');
         results.bybit.fallback = true;
         
@@ -365,7 +421,7 @@ Deno.serve(async (req) => {
         results.bybit.synced = bybitRecords.length;
         results.bybit.active = bybitRecords.length;
         console.log(`✅ Bybit (CoinGecko fallback) complete: ${results.bybit.synced} pairs, ${successfulBatches} batches (${Date.now() - startTime}ms)`);
-      } else if (bybitResponse.ok) {
+      } else if (bybitResult && bybitResponse) {
         const bybitData = await bybitResponse.json();
         const symbols: BybitSymbol[] = bybitData?.result?.list || [];
         console.log(`✅ Bybit: Found ${symbols.length} symbols`);
