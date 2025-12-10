@@ -5,6 +5,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Top 50 cryptocurrencies by market cap - always fetch first
+const PRIORITY_SYMBOLS = [
+  'BTC', 'ETH', 'USDT', 'XRP', 'BNB', 'SOL', 'USDC', 'DOGE', 'ADA', 'AVAX',
+  'TRX', 'LINK', 'SUI', 'SHIB', 'HBAR', 'XLM', 'DOT', 'TON', 'BCH', 'LEO',
+  'UNI', 'LTC', 'NEAR', 'PEPE', 'APT', 'DAI', 'ICP', 'AAVE', 'CRO', 'RNDR',
+  'FET', 'POL', 'ETC', 'VET', 'ARB', 'KAS', 'OM', 'FIL', 'MNT', 'ATOM',
+  'STX', 'TAO', 'OKB', 'THETA', 'IMX', 'INJ', 'WIF', 'FTM', 'OP', 'GRT'
+];
+
 interface PriceUpdate {
   ticker: string;
   price: number;
@@ -32,15 +41,12 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    console.log('🚀 Polygon REST Crypto Poller starting...');
+    console.log('🚀 Polygon REST Crypto Poller starting (priority-first mode)...');
 
-    // Get offset from request body or default to 0
-    const body = await req.json().catch(() => ({}));
-    const offset = body.offset || 0;
-    const batchLimit = 500; // Process 500 crypto per run
+    const batchLimit = 2000; // Process all crypto per run (~1,489 total)
 
-    // Query NEW normalized schema: polygon_assets joined with assets
-    const { data: tickers, error: tickerError } = await supabase
+    // QUERY 1: Fetch priority tokens FIRST (guaranteed coverage for top coins)
+    const { data: priorityTickers, error: priorityError } = await supabase
       .from('polygon_assets')
       .select(`
         polygon_ticker,
@@ -53,22 +59,79 @@ Deno.serve(async (req) => {
       `)
       .eq('market', 'crypto')
       .eq('is_active', true)
-      .order('polygon_ticker')
-      .range(offset, offset + batchLimit - 1);
+      .in('assets.symbol', PRIORITY_SYMBOLS);
 
-    if (tickerError) {
-      throw new Error(`Failed to fetch tickers: ${tickerError.message}`);
+    if (priorityError) {
+      console.error('⚠️ Priority query error:', priorityError.message);
     }
 
+    console.log(`📌 Found ${priorityTickers?.length || 0} priority crypto tokens`);
+
+    // Get list of priority asset_ids to exclude from second query
+    const priorityAssetIds = (priorityTickers || []).map((t: any) => t.asset_id);
+
+    // QUERY 2: Fetch ALL other tokens (excluding priority to avoid duplicates)
+    let otherTickers: any[] = [];
+    if (priorityAssetIds.length > 0) {
+      const { data, error } = await supabase
+        .from('polygon_assets')
+        .select(`
+          polygon_ticker,
+          asset_id,
+          assets!inner (
+            id,
+            symbol,
+            name
+          )
+        `)
+        .eq('market', 'crypto')
+        .eq('is_active', true)
+        .not('asset_id', 'in', `(${priorityAssetIds.join(',')})`)
+        .order('polygon_ticker')
+        .range(0, batchLimit - 1);
+
+      if (error) {
+        console.error('⚠️ Other tickers query error:', error.message);
+      } else {
+        otherTickers = data || [];
+      }
+    } else {
+      // No priority tickers found, fetch all
+      const { data, error } = await supabase
+        .from('polygon_assets')
+        .select(`
+          polygon_ticker,
+          asset_id,
+          assets!inner (
+            id,
+            symbol,
+            name
+          )
+        `)
+        .eq('market', 'crypto')
+        .eq('is_active', true)
+        .order('polygon_ticker')
+        .range(0, batchLimit - 1);
+
+      if (error) {
+        console.error('⚠️ All tickers query error:', error.message);
+      } else {
+        otherTickers = data || [];
+      }
+    }
+
+    // COMBINE: Priority first, then the rest
+    const tickers = [...(priorityTickers || []), ...otherTickers];
+
     if (!tickers || tickers.length === 0) {
-      console.log('✅ No more crypto tickers to process');
+      console.log('✅ No crypto tickers to process');
       return new Response(
-        JSON.stringify({ status: 'complete', message: 'All crypto processed' }),
+        JSON.stringify({ status: 'complete', message: 'No crypto to process' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`📊 Fetching prices for ${tickers.length} crypto tickers (offset: ${offset})`);
+    console.log(`📊 Fetching prices for ${tickers.length} crypto tickers (${priorityTickers?.length || 0} priority + ${otherTickers.length} others)`);
 
     const priceUpdates: PriceUpdate[] = [];
     const batchSize = 50; // Parallel batch size
@@ -164,20 +227,17 @@ Deno.serve(async (req) => {
     }
 
     const duration = Date.now() - startTime;
-    const nextOffset = offset + tickers.length;
-    const hasMore = tickers.length === batchLimit;
     
     console.log(`🏁 Completed in ${duration}ms: ${successCount} success, ${errorCount} errors`);
 
     return new Response(
       JSON.stringify({
         status: 'success',
-        crypto_processed: tickers.length,
+        priority_count: priorityTickers?.length || 0,
+        other_count: otherTickers.length,
+        total_processed: tickers.length,
         prices_updated: priceUpdates.length,
         errors: errorCount,
-        offset: offset,
-        next_offset: hasMore ? nextOffset : null,
-        has_more: hasMore,
         duration_ms: duration,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
