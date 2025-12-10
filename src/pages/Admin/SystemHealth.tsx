@@ -248,49 +248,31 @@ export function SystemHealth() {
     }
   };
 
-  const triggerRestPoller = async () => {
-    try {
-      toast({ title: 'Triggering REST Poller...', description: 'Please wait...' });
-      
-      const { data, error } = await supabase.functions.invoke('polygon-rest-poller');
-      
-      if (error) throw error;
-      
-      toast({
-        title: 'REST Poller Complete',
-        description: `Updated ${data?.prices_updated || 0} prices in ${data?.duration_ms || 0}ms`,
-      });
-      
-      checkHealth();
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to trigger poller',
-        variant: 'destructive',
-      });
-    }
-  };
+  const [triggeringJob, setTriggeringJob] = useState<string | null>(null);
 
-  const triggerExchangeSync = async () => {
+  const triggerFunction = async (functionName: string, displayName: string) => {
     try {
-      toast({ title: 'Triggering Exchange Sync...', description: 'Please wait...' });
+      setTriggeringJob(functionName);
+      toast({ title: `Triggering ${displayName}...`, description: 'Please wait...' });
       
-      const { data, error } = await supabase.functions.invoke('exchange-sync');
+      const { data, error } = await supabase.functions.invoke(functionName);
       
       if (error) throw error;
       
       toast({
-        title: 'Exchange Sync Complete',
-        description: `Synced exchanges successfully`,
+        title: `${displayName} Complete`,
+        description: data?.message || data?.status || 'Operation completed successfully',
       });
       
       checkHealth();
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to sync exchanges',
+        description: error instanceof Error ? error.message : `Failed to trigger ${displayName}`,
         variant: 'destructive',
       });
+    } finally {
+      setTriggeringJob(null);
     }
   };
 
@@ -512,23 +494,105 @@ $$;`}
             Manual Triggers
           </CardTitle>
           <CardDescription>
-            Manually trigger sync operations if automated jobs are not running
+            Manually trigger any sync operation on demand
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Button onClick={triggerRestPoller} variant="outline" className="w-full">
-              <Database className="mr-2 h-4 w-4" />
-              Trigger REST Price Poller
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <Button 
+              onClick={() => triggerFunction('polygon-rest-poller', 'Crypto Price Poller')} 
+              variant="outline" 
+              className="w-full justify-start"
+              disabled={triggeringJob === 'polygon-rest-poller'}
+            >
+              {triggeringJob === 'polygon-rest-poller' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Database className="mr-2 h-4 w-4" />
+              )}
+              Crypto Prices
             </Button>
-            <Button onClick={triggerExchangeSync} variant="outline" className="w-full">
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Trigger Exchange Sync
+            <Button 
+              onClick={() => triggerFunction('polygon-stock-poller', 'Stock Price Poller')} 
+              variant="outline" 
+              className="w-full justify-start"
+              disabled={triggeringJob === 'polygon-stock-poller'}
+            >
+              {triggeringJob === 'polygon-stock-poller' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Database className="mr-2 h-4 w-4" />
+              )}
+              Stock Prices
+            </Button>
+            <Button 
+              onClick={() => triggerFunction('polygon-indicators-refresh', 'Technical Indicators')} 
+              variant="outline" 
+              className="w-full justify-start"
+              disabled={triggeringJob === 'polygon-indicators-refresh'}
+            >
+              {triggeringJob === 'polygon-indicators-refresh' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Activity className="mr-2 h-4 w-4" />
+              )}
+              Tech Indicators
+            </Button>
+            <Button 
+              onClick={() => triggerFunction('exchange-sync', 'Exchange Sync')} 
+              variant="outline" 
+              className="w-full justify-start"
+              disabled={triggeringJob === 'exchange-sync'}
+            >
+              {triggeringJob === 'exchange-sync' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Exchange Sync
+            </Button>
+            <Button 
+              onClick={() => triggerFunction('exchange-data-aggregator', 'Exchange Aggregator')} 
+              variant="outline" 
+              className="w-full justify-start"
+              disabled={triggeringJob === 'exchange-data-aggregator'}
+            >
+              {triggeringJob === 'exchange-data-aggregator' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Exchange Aggregator
+            </Button>
+            <Button 
+              onClick={() => triggerFunction('coingecko-sync', 'CoinGecko Sync')} 
+              variant="outline" 
+              className="w-full justify-start"
+              disabled={triggeringJob === 'coingecko-sync'}
+            >
+              {triggeringJob === 'coingecko-sync' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Database className="mr-2 h-4 w-4" />
+              )}
+              CoinGecko Sync
+            </Button>
+            <Button 
+              onClick={() => triggerFunction('lunarcrush-universe', 'LunarCrush Universe')} 
+              variant="outline" 
+              className="w-full justify-start"
+              disabled={triggeringJob === 'lunarcrush-universe'}
+            >
+              {triggeringJob === 'lunarcrush-universe' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Activity className="mr-2 h-4 w-4" />
+              )}
+              LunarCrush
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            <strong>Note:</strong> REST Poller uses Polygon's unlimited REST API (recommended). 
-            The legacy WebSocket relay has connection limits and is being deprecated.
+            Click any button to manually trigger the corresponding edge function.
           </p>
         </CardContent>
       </Card>
