@@ -63,43 +63,52 @@ export function PolygonTicker() {
     if (!isVisible) return;
 
     const loadFreshCryptos = async () => {
-      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       
-      // Fetch fresh prices from live_prices (updated within 15 min)
-      const { data: freshPrices } = await supabase
+      // Fetch fresh crypto prices by joining live_prices with assets directly
+      const { data: freshCryptos } = await supabase
         .from('live_prices')
-        .select('ticker, display, price, change24h, updated_at')
-        .gt('updated_at', fifteenMinutesAgo)
+        .select(`
+          ticker,
+          display,
+          price,
+          change24h,
+          updated_at,
+          asset_id,
+          assets!inner (
+            id,
+            type,
+            name,
+            logo_url
+          )
+        `)
+        .eq('assets.type', 'crypto')
+        .gt('updated_at', fiveMinutesAgo)
         .order('price', { ascending: false })
-        .limit(500);
+        .limit(200);
 
-      if (!freshPrices || freshPrices.length === 0) return;
+      if (!freshCryptos || freshCryptos.length === 0) return;
 
-      // Get ticker mappings to filter for crypto only
-      const { data: cryptoMappings } = await supabase
-        .from('ticker_mappings')
-        .select('symbol, display_name, coingecko_id')
-        .eq('type', 'crypto')
-        .eq('is_active', true)
-        .in('symbol', freshPrices.map(p => p.ticker));
+      // Get coingecko_ids for logos from coingecko_assets
+      const assetIds = freshCryptos.map(c => c.asset_id).filter(Boolean);
+      const { data: cgAssets } = await supabase
+        .from('coingecko_assets')
+        .select('asset_id, coingecko_id')
+        .in('asset_id', assetIds);
 
-      if (!cryptoMappings || cryptoMappings.length === 0) return;
-
-      // Create lookup for crypto symbols
-      const cryptoLookup = new Map(
-        cryptoMappings.map(m => [m.symbol, { displayName: m.display_name, coingecko_id: m.coingecko_id }])
+      const cgLookup = new Map(
+        (cgAssets || []).map(cg => [cg.asset_id, cg.coingecko_id])
       );
 
-      // Filter fresh prices to only crypto and merge with metadata
-      const cryptoWithPrices = freshPrices
-        .filter(p => cryptoLookup.has(p.ticker))
-        .map(p => ({
-          symbol: p.ticker,
-          displayName: cryptoLookup.get(p.ticker)?.displayName || p.display,
-          price: p.price,
-          change24h: p.change24h,
-          coingecko_id: cryptoLookup.get(p.ticker)?.coingecko_id
-        }));
+      // Map to display format
+      const cryptoWithPrices = freshCryptos.map(p => ({
+        symbol: p.ticker,
+        displayName: (p.assets as any)?.name || p.display,
+        price: p.price,
+        change24h: p.change24h,
+        coingecko_id: cgLookup.get(p.asset_id) || null,
+        logo_url: (p.assets as any)?.logo_url || null
+      }));
 
       // Sort: Featured symbols first (in FEATURED_SYMBOLS order), then by price descending
       const sortedCryptos = cryptoWithPrices.sort((a, b) => {
@@ -127,21 +136,21 @@ export function PolygonTicker() {
       setSymbols(symbolList);
       setSymbolMetadata(metadata);
 
-      // Set initial display prices immediately (don't wait for useCentralizedPrices)
+      // Set initial display prices immediately
       const initialDisplay = top100.map(t => ({
         symbol: t.symbol,
         displayName: t.displayName,
         price: t.price,
         change24h: t.change24h,
         coingecko_id: t.coingecko_id,
-        logo_url: undefined
+        logo_url: t.logo_url
       }));
       setDisplayPrices([...initialDisplay, ...initialDisplay]);
 
-      // Fetch logos
+      // Fetch logos for tokens that don't have logo_url
       const coingeckoIds = top100
-        .map(t => t.coingecko_id)
-        .filter(id => id && id.trim().length > 0) as string[];
+        .filter(t => !t.logo_url && t.coingecko_id)
+        .map(t => t.coingecko_id) as string[];
 
       if (coingeckoIds.length > 0) {
         fetchLogos(coingeckoIds);
