@@ -235,12 +235,19 @@ export default function CryptoScreener() {
                         </td>
                         <td className="px-2 py-3">
                           <div className="w-24 h-8 mx-auto">
-                            <FallbackSparkline
-                              symbol={item.symbol}
-                              coingeckoId={item.coingecko_id || undefined}
-                              timespan="1D"
-                              className="w-full h-full"
-                            />
+                            {/* Only show sparklines for first 20 rows to avoid rate limiting */}
+                            {index < 20 && item.coingecko_id ? (
+                              <FallbackSparkline
+                                symbol={item.symbol}
+                                coingeckoId={item.coingecko_id}
+                                timespan="1D"
+                                className="w-full h-full"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                                —
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-right font-mono text-sm">
