@@ -114,10 +114,10 @@ export function useCentralizedPrices(symbols: string[] = []) {
         }
       });
 
-    // Fallback: poll every 30 seconds in case Realtime misses updates
+    // Fallback: poll every 10 seconds for faster updates
     const pollInterval = setInterval(() => {
       fetchPrices();
-    }, 30000);
+    }, 10000);
 
     return () => {
       supabase.removeChannel(channel);
