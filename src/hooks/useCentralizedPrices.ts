@@ -59,7 +59,7 @@ export function useCentralizedPrices(symbols: string[] = []) {
         // Check if data is fresh (updated within last 5 minutes)
         const mostRecentUpdate = Math.max(...data.map(r => new Date(r.updated_at).getTime()));
         const ageMs = Date.now() - mostRecentUpdate;
-        setStatus(ageMs < 300000 ? 'live' : 'stale');
+        setStatus(ageMs < 180000 ? 'live' : 'stale'); // 3 min staleness threshold
       }
     } catch (err) {
       console.error('Failed to fetch prices:', err);
@@ -114,10 +114,10 @@ export function useCentralizedPrices(symbols: string[] = []) {
         }
       });
 
-    // Fallback: poll every 10 seconds for faster updates
+    // Poll every 5 seconds for fresher updates
     const pollInterval = setInterval(() => {
       fetchPrices();
-    }, 10000);
+    }, 5000);
 
     return () => {
       supabase.removeChannel(channel);
