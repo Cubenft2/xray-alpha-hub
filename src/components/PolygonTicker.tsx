@@ -20,11 +20,11 @@ interface DisplayPriceData {
 const FEATURED_SYMBOLS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'BAT', 'MON', 'LINK', 'AVAX'];
 
 export function PolygonTicker() {
-  const speedLevels = [20, 40, 60, 80, 100];
+  const speedLevels = [100, 200, 333, 500, 700]; // ~1 min full loop at default
   const [displayPrices, setDisplayPrices] = useState<DisplayPriceData[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [speedLevel, setSpeedLevel] = useState(1);
+  const [speedLevel, setSpeedLevel] = useState(2); // Default to 333px/s
   const [logoCache, setLogoCache] = useState<Map<string, string>>(new Map());
   const [symbols, setSymbols] = useState<string[]>([]);
   const [symbolMetadata, setSymbolMetadata] = useState<Map<string, { displayName: string; coingecko_id: string | null }>>(new Map());
