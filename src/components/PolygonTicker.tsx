@@ -252,14 +252,17 @@ export function PolygonTicker() {
               </TooltipTrigger>
               <TooltipContent>
                 <p className="text-xs font-semibold">
-                  {status === 'live' && 'LIVE DATA'}
-                  {status === 'connecting' && 'CONNECTING...'}
-                  {status === 'stale' && 'DATA MAY BE STALE'}
+                  {status === 'live' && '🟢 LIVE DATA'}
+                  {status === 'connecting' && '🟡 CONNECTING...'}
+                  {status === 'stale' && '🔴 DATA MAY BE STALE'}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {lastUpdate 
                     ? `Updated ${Math.floor((Date.now() - lastUpdate) / 1000)}s ago`
-                    : 'Connecting...'}
+                    : 'Waiting for prices...'}
+                </p>
+                <p className="text-[10px] text-muted-foreground/70">
+                  Polls every 10s • {Object.keys(wsPrices || {}).length} symbols
                 </p>
               </TooltipContent>
             </Tooltip>
