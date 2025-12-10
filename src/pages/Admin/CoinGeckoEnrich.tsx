@@ -49,23 +49,31 @@ export function CoinGeckoEnrich() {
     refetchInterval: 30000 // Refresh every 30s
   });
 
-  // Fetch ticker mapping address statistics
+  // Fetch address statistics from normalized tables
   const { data: addressStats, refetch: refetchAddressStats } = useQuery({
-    queryKey: ['ticker-address-stats'],
+    queryKey: ['token-address-stats'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ticker_mappings')
-        .select('dex_address, coingecko_id')
-        .eq('type', 'crypto')
-        .eq('is_active', true);
+      // Total crypto assets
+      const { count: totalCount } = await supabase
+        .from('assets')
+        .select('*', { count: 'exact', head: true })
+        .eq('type', 'crypto');
 
-      if (error) throw error;
+      // Token contracts count
+      const { count: contractCount } = await supabase
+        .from('token_contracts')
+        .select('*', { count: 'exact', head: true });
+
+      // CoinGecko assets count
+      const { count: cgCount } = await supabase
+        .from('coingecko_assets')
+        .select('*', { count: 'exact', head: true });
 
       return {
-        total: data?.length || 0,
-        withAddress: data?.filter(t => t.dex_address).length || 0,
-        withoutAddress: data?.filter(t => !t.dex_address).length || 0,
-        withCoingeckoId: data?.filter(t => t.coingecko_id).length || 0
+        total: totalCount || 0,
+        withAddress: contractCount || 0,
+        withoutAddress: (totalCount || 0) - (contractCount || 0),
+        withCoingeckoId: cgCount || 0
       };
     },
     refetchInterval: 30000

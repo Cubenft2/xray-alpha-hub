@@ -32,11 +32,10 @@ export function PolygonDataAdmin() {
   useEffect(() => {
     const fetchTickerCount = async () => {
       const { count } = await supabase
-        .from('ticker_mappings')
+        .from('polygon_assets')
         .select('*', { count: 'exact', head: true })
-        .eq('type', 'crypto')
-        .eq('is_active', true)
-        .not('polygon_ticker', 'is', null);
+        .eq('market', 'crypto')
+        .eq('is_active', true);
       
       setTickerCount(count || 0);
     };
@@ -84,13 +83,12 @@ export function PolygonDataAdmin() {
     setProgressText('Fetching tickers...');
 
     try {
-      // Fetch ALL active crypto tickers with polygon_ticker
+      // Fetch ALL active crypto tickers from polygon_assets
       const { data: allTickers, error: tickerError } = await supabase
-        .from('ticker_mappings')
-        .select('symbol')
-        .eq('type', 'crypto')
-        .eq('is_active', true)
-        .not('polygon_ticker', 'is', null);
+        .from('polygon_assets')
+        .select('assets!inner(symbol)')
+        .eq('market', 'crypto')
+        .eq('is_active', true);
 
       if (tickerError) throw tickerError;
 
@@ -98,7 +96,7 @@ export function PolygonDataAdmin() {
         throw new Error('No active crypto tickers found');
       }
 
-      const symbols = allTickers.map(t => t.symbol);
+      const symbols = allTickers.map((t: any) => t.assets?.symbol).filter(Boolean);
       console.log(`📈 Processing technical indicators for ${symbols.length} tickers...`);
 
       // Process in batches of 50 to avoid timeouts

@@ -85,14 +85,16 @@ export function PolygonSync() {
 
   const fetchCryptoStats = async () => {
     try {
+      // Count CoinGecko coins from cg_master
       const { count: totalCgCoins } = await supabase
         .from('cg_master')
         .select('*', { count: 'exact', head: true });
 
+      // Count polygon crypto assets
       const { count: existingCryptoMappings } = await supabase
-        .from('ticker_mappings')
+        .from('polygon_assets')
         .select('*', { count: 'exact', head: true })
-        .eq('type', 'crypto');
+        .eq('market', 'crypto');
 
       setCryptoStats({
         totalCgCoins: totalCgCoins || 0,
@@ -105,6 +107,7 @@ export function PolygonSync() {
 
   const fetchStockStats = async () => {
     try {
+      // Count active stocks from poly_tickers
       const { count: totalStocks } = await supabase
         .from('poly_tickers')
         .select('*', { count: 'exact', head: true })
@@ -112,10 +115,11 @@ export function PolygonSync() {
         .eq('active', true)
         .eq('type', 'CS');
 
+      // Count polygon stock assets
       const { count: existingMappings } = await supabase
-        .from('ticker_mappings')
+        .from('polygon_assets')
         .select('*', { count: 'exact', head: true })
-        .eq('type', 'stock');
+        .eq('market', 'stocks');
 
       setStockStats({
         totalStocks: totalStocks || 0,
