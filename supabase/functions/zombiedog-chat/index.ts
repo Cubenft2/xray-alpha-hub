@@ -444,10 +444,10 @@ interface AssetSentimentSnapshot {
 }
 
 // ============================================
-// PHASE 5: SMART ROUTING - QUESTION TYPE DETECTION
+// PHASE 5: AI-POWERED QUESTION UNDERSTANDING (Gemini)
 // ============================================
 
-type QuestionType = 'price' | 'news' | 'technical' | 'general' | 'social' | 'derivatives';
+type QuestionType = 'price' | 'news' | 'technical' | 'general' | 'social' | 'derivatives' | 'greeting';
 
 interface SmartRouteConfig {
   fetchTechnicals: boolean;
@@ -458,87 +458,169 @@ interface SmartRouteConfig {
   fetchWebSearch: boolean;
 }
 
-// Keywords that indicate specific question types
-const PRICE_KEYWORDS = new Set([
-  'price', 'cost', 'worth', 'value', 'market cap', 'mcap', 'volume', 
-  'change', 'up', 'down', 'pump', 'dump', 'ath', 'atl', 'high', 'low',
-  'how much', 'what is', "what's", 'current', 'today', 'now'
-]);
+// AI-parsed question understanding
+interface QuestionUnderstanding {
+  intent: 'price' | 'news' | 'analysis' | 'comparison' | 'general' | 'greeting';
+  assets: Array<{
+    symbol: string;
+    name: string;
+    type: 'crypto' | 'stock' | 'unknown';
+    confidence: number;
+  }>;
+  needsClarification: boolean;
+  clarificationMessage: string | null;
+  fetchData: {
+    prices: boolean;
+    news: boolean;
+    technicals: boolean;
+    companyDetails: boolean;
+    webSearch: boolean;
+    derivatives: boolean;
+    social: boolean;
+  };
+}
 
-const TECHNICAL_KEYWORDS = new Set([
-  'rsi', 'macd', 'sma', 'ema', 'moving average', 'bollinger', 'support',
-  'resistance', 'oversold', 'overbought', 'technical', 'indicator', 'chart',
-  'pattern', 'trend', 'momentum', 'divergence', 'signal', 'crossover'
-]);
+// Use Gemini (via Lovable AI) to understand the question
+async function understandQuestion(userMessage: string): Promise<QuestionUnderstanding | null> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    console.log("[Question Understanding] No LOVABLE_API_KEY, falling back to keyword matching");
+    return null;
+  }
 
-const NEWS_KEYWORDS = new Set([
-  'news', 'latest', 'update', 'announced', 'announcement', 'release',
-  'launch', 'partnership', 'why', 'happened', 'happening', 'event',
-  'regulation', 'sec', 'lawsuit', 'hack', 'exploit', 'rumor', 'today'
-]);
+  try {
+    console.log("[Question Understanding] Parsing with Gemini...");
+    
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        max_tokens: 300,
+        messages: [{
+          role: "user",
+          content: `Parse this financial/crypto question and return ONLY valid JSON (no markdown, no code blocks):
 
-const DERIVATIVES_KEYWORDS = new Set([
-  'funding', 'funding rate', 'liquidation', 'liquidated', 'leverage',
-  'long', 'short', 'open interest', 'oi', 'futures', 'perp', 'perpetual',
-  'derivatives', 'margin', 'longs', 'shorts', 'squeeze'
-]);
+"${userMessage}"
 
-const SOCIAL_KEYWORDS = new Set([
-  'sentiment', 'social', 'twitter', 'reddit', 'community', 'hype',
-  'trending', 'viral', 'influencer', 'galaxy score', 'altrank', 'fomo',
-  'fear', 'greed', 'bullish', 'bearish', 'mood', 'opinion'
-]);
+Return this exact JSON structure:
+{
+  "intent": "price|news|analysis|comparison|general|greeting",
+  "assets": [{"symbol": "BTC", "name": "Bitcoin", "type": "crypto", "confidence": 0.95}],
+  "needsClarification": false,
+  "clarificationMessage": null,
+  "fetchData": {
+    "prices": true,
+    "news": false,
+    "technicals": false,
+    "companyDetails": false,
+    "webSearch": false,
+    "derivatives": false,
+    "social": false
+  }
+}
 
-// Detect question type(s) from user message
-function detectQuestionTypes(message: string): Set<QuestionType> {
-  const lowerMessage = message.toLowerCase();
+CRITICAL RULES:
+1. Common question words are NOT assets: news, latest, price, stock, crypto, market, update, what, how, why, tell, show, find, today, current
+2. "news about NVIDIA" → asset is {symbol:"NVDA", name:"NVIDIA", type:"stock"}, intent is "news"
+3. "what's the price of ETH" → asset is {symbol:"ETH", name:"Ethereum", type:"crypto"}, intent is "price"
+4. Greetings like "hi", "hello", "hey" → intent:"greeting", assets:[], no data fetching needed
+5. If genuinely ambiguous (multiple coins with same name), set needsClarification:true with a helpful question
+6. Only enable fetchData fields that are ACTUALLY needed:
+   - "price" questions → prices:true, technicals:true
+   - "news" questions → news:true, webSearch:true, social:true
+   - "analysis" questions → prices:true, technicals:true, derivatives:true, social:true
+   - "comparison" questions → prices:true, social:true
+   - "greeting" → all false
+   - companyDetails:true ONLY for stocks
+7. Stock symbols: AAPL, NVDA, TSLA, MSFT, GOOG, AMZN, META, COIN, MSTR, etc.
+8. Crypto symbols: BTC, ETH, SOL, XRP, ADA, DOGE, LINK, AVAX, etc.
+
+Return ONLY the JSON object, nothing else.`
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      console.error("[Question Understanding] Gemini error:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      console.error("[Question Understanding] No content in response");
+      return null;
+    }
+
+    // Parse JSON, handling potential markdown code blocks
+    let jsonStr = content.trim();
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    }
+    
+    const parsed = JSON.parse(jsonStr) as QuestionUnderstanding;
+    console.log(`[Question Understanding] Intent: ${parsed.intent}, Assets: ${parsed.assets.map(a => a.symbol).join(', ')}, Clarification: ${parsed.needsClarification}`);
+    
+    return parsed;
+  } catch (error) {
+    console.error("[Question Understanding] Error:", error);
+    return null;
+  }
+}
+
+// Convert AI understanding to question types (for backward compatibility)
+function understandingToQuestionTypes(understanding: QuestionUnderstanding): Set<QuestionType> {
   const types = new Set<QuestionType>();
   
-  // Check each keyword set
-  for (const keyword of PRICE_KEYWORDS) {
-    if (lowerMessage.includes(keyword)) {
+  switch (understanding.intent) {
+    case 'price':
       types.add('price');
       break;
-    }
-  }
-  
-  for (const keyword of TECHNICAL_KEYWORDS) {
-    if (lowerMessage.includes(keyword)) {
-      types.add('technical');
-      break;
-    }
-  }
-  
-  for (const keyword of NEWS_KEYWORDS) {
-    if (lowerMessage.includes(keyword)) {
+    case 'news':
       types.add('news');
       break;
-    }
-  }
-  
-  for (const keyword of DERIVATIVES_KEYWORDS) {
-    if (lowerMessage.includes(keyword)) {
-      types.add('derivatives');
+    case 'analysis':
+      types.add('technical');
+      types.add('price');
       break;
-    }
-  }
-  
-  for (const keyword of SOCIAL_KEYWORDS) {
-    if (lowerMessage.includes(keyword)) {
+    case 'comparison':
       types.add('social');
+      types.add('price');
       break;
-    }
+    case 'greeting':
+      types.add('general');
+      break;
+    default:
+      types.add('general');
   }
   
-  // If no specific type detected, treat as general (fetch everything relevant)
-  if (types.size === 0) {
-    types.add('general');
-  }
+  // Add additional types based on fetchData flags
+  if (understanding.fetchData.derivatives) types.add('derivatives');
+  if (understanding.fetchData.social) types.add('social');
+  if (understanding.fetchData.news) types.add('news');
+  if (understanding.fetchData.technicals) types.add('technical');
   
   return types;
 }
 
-// Generate smart routing config based on question types
+// Generate smart routing config from AI understanding
+function getSmartRouteConfigFromUnderstanding(understanding: QuestionUnderstanding): SmartRouteConfig {
+  return {
+    fetchTechnicals: understanding.fetchData.technicals || understanding.fetchData.prices,
+    fetchDerivatives: understanding.fetchData.derivatives,
+    fetchSocial: understanding.fetchData.social,
+    fetchNews: understanding.fetchData.news,
+    fetchBriefs: understanding.fetchData.news || understanding.intent === 'analysis',
+    fetchWebSearch: understanding.fetchData.webSearch
+  };
+}
+
+// Fallback: Generate smart routing config based on question types (keyword-based)
 function getSmartRouteConfig(questionTypes: Set<QuestionType>, hasCrypto: boolean, hasStocks: boolean): SmartRouteConfig {
   // General questions get everything relevant
   if (questionTypes.has('general')) {
@@ -548,12 +630,11 @@ function getSmartRouteConfig(questionTypes: Set<QuestionType>, hasCrypto: boolea
       fetchSocial: hasCrypto,
       fetchNews: true,
       fetchBriefs: true,
-      fetchWebSearch: false // Only if news keywords detected
+      fetchWebSearch: false
     };
   }
   
-  // Build config based on specific question types
-  const config: SmartRouteConfig = {
+  return {
     fetchTechnicals: questionTypes.has('technical') || questionTypes.has('price'),
     fetchDerivatives: hasCrypto && (questionTypes.has('derivatives') || questionTypes.has('price')),
     fetchSocial: hasCrypto && (questionTypes.has('social') || questionTypes.has('news')),
@@ -561,8 +642,28 @@ function getSmartRouteConfig(questionTypes: Set<QuestionType>, hasCrypto: boolea
     fetchBriefs: questionTypes.has('news') || questionTypes.has('general'),
     fetchWebSearch: questionTypes.has('news')
   };
+}
+
+// Fallback keyword-based detection (used when Gemini fails)
+function detectQuestionTypesKeyword(message: string): Set<QuestionType> {
+  const lowerMessage = message.toLowerCase();
+  const types = new Set<QuestionType>();
   
-  return config;
+  const PRICE_KEYWORDS = ['price', 'cost', 'worth', 'value', 'market cap', 'mcap', 'volume', 'change', 'up', 'down', 'pump', 'dump', 'ath', 'atl', 'high', 'low', 'how much'];
+  const TECHNICAL_KEYWORDS = ['rsi', 'macd', 'sma', 'ema', 'moving average', 'bollinger', 'support', 'resistance', 'oversold', 'overbought', 'technical', 'indicator', 'chart'];
+  const NEWS_KEYWORDS = ['news', 'latest', 'update', 'announced', 'announcement', 'release', 'launch', 'partnership', 'why', 'happened', 'happening'];
+  const DERIVATIVES_KEYWORDS = ['funding', 'funding rate', 'liquidation', 'leverage', 'long', 'short', 'open interest', 'futures', 'perp', 'perpetual'];
+  const SOCIAL_KEYWORDS = ['sentiment', 'social', 'twitter', 'reddit', 'community', 'hype', 'trending', 'viral', 'galaxy score', 'altrank', 'fomo'];
+  
+  if (PRICE_KEYWORDS.some(kw => lowerMessage.includes(kw))) types.add('price');
+  if (TECHNICAL_KEYWORDS.some(kw => lowerMessage.includes(kw))) types.add('technical');
+  if (NEWS_KEYWORDS.some(kw => lowerMessage.includes(kw))) types.add('news');
+  if (DERIVATIVES_KEYWORDS.some(kw => lowerMessage.includes(kw))) types.add('derivatives');
+  if (SOCIAL_KEYWORDS.some(kw => lowerMessage.includes(kw))) types.add('social');
+  
+  if (types.size === 0) types.add('general');
+  
+  return types;
 }
 
 // Common words to filter out from symbol/name extraction
@@ -2469,8 +2570,85 @@ serve(async (req) => {
     const latestUserMessage = messages?.filter((m: any) => m.role === 'user').pop();
     const userQuery = latestUserMessage?.content || '';
     
-    // Resolve assets from database (crypto + stocks + contract addresses)
-    const { assets: resolvedAssets, similar: similarAssets, contractsSearched, contractWebLookups } = await resolveAssetsFromDatabase(supabase, userQuery);
+    // PHASE 5: AI-Powered Question Understanding (Gemini)
+    // This replaces keyword-based matching with intelligent parsing
+    const questionUnderstanding = await understandQuestion(userQuery);
+    
+    // Handle clarification requests from AI
+    if (questionUnderstanding?.needsClarification && questionUnderstanding?.clarificationMessage) {
+      console.log(`[Question Understanding] Clarification needed: ${questionUnderstanding.clarificationMessage}`);
+      // Return clarification as a simple response without full AI call
+      const clarificationResponse = `*tilts head curiously* 🐕\n\n${questionUnderstanding.clarificationMessage}\n\nPlease let me know which one you're asking about! *wags tail*`;
+      
+      // Log minimal usage for clarification
+      await logAIUsage(supabase, 'lovable', 50, 30, 100, {
+        questionTypes: ['clarification'],
+        assetsQueried: [],
+        dataSourcesUsed: ['gemini_understanding'],
+        userMessagePreview: userQuery,
+        clientIp,
+      }).catch(e => console.error('[AI Usage] Background log failed:', e));
+      
+      // Return as SSE stream format for frontend compatibility
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          const event = {
+            type: 'content_block_delta',
+            delta: { type: 'text_delta', text: clarificationResponse }
+          };
+          controller.enqueue(encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify(event)}\n\n`));
+          controller.enqueue(encoder.encode('event: message_stop\ndata: {}\n\n'));
+          controller.close();
+        }
+      });
+      
+      return new Response(stream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+    
+    // Use AI-parsed assets if available, otherwise fall back to database resolution
+    let resolvedAssets: ResolvedAsset[] = [];
+    let similarAssets: SimilarAsset[] = [];
+    let contractsSearched: string[] = [];
+    let contractWebLookups: Array<{address: string, info: string}> = [];
+    
+    if (questionUnderstanding && questionUnderstanding.assets.length > 0) {
+      // AI identified assets - resolve them from database for full details
+      console.log(`[AI Understanding] Assets identified: ${questionUnderstanding.assets.map(a => a.symbol).join(', ')}`);
+      
+      // Still use database resolution to get full asset details, but use AI-identified symbols
+      const aiSymbols = questionUnderstanding.assets.map(a => a.symbol).join(' ');
+      const dbResult = await resolveAssetsFromDatabase(supabase, aiSymbols);
+      resolvedAssets = dbResult.assets;
+      similarAssets = dbResult.similar;
+      contractsSearched = dbResult.contractsSearched;
+      contractWebLookups = dbResult.contractWebLookups;
+      
+      // If AI found assets but database didn't, create basic entries from AI understanding
+      if (resolvedAssets.length === 0 && questionUnderstanding.assets.length > 0) {
+        for (const aiAsset of questionUnderstanding.assets) {
+          if (aiAsset.confidence >= 0.7) {
+            resolvedAssets.push({
+              symbol: aiAsset.symbol,
+              coingeckoId: null,
+              displayName: aiAsset.name,
+              assetType: aiAsset.type === 'stock' ? 'stock' : 'crypto',
+            });
+          }
+        }
+        console.log(`[AI Understanding] Created ${resolvedAssets.length} assets from AI understanding`);
+      }
+    } else {
+      // Fallback to traditional database resolution
+      const dbResult = await resolveAssetsFromDatabase(supabase, userQuery);
+      resolvedAssets = dbResult.assets;
+      similarAssets = dbResult.similar;
+      contractsSearched = dbResult.contractsSearched;
+      contractWebLookups = dbResult.contractWebLookups;
+    }
+    
     console.log(`Resolved ${resolvedAssets.length} assets: ${resolvedAssets.map(a => `${a.symbol}(${a.assetType})`).join(', ') || 'none'}`);
     if (contractsSearched.length > 0) {
       console.log(`Contract addresses searched: ${contractsSearched.join(', ')}`);
@@ -2479,20 +2657,31 @@ serve(async (req) => {
       console.log(`Found web info for ${contractWebLookups.length} contract(s)`);
     }
     
-    // Extract symbols for new data sources
+    // Extract symbols for data sources
     const cryptoSymbols = resolvedAssets.filter(a => a.assetType === 'crypto').map(a => a.symbol);
     const stockSymbols = resolvedAssets.filter(a => a.assetType === 'stock').map(a => a.symbol);
     const allSymbols = resolvedAssets.map(a => a.symbol);
     const hasCrypto = cryptoSymbols.length > 0;
     const hasStocks = stockSymbols.length > 0;
     
-    // PHASE 5: Smart routing - detect question type and skip unnecessary API calls
-    const questionTypes = detectQuestionTypes(userQuery);
-    const routeConfig = getSmartRouteConfig(questionTypes, hasCrypto, hasStocks);
-    console.log(`[Smart Route] Question types: ${Array.from(questionTypes).join(', ')}`);
+    // SMART ROUTING: Use AI understanding if available, otherwise fall back to keywords
+    let questionTypes: Set<QuestionType>;
+    let routeConfig: SmartRouteConfig;
+    
+    if (questionUnderstanding) {
+      // AI-powered routing - more accurate, fewer unnecessary API calls
+      questionTypes = understandingToQuestionTypes(questionUnderstanding);
+      routeConfig = getSmartRouteConfigFromUnderstanding(questionUnderstanding);
+      console.log(`[Smart Route] AI-powered - Intent: ${questionUnderstanding.intent}, Types: ${Array.from(questionTypes).join(', ')}`);
+    } else {
+      // Fallback to keyword-based routing
+      questionTypes = detectQuestionTypesKeyword(userQuery);
+      routeConfig = getSmartRouteConfig(questionTypes, hasCrypto, hasStocks);
+      console.log(`[Smart Route] Keyword-based - Types: ${Array.from(questionTypes).join(', ')}`);
+    }
     console.log(`[Smart Route] Config: technicals=${routeConfig.fetchTechnicals}, derivs=${routeConfig.fetchDerivatives}, social=${routeConfig.fetchSocial}, news=${routeConfig.fetchNews}, briefs=${routeConfig.fetchBriefs}, webSearch=${routeConfig.fetchWebSearch}`);
     
-    // Check if we should perform web search for news/current events (now uses smart routing)
+    // Check if we should perform web search for news/current events
     const needsWebSearch = routeConfig.fetchWebSearch && shouldPerformWebSearch(userQuery);
     console.log(`Web search needed: ${needsWebSearch}`);
     
