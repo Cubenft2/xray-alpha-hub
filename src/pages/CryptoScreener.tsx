@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { usePolygonSnapshot, CryptoSnapshot } from '@/hooks/usePolygonSnapshot';
-import { FallbackSparkline } from '@/components/FallbackSparkline';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -84,7 +83,7 @@ export default function CryptoScreener() {
     <>
       <SEOHead 
         title="Crypto Screener | XRayCrypto™"
-        description="Real-time cryptocurrency screener with live prices, 24h sparkline charts, volume, and market data from Polygon.io"
+        description="Real-time cryptocurrency screener with live prices, volume, and market data from Polygon.io"
       />
       
       <div className="min-h-screen bg-[#0a0a0a] text-foreground">
@@ -139,7 +138,6 @@ export default function CryptoScreener() {
                         Name <SortIcon field="name" />
                       </button>
                     </th>
-                    <th className="px-2 py-3 text-center w-28">24h Chart</th>
                     <th className="px-4 py-3 text-right">
                       <button onClick={() => handleSort('price')} className="flex items-center gap-1 ml-auto hover:text-foreground">
                         Price <SortIcon field="price" />
@@ -187,7 +185,6 @@ export default function CryptoScreener() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-2 py-3"><Skeleton className="h-8 w-24 mx-auto" /></td>
                         <td className="px-4 py-3"><Skeleton className="h-4 w-20 ml-auto" /></td>
                         <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
                         <td className="px-4 py-3"><Skeleton className="h-4 w-20 ml-auto" /></td>
@@ -198,7 +195,7 @@ export default function CryptoScreener() {
                     ))
                   ) : filteredData.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
+                      <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
                         No cryptocurrencies found matching "{search}"
                       </td>
                     </tr>
@@ -233,17 +230,6 @@ export default function CryptoScreener() {
                             </div>
                           </div>
                         </td>
-                        <td className="px-2 py-3">
-                          <div className="w-24 h-8 mx-auto">
-                            <FallbackSparkline
-                              symbol={item.symbol}
-                              polygonTicker={item.ticker}
-                              coingeckoId={item.coingecko_id || undefined}
-                              timespan="1D"
-                              className="w-full h-full"
-                            />
-                          </div>
-                        </td>
                         <td className="px-4 py-3 text-right font-mono text-sm">
                           {formatPrice(item.price)}
                         </td>
@@ -274,7 +260,7 @@ export default function CryptoScreener() {
 
           {/* Footer info */}
           <div className="mt-4 text-center text-xs text-muted-foreground">
-            Data provided by Polygon.io • Sparklines from CoinGecko • Auto-refreshes every 30 seconds
+            Data provided by Polygon.io • Auto-refreshes every 30 seconds
           </div>
         </div>
       </div>
