@@ -3,8 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface FallbackSparklineProps {
   symbol: string;
-  coingeckoId?: string;
   polygonTicker?: string;
+  coingeckoId?: string;
   timespan?: '1D' | '7D' | '30D' | '90D' | '1Y';
   className?: string;
 }
@@ -16,53 +16,41 @@ interface DataPoint {
 
 export function FallbackSparkline({ 
   symbol, 
+  polygonTicker,
   coingeckoId, 
-  polygonTicker, 
-  timespan = '7D',
+  timespan = '1D',
   className = ''
 }: FallbackSparklineProps) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     fetchSparklineData();
-  }, [symbol, coingeckoId, polygonTicker, timespan]);
+  }, [symbol, polygonTicker, coingeckoId, timespan]);
 
-  const fetchSparklineData = async (attempt = 0) => {
+  const fetchSparklineData = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Priority 1: Try CoinGecko if available
-      if (coingeckoId) {
-        const days = timespan === '1D' ? 1 : timespan === '7D' ? 7 : timespan === '30D' ? 30 : timespan === '90D' ? 90 : 365;
-        
-        console.log(`📈 Fetching CoinGecko data for ${symbol} (${coingeckoId}), ${days} days`);
-        const url = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/coingecko-chart-data?coinId=${coingeckoId}&days=${days}&vs_currency=usd`;
+      // Priority 1: Polygon sparkline data (24h only, best for 1D)
+      if (polygonTicker && timespan === '1D') {
+        const url = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/polygon-sparkline-data?ticker=${encodeURIComponent(polygonTicker)}`;
         const response = await fetch(url);
         
         if (response.ok) {
           const json = await response.json();
           if (json.prices && json.prices.length > 0) {
-            const points = json.prices.map(([time, price]: [number, number]) => ({
-              time,
-              price
-            }));
-            console.log(`✅ CoinGecko data loaded for ${symbol}: ${points.length} points`);
-            setData(points);
+            setData(json.prices);
             setLoading(false);
             return;
           }
-        } else if (response.status !== 429) {
-          console.warn(`⚠️ CoinGecko API error for ${symbol}: ${response.status}`);
         }
       }
 
       // Priority 2: Try price_history table with polygon_ticker
       if (polygonTicker) {
-        console.log(`📊 Fetching price history for ${symbol} (${polygonTicker})`);
         const days = timespan === '1D' ? 1 : timespan === '7D' ? 7 : timespan === '30D' ? 30 : timespan === '90D' ? 90 : 365;
         const fromDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
         
@@ -78,16 +66,33 @@ export function FallbackSparkline({
             time: new Date(r.timestamp).getTime(),
             price: parseFloat(r.close)
           }));
-          console.log(`✅ Price history loaded for ${symbol}: ${points.length} points`);
           setData(points);
           setLoading(false);
           return;
-        } else {
-          console.warn(`⚠️ No price history found for ${symbol} (${polygonTicker})`);
         }
       }
 
-      // Priority 3: Try exchange data as fallback
+      // Priority 3: Try CoinGecko if available (for longer timespans)
+      if (coingeckoId && timespan !== '1D') {
+        const days = timespan === '7D' ? 7 : timespan === '30D' ? 30 : timespan === '90D' ? 90 : 365;
+        const url = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/coingecko-chart-data?coinId=${coingeckoId}&days=${days}&vs_currency=usd`;
+        const response = await fetch(url);
+        
+        if (response.ok) {
+          const json = await response.json();
+          if (json.prices && json.prices.length > 0) {
+            const points = json.prices.map(([time, price]: [number, number]) => ({
+              time,
+              price
+            }));
+            setData(points);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      // Priority 4: Exchange data as final fallback
       const { data: exchangeData, error: exchangeError } = await supabase
         .from('exchange_ticker_data')
         .select('price, timestamp')
@@ -100,51 +105,32 @@ export function FallbackSparkline({
           time: new Date(r.timestamp).getTime(),
           price: parseFloat(r.price)
         }));
-        console.log(`✅ Exchange data loaded for ${symbol}: ${points.length} points`);
         setData(points);
         setLoading(false);
         return;
       }
-
-      // Retry logic with exponential backoff (max 2 retries)
-      if (attempt < 2) {
-        const delay = Math.pow(2, attempt) * 2000;
-        console.log(`Retrying sparkline fetch for ${symbol} in ${delay}ms (attempt ${attempt + 1}/2)`);
-        setTimeout(() => fetchSparklineData(attempt + 1), delay);
-        return;
-      }
       
-      setError('No data available');
+      setError('No data');
     } catch (err) {
       console.error('Sparkline fetch error:', err);
-      
-      // Retry logic for errors (max 2 retries)
-      if (attempt < 2) {
-        const delay = Math.pow(2, attempt) * 2000; // 2s, 4s
-        console.log(`Retrying sparkline fetch for ${symbol} in ${delay}ms (attempt ${attempt + 1}/2)`);
-        setTimeout(() => fetchSparklineData(attempt + 1), delay);
-        return;
-      }
-      
-      setError('No data available');
+      setError('No data');
     } finally {
       setLoading(false);
-      setRetryCount(attempt);
     }
   };
 
   if (loading) {
     return (
-      <div className={`flex items-center justify-center h-16 ${className}`}>
-        <div className="text-muted-foreground text-sm">Loading...</div>
+      <div className={`flex items-center justify-center h-full ${className}`}>
+        <div className="text-muted-foreground text-xs">...</div>
       </div>
     );
   }
 
   if (error || data.length === 0) {
     return (
-      <div className={`flex items-center justify-center h-16 ${className}`}>
-        <div className="text-muted-foreground text-sm">{error || 'No data'}</div>
+      <div className={`flex items-center justify-center h-full ${className}`}>
+        <div className="text-muted-foreground text-xs">—</div>
       </div>
     );
   }
