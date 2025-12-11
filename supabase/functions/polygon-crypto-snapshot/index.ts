@@ -5,43 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface PolygonTicker {
-  ticker: string;
-  todaysChange: number;
-  todaysChangePerc: number;
-  updated: number;
-  day: {
-    o: number;
-    h: number;
-    l: number;
-    c: number;
-    v: number;
-    vw: number;
-  };
-  min?: {
-    o: number;
-    h: number;
-    l: number;
-    c: number;
-    v: number;
-    vw: number;
-  };
-  prevDay?: {
-    o: number;
-    h: number;
-    l: number;
-    c: number;
-    v: number;
-    vw: number;
-  };
-}
-
-interface SnapshotResponse {
-  tickers: PolygonTicker[];
-  status: string;
-  count: number;
-}
-
 interface CoinGeckoMarket {
   id: string;
   symbol: string;
@@ -55,20 +18,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY');
     const COINGECKO_API_KEY = Deno.env.get('COINGECKO_API_KEY');
-    
-    if (!POLYGON_API_KEY) {
-      throw new Error('POLYGON_API_KEY not configured');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🚀 Starting crypto snapshot sync...');
+    console.log('🚀 Starting crypto snapshot sync from live_prices...');
 
-    // Fetch CoinGecko market data (cached for 5 minutes)
+    // Fetch CoinGecko market data (cached for 1 HOUR to minimize API calls)
     const cgCacheKey = 'coingecko_market_data';
     let marketCapMap = new Map<string, { market_cap: number; market_cap_rank: number }>();
     
@@ -83,6 +40,11 @@ Deno.serve(async (req) => {
       const cgData = cgCached.v as CoinGeckoMarket[];
       cgData.forEach(coin => {
         marketCapMap.set(coin.id, { 
+          market_cap: coin.market_cap, 
+          market_cap_rank: coin.market_cap_rank 
+        });
+        // Also map by symbol for fallback matching
+        marketCapMap.set(coin.symbol.toLowerCase(), { 
           market_cap: coin.market_cap, 
           market_cap_rank: coin.market_cap_rank 
         });
@@ -110,10 +72,14 @@ Deno.serve(async (req) => {
               market_cap: coin.market_cap, 
               market_cap_rank: coin.market_cap_rank 
             });
+            marketCapMap.set(coin.symbol.toLowerCase(), { 
+              market_cap: coin.market_cap, 
+              market_cap_rank: coin.market_cap_rank 
+            });
           });
           
-          // Cache CoinGecko data for 5 minutes
-          const cgExpiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+          // Cache CoinGecko data for 1 HOUR (was 5 minutes)
+          const cgExpiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
           await supabase
             .from('cache_kv')
             .upsert({
@@ -129,76 +95,106 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch from Polygon snapshot API
-    console.log('🔄 Fetching fresh snapshot from Polygon.io...');
-    const url = `https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers?apiKey=${POLYGON_API_KEY}`;
-    
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Polygon API error: ${response.status}`);
+    // Read from live_prices table (populated by polygon-rest-poller)
+    console.log('🔄 Reading prices from live_prices table...');
+    const { data: livePrices, error: livePricesError } = await supabase
+      .from('live_prices')
+      .select(`
+        ticker,
+        price,
+        change24h,
+        display,
+        asset_id,
+        updated_at
+      `)
+      .eq('source', 'polygon')
+      .not('price', 'is', null);
+
+    if (livePricesError) {
+      throw new Error(`Failed to fetch live_prices: ${livePricesError.message}`);
     }
 
-    const data: SnapshotResponse = await response.json();
-    console.log(`📊 Received ${data.count} tickers from Polygon`);
+    console.log(`📊 Found ${livePrices?.length || 0} prices in live_prices table`);
 
-    // Filter to USD pairs only and extract symbols
-    const usdPairs = data.tickers.filter(t => t.ticker.endsWith('USD') && !t.ticker.endsWith('USDT'));
-    console.log(`💵 Filtered to ${usdPairs.length} USD pairs`);
+    if (!livePrices || livePrices.length === 0) {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        count: 0,
+        message: 'No prices found in live_prices table'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    // Extract symbols for database lookup
-    const symbols = usdPairs.map(t => {
-      const match = t.ticker.match(/^X:([A-Z0-9]+)USD$/);
-      return match ? match[1] : null;
-    }).filter(Boolean) as string[];
+    // Get asset IDs that have prices
+    const assetIds = livePrices
+      .filter(p => p.asset_id)
+      .map(p => p.asset_id);
 
-    // Fetch asset data from database including coingecko_id
+    // Fetch asset metadata
     const { data: assets } = await supabase
       .from('assets')
       .select(`
+        id,
         symbol,
         name,
         logo_url,
         coingecko_assets(coingecko_id)
       `)
-      .in('symbol', symbols);
+      .in('id', assetIds);
 
-    // Create lookup map
-    const assetMap = new Map<string, { name: string; logo_url: string | null; coingecko_id: string | null }>();
+    // Create asset lookup map
+    const assetMap = new Map<string, { 
+      symbol: string; 
+      name: string; 
+      logo_url: string | null; 
+      coingecko_id: string | null 
+    }>();
+    
     assets?.forEach(a => {
       const cgAsset = a.coingecko_assets as { coingecko_id: string } | null;
-      assetMap.set(a.symbol, {
+      assetMap.set(a.id, {
+        symbol: a.symbol,
         name: a.name,
         logo_url: a.logo_url,
         coingecko_id: cgAsset?.coingecko_id || null,
       });
     });
 
-    // Format data for database upsert
-    const snapshotRows = usdPairs
-      .map(t => {
-        const match = t.ticker.match(/^X:([A-Z0-9]+)USD$/);
-        const symbol = match ? match[1] : t.ticker;
-        const assetInfo = assetMap.get(symbol);
+    // Format data for crypto_snapshot table
+    const snapshotRows = livePrices
+      .map(p => {
+        // Extract symbol from ticker (e.g., "X:BTCUSD" -> "BTC")
+        const tickerMatch = p.ticker.match(/^X:([A-Z0-9]+)USD$/);
+        const symbolFromTicker = tickerMatch ? tickerMatch[1] : null;
+        
+        // Get asset info
+        const assetInfo = p.asset_id ? assetMap.get(p.asset_id) : null;
+        const symbol = assetInfo?.symbol || symbolFromTicker || p.display;
         const coingeckoId = assetInfo?.coingecko_id;
-        const marketData = coingeckoId ? marketCapMap.get(coingeckoId) : null;
-        const price = t.day?.c || t.min?.c || 0;
+        
+        // Try to get market cap data
+        let marketData = coingeckoId ? marketCapMap.get(coingeckoId) : null;
+        if (!marketData && symbol) {
+          marketData = marketCapMap.get(symbol.toLowerCase());
+        }
 
-        if (price <= 0) return null;
+        if (!symbol || p.price <= 0) return null;
 
         return {
           symbol,
-          ticker: t.ticker,
+          ticker: p.ticker,
           name: assetInfo?.name || symbol,
           logo_url: assetInfo?.logo_url || null,
           coingecko_id: coingeckoId || null,
-          price,
-          change_24h: t.todaysChange || 0,
-          change_percent: t.todaysChangePerc || 0,
-          volume_24h: t.day?.v || 0,
-          vwap: t.day?.vw || 0,
-          high_24h: t.day?.h || 0,
-          low_24h: t.day?.l || 0,
-          open_24h: t.day?.o || 0,
+          price: p.price,
+          change_24h: 0, // live_prices doesn't have absolute change
+          change_percent: p.change24h || 0,
+          volume_24h: 0, // Not available from live_prices
+          vwap: 0,
+          high_24h: 0,
+          low_24h: 0,
+          open_24h: 0,
           market_cap: marketData?.market_cap || null,
           market_cap_rank: marketData?.market_cap_rank || null,
           updated_at: new Date().toISOString(),
@@ -225,12 +221,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`✅ Successfully synced ${totalUpserted} crypto snapshots to database`);
+    console.log(`✅ Successfully synced ${totalUpserted} crypto snapshots from live_prices`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       count: totalUpserted,
-      message: `Synced ${totalUpserted} crypto snapshots`
+      source: 'live_prices',
+      message: `Synced ${totalUpserted} crypto snapshots from live_prices table`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
