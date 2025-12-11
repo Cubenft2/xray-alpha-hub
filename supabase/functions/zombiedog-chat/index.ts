@@ -483,12 +483,23 @@ interface DexScreenerData {
   txns24h: { buys: number; sells: number };
 }
 
+// CEX Listing interface for centralized exchange data
+interface CexListing {
+  exchange: string;
+  volume24h: number;
+  price: number;
+  lastUpdated: string;
+}
+
 interface TokenSecurityContext {
   symbol: string;
   contractAddress: string;
   chain: string;
   goplus: GoTokenSecurity | null;
   dexscreener: DexScreenerData | null;
+  cexListings: CexListing[];
+  cexTotalVolume: number;
+  coingeckoId: string | null;
   warnings: string[];
 }
 
@@ -2393,6 +2404,190 @@ async function fetchDexScreenerData(contractAddress: string): Promise<DexScreene
   }
 }
 
+// ============================================
+// CEX AVAILABILITY FUNCTIONS
+// ============================================
+
+// Get CoinGecko ID from database by contract address or symbol
+async function getCoingeckoId(
+  supabase: any,
+  symbol: string,
+  contractAddress?: string
+): Promise<string | null> {
+  try {
+    // Try by contract address first (most accurate)
+    if (contractAddress && contractAddress.startsWith('0x')) {
+      const normalizedAddress = contractAddress.toLowerCase();
+      const { data: cgMasterByContract } = await supabase
+        .from('cg_master')
+        .select('cg_id, platforms')
+        .limit(100);
+      
+      if (cgMasterByContract) {
+        for (const coin of cgMasterByContract) {
+          if (coin.platforms) {
+            const platforms = typeof coin.platforms === 'string' ? JSON.parse(coin.platforms) : coin.platforms;
+            for (const [chain, addr] of Object.entries(platforms)) {
+              if (typeof addr === 'string' && addr.toLowerCase() === normalizedAddress) {
+                console.log(`[CEX] Found CoinGecko ID ${coin.cg_id} for address ${contractAddress}`);
+                return coin.cg_id;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Fallback: Try ticker_mappings by symbol
+    const { data: tickerMapping } = await supabase
+      .from('ticker_mappings')
+      .select('coingecko_id')
+      .eq('symbol', symbol.toUpperCase())
+      .single();
+    
+    if (tickerMapping?.coingecko_id) {
+      console.log(`[CEX] Found CoinGecko ID ${tickerMapping.coingecko_id} for symbol ${symbol}`);
+      return tickerMapping.coingecko_id;
+    }
+    
+    // Fallback: Try cg_master by symbol (less accurate, might have duplicates)
+    const { data: cgMasterBySymbol } = await supabase
+      .from('cg_master')
+      .select('cg_id')
+      .ilike('symbol', symbol)
+      .limit(1);
+    
+    if (cgMasterBySymbol && cgMasterBySymbol.length > 0) {
+      console.log(`[CEX] Found CoinGecko ID ${cgMasterBySymbol[0].cg_id} for symbol ${symbol} (cg_master)`);
+      return cgMasterBySymbol[0].cg_id;
+    }
+    
+    console.log(`[CEX] No CoinGecko ID found for ${symbol}`);
+    return null;
+  } catch (error) {
+    console.error('[CEX] getCoingeckoId error:', error);
+    return null;
+  }
+}
+
+// Fetch CEX listings from CoinGecko tickers API
+async function fetchCoinGeckoTickers(coingeckoId: string): Promise<CexListing[]> {
+  const COINGECKO_API_KEY = Deno.env.get('COINGECKO_API_KEY');
+  if (!COINGECKO_API_KEY) {
+    console.log('[CEX] No COINGECKO_API_KEY, skipping CEX lookup');
+    return [];
+  }
+  
+  try {
+    const url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoId}/tickers`;
+    console.log(`[CEX] Fetching CoinGecko tickers for ${coingeckoId}`);
+    
+    const response = await fetch(url, {
+      headers: { 'x-cg-pro-api-key': COINGECKO_API_KEY }
+    });
+    
+    if (!response.ok) {
+      console.warn(`[CEX] CoinGecko tickers API returned ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    const tickers = data.tickers || [];
+    
+    // Major CEXs to look for
+    const majorExchanges = new Set([
+      'binance', 'gdax', 'coinbase_exchange', 'okx', 'bybit_spot', 'kraken', 'kucoin', 
+      'gate', 'bitget', 'htx', 'mexc', 'crypto_com_exchange', 'bitfinex', 'bitstamp',
+      'upbit', 'bithumb', 'gemini', 'bitflyer', 'lbank', 'bitmart'
+    ]);
+    
+    // Dedupe by exchange, keep highest volume pair per exchange
+    const exchangeMap = new Map<string, CexListing>();
+    for (const t of tickers) {
+      const exchangeId = t.market?.identifier || '';
+      if (!majorExchanges.has(exchangeId)) continue;
+      
+      const existing = exchangeMap.get(exchangeId);
+      const volume = t.converted_volume?.usd || 0;
+      
+      if (!existing || volume > existing.volume24h) {
+        exchangeMap.set(exchangeId, {
+          exchange: t.market?.name || exchangeId,
+          volume24h: volume,
+          price: t.converted_last?.usd || 0,
+          lastUpdated: t.last_traded_at || new Date().toISOString()
+        });
+      }
+    }
+    
+    const cexListings = Array.from(exchangeMap.values())
+      .sort((a, b) => b.volume24h - a.volume24h)
+      .slice(0, 10);
+    
+    console.log(`[CEX] Found ${cexListings.length} major CEX listings for ${coingeckoId}`);
+    return cexListings;
+  } catch (error) {
+    console.error('[CEX] fetchCoinGeckoTickers error:', error);
+    return [];
+  }
+}
+
+// Two-tier CEX availability lookup: database first, then CoinGecko API
+async function fetchCexAvailability(
+  supabase: any,
+  symbol: string, 
+  coingeckoId: string | null,
+  contractAddress?: string
+): Promise<{ listings: CexListing[], totalVolume: number }> {
+  try {
+    // Tier 1: Database lookup (free, instant)
+    const { data: dbExchanges } = await supabase
+      .from('exchange_ticker_data')
+      .select('exchange, volume_24h, price, last_updated')
+      .eq('asset_symbol', symbol.toUpperCase())
+      .order('volume_24h', { ascending: false })
+      .limit(10);
+    
+    if (dbExchanges && dbExchanges.length >= 3) {
+      console.log(`[CEX] Found ${dbExchanges.length} exchanges for ${symbol} in database`);
+      const listings: CexListing[] = dbExchanges.map((d: any) => ({
+        exchange: d.exchange,
+        volume24h: d.volume_24h || 0,
+        price: d.price || 0,
+        lastUpdated: d.last_updated || new Date().toISOString()
+      }));
+      const totalVolume = listings.reduce((sum, l) => sum + l.volume24h, 0);
+      return { listings, totalVolume };
+    }
+    
+    // Tier 2: CoinGecko tickers API (only if coingeckoId available and DB insufficient)
+    let cgId = coingeckoId;
+    if (!cgId) {
+      cgId = await getCoingeckoId(supabase, symbol, contractAddress);
+    }
+    
+    if (cgId) {
+      const cexData = await fetchCoinGeckoTickers(cgId);
+      if (cexData.length > 0) {
+        const totalVolume = cexData.reduce((sum, l) => sum + l.volume24h, 0);
+        return { listings: cexData, totalVolume };
+      }
+    }
+    
+    // Return whatever we have from DB (might be empty or partial)
+    const listings: CexListing[] = (dbExchanges || []).map((d: any) => ({
+      exchange: d.exchange,
+      volume24h: d.volume_24h || 0,
+      price: d.price || 0,
+      lastUpdated: d.last_updated || new Date().toISOString()
+    }));
+    return { listings, totalVolume: listings.reduce((sum, l) => sum + l.volume24h, 0) };
+  } catch (error) {
+    console.error('[CEX] fetchCexAvailability error:', error);
+    return { listings: [], totalVolume: 0 };
+  }
+}
+
 // Generate security warnings based on GoPlus and DexScreener data
 function generateSecurityWarnings(goplus: GoTokenSecurity | null, dex: DexScreenerData | null): string[] {
   const warnings: string[] = [];
@@ -2494,8 +2689,12 @@ function generateSecurityWarnings(goplus: GoTokenSecurity | null, dex: DexScreen
   return warnings;
 }
 
-// Fetch security context for a contract address
-async function fetchTokenSecurityContext(contractAddress: string, chain: string = 'ethereum'): Promise<TokenSecurityContext | null> {
+// Fetch security context for a contract address (with CEX availability)
+async function fetchTokenSecurityContext(
+  contractAddress: string, 
+  chain: string = 'ethereum',
+  supabase?: any
+): Promise<TokenSecurityContext | null> {
   if (!contractAddress || !contractAddress.startsWith('0x')) {
     return null;
   }
@@ -2508,14 +2707,30 @@ async function fetchTokenSecurityContext(contractAddress: string, chain: string 
     fetchDexScreenerData(contractAddress)
   ]);
   
+  const symbol = goplus?.tokenSymbol || dexscreener?.symbol || 'UNKNOWN';
   const warnings = generateSecurityWarnings(goplus, dexscreener);
   
+  // Fetch CEX availability if supabase client provided
+  let cexListings: CexListing[] = [];
+  let cexTotalVolume = 0;
+  let coingeckoId: string | null = null;
+  
+  if (supabase) {
+    coingeckoId = await getCoingeckoId(supabase, symbol, contractAddress);
+    const cexData = await fetchCexAvailability(supabase, symbol, coingeckoId, contractAddress);
+    cexListings = cexData.listings;
+    cexTotalVolume = cexData.totalVolume;
+  }
+  
   return {
-    symbol: goplus?.tokenSymbol || dexscreener?.symbol || 'UNKNOWN',
+    symbol,
     contractAddress,
     chain,
     goplus,
     dexscreener,
+    cexListings,
+    cexTotalVolume,
+    coingeckoId,
     warnings
   };
 }
@@ -2564,6 +2779,31 @@ function formatSecurityContext(security: TokenSecurityContext[]): string {
   • 24h Txns: ${s.dexscreener.txns24h.buys} buys / ${s.dexscreener.txns24h.sells} sells`;
     }
 
+    // CEX Availability Section
+    if (s.cexListings && s.cexListings.length > 0) {
+      const exchangeNames = s.cexListings.slice(0, 5).map(c => c.exchange).join(', ');
+      const moreCount = s.cexListings.length > 5 ? s.cexListings.length - 5 : 0;
+      
+      section += `
+
+🏦 CEX Availability (Centralized Exchanges):
+  • Listed on: ${s.cexListings.length} major exchanges
+  • Exchanges: ${exchangeNames}${moreCount > 0 ? ` (+${moreCount} more)` : ''}
+  • Combined CEX 24h Volume: $${formatLargeNumber(s.cexTotalVolume)}
+  
+  ⚠️ DEX vs CEX Context:
+  - DexScreener shows DEX (on-chain) liquidity only: $${formatLargeNumber(s.dexscreener?.liquidity || 0)}
+  - CEX volume is typically 10-100x higher for established tokens
+  - For tokens like PEPE, DOGE, SHIB - most trading happens on CEXs`;
+    } else if (s.dexscreener && s.dexscreener.liquidity > 0) {
+      section += `
+
+🏦 CEX Availability:
+  • No major CEX listings found in database
+  • ⚠️ DEX-only tokens may have lower liquidity and higher slippage
+  • Trading appears limited to on-chain DEXs`;
+    }
+
     if (s.warnings.length > 0) {
       section += `
 
@@ -2572,7 +2812,7 @@ ${s.warnings.map(w => `  ${w}`).join('\n')}`;
     } else {
       section += `
 
-🚦 No significant warnings detected.`;
+🚦 No significant security warnings detected.`;
     }
 
     return section;
@@ -2700,6 +2940,21 @@ Liquidity Risk Levels:
 - $50K-$250K = MODERATE RISK
 - $250K-$1M = LOWER RISK
 - >$1M = Relatively safe
+
+⚠️ CRITICAL CONTEXT - DEX vs CEX LIQUIDITY:
+DexScreener shows ONLY decentralized exchange (DEX) liquidity - NOT the full picture!
+
+**What DexScreener shows:** Uniswap, PancakeSwap, Raydium pools
+**What it DOESN'T show:** Binance, Coinbase, OKX, Bybit, Kraken volume
+
+For established tokens (BTC, ETH, PEPE, DOGE, SHIB, etc.):
+- DEX liquidity might show $5-50M
+- But CEX volume can be $100M-1B+ daily
+- ALWAYS mention this distinction when reporting liquidity!
+
+**Example response format:**
+"DEX liquidity is $34M on Uniswap, but most PEPE trading happens on centralized exchanges 
+with $400M+ daily volume across Binance, OKX, Coinbase and others."
 
 ### 4. TAVILY (Real-Time Web Search)
 Use When: Breaking news, recent events, "why is X pumping/dumping?"
@@ -3414,9 +3669,9 @@ serve(async (req) => {
       routeConfig.fetchNews
         ? fetchAggregatedNews(supabase, allSymbols)
         : Promise.resolve({ news: [], sentiment: [] }),
-      // Phase 5: Security - for safety questions with contract addresses
+      // Phase 5: Security - for safety questions with contract addresses (now includes CEX availability)
       (routeConfig.fetchSecurityCheck && allContractAddresses.length > 0)
-        ? Promise.all(allContractAddresses.map(addr => fetchTokenSecurityContext(addr)))
+        ? Promise.all(allContractAddresses.map(addr => fetchTokenSecurityContext(addr, 'ethereum', supabase)))
         : Promise.resolve([])
     ]);
     
