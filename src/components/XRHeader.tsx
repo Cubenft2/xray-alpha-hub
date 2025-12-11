@@ -77,7 +77,6 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
     { name: 'Crypto', href: '/crypto' },
     { name: 'Markets', href: '/markets' },
     { name: 'Universe', href: '/crypto-universe' },
-    { name: 'Screener', href: '/screener' },
     { name: 'Watch', href: '/watchlist' },
     { name: 'News', href: '/news' },
     { name: 'Chill', href: '/chill' },

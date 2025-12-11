@@ -28,8 +28,6 @@ import AdminIndex from "./pages/Admin/Index";
 import Auth from "./pages/Auth";
 import CryptoUniverse from "./pages/CryptoUniverse";
 import CryptoUniverseDetail from "./pages/CryptoUniverseDetail";
-import CryptoScreener from "./pages/CryptoScreener";
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -65,7 +63,6 @@ const App = () => (
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/crypto-universe" element={<CryptoUniverse />} />
                   <Route path="/crypto-universe/:symbol" element={<CryptoUniverseDetail />} />
-                  <Route path="/screener" element={<CryptoScreener />} />
                   <Route path="/admin" element={
                     <ProtectedRoute requireAdmin={true}>
                       <AdminIndex />
