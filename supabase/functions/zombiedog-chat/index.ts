@@ -3301,9 +3301,21 @@ serve(async (req) => {
     }
     
     // Extract symbols for data sources
-    const cryptoSymbols = resolvedAssets.filter(a => a.assetType === 'crypto').map(a => a.symbol);
+    let cryptoSymbols = resolvedAssets.filter(a => a.assetType === 'crypto').map(a => a.symbol);
     const stockSymbols = resolvedAssets.filter(a => a.assetType === 'stock').map(a => a.symbol);
-    const allSymbols = resolvedAssets.map(a => a.symbol);
+    let allSymbols = resolvedAssets.map(a => a.symbol);
+    
+    // 🔧 FIX: For general market questions with no specific assets, use TOP_CRYPTOS as default
+    const isGeneralMarketQuestion = questionUnderstanding?.intent !== 'greeting' && 
+      resolvedAssets.length === 0 &&
+      /\b(market|crypto|trending|today|overall|general|how('s|s| is)|what('s|s| is)|pumping|movers|gainers|losers)\b/i.test(userQuery);
+
+    if (isGeneralMarketQuestion) {
+      console.log(`[General Market] No specific assets found - using TOP_CRYPTOS as default`);
+      cryptoSymbols = TOP_CRYPTOS.slice(0, 10); // Top 10 for social/derivatives data
+      allSymbols = [...cryptoSymbols];
+    }
+    
     const hasCrypto = cryptoSymbols.length > 0;
     const hasStocks = stockSymbols.length > 0;
     
@@ -3324,6 +3336,15 @@ serve(async (req) => {
       console.log(`[Smart Route] Keyword-based - Types: ${Array.from(questionTypes).join(', ')}`);
     }
     console.log(`[Smart Route] Config: technicals=${routeConfig.fetchTechnicals}, derivs=${routeConfig.fetchDerivatives}, social=${routeConfig.fetchSocial}, news=${routeConfig.fetchNews}, briefs=${routeConfig.fetchBriefs}, webSearch=${routeConfig.fetchWebSearch}, security=${routeConfig.fetchSecurityCheck}`);
+    
+    // 🔧 FIX: For general market questions, enable social/derivatives even if AI didn't specify
+    if (isGeneralMarketQuestion) {
+      routeConfig.fetchSocial = true;
+      routeConfig.fetchDerivatives = true;
+      routeConfig.fetchBriefs = true;
+      routeConfig.fetchNews = true;
+      console.log(`[Smart Route] General market question - enabling all data sources`);
+    }
     
     // Check if we should perform web search for news/current events
     const needsWebSearch = routeConfig.fetchWebSearch && shouldPerformWebSearch(userQuery);
@@ -3431,6 +3452,14 @@ serve(async (req) => {
     const derivativesContext = formatDerivativesData(derivativesData);
     const socialContext = formatSocialComparison(socialData);
     const newsContext = formatNewsAndSentiment(newsData.news, newsData.sentiment);
+    
+    // 🔧 DEBUG: Log context lengths to diagnose "dumb" responses
+    console.log(`[Context Debug] Price: ${priceContext.length} chars, Coin: ${coinDetailContext.length} chars, Social: ${socialContext.length} chars`);
+    console.log(`[Context Debug] Derivatives: ${derivativesContext.length} chars, News: ${newsContext.length} chars, Briefs: ${marketBriefsContext.length} chars`);
+    
+    if (priceContext.length < 50 && coinDetailContext.length < 50 && socialContext.length < 50) {
+      console.warn(`[Context Warning] Very little data being passed to AI! This may cause generic responses.`);
+    }
     
     // Build Phase 5: Security context
     const validSecurityData = securityData.filter((s): s is TokenSecurityContext => s !== null);
