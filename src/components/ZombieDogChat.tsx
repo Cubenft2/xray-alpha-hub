@@ -364,7 +364,7 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
               className={`max-w-[85%] rounded-lg ${messagePadding} ${
                 message.role === 'user'
                   ? 'bg-muted/80 text-foreground'
-                  : 'bg-primary/20 border border-primary/30 text-foreground'
+                  : 'bg-[hsl(120_100%_35%/0.15)] border border-[hsl(120_100%_35%/0.3)] text-foreground'
               }`}
             >
               <p className={`${textSize} whitespace-pre-wrap`}>{message.content}</p>
@@ -379,7 +379,7 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
               alt="ZombieDog thinking" 
               className={`${avatarSize} mr-2 flex-shrink-0 pixel-border object-cover rounded-sm animate-pulse`} 
             />
-            <div className={`bg-primary/20 border border-primary/30 rounded-lg ${messagePadding}`}>
+            <div className={`bg-[hsl(120_100%_35%/0.15)] border border-[hsl(120_100%_35%/0.3)] rounded-lg ${messagePadding}`}>
               <p className={`${textSize} text-muted-foreground animate-pulse`}>
                 Sniffing the data...
               </p>
