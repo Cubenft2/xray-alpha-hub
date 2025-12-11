@@ -10,6 +10,7 @@ export interface CoinData {
   price: number;
   price_btc: number;
   market_cap: number;
+  percent_change_1h: number;
   percent_change_24h: number;
   percent_change_7d: number;
   percent_change_30d: number;
@@ -21,9 +22,13 @@ export interface CoinData {
   alt_rank: number;
   volatility: number;
   market_cap_rank: number;
+  logo_url?: string;
   categories?: string[];
   social_volume?: number;
+  social_dominance?: number;
+  interactions_24h?: number;
   sentiment?: number;
+  blockchains?: string[];
 }
 
 export interface UniverseMetadata {
@@ -32,36 +37,39 @@ export interface UniverseMetadata {
   total_market_cap: number;
   total_volume_24h: number;
   average_galaxy_score: number;
+  average_sentiment: number;
   last_updated: string;
   page_size: number;
   offset: number;
   has_more: boolean;
 }
 
-export interface Filters {
+export interface FilterState {
   search: string;
   category: string;
-  marketCapRange: [number, number];
+  minVolume: number;
+  minGalaxyScore: number;
+  minMarketCap: number;
   changeFilter: 'all' | 'gainers' | 'losers';
-  galaxyScoreRange: [number, number];
-  sentimentFilter: 'all' | 'positive' | 'neutral' | 'negative';
 }
+
+export const DEFAULT_FILTERS: FilterState = {
+  search: '',
+  category: 'all',
+  minVolume: 0,
+  minGalaxyScore: 0,
+  minMarketCap: 0,
+  changeFilter: 'all',
+};
 
 export function useLunarCrushUniverse() {
   const [sortKey, setSortKey] = useState<keyof CoinData>('market_cap_rank');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(50);
+  const [pageSize] = useState(100);
   const { toast } = useToast();
 
-  const [filters, setFilters] = useState<Filters>({
-    search: '',
-    category: 'all',
-    marketCapRange: [0, 1000000000000],
-    changeFilter: 'all',
-    galaxyScoreRange: [0, 100],
-    sentimentFilter: 'all',
-  });
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
 
   // Debounced search for server requests
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -69,7 +77,7 @@ export function useLunarCrushUniverse() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(filters.search);
-      setCurrentPage(1); // Reset to first page on search change
+      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [filters.search]);
@@ -77,7 +85,7 @@ export function useLunarCrushUniverse() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.changeFilter]);
+  }, [filters.changeFilter, filters.category, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap]);
 
   const fetchCoins = useCallback(async () => {
     const offset = (currentPage - 1) * pageSize;
@@ -90,6 +98,10 @@ export function useLunarCrushUniverse() {
         sortDir: sortDirection,
         search: debouncedSearch,
         changeFilter: filters.changeFilter,
+        category: filters.category,
+        minVolume: filters.minVolume,
+        minGalaxyScore: filters.minGalaxyScore,
+        minMarketCap: filters.minMarketCap,
       },
     });
 
@@ -100,17 +112,17 @@ export function useLunarCrushUniverse() {
       coins: data.data || [],
       metadata: data.metadata as UniverseMetadata || null,
     };
-  }, [currentPage, pageSize, sortKey, sortDirection, debouncedSearch, filters.changeFilter]);
+  }, [currentPage, pageSize, sortKey, sortDirection, debouncedSearch, filters]);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['lunarcrush-universe', currentPage, pageSize, sortKey, sortDirection, debouncedSearch, filters.changeFilter],
+    queryKey: ['lunarcrush-universe', currentPage, pageSize, sortKey, sortDirection, debouncedSearch, filters],
     queryFn: fetchCoins,
     staleTime: 3 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
-    placeholderData: (previousData) => previousData, // Keep previous data while fetching
+    placeholderData: (previousData) => previousData,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
@@ -153,11 +165,11 @@ export function useLunarCrushUniverse() {
 
   return {
     coins,
-    allCoins: coins, // For compatibility - now just returns current page
-    filteredCoins: coins, // For compatibility
+    allCoins: coins,
+    filteredCoins: coins,
     metadata,
     loading: isLoading,
-    isFetching, // For showing loading indicator during pagination
+    isFetching,
     error: error?.message || null,
     filters,
     setFilters,
@@ -173,4 +185,46 @@ export function useLunarCrushUniverse() {
     endIndex,
     totalFilteredItems: totalItems,
   };
+}
+
+// Hook for top gainers
+export function useTopGainers(limit = 5) {
+  return useQuery({
+    queryKey: ['lunarcrush-top-gainers', limit],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('lunarcrush-universe', {
+        body: {
+          limit,
+          offset: 0,
+          sortBy: 'percent_change_24h',
+          sortDir: 'desc',
+          changeFilter: 'gainers',
+        },
+      });
+      if (error) throw error;
+      return (data?.data || []) as CoinData[];
+    },
+    staleTime: 60 * 1000,
+  });
+}
+
+// Hook for top losers
+export function useTopLosers(limit = 5) {
+  return useQuery({
+    queryKey: ['lunarcrush-top-losers', limit],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('lunarcrush-universe', {
+        body: {
+          limit,
+          offset: 0,
+          sortBy: 'percent_change_24h',
+          sortDir: 'asc',
+          changeFilter: 'losers',
+        },
+      });
+      if (error) throw error;
+      return (data?.data || []) as CoinData[];
+    },
+    staleTime: 60 * 1000,
+  });
 }

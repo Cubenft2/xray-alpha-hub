@@ -12,6 +12,7 @@ interface CoinData {
   price: number;
   price_btc: number;
   market_cap: number;
+  percent_change_1h: number;
   percent_change_24h: number;
   percent_change_7d: number;
   percent_change_30d: number;
@@ -23,9 +24,13 @@ interface CoinData {
   alt_rank: number;
   volatility: number;
   market_cap_rank: number;
+  logo_url?: string;
   categories?: string[];
   social_volume?: number;
+  social_dominance?: number;
+  interactions_24h?: number;
   sentiment?: number;
+  blockchains?: string[];
 }
 
 Deno.serve(async (req) => {
@@ -34,23 +39,31 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Parse pagination params from request body
-    let limit = 50;
+    // Parse pagination and filter params from request body
+    let limit = 100;
     let offset = 0;
     let sortBy = 'market_cap_rank';
     let sortDir: 'asc' | 'desc' = 'asc';
     let search = '';
     let changeFilter: 'all' | 'gainers' | 'losers' = 'all';
+    let category = 'all';
+    let minVolume = 0;
+    let minGalaxyScore = 0;
+    let minMarketCap = 0;
 
     if (req.method === 'POST') {
       try {
         const body = await req.json();
-        limit = Math.min(Math.max(body.limit || 50, 1), 200); // Cap at 200
+        limit = Math.min(Math.max(body.limit || 100, 1), 200);
         offset = Math.max(body.offset || 0, 0);
         sortBy = body.sortBy || 'market_cap_rank';
         sortDir = body.sortDir === 'desc' ? 'desc' : 'asc';
         search = (body.search || '').toLowerCase().trim();
         changeFilter = body.changeFilter || 'all';
+        category = body.category || 'all';
+        minVolume = body.minVolume || 0;
+        minGalaxyScore = body.minGalaxyScore || 0;
+        minMarketCap = body.minMarketCap || 0;
       } catch {
         // Use defaults if body parsing fails
       }
@@ -74,15 +87,14 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const cacheKey = 'lunarcrush:universe:v3';
+    const cacheKey = 'lunarcrush:universe:v4';
     const cacheTTL = 300; // 5 minutes
-    const MAX_COINS = 3000; // Limit to top 3000 by market cap rank
+    const MAX_COINS = 3000;
 
     // Try to get cached full dataset
     let allCoins: CoinData[] = [];
     let cacheHit = false;
 
-    // Check cache - use simpler approach with cached_at timestamp in the value
     const { data: cachedData } = await supabase
       .from('cache_kv')
       .select('v')
@@ -92,7 +104,7 @@ Deno.serve(async (req) => {
     const now = Date.now();
     if (cachedData?.v?.data && cachedData?.v?.cached_at) {
       const cachedAt = new Date(cachedData.v.cached_at).getTime();
-      const age = (now - cachedAt) / 1000; // age in seconds
+      const age = (now - cachedAt) / 1000;
       
       if (age < cacheTTL) {
         console.log(`✅ Using cached LunarCrush data (${Math.round(age)}s old)`);
@@ -105,7 +117,6 @@ Deno.serve(async (req) => {
 
     // If no cache, fetch from API
     if (!cacheHit) {
-      // Use expired cache data as fallback if available
       const expiredCoins = cachedData?.v?.data || [];
 
       console.log('🔄 Fetching fresh LunarCrush universe data...');
@@ -116,7 +127,6 @@ Deno.serve(async (req) => {
       });
 
       if (!response.ok) {
-        // If rate limited and we have expired cache, use that
         if (response.status === 429 && expiredCoins.length > 0) {
           console.log('⚠️ Rate limited! Using expired cache as fallback');
           allCoins = expiredCoins;
@@ -127,15 +137,29 @@ Deno.serve(async (req) => {
         const apiData = await response.json();
         const rawCoins = apiData.data || [];
         
-        // Map API fields to our interface and filter to top coins by market cap rank
+        // Map API fields to our interface
         allCoins = rawCoins
           .filter((coin: any) => coin.market_cap_rank && coin.market_cap_rank <= MAX_COINS)
           .map((coin: any) => {
             const social_volume = coin.interactions_24h || coin.social_volume_24h || coin.social_volume || 0;
+            const categories = coin.categories ? 
+              (Array.isArray(coin.categories) ? coin.categories : [coin.categories]) : 
+              [];
+            const blockchains = coin.blockchains ?
+              (Array.isArray(coin.blockchains) ? coin.blockchains : [coin.blockchains]) :
+              [];
+            
             return {
               ...coin,
+              logo_url: coin.logo || coin.logo_url || null,
+              percent_change_1h: coin.percent_change_1h || coin.change_1h || 0,
+              percent_change_7d: coin.percent_change_7d || coin.change_7d || 0,
               social_volume,
-              sentiment: coin.sentiment || 0,
+              social_dominance: coin.social_dominance || 0,
+              interactions_24h: coin.interactions_24h || 0,
+              sentiment: coin.sentiment || 50,
+              categories,
+              blockchains,
             };
           });
 
@@ -174,15 +198,42 @@ Deno.serve(async (req) => {
       filteredCoins = filteredCoins.filter((coin) => coin.percent_change_24h < 0);
     }
 
+    // Category filter
+    if (category !== 'all') {
+      filteredCoins = filteredCoins.filter((coin) => {
+        if (!coin.categories || !Array.isArray(coin.categories)) return false;
+        return coin.categories.some((cat: string) => 
+          cat.toLowerCase().includes(category.toLowerCase())
+        );
+      });
+    }
+
+    // Volume threshold
+    if (minVolume > 0) {
+      filteredCoins = filteredCoins.filter((coin) => (coin.volume_24h || 0) >= minVolume);
+    }
+
+    // Galaxy Score threshold
+    if (minGalaxyScore > 0) {
+      filteredCoins = filteredCoins.filter((coin) => (coin.galaxy_score || 0) >= minGalaxyScore);
+    }
+
+    // Market Cap threshold
+    if (minMarketCap > 0) {
+      filteredCoins = filteredCoins.filter((coin) => (coin.market_cap || 0) >= minMarketCap);
+    }
+
     // Server-side sorting
-    const validSortKeys = ['market_cap_rank', 'price', 'percent_change_24h', 'market_cap', 'volume_24h', 'galaxy_score', 'alt_rank', 'name', 'symbol'];
+    const validSortKeys = [
+      'market_cap_rank', 'price', 'percent_change_1h', 'percent_change_24h', 'percent_change_7d',
+      'market_cap', 'volume_24h', 'galaxy_score', 'alt_rank', 'name', 'symbol', 'social_volume', 'sentiment'
+    ];
     const safeSortBy = validSortKeys.includes(sortBy) ? sortBy : 'market_cap_rank';
 
     filteredCoins.sort((a: any, b: any) => {
       const aVal = a[safeSortBy] ?? 0;
       const bVal = b[safeSortBy] ?? 0;
       
-      // Handle string comparison for name/symbol
       if (typeof aVal === 'string' && typeof bVal === 'string') {
         const comparison = aVal.localeCompare(bVal);
         return sortDir === 'asc' ? comparison : -comparison;
@@ -197,13 +248,16 @@ Deno.serve(async (req) => {
     // Apply pagination
     const paginatedCoins = filteredCoins.slice(offset, offset + limit);
 
-    // Calculate metadata
+    // Calculate metadata including average sentiment
+    const avgSentiment = allCoins.reduce((sum, c) => sum + (c.sentiment || 50), 0) / (allCoins.length || 1);
+
     const metadata = {
       total_coins: totalFiltered,
       total_all_coins: allCoins.length,
       total_market_cap: allCoins.reduce((sum, c) => sum + (c.market_cap || 0), 0),
       total_volume_24h: allCoins.reduce((sum, c) => sum + (c.volume_24h || 0), 0),
-      average_galaxy_score: allCoins.reduce((sum, c) => sum + (c.galaxy_score || 0), 0) / allCoins.length,
+      average_galaxy_score: allCoins.reduce((sum, c) => sum + (c.galaxy_score || 0), 0) / (allCoins.length || 1),
+      average_sentiment: avgSentiment,
       last_updated: new Date().toISOString(),
       page_size: limit,
       offset: offset,
