@@ -182,6 +182,9 @@ verify_jwt = false
 [functions.polygon-crypto-snapshot]
 verify_jwt = false
 
+[[functions.polygon-crypto-snapshot.cron]]
+schedule = "* * * * *"
+
 [functions.polygon-sparkline-data]
 verify_jwt = false
 
