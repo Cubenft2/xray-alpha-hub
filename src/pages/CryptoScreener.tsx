@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { usePolygonSnapshot, CryptoSnapshot } from '@/hooks/usePolygonSnapshot';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp } from 'lucide-react';
+import { Search, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, ChevronRight } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 
 type SortField = 'name' | 'price' | 'changePercent' | 'volume24h' | 'vwap' | 'high24h' | 'low24h' | 'market_cap' | 'market_cap_rank';
@@ -38,6 +39,7 @@ function formatChange(change: number): string {
 }
 
 export default function CryptoScreener() {
+  const navigate = useNavigate();
   const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = usePolygonSnapshot();
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('market_cap_rank');
@@ -184,6 +186,7 @@ export default function CryptoScreener() {
                       </button>
                     </th>
                     <th className="px-4 py-3 text-right">High / Low</th>
+                    <th className="px-2 py-3 w-8"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -207,11 +210,12 @@ export default function CryptoScreener() {
                         <td className="px-4 py-3"><Skeleton className="h-4 w-20 ml-auto" /></td>
                         <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
                         <td className="px-4 py-3"><Skeleton className="h-4 w-28 ml-auto" /></td>
+                        <td className="px-2 py-3"></td>
                       </tr>
                     ))
                   ) : filteredData.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="px-4 py-12 text-center text-muted-foreground">
+                      <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
                         No cryptocurrencies found matching "{search}"
                       </td>
                     </tr>
@@ -219,7 +223,8 @@ export default function CryptoScreener() {
                     filteredData.map((item) => (
                       <tr 
                         key={item.ticker} 
-                        className="border-t border-[#1a1a1a] hover:bg-[#141414] transition-colors"
+                        className="border-t border-[#1a1a1a] hover:bg-[#141414] transition-colors cursor-pointer group"
+                        onClick={() => navigate(`/crypto-universe/${item.symbol}`)}
                       >
                         <td className="px-3 py-3 text-center text-muted-foreground font-mono text-sm">
                           {item.market_cap_rank ? `#${item.market_cap_rank}` : '—'}
@@ -267,6 +272,9 @@ export default function CryptoScreener() {
                           <span className="text-green-500/70">{formatPrice(item.high24h)}</span>
                           {' / '}
                           <span className="text-red-500/70">{formatPrice(item.low24h)}</span>
+                        </td>
+                        <td className="px-2 py-3 text-muted-foreground">
+                          <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </td>
                       </tr>
                     ))
