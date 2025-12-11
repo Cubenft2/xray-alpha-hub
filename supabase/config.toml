@@ -180,11 +180,13 @@ verify_jwt = false
 [functions.migrate-ticker-data]
 verify_jwt = false
 
+# Polygon crypto snapshot - DISABLED (replaced by lunarcrush-sync)
+# [functions.polygon-crypto-snapshot]
+# verify_jwt = false
+# [[functions.polygon-crypto-snapshot.cron]]
+# schedule = "* * * * *"
 [functions.polygon-crypto-snapshot]
 verify_jwt = false
-
-[[functions.polygon-crypto-snapshot.cron]]
-schedule = "* * * * *"
 
 # Stock snapshot - every 5 minutes (mirrors stock-poller frequency)
 [functions.polygon-stock-snapshot]
@@ -198,3 +200,10 @@ verify_jwt = false
 
 [functions.fix-coingecko-mappings]
 verify_jwt = false
+
+# LunarCrush sync - PRIMARY crypto data source (every minute)
+[functions.lunarcrush-sync]
+verify_jwt = false
+
+[[functions.lunarcrush-sync.cron]]
+schedule = "* * * * *"
