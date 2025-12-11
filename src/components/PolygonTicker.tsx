@@ -5,8 +5,7 @@ import { Button } from './ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { useCentralizedPrices } from '@/hooks/useCentralizedPrices';
-import { getMarketCapRank } from '@/config/top100MarketCap';
+
 interface DisplayPriceData {
   symbol: string;
   displayName: string;
@@ -19,16 +18,19 @@ interface DisplayPriceData {
 // Featured tokens that should always appear first in the ticker
 const FEATURED_SYMBOLS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'BAT', 'MON', 'LINK', 'AVAX'];
 
+type DataStatus = 'live' | 'connecting' | 'stale';
+
 export function PolygonTicker() {
-  const speedLevels = [100, 200, 333, 500, 700]; // ~1 min full loop at default
+  const speedLevels = [100, 200, 333, 500, 700];
   const [displayPrices, setDisplayPrices] = useState<DisplayPriceData[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [speedLevel, setSpeedLevel] = useState(2); // Default to 333px/s
-  const [logoCache, setLogoCache] = useState<Map<string, string>>(new Map());
+  const [speedLevel, setSpeedLevel] = useState(2);
   const [symbols, setSymbols] = useState<string[]>([]);
   const [symbolMetadata, setSymbolMetadata] = useState<Map<string, { displayName: string; coingecko_id: string | null }>>(new Map());
   const [isVisible, setIsVisible] = useState(false);
+  const [status, setStatus] = useState<DataStatus>('connecting');
+  const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   
   const tickerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,73 +60,85 @@ export function PolygonTicker() {
     return () => observer.disconnect();
   }, []);
 
-  // Load top 100 cryptos by MARKET CAP with fresh prices - prioritize featured symbols
+  // Load top 100 cryptos from crypto_snapshot (LunarCrush data) - ordered by market_cap_rank
   useEffect(() => {
     if (!isVisible) return;
 
-    const loadFreshCryptos = async () => {
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      
-      // Fetch fresh crypto prices by joining live_prices with assets directly
-      const { data: freshCryptos } = await supabase
-        .from('live_prices')
-        .select(`
-          ticker,
-          display,
-          price,
-          change24h,
-          updated_at,
-          asset_id,
-          assets!inner (
-            id,
-            type,
-            name,
-            logo_url
-          )
-        `)
-        .eq('assets.type', 'crypto')
-        .gt('updated_at', fiveMinutesAgo)
-        .limit(500);
+    const loadCryptoSnapshot = async () => {
+      // Fetch from crypto_snapshot ordered by market_cap_rank
+      const { data: cryptos, error } = await supabase
+        .from('crypto_snapshot')
+        .select('*')
+        .not('price', 'is', null)
+        .gt('price', 0)
+        .order('market_cap_rank', { ascending: true, nullsFirst: false })
+        .limit(200);
 
-      if (!freshCryptos || freshCryptos.length === 0) return;
+      if (error || !cryptos || cryptos.length === 0) {
+        console.warn('[PolygonTicker] crypto_snapshot empty or error, falling back to live_prices');
+        setStatus('stale');
+        // Fallback to live_prices if crypto_snapshot is empty
+        const { data: fallbackData } = await supabase
+          .from('live_prices')
+          .select('ticker, display, price, change24h')
+          .like('ticker', 'X:%')
+          .gt('price', 0)
+          .limit(100);
+        
+        if (fallbackData && fallbackData.length > 0) {
+          const fallbackPrices = fallbackData.map(p => ({
+            symbol: p.ticker.replace('X:', '').replace('USD', ''),
+            displayName: p.display,
+            price: p.price,
+            change24h: p.change24h,
+            coingecko_id: null,
+            logo_url: null
+          }));
+          setDisplayPrices([...fallbackPrices, ...fallbackPrices]);
+          setSymbols(fallbackPrices.map(p => p.symbol));
+        }
+        return;
+      }
 
-      // Get coingecko data for logos
-      const assetIds = freshCryptos.map(c => c.asset_id).filter(Boolean);
-      const { data: cgAssets } = await supabase
-        .from('coingecko_assets')
-        .select('asset_id, coingecko_id')
-        .in('asset_id', assetIds);
+      // Check data freshness - if updated within 3 minutes, it's live
+      const latestUpdate = cryptos[0]?.updated_at;
+      if (latestUpdate) {
+        const updateTime = new Date(latestUpdate).getTime();
+        const now = Date.now();
+        const ageMs = now - updateTime;
+        setLastUpdate(updateTime);
+        
+        if (ageMs < 3 * 60 * 1000) {
+          setStatus('live');
+        } else if (ageMs < 10 * 60 * 1000) {
+          setStatus('connecting');
+        } else {
+          setStatus('stale');
+        }
+      }
 
-      const cgLookup = new Map(
-        (cgAssets || []).map(cg => [cg.asset_id, cg.coingecko_id])
-      );
-
-      // Map to display format
-      const cryptoWithPrices = freshCryptos.map(p => ({
-        symbol: p.ticker,
-        displayName: (p.assets as any)?.name || p.display,
-        price: p.price,
-        change24h: p.change24h,
-        coingecko_id: cgLookup.get(p.asset_id) || null,
-        logo_url: (p.assets as any)?.logo_url || null
+      // Map to display format - crypto_snapshot already has logos from LunarCrush
+      const cryptoWithPrices = cryptos.map(c => ({
+        symbol: c.symbol,
+        displayName: c.name,
+        price: c.price,
+        change24h: c.change_percent || c.change_24h || 0,
+        coingecko_id: c.coingecko_id,
+        logo_url: c.logo_url
       }));
 
-      // Sort: Featured symbols first (in FEATURED_SYMBOLS order), then by static market cap rank
+      // Sort: Featured symbols first (in FEATURED_SYMBOLS order), then by market_cap_rank (already sorted)
       const sortedCryptos = cryptoWithPrices.sort((a, b) => {
         const aIdx = FEATURED_SYMBOLS.indexOf(a.symbol);
         const bIdx = FEATURED_SYMBOLS.indexOf(b.symbol);
         
-        // Both are featured: sort by featured order
         if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-        // Only a is featured: a comes first
         if (aIdx !== -1) return -1;
-        // Only b is featured: b comes first
         if (bIdx !== -1) return 1;
-        // Neither featured: sort by static market cap rank (from config)
-        return getMarketCapRank(a.symbol) - getMarketCapRank(b.symbol);
+        // Maintain existing order (by market_cap_rank from query)
+        return 0;
       });
 
-      // Take top 100
       const top100 = sortedCryptos.slice(0, 100);
       
       const symbolList = top100.map(t => t.symbol);
@@ -134,70 +148,27 @@ export function PolygonTicker() {
 
       setSymbols(symbolList);
       setSymbolMetadata(metadata);
-
-      // Set initial display prices immediately
-      const initialDisplay = top100.map(t => ({
-        symbol: t.symbol,
-        displayName: t.displayName,
-        price: t.price,
-        change24h: t.change24h,
-        coingecko_id: t.coingecko_id,
-        logo_url: t.logo_url
-      }));
-      setDisplayPrices([...initialDisplay, ...initialDisplay]);
-
-      // Fetch logos for tokens that don't have logo_url
-      const coingeckoIds = top100
-        .filter(t => !t.logo_url && t.coingecko_id)
-        .map(t => t.coingecko_id) as string[];
-
-      if (coingeckoIds.length > 0) {
-        fetchLogos(coingeckoIds);
-      }
+      setDisplayPrices([...top100, ...top100]);
     };
 
-    loadFreshCryptos();
+    loadCryptoSnapshot();
+    
+    // Subscribe to realtime updates on crypto_snapshot
+    const channel = supabase
+      .channel('crypto_snapshot_ticker')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'crypto_snapshot' },
+        () => {
+          // Refresh on any change
+          loadCryptoSnapshot();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isVisible]);
-
-  const fetchLogos = async (coingeckoIds: string[]) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('coingecko-logos', {
-        body: { coingecko_ids: coingeckoIds }
-      });
-
-      if (error || !data?.logos) return;
-      setLogoCache(new Map(Object.entries(data.logos)));
-    } catch (error) {
-      console.error('Logo fetch error:', error);
-    }
-  };
-
-  // Use centralized prices from live_prices table for real-time updates
-  const { prices: wsPrices, status, lastUpdate } = useCentralizedPrices(isVisible ? symbols : []);
-
-  // Update display prices when realtime prices come in (maintain sort order)
-  useEffect(() => {
-    if (Object.keys(wsPrices).length === 0) return;
-
-    const priceArray = symbols
-      .filter(symbol => wsPrices[symbol]) // Only symbols with prices
-      .map(symbol => {
-        const priceData = wsPrices[symbol];
-        const meta = symbolMetadata.get(symbol);
-        return {
-          symbol,
-          displayName: meta?.displayName || symbol,
-          price: priceData.price,
-          change24h: priceData.change24h,
-          coingecko_id: meta?.coingecko_id,
-          logo_url: meta?.coingecko_id ? logoCache.get(meta.coingecko_id) : undefined
-        };
-      });
-
-    if (priceArray.length > 0) {
-      setDisplayPrices([...priceArray, ...priceArray]); // Duplicate for seamless loop
-    }
-  }, [wsPrices, symbols, symbolMetadata, logoCache]);
 
   // Smooth scrolling animation
   useEffect(() => {
@@ -313,7 +284,7 @@ export function PolygonTicker() {
                     : 'Waiting for prices...'}
                 </p>
                 <p className="text-[10px] text-muted-foreground/70">
-                  Polls every 10s • {Object.keys(wsPrices || {}).length} symbols
+                  LunarCrush • {symbols.length} symbols
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -357,15 +328,12 @@ export function PolygonTicker() {
                       if (isMobile) {
                         e.preventDefault();
                         if (isPaused) {
-                          // If paused, resume scrolling without navigating
                           setIsPaused(false);
                           return;
                         }
-                        // If not paused, pause and navigate
                         setIsPaused(true);
                         navigate(`/crypto?symbol=${price.symbol}`);
                       } else {
-                        // Desktop: just navigate
                         navigate(`/crypto?symbol=${price.symbol}`);
                       }
                     }}

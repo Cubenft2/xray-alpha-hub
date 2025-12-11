@@ -346,17 +346,28 @@ export type Database = {
       }
       crypto_snapshot: {
         Row: {
+          alt_rank: number | null
+          blockchains: Json | null
+          categories: Json | null
           change_24h: number | null
           change_percent: number | null
           coingecko_id: string | null
+          galaxy_score: number | null
           high_24h: number | null
+          interactions_24h: number | null
           logo_url: string | null
           low_24h: number | null
+          lunarcrush_id: string | null
           market_cap: number | null
           market_cap_rank: number | null
           name: string
           open_24h: number | null
+          percent_change_1h: number | null
+          percent_change_7d: number | null
           price: number
+          sentiment: number | null
+          social_dominance: number | null
+          social_volume_24h: number | null
           symbol: string
           ticker: string
           updated_at: string
@@ -364,17 +375,28 @@ export type Database = {
           vwap: number | null
         }
         Insert: {
+          alt_rank?: number | null
+          blockchains?: Json | null
+          categories?: Json | null
           change_24h?: number | null
           change_percent?: number | null
           coingecko_id?: string | null
+          galaxy_score?: number | null
           high_24h?: number | null
+          interactions_24h?: number | null
           logo_url?: string | null
           low_24h?: number | null
+          lunarcrush_id?: string | null
           market_cap?: number | null
           market_cap_rank?: number | null
           name: string
           open_24h?: number | null
+          percent_change_1h?: number | null
+          percent_change_7d?: number | null
           price?: number
+          sentiment?: number | null
+          social_dominance?: number | null
+          social_volume_24h?: number | null
           symbol: string
           ticker: string
           updated_at?: string
@@ -382,17 +404,28 @@ export type Database = {
           vwap?: number | null
         }
         Update: {
+          alt_rank?: number | null
+          blockchains?: Json | null
+          categories?: Json | null
           change_24h?: number | null
           change_percent?: number | null
           coingecko_id?: string | null
+          galaxy_score?: number | null
           high_24h?: number | null
+          interactions_24h?: number | null
           logo_url?: string | null
           low_24h?: number | null
+          lunarcrush_id?: string | null
           market_cap?: number | null
           market_cap_rank?: number | null
           name?: string
           open_24h?: number | null
+          percent_change_1h?: number | null
+          percent_change_7d?: number | null
           price?: number
+          sentiment?: number | null
+          social_dominance?: number | null
+          social_volume_24h?: number | null
           symbol?: string
           ticker?: string
           updated_at?: string

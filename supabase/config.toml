@@ -78,12 +78,13 @@ verify_jwt = false
 [functions.map-polygon-tickers]
 verify_jwt = false
 
-# Crypto price polling - every 2 minutes (REST API - UNLIMITED calls)
+# Crypto price polling - DISABLED (replaced by lunarcrush-sync)
+# [functions.polygon-rest-poller]
+# verify_jwt = false
+# [[functions.polygon-rest-poller.cron]]
+# schedule = "*/2 * * * *"
 [functions.polygon-rest-poller]
 verify_jwt = false
-
-[[functions.polygon-rest-poller.cron]]
-schedule = "*/2 * * * *"
 
 # Stock price polling - every 5 minutes (REST API - UNLIMITED calls, 15-min delayed)
 [functions.polygon-stock-poller]
