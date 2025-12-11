@@ -542,10 +542,43 @@ interface QuestionUnderstanding {
   };
 }
 
+// 🔧 FIX: Extract recently discussed assets from conversation history
+// This helps maintain context for follow-up questions like "tell me more about this" or "is it safe?"
+function extractRecentAssets(conversationHistory: Array<{role: string, content: string}>): string[] {
+  const recentAssets: string[] = [];
+  
+  // Look at last 6 messages (3 exchanges) for asset mentions
+  const recentMessages = conversationHistory.slice(-6);
+  
+  for (const msg of recentMessages) {
+    if (!msg.content) continue;
+    
+    // Match ticker patterns: $BTC, BTC, PEPE, etc. (2-10 uppercase letters)
+    // Also match tickers mentioned in context like "BSKT" or "Basketcoin"
+    const tickerMatches = msg.content.match(/\$?[A-Z]{2,10}\b/g);
+    if (tickerMatches) {
+      for (const match of tickerMatches) {
+        const ticker = match.replace('$', '');
+        // Filter out common words that match the pattern
+        const commonWords = ['THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'HAS', 'HAD', 'WAS', 'HIS', 'HER', 
+          'CAN', 'NOW', 'HOW', 'WHY', 'WHO', 'ALL', 'GET', 'NEW', 'ONE', 'TWO', 'OUT', 'OUR', 'DAY', 'ANY',
+          'DEX', 'CEX', 'API', 'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL'];
+        if (!commonWords.includes(ticker) && ticker.length >= 2) {
+          recentAssets.push(ticker);
+        }
+      }
+    }
+  }
+  
+  // Dedupe and return most recent first
+  return [...new Set(recentAssets)].reverse();
+}
+
 // Use Gemini (via Lovable AI) to understand the question
 async function understandQuestion(
   userMessage: string, 
-  conversationHistory: Array<{role: string, content: string}> = []
+  conversationHistory: Array<{role: string, content: string}> = [],
+  recentAssets: string[] = []  // 🔧 NEW: Pass recently discussed assets
 ): Promise<QuestionUnderstanding | null> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -579,6 +612,11 @@ async function understandQuestion(
 
     console.log("[Question Understanding] Parsing with Gemini...");
     
+    // 🔧 FIX: Build context hint from recently discussed assets
+    const recentAssetsContext = recentAssets.length > 0 
+      ? `\n\nCONVERSATION CONTEXT: User recently discussed these assets: ${recentAssets.slice(0, 5).join(', ')}. If user says "this", "it", "that", or refers to something they just discussed, assume they mean: ${recentAssets[0]}`
+      : '';
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -592,11 +630,11 @@ async function understandQuestion(
           role: "user",
           content: `Parse this financial/crypto question and return ONLY valid JSON (no markdown, no code blocks):
 
-"${contextualMessage}"
+"${contextualMessage}"${recentAssetsContext}
 
 Return this exact JSON structure:
 {
-  "intent": "price|news|analysis|comparison|general|greeting|safety",
+  "intent": "price|news|analysis|comparison|general|greeting|safety|content",
   "assets": [{"symbol": "BTC", "name": "Bitcoin", "type": "crypto", "confidence": 0.95, "contractAddress": null}],
   "needsClarification": false,
   "clarificationMessage": null,
@@ -617,7 +655,7 @@ CRITICAL RULES:
 2. "news about NVIDIA" → asset is {symbol:"NVDA", name:"NVIDIA", type:"stock"}, intent is "news"
 3. "what's the price of ETH" → asset is {symbol:"ETH", name:"Ethereum", type:"crypto"}, intent is "price"
 4. Greetings like "hi", "hello", "hey" → intent:"greeting", assets:[], no data fetching needed
-5. If genuinely ambiguous (multiple coins with same name), set needsClarification:true with a helpful question
+5. **AVOID UNNECESSARY CLARIFICATION**: If user mentions a ticker by name or symbol, resolve it - DO NOT ask for clarification unless there are multiple tokens with the EXACT same symbol. If user says "this", "it", "that" token, use the most recently discussed asset from CONVERSATION CONTEXT.
 6. Only enable fetchData fields that are ACTUALLY needed:
    - "price" questions → prices:true, technicals:true
    - "news" questions → news:true, webSearch:true, social:true
@@ -626,10 +664,13 @@ CRITICAL RULES:
    - "greeting" → all false
    - companyDetails:true ONLY for stocks
    - "safety" questions → securityCheck:true, social:true, news:true
+   - "content" questions (make a post, write about, tweet) → social:true, news:true
 7. SAFETY INTENT: Questions about safety, scams, rugs, risks, legitimacy, honeypots, "should I buy", "is X legit", "is X safe" → intent:"safety", securityCheck:true
-8. Stock symbols: AAPL, NVDA, TSLA, MSFT, GOOG, AMZN, META, COIN, MSTR, etc.
-9. Crypto symbols: BTC, ETH, SOL, XRP, ADA, DOGE, LINK, AVAX, etc.
-10. If user provides a contract address (0x... or Solana base58), include it in contractAddress field
+8. CONTENT INTENT: Requests to "make a post", "write about", "tweet", "create content" → intent:"content", use asset from context
+9. Stock symbols: AAPL, NVDA, TSLA, MSFT, GOOG, AMZN, META, COIN, MSTR, etc.
+10. Crypto symbols: BTC, ETH, SOL, XRP, ADA, DOGE, LINK, AVAX, etc.
+11. If user provides a contract address (0x... or Solana base58), include it in contractAddress field
+12. FOLLOW-UP QUESTIONS: If the user is clearly asking a follow-up about something they just discussed (e.g., "is it safe?", "make a post about this", "where can I buy it"), use the asset from CONVERSATION CONTEXT - DO NOT ask for clarification
 
 Return ONLY the JSON object, nothing else.`
         }]
@@ -3493,12 +3534,85 @@ serve(async (req) => {
     const latestUserMessage = messages?.filter((m: any) => m.role === 'user').pop();
     const userQuery = latestUserMessage?.content || '';
     
+    // 🔧 FIX: Extract recently discussed assets from conversation history
+    const recentAssets = extractRecentAssets(messages || []);
+    if (recentAssets.length > 0) {
+      console.log(`[Context] Recently discussed assets: ${recentAssets.slice(0, 5).join(', ')}`);
+    }
+    
     // PHASE 5: AI-Powered Question Understanding (Gemini)
     // This replaces keyword-based matching with intelligent parsing
-    // Pass conversation history to handle clarification follow-ups
-    const questionUnderstanding = await understandQuestion(userQuery, messages || []);
+    // Pass conversation history AND recent assets to handle clarification follow-ups
+    let questionUnderstanding = await understandQuestion(userQuery, messages || [], recentAssets);
     
-    // Handle clarification requests from AI
+    // 🔧 FIX: Database fallback - override clarification if we find a valid ticker in the message
+    if (questionUnderstanding?.needsClarification) {
+      // Check if there's an obvious ticker in the user's message
+      const tickerMatch = userQuery.match(/\b([A-Z]{2,10})\b/);
+      if (tickerMatch) {
+        const potentialTicker = tickerMatch[1];
+        // Filter out common non-ticker words
+        const commonWords = ['THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'CAN', 'NOW', 'HOW', 'WHY', 'WHO',
+          'DEX', 'CEX', 'API', 'USD', 'EUR', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL', 'ABOUT', 'THIS', 'THAT'];
+        
+        if (!commonWords.includes(potentialTicker)) {
+          // Try direct database lookup
+          const { data: tickerData } = await supabase
+            .from('ticker_mappings')
+            .select('symbol, display_name')
+            .eq('symbol', potentialTicker)
+            .single();
+          
+          if (tickerData) {
+            console.log(`[Context Fix] Overrode AI clarification - found ${potentialTicker} in database`);
+            questionUnderstanding = {
+              ...questionUnderstanding,
+              needsClarification: false,
+              clarificationMessage: null,
+              assets: [{
+                symbol: tickerData.symbol,
+                name: tickerData.display_name || tickerData.symbol,
+                type: 'crypto',
+                confidence: 0.9,
+                contractAddress: null
+              }]
+            };
+          }
+        }
+      }
+      
+      // 🔧 FIX: If still needs clarification but we have recent assets, use those
+      if (questionUnderstanding?.needsClarification && recentAssets.length > 0) {
+        // Check if user is asking a follow-up question (contains "this", "it", "that", or is a request)
+        const isFollowUp = /\b(this|it|that|about|make|write|post|tweet|safe|buy|sell)\b/i.test(userQuery);
+        if (isFollowUp) {
+          // Look up the most recent asset in database
+          const { data: recentTickerData } = await supabase
+            .from('ticker_mappings')
+            .select('symbol, display_name')
+            .eq('symbol', recentAssets[0])
+            .single();
+          
+          if (recentTickerData) {
+            console.log(`[Context Fix] Using recent asset ${recentAssets[0]} for follow-up question`);
+            questionUnderstanding = {
+              ...questionUnderstanding,
+              needsClarification: false,
+              clarificationMessage: null,
+              assets: [{
+                symbol: recentTickerData.symbol,
+                name: recentTickerData.display_name || recentTickerData.symbol,
+                type: 'crypto',
+                confidence: 0.85,
+                contractAddress: null
+              }]
+            };
+          }
+        }
+      }
+    }
+    
+    // Handle clarification requests from AI (only if we couldn't resolve via database fallback)
     if (questionUnderstanding?.needsClarification && questionUnderstanding?.clarificationMessage) {
       console.log(`[Question Understanding] Clarification needed: ${questionUnderstanding.clarificationMessage}`);
       // Return clarification as a simple response without full AI call
