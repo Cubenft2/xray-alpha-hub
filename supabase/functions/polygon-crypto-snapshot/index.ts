@@ -115,7 +115,8 @@ Deno.serve(async (req) => {
     console.log(`📚 Loaded ${assetIdToCgId.size} coingecko_id mappings from database`);
 
     // Read from live_prices table (populated by polygon-rest-poller)
-    console.log('🔄 Reading prices from live_prices table...');
+    // Filter to ONLY crypto tickers (X:XXXUSD format)
+    console.log('🔄 Reading CRYPTO prices from live_prices table (X: prefix only)...');
     const { data: livePrices, error: livePricesError } = await supabase
       .from('live_prices')
       .select(`
@@ -127,6 +128,7 @@ Deno.serve(async (req) => {
         updated_at
       `)
       .eq('source', 'polygon')
+      .like('ticker', 'X:%')
       .not('price', 'is', null);
 
     if (livePricesError) {
@@ -237,14 +239,23 @@ Deno.serve(async (req) => {
 
     console.log(`📊 Market cap matched: ${matchedByIdCount} by ID, ${matchedBySymbolCount} by symbol, ${snapshotRows.length - matchedByIdCount - matchedBySymbolCount} unmatched`);
 
-    console.log(`📝 Upserting ${snapshotRows.length} rows to crypto_snapshot table...`);
+    // Deduplicate by symbol (keep first occurrence - usually has best data)
+    const uniqueBySymbol = new Map<string, typeof snapshotRows[0]>();
+    snapshotRows.forEach(row => {
+      if (row && !uniqueBySymbol.has(row.symbol)) {
+        uniqueBySymbol.set(row.symbol, row);
+      }
+    });
+    const deduplicatedRows = Array.from(uniqueBySymbol.values());
+    
+    console.log(`📝 Upserting ${deduplicatedRows.length} unique rows to crypto_snapshot table (${snapshotRows.length - deduplicatedRows.length} duplicates removed)...`);
 
     // Batch upsert in chunks of 500
     const BATCH_SIZE = 500;
     let totalUpserted = 0;
 
-    for (let i = 0; i < snapshotRows.length; i += BATCH_SIZE) {
-      const batch = snapshotRows.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < deduplicatedRows.length; i += BATCH_SIZE) {
+      const batch = deduplicatedRows.slice(i, i + BATCH_SIZE);
       const { error: upsertError } = await supabase
         .from('crypto_snapshot')
         .upsert(batch, { onConflict: 'symbol' });
