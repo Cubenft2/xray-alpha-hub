@@ -532,7 +532,10 @@ interface QuestionUnderstanding {
 }
 
 // Use Gemini (via Lovable AI) to understand the question
-async function understandQuestion(userMessage: string): Promise<QuestionUnderstanding | null> {
+async function understandQuestion(
+  userMessage: string, 
+  conversationHistory: Array<{role: string, content: string}> = []
+): Promise<QuestionUnderstanding | null> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
     console.log("[Question Understanding] No LOVABLE_API_KEY, falling back to keyword matching");
@@ -540,6 +543,29 @@ async function understandQuestion(userMessage: string): Promise<QuestionUndersta
   }
 
   try {
+    // Check if this is an answer to a clarification question
+    const assistantMessages = conversationHistory.filter(m => m.role === 'assistant');
+    const lastAssistantMsg = assistantMessages[assistantMessages.length - 1];
+    const userMessages = conversationHistory.filter(m => m.role === 'user');
+    
+    const isClarificationAnswer = lastAssistantMsg?.content && (
+      lastAssistantMsg.content.includes('Please let me know which one') ||
+      lastAssistantMsg.content.includes('Please specify') ||
+      lastAssistantMsg.content.includes('which one you\'re asking about') ||
+      lastAssistantMsg.content.includes('Could you clarify') ||
+      lastAssistantMsg.content.includes('Did you mean')
+    );
+
+    let contextualMessage = userMessage;
+    if (isClarificationAnswer && userMessages.length >= 2) {
+      // Get the original question (before this answer)
+      const originalQuestion = userMessages[userMessages.length - 2]?.content;
+      if (originalQuestion) {
+        contextualMessage = `Original question: "${originalQuestion}". User's clarification/answer: "${userMessage}"`;
+        console.log(`[Question Understanding] Detected clarification answer, combined context: ${contextualMessage}`);
+      }
+    }
+
     console.log("[Question Understanding] Parsing with Gemini...");
     
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -555,7 +581,7 @@ async function understandQuestion(userMessage: string): Promise<QuestionUndersta
           role: "user",
           content: `Parse this financial/crypto question and return ONLY valid JSON (no markdown, no code blocks):
 
-"${userMessage}"
+"${contextualMessage}"
 
 Return this exact JSON structure:
 {
@@ -3188,7 +3214,8 @@ serve(async (req) => {
     
     // PHASE 5: AI-Powered Question Understanding (Gemini)
     // This replaces keyword-based matching with intelligent parsing
-    const questionUnderstanding = await understandQuestion(userQuery);
+    // Pass conversation history to handle clarification follow-ups
+    const questionUnderstanding = await understandQuestion(userQuery, messages || []);
     
     // Handle clarification requests from AI
     if (questionUnderstanding?.needsClarification && questionUnderstanding?.clarificationMessage) {
