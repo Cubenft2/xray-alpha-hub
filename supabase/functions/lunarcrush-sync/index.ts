@@ -66,18 +66,32 @@ Deno.serve(async (req) => {
     console.log('[lunarcrush-sync] API response structure:', Object.keys(data));
     
     // LunarCrush v4 returns data in 'data' array
-    const coins: LunarCrushCoin[] = data.data || data.coins || data || [];
-    console.log(`[lunarcrush-sync] Received ${coins.length} coins`);
+    const rawCoins: LunarCrushCoin[] = data.data || data.coins || data || [];
+    console.log(`[lunarcrush-sync] Received ${rawCoins.length} coins from API`);
 
-    if (!Array.isArray(coins) || coins.length === 0) {
+    if (!Array.isArray(rawCoins) || rawCoins.length === 0) {
       console.error('[lunarcrush-sync] No coins in response:', JSON.stringify(data).slice(0, 500));
       throw new Error('No coins data in LunarCrush response');
     }
 
     // Log sample coin for debugging
-    if (coins.length > 0) {
-      console.log('[lunarcrush-sync] Sample coin structure:', JSON.stringify(coins[0]).slice(0, 500));
+    if (rawCoins.length > 0) {
+      console.log('[lunarcrush-sync] Sample coin structure:', JSON.stringify(rawCoins[0]).slice(0, 500));
     }
+
+    // Deduplicate by symbol - keep highest market cap rank (lowest number = best)
+    const coinsBySymbol = new Map<string, LunarCrushCoin>();
+    for (const coin of rawCoins) {
+      const symbol = coin.symbol?.toUpperCase();
+      if (!symbol) continue;
+      
+      const existing = coinsBySymbol.get(symbol);
+      if (!existing || (coin.market_cap_rank && (!existing.market_cap_rank || coin.market_cap_rank < existing.market_cap_rank))) {
+        coinsBySymbol.set(symbol, coin);
+      }
+    }
+    const coins = Array.from(coinsBySymbol.values());
+    console.log(`[lunarcrush-sync] After deduplication: ${coins.length} unique coins`);
 
     // Transform to crypto_snapshot format
     const records = coins.map((coin, index) => ({
