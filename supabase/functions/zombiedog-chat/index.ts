@@ -1512,6 +1512,131 @@ async function fetchTechnicalIndicators(supabase: any, asset: ResolvedAsset): Pr
 }
 
 // ============================================
+// FETCH TOKEN CONTRACT ADDRESSES
+// ============================================
+interface TokenContractInfo {
+  symbol: string;
+  name: string;
+  contracts: Record<string, string>; // chain -> address
+}
+
+async function fetchTokenContractAddresses(supabase: any, symbol: string): Promise<TokenContractInfo | null> {
+  try {
+    console.log(`[Contract Lookup] Fetching contract addresses for ${symbol}`);
+    
+    // First try cg_master for platforms data (most comprehensive)
+    const { data: cgData } = await supabase
+      .from('cg_master')
+      .select('symbol, name, platforms')
+      .ilike('symbol', symbol)
+      .maybeSingle();
+    
+    if (cgData?.platforms && Object.keys(cgData.platforms).length > 0) {
+      console.log(`[Contract Lookup] Found ${Object.keys(cgData.platforms).length} chains for ${symbol} in cg_master`);
+      return {
+        symbol: cgData.symbol?.toUpperCase() || symbol,
+        name: cgData.name || symbol,
+        contracts: cgData.platforms
+      };
+    }
+    
+    // Fallback to token_contracts table
+    const { data: assetData } = await supabase
+      .from('assets')
+      .select('id, symbol, name')
+      .ilike('symbol', symbol)
+      .maybeSingle();
+    
+    if (assetData?.id) {
+      const { data: contracts } = await supabase
+        .from('token_contracts')
+        .select('chain, contract_address')
+        .eq('asset_id', assetData.id);
+      
+      if (contracts?.length > 0) {
+        console.log(`[Contract Lookup] Found ${contracts.length} contracts for ${symbol} in token_contracts`);
+        const contractMap: Record<string, string> = {};
+        for (const c of contracts) {
+          contractMap[c.chain] = c.contract_address;
+        }
+        return {
+          symbol: assetData.symbol?.toUpperCase() || symbol,
+          name: assetData.name || symbol,
+          contracts: contractMap
+        };
+      }
+    }
+    
+    // Try ticker_mappings for dex_address
+    const { data: tickerData } = await supabase
+      .from('ticker_mappings')
+      .select('symbol, display_name, dex_chain, dex_address')
+      .ilike('symbol', symbol)
+      .not('dex_address', 'is', null)
+      .maybeSingle();
+    
+    if (tickerData?.dex_address) {
+      console.log(`[Contract Lookup] Found dex_address for ${symbol} in ticker_mappings`);
+      return {
+        symbol: tickerData.symbol?.toUpperCase() || symbol,
+        name: tickerData.display_name || symbol,
+        contracts: { [tickerData.dex_chain || 'unknown']: tickerData.dex_address }
+      };
+    }
+    
+    console.log(`[Contract Lookup] No contracts found for ${symbol}`);
+    return null;
+  } catch (e) {
+    console.error(`[Contract Lookup] Error fetching contracts for ${symbol}:`, e);
+    return null;
+  }
+}
+
+function formatTokenContractAddresses(tokenContracts: TokenContractInfo[]): string {
+  if (tokenContracts.length === 0) return '';
+  
+  // Human-readable chain names
+  const chainNames: Record<string, string> = {
+    'ethereum': 'Ethereum',
+    'polygon-pos': 'Polygon',
+    'arbitrum-one': 'Arbitrum',
+    'base': 'Base',
+    'binance-smart-chain': 'BNB Chain (BSC)',
+    'avalanche': 'Avalanche C-Chain',
+    'solana': 'Solana',
+    'fantom': 'Fantom',
+    'optimistic-ethereum': 'Optimism',
+    'sui': 'Sui',
+    'aptos': 'Aptos',
+    'injective': 'Injective',
+    'algorand': 'Algorand',
+    'acala': 'Acala',
+  };
+  
+  const sections = tokenContracts.map(token => {
+    const contractLines = Object.entries(token.contracts)
+      .map(([chain, address]) => {
+        const chainLabel = chainNames[chain] || chain.charAt(0).toUpperCase() + chain.slice(1).replace(/-/g, ' ');
+        return `  • ${chainLabel}: ${address}`;
+      })
+      .join('\n');
+    
+    return `**${token.name} (${token.symbol})** Contract Addresses:\n${contractLines}`;
+  }).join('\n\n');
+  
+  return `
+═══════════════════════════════════════════
+🔗 TOKEN CONTRACT ADDRESSES
+═══════════════════════════════════════════
+
+${sections}
+
+When user asks "is this the address", verify against these official addresses.
+For verification questions, confirm if the address they're asking about matches any of these.
+`;
+}
+
+// ============================================
 // PHASE 1: FETCH RELEVANT MARKET BRIEFS
 // ============================================
 async function fetchRelevantBriefs(supabase: any, symbols: string[]): Promise<MarketBriefContext[]> {
@@ -3873,12 +3998,30 @@ serve(async (req) => {
     
     // Format contract address context
     let contractAddressContext = '';
+    
+    // 🔧 NEW: Fetch official contract addresses for resolved crypto assets
+    // Especially important for verification questions ("is this the address of X?")
+    const isVerificationQuestion = questionUnderstanding?.intent === 'verification' || 
+      /\b(is this|verify|confirm|correct|right|address of)\b/i.test(userQuery);
+    
+    if (resolvedAssets.filter(a => a.assetType === 'crypto').length > 0 || isVerificationQuestion) {
+      const cryptoAssets = resolvedAssets.filter(a => a.assetType === 'crypto');
+      const contractInfoPromises = cryptoAssets.map(a => fetchTokenContractAddresses(supabase, a.symbol));
+      const contractInfoResults = await Promise.all(contractInfoPromises);
+      const validContractInfo = contractInfoResults.filter((c): c is TokenContractInfo => c !== null);
+      
+      if (validContractInfo.length > 0) {
+        contractAddressContext = formatTokenContractAddresses(validContractInfo);
+        console.log(`[Contract Addresses] Found official addresses for ${validContractInfo.length} token(s)`);
+      }
+    }
+    
+    // Add web lookup results if any
     if (contractWebLookups.length > 0) {
-      // Web lookup found info about the contract (LP tokens, DEX pairs, etc.)
       const lookupResults = contractWebLookups.map(l => 
         `📋 Contract: ${l.address}\n${l.info}`
       ).join('\n\n');
-      contractAddressContext = `
+      contractAddressContext += `
 ═══════════════════════════════════════════
 🔗 CONTRACT ADDRESS LOOKUP RESULTS
 ═══════════════════════════════════════════
@@ -3889,7 +4032,7 @@ If it's a liquidity pool or DEX pair, explain which tokens are paired.
 `;
     } else if (contractsSearched.length > 0 && resolvedAssets.length === 0) {
       // Contract searched but nothing found in DB or web
-      contractAddressContext = `
+      contractAddressContext += `
 ═══════════════════════════════════════════
 📋 CONTRACT ADDRESS SEARCH
 ═══════════════════════════════════════════
