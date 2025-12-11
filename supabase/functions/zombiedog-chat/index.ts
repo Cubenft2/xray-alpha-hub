@@ -960,6 +960,31 @@ async function resolveContractAddress(supabase: any, address: string, type: 'evm
     }
   }
   
+  // 4. Check crypto_snapshot.blockchains for LunarCrush-sourced addresses
+  const { data: snapshotData } = await supabase
+    .from('crypto_snapshot')
+    .select('symbol, name, blockchains, coingecko_id')
+    .not('blockchains', 'is', null);
+  
+  if (snapshotData) {
+    for (const snapshot of snapshotData) {
+      if (snapshot.blockchains && Array.isArray(snapshot.blockchains)) {
+        for (const blockchain of snapshot.blockchains) {
+          const blockchainAddr = blockchain.address?.toLowerCase();
+          if (blockchainAddr === normalizedAddr) {
+            console.log(`Found contract in crypto_snapshot.blockchains: ${snapshot.symbol}`);
+            return {
+              symbol: snapshot.symbol.toUpperCase(),
+              coingeckoId: snapshot.coingecko_id,
+              displayName: snapshot.name,
+              assetType: 'crypto'
+            };
+          }
+        }
+      }
+    }
+  }
+  
   console.log(`Contract address not found in database: ${normalizedAddr}`);
   return null;
 }
@@ -1509,6 +1534,148 @@ async function fetchTechnicalIndicators(supabase: any, asset: ResolvedAsset): Pr
     console.error(`Error fetching technicals for ${asset.symbol}:`, e);
     return null;
   }
+}
+
+// ============================================
+// ENRICHED CRYPTO SNAPSHOT DATA (LunarCrush + Market Data)
+// ============================================
+interface EnrichedCryptoData {
+  symbol: string;
+  name: string;
+  price: number;
+  marketCap: number | null;
+  marketCapRank: number | null;
+  galaxyScore: number | null;
+  altRank: number | null;
+  sentiment: number | null;
+  socialVolume24h: number | null;
+  socialDominance: number | null;
+  interactions24h: number | null;
+  percentChange1h: number | null;
+  percentChange24h: number | null;
+  percentChange7d: number | null;
+  blockchains: Array<{ network: string; address: string }> | null;
+  categories: string[] | null;
+  logoUrl: string | null;
+  volume24h: number | null;
+  high24h: number | null;
+  low24h: number | null;
+  coingeckoId: string | null;
+}
+
+// Enrich asset with comprehensive crypto_snapshot data (LunarCrush source)
+async function enrichWithCryptoSnapshot(supabase: any, symbol: string): Promise<EnrichedCryptoData | null> {
+  try {
+    console.log(`[Enrichment] Fetching crypto_snapshot data for ${symbol}`);
+    
+    const { data, error } = await supabase
+      .from('crypto_snapshot')
+      .select('*')
+      .ilike('symbol', symbol)
+      .maybeSingle();
+    
+    if (error || !data) {
+      console.log(`[Enrichment] No crypto_snapshot data for ${symbol}: ${error?.message || 'not found'}`);
+      return null;
+    }
+    
+    // Parse blockchains JSON to get contract addresses
+    let blockchains: Array<{ network: string; address: string }> | null = null;
+    if (data.blockchains && Array.isArray(data.blockchains)) {
+      blockchains = data.blockchains.map((b: any) => ({
+        network: b.network || b.chain || 'unknown',
+        address: b.address || ''
+      })).filter((b: { network: string; address: string }) => b.address);
+    }
+    
+    // Parse categories
+    let categories: string[] | null = null;
+    if (data.categories) {
+      if (Array.isArray(data.categories)) {
+        categories = data.categories.map((c: any) => typeof c === 'string' ? c : c.name || c.category || '').filter(Boolean);
+      }
+    }
+    
+    console.log(`[Enrichment] Found crypto_snapshot for ${symbol}: price=$${data.price}, rank=${data.market_cap_rank}, galaxy=${data.galaxy_score}`);
+    
+    return {
+      symbol: data.symbol,
+      name: data.name,
+      price: data.price || 0,
+      marketCap: data.market_cap,
+      marketCapRank: data.market_cap_rank,
+      galaxyScore: data.galaxy_score,
+      altRank: data.alt_rank,
+      sentiment: data.sentiment,
+      socialVolume24h: data.social_volume_24h,
+      socialDominance: data.social_dominance,
+      interactions24h: data.interactions_24h,
+      percentChange1h: data.percent_change_1h,
+      percentChange24h: data.change_percent,
+      percentChange7d: data.percent_change_7d,
+      blockchains,
+      categories,
+      logoUrl: data.logo_url,
+      volume24h: data.volume_24h,
+      high24h: data.high_24h,
+      low24h: data.low_24h,
+      coingeckoId: data.coingecko_id
+    };
+  } catch (e) {
+    console.error(`[Enrichment] Error fetching crypto_snapshot for ${symbol}:`, e);
+    return null;
+  }
+}
+
+// Format enriched crypto data for system prompt
+function formatEnrichedCryptoContext(enrichedAssets: EnrichedCryptoData[]): string {
+  if (enrichedAssets.length === 0) return '';
+  
+  const sections = enrichedAssets.map(e => {
+    const priceStr = e.price > 0 ? `$${e.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 8 })}` : 'N/A';
+    const mcapStr = e.marketCap ? `$${(e.marketCap / 1e9).toFixed(2)}B` : 'N/A';
+    const rankStr = e.marketCapRank ? `#${e.marketCapRank}` : 'N/A';
+    
+    let section = `
+**${e.name} (${e.symbol})**
+- Price: ${priceStr} | Market Cap: ${mcapStr} (Rank ${rankStr})
+- Changes: 1h ${e.percentChange1h?.toFixed(2) || 'N/A'}% | 24h ${e.percentChange24h?.toFixed(2) || 'N/A'}% | 7d ${e.percentChange7d?.toFixed(2) || 'N/A'}%`;
+
+    if (e.galaxyScore || e.altRank || e.sentiment) {
+      section += `
+- Social: Galaxy Score ${e.galaxyScore || 'N/A'}/100 | Alt Rank #${e.altRank || 'N/A'} | Sentiment ${e.sentiment || 'N/A'}%`;
+    }
+    
+    if (e.socialVolume24h || e.interactions24h) {
+      section += `
+- Activity: ${e.socialVolume24h?.toLocaleString() || 'N/A'} mentions | ${e.interactions24h?.toLocaleString() || 'N/A'} interactions`;
+    }
+    
+    if (e.categories && e.categories.length > 0) {
+      section += `
+- Categories: ${e.categories.slice(0, 5).join(', ')}`;
+    }
+    
+    if (e.blockchains && e.blockchains.length > 0) {
+      const chainAddrs = e.blockchains.slice(0, 5).map(b => 
+        `${b.network}: ${b.address.slice(0, 10)}...${b.address.slice(-6)}`
+      ).join('\n  ');
+      section += `
+- Contract Addresses (from LunarCrush):
+  ${chainAddrs}`;
+    }
+    
+    return section;
+  }).join('\n');
+  
+  return `
+═══════════════════════════════════════════
+📊 ENRICHED CRYPTO DATA (LunarCrush + Market)
+═══════════════════════════════════════════
+${sections}
+
+This data is from our comprehensive crypto_snapshot table which combines LunarCrush social intelligence with market data.
+`;
 }
 
 // ============================================
@@ -3039,7 +3206,8 @@ function buildSystemPrompt(
   derivativesContext: string = "",
   socialContext: string = "",
   newsContext: string = "",
-  securityContext: string = ""
+  securityContext: string = "",
+  enrichedCryptoContext: string = ""
 ): string {
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -3377,6 +3545,8 @@ I've got real-time data from LunarCrush (social), GoPlus (security), DexScreener
 | **Total**                | ~$200-225/mo |
 
 ═══════════════════════════════════════════
+
+${enrichedCryptoContext}
 
 Remember: You're a battle-tested market analyst with comprehensive intelligence. Use ALL the data above! Never say you don't have access when data is provided. Be direct, be data-driven, and call out red flags without hesitation. 🧟🐕`;
 }
@@ -3947,6 +4117,15 @@ serve(async (req) => {
     const validHistorical = historicalData.filter((h): h is HistoricalContext => h !== null);
     const validTechnicals = technicalData.filter((t): t is TechnicalIndicators => t !== null);
     
+    // 🔧 NEW: Enrich all crypto assets with comprehensive crypto_snapshot data
+    // This provides LunarCrush social metrics + contract addresses from our unified database
+    const cryptoAssetSymbols = resolvedAssets.filter(a => a.assetType === 'crypto').map(a => a.symbol);
+    const enrichmentPromises = cryptoAssetSymbols.map(sym => enrichWithCryptoSnapshot(supabase, sym));
+    const enrichmentResults = await Promise.all(enrichmentPromises);
+    const validEnrichedData = enrichmentResults.filter((e): e is EnrichedCryptoData => e !== null);
+    
+    console.log(`[Enrichment] Successfully enriched ${validEnrichedData.length}/${cryptoAssetSymbols.length} crypto assets with crypto_snapshot data`);
+    
     // Calculate API calls saved
     const callsSkipped = [
       !routeConfig.fetchTechnicals ? 'technicals' : null,
@@ -3968,6 +4147,9 @@ serve(async (req) => {
     const historicalContext = formatHistoricalContext(validHistorical);
     const technicalContext = formatTechnicalIndicators(validTechnicals);
     const webSearchContext = formatWebSearchResults(webSearchResults);
+    
+    // 🔧 NEW: Format enriched crypto data context
+    const enrichedCryptoContext = formatEnrichedCryptoContext(validEnrichedData);
     
     // Build NEW context strings (Phases 1-4)
     const marketBriefsContext = formatMarketBriefs(relevantBriefs);
@@ -4063,7 +4245,9 @@ Please let the user know you couldn't identify this contract address. Suggest th
       socialContext,
       newsContext,
       // NEW: Phase 5 security context
-      securityContext
+      securityContext,
+      // NEW: Enriched crypto data context (from crypto_snapshot)
+      enrichedCryptoContext
     );
 
     // Track timing for latency measurement
