@@ -250,6 +250,18 @@ Deno.serve(async (req) => {
     
     console.log(`📝 Upserting ${deduplicatedRows.length} unique rows to crypto_snapshot table (${snapshotRows.length - deduplicatedRows.length} duplicates removed)...`);
 
+    // SAFETY CLEANUP: Delete any non-crypto records that might have leaked in
+    console.log('🧹 Running safety cleanup: deleting any non-crypto records...');
+    const { count: deletedCount } = await supabase
+      .from('crypto_snapshot')
+      .delete()
+      .not('ticker', 'like', 'X:%')
+      .select('*', { count: 'exact', head: true });
+    
+    if (deletedCount && deletedCount > 0) {
+      console.log(`🗑️ Deleted ${deletedCount} non-crypto records from crypto_snapshot`);
+    }
+
     // Batch upsert in chunks of 500
     const BATCH_SIZE = 500;
     let totalUpserted = 0;

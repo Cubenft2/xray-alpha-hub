@@ -185,6 +185,13 @@ verify_jwt = false
 [[functions.polygon-crypto-snapshot.cron]]
 schedule = "* * * * *"
 
+# Stock snapshot - every 5 minutes (mirrors stock-poller frequency)
+[functions.polygon-stock-snapshot]
+verify_jwt = false
+
+[[functions.polygon-stock-snapshot.cron]]
+schedule = "*/5 * * * *"
+
 [functions.polygon-sparkline-data]
 verify_jwt = false
 

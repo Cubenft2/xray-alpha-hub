@@ -1276,6 +1276,69 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_snapshot: {
+        Row: {
+          asset_id: string | null
+          change_24h: number | null
+          change_percent: number | null
+          high_24h: number | null
+          industry: string | null
+          logo_url: string | null
+          low_24h: number | null
+          market_cap: number | null
+          name: string
+          open_price: number | null
+          prev_close: number | null
+          price: number
+          sector: string | null
+          symbol: string
+          ticker: string
+          updated_at: string
+          volume_24h: number | null
+          vwap: number | null
+        }
+        Insert: {
+          asset_id?: string | null
+          change_24h?: number | null
+          change_percent?: number | null
+          high_24h?: number | null
+          industry?: string | null
+          logo_url?: string | null
+          low_24h?: number | null
+          market_cap?: number | null
+          name: string
+          open_price?: number | null
+          prev_close?: number | null
+          price?: number
+          sector?: string | null
+          symbol: string
+          ticker: string
+          updated_at?: string
+          volume_24h?: number | null
+          vwap?: number | null
+        }
+        Update: {
+          asset_id?: string | null
+          change_24h?: number | null
+          change_percent?: number | null
+          high_24h?: number | null
+          industry?: string | null
+          logo_url?: string | null
+          low_24h?: number | null
+          market_cap?: number | null
+          name?: string
+          open_price?: number | null
+          prev_close?: number | null
+          price?: number
+          sector?: string | null
+          symbol?: string
+          ticker?: string
+          updated_at?: string
+          volume_24h?: number | null
+          vwap?: number | null
+        }
+        Relationships: []
+      }
       technical_indicators: {
         Row: {
           created_at: string
