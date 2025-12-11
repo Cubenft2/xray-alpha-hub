@@ -2415,21 +2415,50 @@ async function getCoingeckoId(
   contractAddress?: string
 ): Promise<string | null> {
   try {
-    // Try by contract address first (most accurate)
+    // Priority 1: Try ticker_mappings by symbol first (most reliable, curated data)
+    const { data: tickerMapping } = await supabase
+      .from('ticker_mappings')
+      .select('coingecko_id')
+      .eq('symbol', symbol.toUpperCase())
+      .not('coingecko_id', 'is', null)
+      .single();
+    
+    if (tickerMapping?.coingecko_id) {
+      console.log(`[CEX] Found CoinGecko ID ${tickerMapping.coingecko_id} for symbol ${symbol} (ticker_mappings)`);
+      return tickerMapping.coingecko_id;
+    }
+    
+    // Priority 2: Try by contract address on Ethereum specifically
     if (contractAddress && contractAddress.startsWith('0x')) {
       const normalizedAddress = contractAddress.toLowerCase();
+      
+      // Query cg_master filtering by platforms containing our address
+      // Use textSearch on platforms JSON column
       const { data: cgMasterByContract } = await supabase
         .from('cg_master')
-        .select('cg_id, platforms')
-        .limit(100);
+        .select('cg_id, symbol, platforms')
+        .ilike('platforms', `%${normalizedAddress}%`)
+        .limit(10);
       
-      if (cgMasterByContract) {
+      if (cgMasterByContract && cgMasterByContract.length > 0) {
+        // Prefer exact matches on ethereum chain
+        for (const coin of cgMasterByContract) {
+          if (coin.platforms) {
+            const platforms = typeof coin.platforms === 'string' ? JSON.parse(coin.platforms) : coin.platforms;
+            // Check Ethereum platform first (most common for major tokens)
+            if (platforms.ethereum && platforms.ethereum.toLowerCase() === normalizedAddress) {
+              console.log(`[CEX] Found CoinGecko ID ${coin.cg_id} for Ethereum address ${contractAddress}`);
+              return coin.cg_id;
+            }
+          }
+        }
+        // Fall back to any chain match
         for (const coin of cgMasterByContract) {
           if (coin.platforms) {
             const platforms = typeof coin.platforms === 'string' ? JSON.parse(coin.platforms) : coin.platforms;
             for (const [chain, addr] of Object.entries(platforms)) {
               if (typeof addr === 'string' && addr.toLowerCase() === normalizedAddress) {
-                console.log(`[CEX] Found CoinGecko ID ${coin.cg_id} for address ${contractAddress}`);
+                console.log(`[CEX] Found CoinGecko ID ${coin.cg_id} for ${chain} address ${contractAddress}`);
                 return coin.cg_id;
               }
             }
@@ -2438,26 +2467,23 @@ async function getCoingeckoId(
       }
     }
     
-    // Fallback: Try ticker_mappings by symbol
-    const { data: tickerMapping } = await supabase
-      .from('ticker_mappings')
-      .select('coingecko_id')
-      .eq('symbol', symbol.toUpperCase())
-      .single();
-    
-    if (tickerMapping?.coingecko_id) {
-      console.log(`[CEX] Found CoinGecko ID ${tickerMapping.coingecko_id} for symbol ${symbol}`);
-      return tickerMapping.coingecko_id;
-    }
-    
-    // Fallback: Try cg_master by symbol (less accurate, might have duplicates)
+    // Priority 3: Try cg_master by symbol - prefer well-known tokens
+    // For symbols like "PEPE", prefer "pepe" over "based-pepe" or variants
     const { data: cgMasterBySymbol } = await supabase
       .from('cg_master')
-      .select('cg_id')
+      .select('cg_id, name')
       .ilike('symbol', symbol)
-      .limit(1);
+      .order('cg_id', { ascending: true }) // "pepe" comes before "based-pepe" alphabetically 
+      .limit(5);
     
     if (cgMasterBySymbol && cgMasterBySymbol.length > 0) {
+      // Prefer exact symbol match (cg_id equals symbol lowercase)
+      const exactMatch = cgMasterBySymbol.find(c => c.cg_id === symbol.toLowerCase());
+      if (exactMatch) {
+        console.log(`[CEX] Found exact CoinGecko ID ${exactMatch.cg_id} for symbol ${symbol}`);
+        return exactMatch.cg_id;
+      }
+      // Otherwise use first result
       console.log(`[CEX] Found CoinGecko ID ${cgMasterBySymbol[0].cg_id} for symbol ${symbol} (cg_master)`);
       return cgMasterBySymbol[0].cg_id;
     }
