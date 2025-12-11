@@ -344,6 +344,63 @@ export type Database = {
         }
         Relationships: []
       }
+      crypto_snapshot: {
+        Row: {
+          change_24h: number | null
+          change_percent: number | null
+          coingecko_id: string | null
+          high_24h: number | null
+          logo_url: string | null
+          low_24h: number | null
+          market_cap: number | null
+          market_cap_rank: number | null
+          name: string
+          open_24h: number | null
+          price: number
+          symbol: string
+          ticker: string
+          updated_at: string
+          volume_24h: number | null
+          vwap: number | null
+        }
+        Insert: {
+          change_24h?: number | null
+          change_percent?: number | null
+          coingecko_id?: string | null
+          high_24h?: number | null
+          logo_url?: string | null
+          low_24h?: number | null
+          market_cap?: number | null
+          market_cap_rank?: number | null
+          name: string
+          open_24h?: number | null
+          price?: number
+          symbol: string
+          ticker: string
+          updated_at?: string
+          volume_24h?: number | null
+          vwap?: number | null
+        }
+        Update: {
+          change_24h?: number | null
+          change_percent?: number | null
+          coingecko_id?: string | null
+          high_24h?: number | null
+          logo_url?: string | null
+          low_24h?: number | null
+          market_cap?: number | null
+          market_cap_rank?: number | null
+          name?: string
+          open_24h?: number | null
+          price?: number
+          symbol?: string
+          ticker?: string
+          updated_at?: string
+          volume_24h?: number | null
+          vwap?: number | null
+        }
+        Relationships: []
+      }
       daily_quotes: {
         Row: {
           author: string

@@ -66,22 +66,9 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check cache first (30 second TTL for final result)
-    const cacheKey = 'polygon_crypto_snapshot_v2';
-    const { data: cached } = await supabase
-      .from('cache_kv')
-      .select('v, expires_at')
-      .eq('k', cacheKey)
-      .single();
+    console.log('🚀 Starting crypto snapshot sync...');
 
-    if (cached && new Date(cached.expires_at) > new Date()) {
-      console.log('📦 Returning cached snapshot data');
-      return new Response(JSON.stringify(cached.v), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Fetch CoinGecko market data (cached separately for 5 minutes)
+    // Fetch CoinGecko market data (cached for 5 minutes)
     const cgCacheKey = 'coingecko_market_data';
     let marketCapMap = new Map<string, { market_cap: number; market_cap_rank: number }>();
     
@@ -160,7 +147,6 @@ Deno.serve(async (req) => {
 
     // Extract symbols for database lookup
     const symbols = usdPairs.map(t => {
-      // X:BTCUSD -> BTC
       const match = t.ticker.match(/^X:([A-Z0-9]+)USD$/);
       return match ? match[1] : null;
     }).filter(Boolean) as string[];
@@ -187,57 +173,65 @@ Deno.serve(async (req) => {
       });
     });
 
-    // Format response data with market cap enrichment
-    const formattedData = usdPairs.map(t => {
-      const match = t.ticker.match(/^X:([A-Z0-9]+)USD$/);
-      const symbol = match ? match[1] : t.ticker;
-      const assetInfo = assetMap.get(symbol);
-      const coingeckoId = assetInfo?.coingecko_id;
-      const marketData = coingeckoId ? marketCapMap.get(coingeckoId) : null;
+    // Format data for database upsert
+    const snapshotRows = usdPairs
+      .map(t => {
+        const match = t.ticker.match(/^X:([A-Z0-9]+)USD$/);
+        const symbol = match ? match[1] : t.ticker;
+        const assetInfo = assetMap.get(symbol);
+        const coingeckoId = assetInfo?.coingecko_id;
+        const marketData = coingeckoId ? marketCapMap.get(coingeckoId) : null;
+        const price = t.day?.c || t.min?.c || 0;
 
-      return {
-        ticker: t.ticker,
-        symbol,
-        name: assetInfo?.name || symbol,
-        logo_url: assetInfo?.logo_url || null,
-        coingecko_id: coingeckoId || null,
-        price: t.day?.c || t.min?.c || 0,
-        change24h: t.todaysChange || 0,
-        changePercent: t.todaysChangePerc || 0,
-        volume24h: t.day?.v || 0,
-        vwap: t.day?.vw || 0,
-        high24h: t.day?.h || 0,
-        low24h: t.day?.l || 0,
-        open24h: t.day?.o || 0,
-        updated: t.updated,
-        market_cap: marketData?.market_cap || null,
-        market_cap_rank: marketData?.market_cap_rank || null,
-      };
-    }).filter(t => t.price > 0) // Only include tickers with valid prices
-      .sort((a, b) => {
-        // Sort by market cap rank (ascending), unranked coins at the end
-        if (a.market_cap_rank && b.market_cap_rank) {
-          return a.market_cap_rank - b.market_cap_rank;
-        }
-        if (a.market_cap_rank) return -1;
-        if (b.market_cap_rank) return 1;
-        // Fallback to volume for unranked coins
-        return b.volume24h - a.volume24h;
-      });
+        if (price <= 0) return null;
 
-    console.log(`✅ Formatted ${formattedData.length} tickers with valid data`);
+        return {
+          symbol,
+          ticker: t.ticker,
+          name: assetInfo?.name || symbol,
+          logo_url: assetInfo?.logo_url || null,
+          coingecko_id: coingeckoId || null,
+          price,
+          change_24h: t.todaysChange || 0,
+          change_percent: t.todaysChangePerc || 0,
+          volume_24h: t.day?.v || 0,
+          vwap: t.day?.vw || 0,
+          high_24h: t.day?.h || 0,
+          low_24h: t.day?.l || 0,
+          open_24h: t.day?.o || 0,
+          market_cap: marketData?.market_cap || null,
+          market_cap_rank: marketData?.market_cap_rank || null,
+          updated_at: new Date().toISOString(),
+        };
+      })
+      .filter(Boolean);
 
-    // Cache the result for 30 seconds
-    const expiresAt = new Date(Date.now() + 30 * 1000).toISOString();
-    await supabase
-      .from('cache_kv')
-      .upsert({
-        k: cacheKey,
-        v: formattedData,
-        expires_at: expiresAt,
-      });
+    console.log(`📝 Upserting ${snapshotRows.length} rows to crypto_snapshot table...`);
 
-    return new Response(JSON.stringify(formattedData), {
+    // Batch upsert in chunks of 500
+    const BATCH_SIZE = 500;
+    let totalUpserted = 0;
+
+    for (let i = 0; i < snapshotRows.length; i += BATCH_SIZE) {
+      const batch = snapshotRows.slice(i, i + BATCH_SIZE);
+      const { error: upsertError } = await supabase
+        .from('crypto_snapshot')
+        .upsert(batch, { onConflict: 'symbol' });
+
+      if (upsertError) {
+        console.error(`❌ Batch upsert error:`, upsertError);
+      } else {
+        totalUpserted += batch.length;
+      }
+    }
+
+    console.log(`✅ Successfully synced ${totalUpserted} crypto snapshots to database`);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      count: totalUpserted,
+      message: `Synced ${totalUpserted} crypto snapshots`
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

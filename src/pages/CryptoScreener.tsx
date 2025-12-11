@@ -1,13 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePolygonSnapshot, CryptoSnapshot } from '@/hooks/usePolygonSnapshot';
+import { useCryptoSnapshot, CryptoSnapshot } from '@/hooks/useCryptoSnapshot';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, ChevronRight } from 'lucide-react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, ChevronRight, Radio } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 
-type SortField = 'name' | 'price' | 'changePercent' | 'volume24h' | 'vwap' | 'high24h' | 'low24h' | 'market_cap' | 'market_cap_rank';
+type SortField = 'name' | 'price' | 'change_percent' | 'volume_24h' | 'vwap' | 'high_24h' | 'low_24h' | 'market_cap' | 'market_cap_rank';
 type SortDirection = 'asc' | 'desc';
 
 function formatPrice(price: number): string {
@@ -40,7 +39,7 @@ function formatChange(change: number): string {
 
 export default function CryptoScreener() {
   const navigate = useNavigate();
-  const { data, isLoading, isRefetching, refetch, dataUpdatedAt } = usePolygonSnapshot();
+  const { data, isLoading, lastUpdated } = useCryptoSnapshot();
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('market_cap_rank');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -50,7 +49,6 @@ export default function CryptoScreener() {
       setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
       setSortField(field);
-      // Default to ascending for rank, descending for everything else
       setSortDirection(field === 'market_cap_rank' ? 'asc' : 'desc');
     }
   };
@@ -67,7 +65,6 @@ export default function CryptoScreener() {
       let aVal = a[sortField];
       let bVal = b[sortField];
       
-      // Handle null values for market cap fields - nulls go to end
       if (sortField === 'market_cap' || sortField === 'market_cap_rank') {
         if (aVal === null && bVal === null) return 0;
         if (aVal === null) return 1;
@@ -95,7 +92,7 @@ export default function CryptoScreener() {
       : <ArrowDown className="w-3 h-3 text-primary" />;
   };
 
-  const lastUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '--:--:--';
+  const lastUpdate = lastUpdated ? lastUpdated.toLocaleTimeString() : '--:--:--';
 
   return (
     <>
@@ -127,20 +124,10 @@ export default function CryptoScreener() {
                 />
               </div>
               
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => refetch()}
-                disabled={isRefetching}
-                className="border-[#2a2a2a] hover:bg-[#1a1a1a]"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-              
-              <span className="text-xs text-muted-foreground font-mono">
-                Updated: {lastUpdate}
-              </span>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                <Radio className="w-3 h-3 text-green-500 animate-pulse" />
+                <span>Live • {lastUpdate}</span>
+              </div>
             </div>
           </div>
 
@@ -166,8 +153,8 @@ export default function CryptoScreener() {
                       </button>
                     </th>
                     <th className="px-4 py-3 text-right">
-                      <button onClick={() => handleSort('changePercent')} className="flex items-center gap-1 ml-auto hover:text-foreground">
-                        24h % <SortIcon field="changePercent" />
+                      <button onClick={() => handleSort('change_percent')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                        24h % <SortIcon field="change_percent" />
                       </button>
                     </th>
                     <th className="px-4 py-3 text-right">
@@ -176,8 +163,8 @@ export default function CryptoScreener() {
                       </button>
                     </th>
                     <th className="px-4 py-3 text-right">
-                      <button onClick={() => handleSort('volume24h')} className="flex items-center gap-1 ml-auto hover:text-foreground">
-                        Volume <SortIcon field="volume24h" />
+                      <button onClick={() => handleSort('volume_24h')} className="flex items-center gap-1 ml-auto hover:text-foreground">
+                        Volume <SortIcon field="volume_24h" />
                       </button>
                     </th>
                     <th className="px-4 py-3 text-right">
@@ -191,7 +178,6 @@ export default function CryptoScreener() {
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    // Loading skeletons
                     Array.from({ length: 20 }).map((_, i) => (
                       <tr key={i} className="border-t border-[#1a1a1a]">
                         <td className="px-3 py-3 text-center"><Skeleton className="h-4 w-6 mx-auto" /></td>
@@ -216,7 +202,7 @@ export default function CryptoScreener() {
                   ) : filteredData.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground">
-                        No cryptocurrencies found matching "{search}"
+                        {search ? `No cryptocurrencies found matching "${search}"` : 'No data available. Syncing...'}
                       </td>
                     </tr>
                   ) : (
@@ -255,23 +241,23 @@ export default function CryptoScreener() {
                           {formatPrice(item.price)}
                         </td>
                         <td className={`px-4 py-3 text-right font-mono text-sm ${
-                          item.changePercent >= 0 ? 'text-green-500' : 'text-red-500'
+                          item.change_percent >= 0 ? 'text-green-500' : 'text-red-500'
                         }`}>
-                          {formatChange(item.changePercent)}
+                          {formatChange(item.change_percent)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
                           {formatMarketCap(item.market_cap)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
-                          {formatVolume(item.volume24h)}
+                          {formatVolume(item.volume_24h)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono text-sm text-muted-foreground">
                           {formatPrice(item.vwap)}
                         </td>
                         <td className="px-4 py-3 text-right font-mono text-xs text-muted-foreground">
-                          <span className="text-green-500/70">{formatPrice(item.high24h)}</span>
+                          <span className="text-green-500/70">{formatPrice(item.high_24h)}</span>
                           {' / '}
-                          <span className="text-red-500/70">{formatPrice(item.low24h)}</span>
+                          <span className="text-red-500/70">{formatPrice(item.low_24h)}</span>
                         </td>
                         <td className="px-2 py-3 text-muted-foreground">
                           <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -286,7 +272,7 @@ export default function CryptoScreener() {
 
           {/* Footer info */}
           <div className="mt-4 text-center text-xs text-muted-foreground">
-            Prices from Polygon.io • Market cap from CoinGecko • Auto-refreshes every 30 seconds
+            Prices from Polygon.io • Market cap from CoinGecko • Real-time updates via Supabase
           </div>
         </div>
       </div>
