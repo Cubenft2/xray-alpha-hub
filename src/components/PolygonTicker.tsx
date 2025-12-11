@@ -25,7 +25,7 @@ export function PolygonTicker() {
   const [displayPrices, setDisplayPrices] = useState<DisplayPriceData[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [speedLevel, setSpeedLevel] = useState(2);
+  const [speedLevel, setSpeedLevel] = useState(0);
   const [symbols, setSymbols] = useState<string[]>([]);
   const [symbolMetadata, setSymbolMetadata] = useState<Map<string, { displayName: string; coingecko_id: string | null }>>(new Map());
   const [isVisible, setIsVisible] = useState(false);
