@@ -634,7 +634,7 @@ async function understandQuestion(
 
 Return this exact JSON structure:
 {
-  "intent": "price|news|analysis|comparison|general|greeting|safety|content",
+  "intent": "price|news|analysis|comparison|general|greeting|safety|content|verification",
   "assets": [{"symbol": "BTC", "name": "Bitcoin", "type": "crypto", "confidence": 0.95, "contractAddress": null}],
   "needsClarification": false,
   "clarificationMessage": null,
@@ -665,12 +665,14 @@ CRITICAL RULES:
    - companyDetails:true ONLY for stocks
    - "safety" questions → securityCheck:true, social:true, news:true
    - "content" questions (make a post, write about, tweet) → social:true, news:true
+   - "verification" questions → prices:true, securityCheck:true
 7. SAFETY INTENT: Questions about safety, scams, rugs, risks, legitimacy, honeypots, "should I buy", "is X legit", "is X safe" → intent:"safety", securityCheck:true
 8. CONTENT INTENT: Requests to "make a post", "write about", "tweet", "create content" → intent:"content", use asset from context
-9. Stock symbols: AAPL, NVDA, TSLA, MSFT, GOOG, AMZN, META, COIN, MSTR, etc.
-10. Crypto symbols: BTC, ETH, SOL, XRP, ADA, DOGE, LINK, AVAX, etc.
-11. If user provides a contract address (0x... or Solana base58), include it in contractAddress field
-12. FOLLOW-UP QUESTIONS: If the user is clearly asking a follow-up about something they just discussed (e.g., "is it safe?", "make a post about this", "where can I buy it"), use the asset from CONVERSATION CONTEXT - DO NOT ask for clarification
+9. VERIFICATION INTENT: Questions like "is this the address", "is this correct", "is this right", "verify this", "confirm this address" → intent:"verification". The user is asking you to VERIFY information they're seeing. Use the asset from CONVERSATION CONTEXT. DO NOT ask for the address - they're asking you to confirm what they see.
+10. Stock symbols: AAPL, NVDA, TSLA, MSFT, GOOG, AMZN, META, COIN, MSTR, etc.
+11. Crypto symbols: BTC, ETH, SOL, XRP, ADA, DOGE, LINK, AVAX, etc.
+12. If user provides a contract address (0x... or Solana base58), include it in contractAddress field
+13. FOLLOW-UP QUESTIONS: If the user is clearly asking a follow-up about something they just discussed (e.g., "is it safe?", "make a post about this", "where can I buy it", "is this the address"), use the asset from CONVERSATION CONTEXT - DO NOT ask for clarification
 
 Return ONLY the JSON object, nothing else.`
         }]
