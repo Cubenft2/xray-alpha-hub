@@ -184,3 +184,6 @@ verify_jwt = false
 
 [functions.polygon-sparkline-data]
 verify_jwt = false
+
+[functions.fix-coingecko-mappings]
+verify_jwt = false
