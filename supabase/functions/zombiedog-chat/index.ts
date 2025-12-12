@@ -12,6 +12,278 @@ type AIProvider = 'lovable' | 'openai' | 'anthropic';
 // Top cryptos to fetch general prices for
 const TOP_CRYPTOS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'DOT', 'MATIC', 'SHIB', 'UNI', 'LTC', 'BCH', 'ATOM'];
 
+// ============================================
+// V3: GLOBAL TIMEOUT WRAPPER - MANDATORY FOR ALL EXTERNAL CALLS
+// ============================================
+function timeoutSignal(ms: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(`timeout_${ms}ms`), ms);
+  return { signal: controller.signal, cancel: () => clearTimeout(id) };
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 10000): Promise<Response> {
+  const t = timeoutSignal(ms);
+  try {
+    return await fetch(url, { ...init, signal: t.signal });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn(`[Timeout] Request to ${url.slice(0, 50)}... timed out after ${ms}ms`);
+      throw new Error(`Request timed out after ${ms}ms`);
+    }
+    throw error;
+  } finally {
+    t.cancel();
+  }
+}
+
+// ============================================
+// V3: ENHANCED CONTEXT EXTRACTION (Assets + Addresses)
+// ============================================
+type RecentAddress = { address: string; type: "evm" | "solana" };
+type RecentContext = { assets: string[]; addresses: RecentAddress[] };
+
+function extractRecentContext(messages: any[], lookback = 10): RecentContext {
+  const recent = messages.slice(-lookback);
+  const assetSet = new Set<string>();
+  const addressMap = new Map<string, RecentAddress>();
+  
+  const evmRe = /\b0x[a-fA-F0-9]{40}\b/g;
+  const solRe = /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g;
+  
+  // Common words to filter out
+  const FILTER_WORDS = new Set(['THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'HAS', 'HAD', 'WAS', 'HIS', 'HER',
+    'CAN', 'NOW', 'HOW', 'WHY', 'WHO', 'ALL', 'GET', 'NEW', 'ONE', 'TWO', 'OUT', 'OUR', 'DAY', 'ANY',
+    'DEX', 'CEX', 'API', 'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL',
+    'THIS', 'THAT', 'WITH', 'FROM', 'YOUR', 'MAKE', 'POST', 'ABOUT', 'WHAT', 'SAFE', 'ADDRESS']);
+  
+  for (const m of recent) {
+    const content = String(m?.content ?? m?.message ?? "");
+    const text = content.toUpperCase();
+    
+    // Extract tickers: $BTC, BTC, (BTC)
+    const tickers = text.match(/\$?[A-Z]{2,10}\b/g) || [];
+    for (const t of tickers) {
+      const cleaned = t.replace("$", "");
+      if (!FILTER_WORDS.has(cleaned) && cleaned.length >= 2 && cleaned.length <= 10) {
+        assetSet.add(cleaned);
+      }
+    }
+    
+    // Extract EVM addresses
+    const evmMatches = content.match(evmRe) || [];
+    for (const a of evmMatches) {
+      addressMap.set(a.toLowerCase(), { address: a.toLowerCase(), type: "evm" });
+    }
+    
+    // Extract Solana addresses (be careful with false positives)
+    const solMatches = content.match(solRe) || [];
+    for (const a of solMatches) {
+      // Only include if context suggests it's an address
+      const hasAddressContext = /address|ca:|contract|token|mint/i.test(content);
+      if (hasAddressContext && a.length >= 32 && /[A-Z]/.test(a) && /[a-z]/.test(a) && /[0-9]/.test(a)) {
+        addressMap.set(a, { address: a, type: "solana" });
+      }
+    }
+  }
+  
+  return {
+    assets: Array.from(assetSet).slice(0, 10),
+    addresses: Array.from(addressMap.values()).slice(0, 5)
+  };
+}
+
+// ============================================
+// V3: PRE-GEMINI ROUTING PATTERNS (Stops Clarification Spam)
+// ============================================
+const CONTENT_CREATION_PATTERN = /\b(make|write|create|draft|generate)\b.*\b(post|tweet|caption|thread|content|about|this|it|that)\b/i;
+const ADDRESS_VERIFICATION_PATTERN = /\b(is this|verify|confirm|correct|right|legit|real|official|valid)\b.*\b(address|contract|ca|token)\b/i;
+const MARKET_OVERVIEW_PATTERN = /\b(market|crypto|how('s|s| is)|what('s|s| is))\b.*\b(today|doing|looking|going|overall)\b/i;
+const FOLLOW_UP_PATTERN = /^(yes|no|sure|okay|ok|yep|yeah|this one|that one|the first|the second|general|crypto|stocks?)\b/i;
+
+interface PreRoutingResult {
+  handled: boolean;
+  intent?: 'content' | 'verification' | 'market_overview' | 'follow_up';
+  targetAsset?: string;
+  targetAddress?: string;
+}
+
+function detectPreGeminiRoute(userQuery: string, recentContext: RecentContext): PreRoutingResult {
+  const query = userQuery.trim();
+  
+  // A) Content creation detection
+  if (CONTENT_CREATION_PATTERN.test(query) && recentContext.assets.length > 0) {
+    console.log(`[Pre-Route] Content creation detected, using recent asset: ${recentContext.assets[0]}`);
+    return { handled: true, intent: 'content', targetAsset: recentContext.assets[0] };
+  }
+  
+  // B) Address verification detection
+  if (ADDRESS_VERIFICATION_PATTERN.test(query)) {
+    const targetAsset = recentContext.assets.length > 0 ? recentContext.assets[0] : undefined;
+    const targetAddress = recentContext.addresses.length > 0 ? recentContext.addresses[0].address : undefined;
+    console.log(`[Pre-Route] Verification detected, asset: ${targetAsset}, address: ${targetAddress}`);
+    return { handled: true, intent: 'verification', targetAsset, targetAddress };
+  }
+  
+  // C) Market overview detection
+  if (MARKET_OVERVIEW_PATTERN.test(query) && recentContext.assets.length === 0) {
+    console.log(`[Pre-Route] Market overview detected`);
+    return { handled: true, intent: 'market_overview' };
+  }
+  
+  // D) Follow-up answer detection (after clarification)
+  if (FOLLOW_UP_PATTERN.test(query) && recentContext.assets.length > 0) {
+    console.log(`[Pre-Route] Follow-up answer detected, using recent asset: ${recentContext.assets[0]}`);
+    return { handled: true, intent: 'follow_up', targetAsset: recentContext.assets[0] };
+  }
+  
+  return { handled: false };
+}
+
+// ============================================
+// V3: ADDRESS VERIFICATION FLOW
+// ============================================
+interface AddressVerificationResult {
+  match: boolean;
+  token: string;
+  chain?: string;
+  provided: string;
+  expected?: string[];
+  source: string;
+}
+
+async function verifyContractAddress(
+  supabase: any,
+  providedAddress: string,
+  targetSymbol: string
+): Promise<AddressVerificationResult> {
+  const normalizedAddr = providedAddress.toLowerCase();
+  const expectedAddresses: string[] = [];
+  let foundChain = '';
+  let foundMatch = false;
+  
+  console.log(`[Verify] Checking if ${normalizedAddr} belongs to ${targetSymbol}`);
+  
+  // 1. Check ticker_mappings.dex_address
+  const { data: tickerMapping } = await supabase
+    .from('ticker_mappings')
+    .select('dex_address, dex_chain, dex_platforms')
+    .eq('symbol', targetSymbol.toUpperCase())
+    .single();
+  
+  if (tickerMapping?.dex_address) {
+    const dbAddr = tickerMapping.dex_address.toLowerCase();
+    expectedAddresses.push(dbAddr);
+    if (dbAddr === normalizedAddr) {
+      foundMatch = true;
+      foundChain = tickerMapping.dex_chain || 'ethereum';
+    }
+    
+    // Check dex_platforms JSON for multi-chain
+    if (tickerMapping.dex_platforms && typeof tickerMapping.dex_platforms === 'object') {
+      for (const [chain, addr] of Object.entries(tickerMapping.dex_platforms)) {
+        if (typeof addr === 'string') {
+          const chainAddr = addr.toLowerCase();
+          if (!expectedAddresses.includes(chainAddr)) {
+            expectedAddresses.push(chainAddr);
+          }
+          if (chainAddr === normalizedAddr) {
+            foundMatch = true;
+            foundChain = chain;
+          }
+        }
+      }
+    }
+  }
+  
+  // 2. Check token_contracts table
+  const { data: tokenContracts } = await supabase
+    .from('token_contracts')
+    .select('contract_address, chain')
+    .eq('asset_id', targetSymbol.toUpperCase());
+  
+  if (tokenContracts) {
+    for (const tc of tokenContracts) {
+      const tcAddr = tc.contract_address.toLowerCase();
+      if (!expectedAddresses.includes(tcAddr)) {
+        expectedAddresses.push(tcAddr);
+      }
+      if (tcAddr === normalizedAddr) {
+        foundMatch = true;
+        foundChain = tc.chain;
+      }
+    }
+  }
+  
+  // 3. Check cg_master.platforms
+  const { data: cgMaster } = await supabase
+    .from('cg_master')
+    .select('platforms')
+    .ilike('symbol', targetSymbol)
+    .single();
+  
+  if (cgMaster?.platforms) {
+    const platforms = typeof cgMaster.platforms === 'string' 
+      ? JSON.parse(cgMaster.platforms) 
+      : cgMaster.platforms;
+    
+    for (const [chain, addr] of Object.entries(platforms)) {
+      if (typeof addr === 'string' && addr) {
+        const cgAddr = addr.toLowerCase();
+        if (!expectedAddresses.includes(cgAddr)) {
+          expectedAddresses.push(cgAddr);
+        }
+        if (cgAddr === normalizedAddr) {
+          foundMatch = true;
+          foundChain = chain;
+        }
+      }
+    }
+  }
+  
+  return {
+    match: foundMatch,
+    token: targetSymbol.toUpperCase(),
+    chain: foundChain || undefined,
+    provided: providedAddress,
+    expected: expectedAddresses.slice(0, 3),
+    source: 'database'
+  };
+}
+
+function formatAddressVerification(result: AddressVerificationResult): string {
+  if (result.match) {
+    return `✅ **Address Verified**
+
+**Token:** ${result.token}
+**Chain:** ${result.chain || 'Unknown'}
+**Address:** \`${result.provided}\`
+**Status:** MATCHES verified records.
+
+This is the official ${result.token} contract address on ${result.chain || 'this chain'}. ✅`;
+  }
+  
+  const expectedList = result.expected && result.expected.length > 0
+    ? result.expected.map(a => `\`${a.slice(0, 10)}...${a.slice(-8)}\``).join('\n• ')
+    : 'No verified addresses found';
+  
+  return `❌ **Address Mismatch**
+
+**Token:** ${result.token}
+**Provided:** \`${result.provided}\`
+**Expected:** 
+• ${expectedList}
+
+⚠️ **WARNING:** The address you provided does NOT match our verified records for ${result.token}. 
+
+This could be:
+- A different token with the same symbol
+- A scam/fake token
+- An address on a different chain
+- A very new token not yet in our database
+
+**Please verify carefully before interacting with this contract!**`;
+}
+
 // Message compression settings
 const RECENT_MESSAGES_TO_KEEP = 3;
 
@@ -2109,6 +2381,7 @@ function shouldPerformWebSearch(message: string): boolean {
   return false;
 }
 
+// V3: Tavily with timeout wrapper
 async function searchTavily(query: string): Promise<WebSearchResult[]> {
   const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY");
   if (!TAVILY_API_KEY) {
@@ -2119,7 +2392,7 @@ async function searchTavily(query: string): Promise<WebSearchResult[]> {
   try {
     console.log(`[Tavily] Searching: "${query}"`);
     
-    const response = await fetch("https://api.tavily.com/search", {
+    const response = await fetchWithTimeout("https://api.tavily.com/search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2134,7 +2407,7 @@ async function searchTavily(query: string): Promise<WebSearchResult[]> {
           "cnbc.com", "forbes.com", "cryptonews.com"
         ]
       })
-    });
+    }, 9000); // 9 second timeout
 
     if (!response.ok) {
       console.error(`[Tavily] Error: ${response.status}`);
@@ -2628,7 +2901,7 @@ const GOPLUS_CHAIN_IDS: Record<string, string> = {
   'solana': 'solana'
 };
 
-// Fetch token security data from GoPlus (FREE, no API key needed)
+// V3: Fetch token security data from GoPlus with timeout
 async function fetchGoTokenSecurity(contractAddress: string, chain: string = 'ethereum'): Promise<GoTokenSecurity | null> {
   try {
     const chainId = GOPLUS_CHAIN_IDS[chain.toLowerCase()] || '1';
@@ -2637,9 +2910,9 @@ async function fetchGoTokenSecurity(contractAddress: string, chain: string = 'et
     console.log(`[GoPlus] Fetching security for ${normalizedAddr} on chain ${chainId}`);
     
     const url = `https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${normalizedAddr}`;
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: { 'Accept': 'application/json' }
-    });
+    }, 9000); // 9 second timeout
     
     if (!response.ok) {
       console.error(`[GoPlus] Error: ${response.status}`);
@@ -2683,16 +2956,16 @@ async function fetchGoTokenSecurity(contractAddress: string, chain: string = 'et
   }
 }
 
-// Fetch token data from DexScreener (FREE, no API key needed)
+// V3: Fetch token data from DexScreener with timeout
 async function fetchDexScreenerData(contractAddress: string): Promise<DexScreenerData | null> {
   try {
     const normalizedAddr = contractAddress.toLowerCase();
     console.log(`[DexScreener] Fetching data for ${normalizedAddr}`);
     
     const url = `https://api.dexscreener.com/latest/dex/tokens/${normalizedAddr}`;
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: { 'Accept': 'application/json' }
-    });
+    }, 9000); // 9 second timeout
     
     if (!response.ok) {
       console.error(`[DexScreener] Error: ${response.status}`);
@@ -2831,7 +3104,7 @@ async function getCoingeckoId(
   }
 }
 
-// Fetch CEX listings from CoinGecko tickers API
+// V3: Fetch CEX listings from CoinGecko with timeout
 async function fetchCoinGeckoTickers(coingeckoId: string): Promise<CexListing[]> {
   const COINGECKO_API_KEY = Deno.env.get('COINGECKO_API_KEY');
   if (!COINGECKO_API_KEY) {
@@ -2843,9 +3116,9 @@ async function fetchCoinGeckoTickers(coingeckoId: string): Promise<CexListing[]>
     const url = `https://pro-api.coingecko.com/api/v3/coins/${coingeckoId}/tickers`;
     console.log(`[CEX] Fetching CoinGecko tickers for ${coingeckoId}`);
     
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: { 'x-cg-pro-api-key': COINGECKO_API_KEY }
-    });
+    }, 9000); // 9 second timeout
     
     if (!response.ok) {
       console.warn(`[CEX] CoinGecko tickers API returned ${response.status}`);
@@ -3555,7 +3828,7 @@ Remember: You're a battle-tested market analyst with comprehensive intelligence.
 // AI PROVIDER IMPLEMENTATIONS
 // ============================================
 
-// Call Lovable AI (Gemini 2.5 Flash via gateway)
+// V3: Call Lovable AI with timeout
 async function callLovableAI(messages: any[], systemPrompt: string): Promise<Response> {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
@@ -3566,7 +3839,7 @@ async function callLovableAI(messages: any[], systemPrompt: string): Promise<Res
   const preparedMessages = prepareMessagesForAI(messages);
   console.log("[Lovable AI] Calling Gemini 2.5 Flash...");
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const response = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${LOVABLE_API_KEY}`,
@@ -3580,7 +3853,7 @@ async function callLovableAI(messages: any[], systemPrompt: string): Promise<Res
       ],
       stream: true,
     }),
-  });
+  }, 18000); // 18 second timeout for AI
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -3591,7 +3864,7 @@ async function callLovableAI(messages: any[], systemPrompt: string): Promise<Res
   return response;
 }
 
-// Call OpenAI (gpt-4o-mini)
+// V3: Call OpenAI with timeout
 async function callOpenAI(messages: any[], systemPrompt: string): Promise<Response> {
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_API_KEY) {
@@ -3602,7 +3875,7 @@ async function callOpenAI(messages: any[], systemPrompt: string): Promise<Respon
   const preparedMessages = prepareMessagesForAI(messages);
   console.log("[OpenAI] Calling GPT-4o-mini...");
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${OPENAI_API_KEY}`,
@@ -3616,7 +3889,7 @@ async function callOpenAI(messages: any[], systemPrompt: string): Promise<Respon
       ],
       stream: true,
     }),
-  });
+  }, 15000); // 15 second timeout for AI
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -3627,7 +3900,7 @@ async function callOpenAI(messages: any[], systemPrompt: string): Promise<Respon
   return response;
 }
 
-// Call Anthropic (Claude Haiku)
+// V3: Call Anthropic with timeout
 async function callAnthropic(messages: any[], systemPrompt: string): Promise<Response> {
   const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
   if (!ANTHROPIC_API_KEY) {
@@ -3638,7 +3911,7 @@ async function callAnthropic(messages: any[], systemPrompt: string): Promise<Res
   const preparedMessages = prepareMessagesForAI(messages);
   console.log("[Anthropic] Calling Claude Haiku...");
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "x-api-key": ANTHROPIC_API_KEY,
@@ -3655,7 +3928,7 @@ async function callAnthropic(messages: any[], systemPrompt: string): Promise<Res
       })),
       stream: true,
     }),
-  });
+  }, 15000); // 15 second timeout
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -3666,49 +3939,68 @@ async function callAnthropic(messages: any[], systemPrompt: string): Promise<Res
   return response;
 }
 
-// Transform OpenAI/Lovable stream to match what frontend expects
+// V3: Transform OpenAI/Lovable stream - ALWAYS emit message_stop
 function transformOpenAIStream(response: Response): ReadableStream {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let buffer = '';
+  let messageStopSent = false;
 
   return new ReadableStream({
     async pull(controller) {
-      const { done, value } = await reader.read();
-      
-      if (done) {
-        controller.close();
-        return;
-      }
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') {
+      try {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          // V3 FIX: ALWAYS emit message_stop on stream end, even if not received from upstream
+          if (!messageStopSent) {
             controller.enqueue(encoder.encode('event: message_stop\ndata: {}\n\n'));
-            continue;
+            messageStopSent = true;
           }
-          
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              // Transform to Anthropic-like format for frontend
-              const event = {
-                type: 'content_block_delta',
-                delta: { type: 'text_delta', text: content }
-              };
-              controller.enqueue(encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify(event)}\n\n`));
+          controller.close();
+          return;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[DONE]') {
+              if (!messageStopSent) {
+                controller.enqueue(encoder.encode('event: message_stop\ndata: {}\n\n'));
+                messageStopSent = true;
+              }
+              continue;
             }
-          } catch {
-            // Skip malformed JSON
+            
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                // Transform to Anthropic-like format for frontend
+                const event = {
+                  type: 'content_block_delta',
+                  delta: { type: 'text_delta', text: content }
+                };
+                controller.enqueue(encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify(event)}\n\n`));
+              }
+            } catch {
+              // Skip malformed JSON
+            }
           }
         }
+      } catch (err) {
+        console.error('[Stream] Error during transform:', err);
+        // V3 FIX: Always close cleanly on error with message_stop
+        if (!messageStopSent) {
+          controller.enqueue(encoder.encode('event: message_stop\ndata: {}\n\n'));
+          messageStopSent = true;
+        }
+        controller.close();
       }
     }
   });
@@ -3831,15 +4123,55 @@ serve(async (req) => {
     const latestUserMessage = messages?.filter((m: any) => m.role === 'user').pop();
     const userQuery = latestUserMessage?.content || '';
     
-    // 🔧 FIX: Extract recently discussed assets from conversation history
-    const recentAssets = extractRecentAssets(messages || []);
+    // V3: Enhanced context extraction - extract BOTH assets AND addresses
+    const recentContext = extractRecentContext(messages || []);
+    const recentAssets = recentContext.assets;
+    const recentAddresses = recentContext.addresses;
+    
     if (recentAssets.length > 0) {
-      console.log(`[Context] Recently discussed assets: ${recentAssets.slice(0, 5).join(', ')}`);
+      console.log(`[V3 Context] Recently discussed assets: ${recentAssets.slice(0, 5).join(', ')}`);
+    }
+    if (recentAddresses.length > 0) {
+      console.log(`[V3 Context] Recently discussed addresses: ${recentAddresses.map(a => a.address.slice(0, 10) + '...').join(', ')}`);
+    }
+    
+    // V3: PRE-GEMINI ROUTING - Handle follow-ups, verifications, and content creation BEFORE AI
+    const preRoute = detectPreGeminiRoute(userQuery, recentContext);
+    
+    // V3: Handle address verification route immediately (no AI needed)
+    if (preRoute.handled && preRoute.intent === 'verification' && preRoute.targetAsset && preRoute.targetAddress) {
+      console.log(`[V3 Pre-Route] Address verification: ${preRoute.targetAsset} vs ${preRoute.targetAddress}`);
+      
+      const verificationResult = await verifyContractAddress(supabase, preRoute.targetAddress, preRoute.targetAsset);
+      const verificationResponse = formatAddressVerification(verificationResult);
+      
+      // Log minimal usage
+      await logAIUsage(supabase, 'lovable', 30, 50, 50, {
+        questionTypes: ['verification'],
+        assetsQueried: [preRoute.targetAsset],
+        dataSourcesUsed: ['database_verification'],
+        userMessagePreview: userQuery,
+        clientIp,
+      }).catch(e => console.error('[AI Usage] Log failed:', e));
+      
+      // Return as SSE stream
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          const event = { type: 'content_block_delta', delta: { type: 'text_delta', text: verificationResponse } };
+          controller.enqueue(encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify(event)}\n\n`));
+          controller.enqueue(encoder.encode('event: message_stop\ndata: {}\n\n'));
+          controller.close();
+        }
+      });
+      
+      return new Response(stream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
     }
     
     // PHASE 5: AI-Powered Question Understanding (Gemini)
-    // This replaces keyword-based matching with intelligent parsing
-    // Pass conversation history AND recent assets to handle clarification follow-ups
+    // V3: Pass pre-routing context to reduce unnecessary clarifications
     let questionUnderstanding = await understandQuestion(userQuery, messages || [], recentAssets);
     
     // 🔧 FIX: Database fallback - override clarification if we find a valid ticker in the message
