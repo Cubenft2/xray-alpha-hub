@@ -41,9 +41,19 @@ const FILTER_WORDS = new Set([
   'STILL', 'YET', 'ALREADY', 'AGAIN', 'TOO', 'NEVER', 'ALWAYS', 'OFTEN', 'SOMETIMES',
   'SEND', 'SENT', 'PUT', 'GOT', 'TAKE', 'TOOK', 'COME', 'CAME', 'WENT', 'GOING', 'RUN', 'SET',
   'THING', 'THINGS', 'STUFF', 'WAY', 'WAYS', 'PART', 'PARTS', 'FULL', 'EMPTY',
-  // Words from logs that caused issues
-  'ETHE', 'ETH', 'ETHEREUM', 'BLOCKCHAIN', 'QUESTION', 'HIGHLIGHTS', 'KEY', 'INTERESTING',
-  'NTERESTING', 'WORKS', 'WORK', 'WORKING', 'USE', 'USING', 'USED'
+  // Words from logs that caused issues (REMOVED ETH/ETHEREUM - they are valid tickers!)
+  'ETHE', 'BLOCKCHAIN', 'QUESTION', 'HIGHLIGHTS', 'KEY', 'INTERESTING',
+  'NTERESTING', 'WORKS', 'WORK', 'WORKING', 'USE', 'USING', 'USED',
+  // Additional common words that get mistaken for tickers
+  'DIG', 'INTO', 'BASIC', 'ATTENTION', 'LOOKING', 'GETTING', 'FIRST', 'LAST',
+  'SAME', 'OTHER', 'ANOTHER', 'NEXT', 'PREV', 'PREVIOUS', 'BECAUSE', 'SINCE',
+  'AFTER', 'BEFORE', 'DURING', 'UNTIL', 'WHILE', 'ABOVE', 'BELOW', 'BETWEEN',
+  'AGAINST', 'THROUGH', 'THOSE', 'THESE', 'SUCH', 'OWN', 'REAL', 'TRUE', 'FALSE',
+  'HIGH', 'LOW', 'BIG', 'SMALL', 'LARGE', 'HUGE', 'TINY', 'MADE', 'CREATE', 'CREATED',
+  'BUILD', 'BUILT', 'KEEP', 'KEPT', 'CALL', 'CALLED', 'NAME', 'NAMED', 'OVER', 'UNDER',
+  'START', 'STOP', 'END', 'BEGIN', 'OPEN', 'CLOSE', 'READ', 'WRITE', 'BACK', 'FRONT',
+  'LEFT', 'RIGHT', 'TOP', 'DOWN', 'BOTTOM', 'SIDE', 'MIDDLE', 'CENTER', 'AROUND',
+  'NEAR', 'FAR', 'AWAY', 'ALONG', 'ACROSS', 'INSIDE', 'OUTSIDE', 'WITHIN', 'WITHOUT'
 ]);
 
 // ============================================
