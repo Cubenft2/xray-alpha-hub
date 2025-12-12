@@ -49,7 +49,33 @@ serve(async (req) => {
   console.log(`[asset-details] Request for symbol=${symbol}, type=${type || "auto"}`);
 
   const now = new Date();
-  const lockKey = `asset_details_lock:${type || "auto"}:${symbol}`;
+
+  // ---- Decide type FIRST (before lock key) ----
+  let resolvedType: "stock" | "crypto" = "crypto";
+
+  if (type === "stock" || type === "crypto") {
+    resolvedType = type as "stock" | "crypto";
+  } else {
+    // Heuristic: 1-5 uppercase letters = stock, else crypto
+    // This avoids DB lookup dependency and false negatives for uncached stocks
+    const looksStocky = /^[A-Z]{1,5}$/.test(symbol);
+    if (looksStocky) {
+      // Double-check: if it's in live_prices with X: prefix, it's actually crypto
+      const { data: maybeCrypto } = await supabase
+        .from("live_prices")
+        .select("ticker")
+        .eq("ticker", `X:${symbol}USD`)
+        .maybeSingle();
+      resolvedType = maybeCrypto?.ticker ? "crypto" : "stock";
+    } else {
+      resolvedType = "crypto";
+    }
+  }
+
+  console.log(`[asset-details] Resolved type=${resolvedType}`);
+
+  // Lock key uses resolvedType (not request type) to prevent collision
+  const lockKey = `asset_details_lock:${resolvedType}:${symbol}`;
 
   // ---- Helper: SWR lock check ----
   async function lockIsActive(): Promise<boolean> {
@@ -72,23 +98,6 @@ serve(async (req) => {
   async function releaseLock(): Promise<void> {
     await supabase.from("cache_kv").delete().eq("k", lockKey);
   }
-
-  // ---- Decide type if not provided ----
-  let resolvedType: "stock" | "crypto" = "crypto";
-
-  if (type === "stock" || type === "crypto") {
-    resolvedType = type as "stock" | "crypto";
-  } else {
-    // If exists in company_details, treat as stock; else crypto
-    const { data: maybeStock } = await supabase
-      .from("company_details")
-      .select("ticker")
-      .eq("ticker", symbol)
-      .maybeSingle();
-    resolvedType = maybeStock?.ticker ? "stock" : "crypto";
-  }
-
-  console.log(`[asset-details] Resolved type=${resolvedType}`);
 
   // =========================
   // STOCK ROUTE
@@ -181,14 +190,16 @@ serve(async (req) => {
   // CRYPTO ROUTE
   // =========================
   // 1) Find coingecko_id via cg_master (using cg_id column)
+  // cg_master stores symbols in lowercase, so query with exact match
+  const symbolLower = symbol.toLowerCase();
   const { data: cg } = await supabase
     .from("cg_master")
     .select("cg_id, symbol, name")
-    .ilike("symbol", symbol.toLowerCase())
-    .limit(10);
+    .eq("symbol", symbolLower)
+    .limit(5);
 
-  // Prefer exact symbol match (case-insensitive)
-  const match = (cg || []).find((x: { symbol?: string }) => (x.symbol || "").toUpperCase() === symbol);
+  // Take the first exact match (should be unique for most symbols)
+  const match = (cg || [])[0] || null;
   const coingeckoId = match?.cg_id || null;
 
   console.log(`[asset-details] cg_master lookup: found ${cg?.length || 0} matches, coingeckoId=${coingeckoId}`);
