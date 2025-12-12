@@ -1,4 +1,5 @@
 // LLM Caller: Lovable AI → OpenAI → Anthropic fallback chain
+// FIXES: #4 (tool data contract), #5 (actual provider logging), #11 (SSE format)
 
 import { SessionContext } from "./context.ts";
 import { ResolvedAsset } from "./resolver.ts";
@@ -8,6 +9,12 @@ import { RouteConfig, Intent } from "./router.ts";
 interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
+}
+
+export interface LLMResult {
+  stream: ReadableStream;
+  provider: string;
+  model: string;
 }
 
 // Provider config
@@ -35,20 +42,23 @@ const PROVIDERS = [
   },
 ];
 
+// FIX #4: Strict tool data contract with timestamps
 export function buildSystemPrompt(
   context: SessionContext,
   assets: ResolvedAsset[],
   tools: ToolResults,
   config: RouteConfig
 ): string {
+  const now = new Date().toISOString();
+  
   const parts: string[] = [
     `You are ZombieDog 🧟🐕, a battle-tested crypto & stocks market analyst with a no-BS attitude.`,
     `You speak casually but provide accurate, data-driven insights.`,
-    `Today is ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.`,
+    `Current time: ${now}`,
     ``,
     `## Your Rules:`,
     `- NEVER ask clarifying questions. Use the data provided.`,
-    `- If data is missing, say so briefly and move on.`,
+    `- If tool data is marked "MISSING", say "I don't have that data right now" — do NOT guess.`,
     `- For prices: show symbol, price, 24h %, and source.`,
     `- For safety: show risk level, flags, and verdict.`,
     `- For content creation: output ONLY the requested content.`,
@@ -74,64 +84,121 @@ export function buildSystemPrompt(
     parts.push(`Previously discussed: ${context.recentAssets.join(', ')}`);
   }
   
-  // Add tool results
-  if (tools.prices && tools.prices.length > 0) {
-    parts.push('');
-    parts.push('## 📊 Live Price Data:');
-    for (const p of tools.prices) {
-      const changeStr = p.change24h >= 0 ? `+${p.change24h.toFixed(2)}%` : `${p.change24h.toFixed(2)}%`;
-      const mcapStr = p.marketCap ? ` | MCap: $${formatNumber(p.marketCap)}` : '';
-      parts.push(`- ${p.symbol}: $${formatPrice(p.price)} (${changeStr})${mcapStr} [${p.source}]`);
+  // FIX #4: Tool Data Contract — explicit timestamps and missing data handling
+  parts.push('');
+  parts.push('## Tool Data (JSON format for accuracy):');
+  parts.push('```json');
+  
+  const toolData: Record<string, any> = {};
+  
+  // Prices
+  if (config.fetchPrices) {
+    if (tools.prices && tools.prices.length > 0) {
+      toolData.prices = {
+        as_of: tools.timestamps.prices || now,
+        data: tools.prices.map(p => ({
+          symbol: p.symbol,
+          price: p.price,
+          change_24h_pct: p.change24h,
+          market_cap: p.marketCap || null,
+          source: p.source,
+        })),
+      };
+    } else {
+      toolData.prices = { status: 'MISSING', reason: 'No price data found' };
     }
   }
   
-  if (tools.social && tools.social.length > 0) {
-    parts.push('');
-    parts.push('## 📱 Social Sentiment (LunarCrush):');
-    for (const s of tools.social) {
-      const gs = s.galaxyScore ? `Galaxy: ${s.galaxyScore}` : '';
-      const ar = s.altRank ? `AltRank: #${s.altRank}` : '';
-      const sent = s.sentiment ? `Sentiment: ${s.sentiment}%` : '';
-      parts.push(`- ${s.symbol}: ${[gs, ar, sent].filter(Boolean).join(' | ')}`);
+  // Social
+  if (config.fetchSocial) {
+    if (tools.social && tools.social.length > 0) {
+      toolData.social = {
+        as_of: tools.timestamps.social || now,
+        source: 'LunarCrush',
+        data: tools.social.map(s => ({
+          symbol: s.symbol,
+          galaxy_score: s.galaxyScore || null,
+          alt_rank: s.altRank || null,
+          sentiment_pct: s.sentiment || null,
+          social_volume: s.socialVolume || null,
+        })),
+      };
+    } else {
+      toolData.social = { status: 'MISSING', reason: 'No social data found' };
     }
   }
   
-  if (tools.derivs && tools.derivs.length > 0) {
-    parts.push('');
-    parts.push('## 📈 Derivatives Data:');
-    for (const d of tools.derivs) {
-      const fr = (d.fundingRate * 100).toFixed(4);
-      parts.push(`- ${d.symbol}: Funding ${fr}% | Liq 24h: $${formatNumber(d.liquidations24h.total)}`);
+  // Derivatives
+  if (config.fetchDerivs) {
+    if (tools.derivs && tools.derivs.length > 0) {
+      toolData.derivatives = {
+        as_of: tools.timestamps.derivs || now,
+        source: 'CoinGlass',
+        data: tools.derivs.map(d => ({
+          symbol: d.symbol,
+          funding_rate_pct: (d.fundingRate * 100).toFixed(4),
+          liquidations_24h: d.liquidations24h,
+        })),
+      };
+    } else {
+      toolData.derivatives = { status: 'MISSING', reason: 'No derivatives data found' };
     }
   }
   
-  if (tools.security) {
-    parts.push('');
-    parts.push('## 🛡️ Security Analysis:');
-    parts.push(`- Risk Level: ${tools.security.riskLevel}`);
-    if (tools.security.flags.length > 0) {
-      parts.push(`- Flags: ${tools.security.flags.join(', ')}`);
-    }
-    if (tools.security.liquidity) {
-      parts.push(`- DEX Liquidity: $${formatNumber(tools.security.liquidity.dex)}`);
+  // Security
+  if (config.fetchSecurity) {
+    if (tools.security) {
+      toolData.security = {
+        as_of: tools.timestamps.security || now,
+        sources: ['GoPlus', 'DexScreener'],
+        risk_level: tools.security.riskLevel,
+        chain_detected: tools.security.chain || 'unknown',
+        flags: tools.security.flags,
+        is_honeypot: tools.security.isHoneypot || false,
+        dex_liquidity_usd: tools.security.liquidity?.dex || null,
+        contract_verified: tools.security.contractInfo?.verified || null,
+        is_mintable: tools.security.contractInfo?.mintable || null,
+      };
+    } else {
+      toolData.security = { status: 'MISSING', reason: 'Security check failed or timed out' };
     }
   }
   
-  if (tools.news && tools.news.length > 0) {
-    parts.push('');
-    parts.push('## 📰 Recent News:');
-    for (const n of tools.news.slice(0, 3)) {
-      parts.push(`- "${n.title}" — ${n.source}`);
+  // News
+  if (config.fetchNews) {
+    if (tools.news && tools.news.length > 0) {
+      toolData.news = {
+        as_of: tools.timestamps.news || now,
+        source: 'Tavily',
+        articles: tools.news.slice(0, 3).map(n => ({
+          title: n.title,
+          source: n.source,
+          date: n.date,
+        })),
+      };
+    } else {
+      toolData.news = { status: 'MISSING', reason: 'No news found or search skipped' };
     }
   }
   
-  if (tools.charts) {
-    parts.push('');
-    parts.push('## 📉 Technical Indicators:');
-    if (tools.charts.rsi) parts.push(`- RSI: ${tools.charts.rsi.toFixed(1)}`);
-    if (tools.charts.sma20) parts.push(`- SMA20: $${formatPrice(tools.charts.sma20)}`);
-    if (tools.charts.sma50) parts.push(`- SMA50: $${formatPrice(tools.charts.sma50)}`);
+  // Technical indicators
+  if (config.fetchCharts) {
+    if (tools.charts && Object.keys(tools.charts).length > 0) {
+      toolData.technicals = {
+        as_of: tools.timestamps.charts || now,
+        source: 'Polygon',
+        rsi: tools.charts.rsi || null,
+        sma_20: tools.charts.sma20 || null,
+        sma_50: tools.charts.sma50 || null,
+        macd: tools.charts.macd || null,
+      };
+    } else {
+      toolData.technicals = { status: 'MISSING', reason: 'No technical data found' };
+    }
   }
+  
+  parts.push(JSON.stringify(toolData, null, 2));
+  parts.push('```');
   
   // Intent-specific instructions
   if (config.intent === 'content') {
@@ -143,21 +210,23 @@ export function buildSystemPrompt(
   if (config.intent === 'safety') {
     parts.push('');
     parts.push('## Safety Analysis Format:');
-    parts.push('1. Token identified');
-    parts.push('2. Risk Level (Low/Medium/High)');
-    parts.push('3. Flags found');
-    parts.push('4. Liquidity info');
-    parts.push('5. Verdict (2 sentences max)');
+    parts.push('1. Token/Address identified');
+    parts.push('2. Chain detected');
+    parts.push('3. Risk Level (Low/Medium/High)');
+    parts.push('4. Flags found');
+    parts.push('5. Liquidity info');
+    parts.push('6. Verdict (2 sentences max)');
   }
   
   return parts.join('\n');
 }
 
+// FIX #5: Return provider/model info along with stream
 export async function streamLLMResponse(
   messages: Message[],
   systemPrompt: string,
   intent: Intent
-): Promise<ReadableStream> {
+): Promise<LLMResult> {
   const isSimple = ['price', 'derivatives', 'verification'].includes(intent);
   
   for (const provider of PROVIDERS) {
@@ -174,7 +243,11 @@ export async function streamLLMResponse(
       const stream = await callProvider(provider, apiKey, messages, systemPrompt, model);
       if (stream) {
         console.log(`[LLM] Success with ${provider.name}`);
-        return stream;
+        return {
+          stream,
+          provider: provider.name,
+          model,
+        };
       }
     } catch (e) {
       console.error(`[LLM] ${provider.name} failed:`, e);
@@ -182,11 +255,21 @@ export async function streamLLMResponse(
   }
   
   // All providers failed - return error stream
+  return {
+    stream: createErrorStream("I'm having trouble connecting to my brain right now. Please try again in a moment! 🧟"),
+    provider: 'none',
+    model: 'error',
+  };
+}
+
+// FIX #11: Ensure SSE format matches frontend parser exactly
+function createErrorStream(message: string): ReadableStream {
   return new ReadableStream({
     start(controller) {
-      const errorMsg = "I'm having trouble connecting to my brain right now. Please try again in a moment! 🧟";
-      controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ choices: [{ delta: { content: errorMsg } }] })}\n\n`));
-      controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+      const encoder = new TextEncoder();
+      // Match exact OpenAI SSE format expected by frontend
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: message } }] })}\n\n`));
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
       controller.close();
     },
   });
@@ -231,6 +314,7 @@ async function callProvider(
   return response.body;
 }
 
+// FIX #11: Anthropic stream transformer to match OpenAI SSE format exactly
 async function callAnthropic(
   apiKey: string,
   messages: Message[],
@@ -264,56 +348,54 @@ async function callAnthropic(
     return null;
   }
   
-  // Transform Anthropic stream to OpenAI format
   const reader = response.body?.getReader();
   if (!reader) return null;
   
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  
   return new ReadableStream({
     async pull(controller) {
-      const { done, value } = await reader.read();
-      if (done) {
-        controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
-        controller.close();
-        return;
-      }
-      
-      const text = new TextDecoder().decode(value);
-      const lines = text.split('\n');
-      
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6);
-        if (data === '[DONE]') continue;
+      try {
+        const { done, value } = await reader.read();
         
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-            // Convert to OpenAI format
-            const openaiFormat = {
-              choices: [{ delta: { content: parsed.delta.text } }],
-            };
-            controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(openaiFormat)}\n\n`));
-          }
-        } catch {
-          // Ignore parse errors
+        if (done) {
+          // FIX #11: Ensure [DONE] is sent at end
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+          return;
         }
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              // FIX #11: Convert to exact OpenAI format
+              const openaiFormat = {
+                choices: [{ delta: { content: parsed.delta.text } }],
+              };
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiFormat)}\n\n`));
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      } catch (e) {
+        console.error('[LLM] Anthropic stream error:', e);
+        controller.error(e);
       }
     },
+    cancel() {
+      reader.cancel();
+    },
   });
-}
-
-// Utility functions
-function formatPrice(price: number): string {
-  if (price >= 1000) return price.toLocaleString('en-US', { maximumFractionDigits: 2 });
-  if (price >= 1) return price.toFixed(2);
-  if (price >= 0.01) return price.toFixed(4);
-  return price.toFixed(8);
-}
-
-function formatNumber(num: number): string {
-  if (num >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
-  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
-  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
-  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
-  return num.toFixed(2);
 }

@@ -6,7 +6,18 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 const CHAT_STORAGE_KEY = 'zombiedog-chat-history';
+const SESSION_ID_KEY = 'zombiedog-session-id';
 const DAILY_MESSAGE_LIMIT = 10;
+
+// FIX #3: Generate persistent session ID (UUID in localStorage)
+function getOrCreateSessionId(): string {
+  let sessionId = localStorage.getItem(SESSION_ID_KEY);
+  if (!sessionId) {
+    sessionId = crypto.randomUUID();
+    localStorage.setItem(SESSION_ID_KEY, sessionId);
+  }
+  return sessionId;
+}
 
 interface Message {
   id: string;
@@ -84,10 +95,11 @@ async function streamChat({
     headers['Authorization'] = `Bearer ${session.access_token}`;
   }
   
+  // FIX #3: Include client session_id for persistent memory
   const resp = await fetch(CHAT_URL, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, session_id: getOrCreateSessionId() }),
   });
 
   // Handle rate limiting

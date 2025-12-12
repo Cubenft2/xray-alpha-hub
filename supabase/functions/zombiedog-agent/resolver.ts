@@ -1,5 +1,5 @@
 // Entity Resolver: Resolve tickers, names, addresses to canonical assets
-// NO CLARIFICATION - always pick best match
+// FIX #6: Proper ambiguity handling with ranking by market cap
 
 import { SessionContext } from "./context.ts";
 
@@ -145,6 +145,7 @@ function isPronouns(query: string): boolean {
   return pronounPattern.test(query) && !extractTickers(query).length;
 }
 
+// FIX #6: Proper ambiguity handling with ranking
 async function resolveSingleTicker(
   supabase: any,
   ticker: string,
@@ -161,75 +162,144 @@ async function resolveSingleTicker(
     };
   }
   
-  // Try database lookup
-  const { data: tickerMapping } = await supabase
-    .from('ticker_mappings')
-    .select('symbol, type, coingecko_id, polygon_ticker')
-    .or(`symbol.eq.${normalized},aliases.cs.{${normalized}}`)
-    .maybeSingle();
+  // FIX #6: Query ALL matches and rank them
+  const candidates: Array<{
+    symbol: string;
+    type: 'crypto' | 'stock';
+    coingeckoId?: string;
+    polygonTicker?: string;
+    marketCap?: number;
+    matchType: 'exact' | 'alias';
+  }> = [];
   
-  if (tickerMapping) {
-    return {
-      symbol: tickerMapping.symbol,
-      type: tickerMapping.type === 'stock' ? 'stock' : 'crypto',
-      coingeckoId: tickerMapping.coingecko_id,
-      polygonTicker: tickerMapping.polygon_ticker,
-      source: 'database',
-    };
+  // Try ticker_mappings - get all matches
+  const { data: tickerMappings } = await supabase
+    .from('ticker_mappings')
+    .select('symbol, type, coingecko_id, polygon_ticker, aliases')
+    .or(`symbol.eq.${normalized},aliases.cs.{${normalized}}`)
+    .limit(10);
+  
+  if (tickerMappings) {
+    for (const tm of tickerMappings) {
+      candidates.push({
+        symbol: tm.symbol,
+        type: tm.type === 'stock' ? 'stock' : 'crypto',
+        coingeckoId: tm.coingecko_id,
+        polygonTicker: tm.polygon_ticker,
+        matchType: tm.symbol === normalized ? 'exact' : 'alias',
+      });
+    }
   }
   
-  // Try crypto_snapshot
-  const { data: cryptoSnapshot } = await supabase
+  // Also try crypto_snapshot for market cap data
+  const { data: cryptoData } = await supabase
     .from('crypto_snapshot')
-    .select('symbol, coingecko_id')
+    .select('symbol, market_cap, coingecko_id')
     .ilike('symbol', normalized)
-    .maybeSingle();
+    .limit(5);
   
-  if (cryptoSnapshot) {
-    return {
-      symbol: cryptoSnapshot.symbol,
-      type: 'crypto',
-      coingeckoId: cryptoSnapshot.coingecko_id,
-      source: 'database',
-    };
+  if (cryptoData) {
+    for (const c of cryptoData) {
+      // Update or add with market cap
+      const existing = candidates.find(x => x.symbol === c.symbol);
+      if (existing) {
+        existing.marketCap = c.market_cap;
+        existing.coingeckoId = existing.coingeckoId || c.coingecko_id;
+      } else {
+        candidates.push({
+          symbol: c.symbol,
+          type: 'crypto',
+          coingeckoId: c.coingecko_id,
+          marketCap: c.market_cap,
+          matchType: 'exact',
+        });
+      }
+    }
   }
   
   // Try stock_snapshot
-  const { data: stockSnapshot } = await supabase
+  const { data: stockData } = await supabase
     .from('stock_snapshot')
-    .select('symbol')
+    .select('symbol, market_cap')
     .ilike('symbol', normalized)
-    .maybeSingle();
+    .limit(5);
   
-  if (stockSnapshot) {
-    return {
-      symbol: stockSnapshot.symbol,
-      type: 'stock',
-      polygonTicker: stockSnapshot.symbol,
-      source: 'database',
-    };
+  if (stockData) {
+    for (const s of stockData) {
+      const existing = candidates.find(x => x.symbol === s.symbol);
+      if (existing) {
+        existing.marketCap = s.market_cap;
+      } else {
+        candidates.push({
+          symbol: s.symbol,
+          type: 'stock',
+          polygonTicker: s.symbol,
+          marketCap: s.market_cap,
+          matchType: 'exact',
+        });
+      }
+    }
   }
   
-  // Best guess based on popularity
-  if (TOP_CRYPTOS.includes(normalized)) {
-    return {
-      symbol: normalized,
-      type: 'crypto',
-      source: 'guess',
-    };
-  }
-  
-  // Unknown but valid ticker format
-  if (/^[A-Z]{2,6}$/.test(normalized)) {
-    // Guess type based on length and context
+  // If no candidates, make a best guess
+  if (candidates.length === 0) {
+    // Check if it's a top crypto
+    if (TOP_CRYPTOS.includes(normalized)) {
+      return {
+        symbol: normalized,
+        type: 'crypto',
+        source: 'guess',
+      };
+    }
+    
+    // Check context for type inference
     const isCryptoContext = context.recentAssets.some(a => TOP_CRYPTOS.includes(a));
-    return {
-      symbol: normalized,
-      type: isCryptoContext ? 'crypto' : 'unknown',
-      source: 'guess',
-      assumptionNote: `Assuming ${normalized} is ${isCryptoContext ? 'crypto' : 'an asset'} — say "switch to X" if different.`,
-    };
+    
+    if (/^[A-Z]{2,6}$/.test(normalized)) {
+      return {
+        symbol: normalized,
+        type: isCryptoContext ? 'crypto' : 'unknown',
+        source: 'guess',
+        assumptionNote: `Assuming ${normalized} is ${isCryptoContext ? 'crypto' : 'an asset'} — say "switch to X" if different.`,
+      };
+    }
+    
+    return null;
   }
   
-  return null;
+  // FIX #6: Rank candidates
+  // 1. Context match (if in recent assets)
+  // 2. Exact symbol match > alias match
+  // 3. Higher market cap
+  candidates.sort((a, b) => {
+    // Context match priority
+    const aInContext = context.recentAssets.includes(a.symbol) ? 1 : 0;
+    const bInContext = context.recentAssets.includes(b.symbol) ? 1 : 0;
+    if (aInContext !== bInContext) return bInContext - aInContext;
+    
+    // Exact match priority
+    const aExact = a.matchType === 'exact' ? 1 : 0;
+    const bExact = b.matchType === 'exact' ? 1 : 0;
+    if (aExact !== bExact) return bExact - aExact;
+    
+    // Market cap priority
+    const aMcap = a.marketCap || 0;
+    const bMcap = b.marketCap || 0;
+    return bMcap - aMcap;
+  });
+  
+  const best = candidates[0];
+  const hasAmbiguity = candidates.length > 1 && 
+    candidates[0].symbol !== candidates[1].symbol;
+  
+  return {
+    symbol: best.symbol,
+    type: best.type,
+    coingeckoId: best.coingeckoId,
+    polygonTicker: best.polygonTicker,
+    source: 'database',
+    assumptionNote: hasAmbiguity 
+      ? `Assuming you meant ${best.symbol} — say "switch to ${candidates[1].symbol}" if different.`
+      : undefined,
+  };
 }
