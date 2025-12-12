@@ -41,8 +41,8 @@ const FILTER_WORDS = new Set([
   'STILL', 'YET', 'ALREADY', 'AGAIN', 'TOO', 'NEVER', 'ALWAYS', 'OFTEN', 'SOMETIMES',
   'SEND', 'SENT', 'PUT', 'GOT', 'TAKE', 'TOOK', 'COME', 'CAME', 'WENT', 'GOING', 'RUN', 'SET',
   'THING', 'THINGS', 'STUFF', 'WAY', 'WAYS', 'PART', 'PARTS', 'FULL', 'EMPTY',
-  // Words from logs that caused issues (REMOVED ETH/ETHEREUM - they are valid tickers!)
-  'ETHE', 'BLOCKCHAIN', 'QUESTION', 'HIGHLIGHTS', 'KEY', 'INTERESTING',
+  // Words from logs that caused issues (REMOVED ETH/ETHEREUM/ETHE - they are valid tickers or aliases!)
+  'BLOCKCHAIN', 'QUESTION', 'HIGHLIGHTS', 'KEY', 'INTERESTING',
   'NTERESTING', 'WORKS', 'WORK', 'WORKING', 'USE', 'USING', 'USED',
   // Additional common words that get mistaken for tickers
   'DIG', 'INTO', 'BASIC', 'ATTENTION', 'LOOKING', 'GETTING', 'FIRST', 'LAST',
@@ -55,6 +55,74 @@ const FILTER_WORDS = new Set([
   'LEFT', 'RIGHT', 'TOP', 'DOWN', 'BOTTOM', 'SIDE', 'MIDDLE', 'CENTER', 'AROUND',
   'NEAR', 'FAR', 'AWAY', 'ALONG', 'ACROSS', 'INSIDE', 'OUTSIDE', 'WITHIN', 'WITHOUT'
 ]);
+
+// ============================================
+// TICKER ALIASES: Common typos, variants, and full names → canonical ticker
+// ============================================
+const TICKER_ALIASES: Record<string, string> = {
+  // Ethereum variants
+  'ETHE': 'ETH', 'ETHER': 'ETH', 'ETHEREUM': 'ETH', 'ETHERIUM': 'ETH', 'ETHREUM': 'ETH',
+  // Bitcoin variants
+  'BITC': 'BTC', 'BITCOIN': 'BTC', 'BITCOINS': 'BTC', 'BITCION': 'BTC',
+  // Solana variants
+  'SOLA': 'SOL', 'SOLANA': 'SOL', 'SOLANAA': 'SOL',
+  // Dogecoin variants
+  'DOGECOIN': 'DOGE', 'DOGEE': 'DOGE', 'DOGECION': 'DOGE',
+  // Cardano variants
+  'CARDAN': 'ADA', 'CARDANO': 'ADA', 'CARDANA': 'ADA',
+  // Ripple/XRP variants
+  'RIPPLE': 'XRP', 'RIPL': 'XRP', 'XRIP': 'XRP',
+  // Chainlink variants
+  'CHAINLINK': 'LINK', 'CHAINLIN': 'LINK', 'CLINK': 'LINK',
+  // Avalanche variants
+  'AVALANCH': 'AVAX', 'AVALANCHE': 'AVAX', 'AVAL': 'AVAX',
+  // Polkadot variants
+  'POLKADOT': 'DOT', 'POLKA': 'DOT', 'POKADOT': 'DOT',
+  // Polygon variants
+  'POLYGON': 'MATIC', 'POLYG': 'MATIC', 'POLY': 'MATIC',
+  // Litecoin variants
+  'LITECOIN': 'LTC', 'LITC': 'LTC', 'LITCION': 'LTC',
+  // Uniswap variants
+  'UNISWAP': 'UNI', 'UNIS': 'UNI', 'UNISW': 'UNI',
+  // Shiba variants
+  'SHIBA': 'SHIB', 'SHIBAINU': 'SHIB', 'SHIBINU': 'SHIB',
+  // Common typos for other popular coins
+  'COSM': 'ATOM', 'COSMOS': 'ATOM', 'ATMO': 'ATOM',
+  'BINANCE': 'BNB', 'BINACE': 'BNB', 'BIANCE': 'BNB',
+  'TETHER': 'USDT', 'USDC': 'USDC', 'STABLECOIN': 'USDT',
+  // Stock aliases
+  'APPLE': 'AAPL', 'APPL': 'AAPL',
+  'NVIDIA': 'NVDA', 'NVIDI': 'NVDA', 'NVIDEA': 'NVDA',
+  'TESLA': 'TSLA', 'TESLE': 'TSLA',
+  'MICROSOFT': 'MSFT', 'MICRO': 'MSFT', 'MCRSFT': 'MSFT',
+  'GOOGLE': 'GOOGL', 'GOGLE': 'GOOGL', 'GOOG': 'GOOGL',
+  'AMAZON': 'AMZN', 'AMAZN': 'AMZN', 'AMZON': 'AMZN',
+  'COINBASE': 'COIN', 'COINBSE': 'COIN',
+  'MICROSTRATEGY': 'MSTR', 'MICROSTR': 'MSTR',
+};
+
+// Resolve typos, variants, and full names to canonical ticker symbols
+function resolveTickerAlias(input: string): string | null {
+  if (!input || input.length < 2) return null;
+  
+  const normalized = input.toUpperCase().trim();
+  
+  // Skip if it's a filter word
+  if (FILTER_WORDS.has(normalized)) return null;
+  
+  // Direct alias lookup
+  if (TICKER_ALIASES[normalized]) {
+    console.log(`[Ticker Alias] Resolved "${input}" → "${TICKER_ALIASES[normalized]}"`);
+    return TICKER_ALIASES[normalized];
+  }
+  
+  // Check if it's already a valid ticker (2-10 chars, uppercase, not a filter word)
+  if (/^[A-Z]{2,10}$/.test(normalized)) {
+    return normalized;
+  }
+  
+  return null;
+}
 
 // ============================================
 // V3: GLOBAL TIMEOUT WRAPPER - MANDATORY FOR ALL EXTERNAL CALLS
@@ -108,13 +176,15 @@ function extractRecentContext(messages: any[], lookback = 10): RecentContext {
     const content = String(m?.content ?? m?.message ?? "");
     const text = content.toUpperCase();
     
-    // Extract tickers: $BTC, BTC, (BTC)
-    const tickers = text.match(/\$?[A-Z]{2,10}\b/g) || [];
+    // Extract tickers: $BTC, BTC, (BTC) - CASE INSENSITIVE to catch typos like "ethe"
+    const tickers = content.match(/\$?[A-Za-z]{2,10}\b/g) || [];
     for (const t of tickers) {
-      const cleaned = t.replace("$", "");
-      if (!seenAssets.has(cleaned) && !FILTER_WORDS.has(cleaned) && cleaned.length >= 2 && cleaned.length <= 10) {
-        seenAssets.add(cleaned);
-        assets.push(cleaned); // V3: Push to array in order (newest first)
+      const cleaned = t.replace("$", "").toUpperCase();
+      // Try to resolve as alias first (catches "ethe" → "ETH", "bitcoin" → "BTC")
+      const resolved = resolveTickerAlias(cleaned);
+      if (resolved && !seenAssets.has(resolved)) {
+        seenAssets.add(resolved);
+        assets.push(resolved); // V3: Push resolved ticker in order (newest first)
       }
     }
     
@@ -944,15 +1014,16 @@ function extractRecentAssets(conversationHistory: Array<{role: string, content: 
   for (const msg of recentMessages) {
     if (!msg.content) continue;
     
-    // Match ticker patterns: $BTC, BTC, PEPE, etc. (2-10 uppercase letters)
+    // Match ticker patterns: $BTC, BTC, PEPE, etc. - CASE INSENSITIVE to catch typos like "ethe"
     // Also match tickers mentioned in context like "BSKT" or "Basketcoin"
-    const tickerMatches = msg.content.match(/\$?[A-Z]{2,10}\b/g);
+    const tickerMatches = msg.content.match(/\$?[A-Za-z]{2,10}\b/g);
     if (tickerMatches) {
       for (const match of tickerMatches) {
-        const ticker = match.replace('$', '');
-        // Use the shared FILTER_WORDS set (module-level) to filter out common words
-        if (!FILTER_WORDS.has(ticker) && ticker.length >= 2 && ticker.length <= 10) {
-          recentAssets.push(ticker);
+        const cleaned = match.replace('$', '').toUpperCase();
+        // Try to resolve as alias first (catches "ethe" → "ETH", "bitcoin" → "BTC")
+        const resolved = resolveTickerAlias(cleaned);
+        if (resolved) {
+          recentAssets.push(resolved);
         }
       }
     }
@@ -1061,6 +1132,18 @@ CRITICAL RULES:
 11. Crypto symbols: BTC, ETH, SOL, XRP, ADA, DOGE, LINK, AVAX, etc.
 12. If user provides a contract address (0x... or Solana base58), include it in contractAddress field
 13. FOLLOW-UP QUESTIONS: If the user is clearly asking a follow-up about something they just discussed (e.g., "is it safe?", "make a post about this", "where can I buy it", "is this the address"), use the asset from CONVERSATION CONTEXT - DO NOT ask for clarification
+14. TYPO TOLERANCE: Recognize common typos and variants:
+    - "ethe", "ether", "ethereum", "etherium" → ETH
+    - "bitc", "bitcoin", "bitcoins" → BTC
+    - "sola", "solana" → SOL
+    - "doge", "dogecoin" → DOGE
+    - "cardan", "cardano" → ADA
+    - "ripple" → XRP
+    - "chainlink" → LINK
+    - "avalanch", "avalanche" → AVAX
+    - "nvidia", "nvidea" → NVDA
+    - "apple" → AAPL
+    Even if spelled wrong or as full name, resolve to the correct ticker symbol.
 
 Return ONLY the JSON object, nothing else.`
         }]
