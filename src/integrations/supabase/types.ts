@@ -20,17 +20,23 @@ export type Database = {
           client_ip: string | null
           created_at: string | null
           data_sources_used: string[] | null
+          error_code: string | null
           estimated_cost_millicents: number
           fallback_from: string | null
           fallback_used: boolean | null
           id: string
           input_tokens: number
+          intent: string | null
           latency_ms: number | null
           model: string
           output_tokens: number
           provider: string
           question_type: string[] | null
           session_id: string | null
+          success: boolean | null
+          tool_latency_ms: Json | null
+          tools_used: Json | null
+          total_latency_ms: number | null
           total_tokens: number | null
           user_message_preview: string | null
         }
@@ -39,17 +45,23 @@ export type Database = {
           client_ip?: string | null
           created_at?: string | null
           data_sources_used?: string[] | null
+          error_code?: string | null
           estimated_cost_millicents?: number
           fallback_from?: string | null
           fallback_used?: boolean | null
           id?: string
           input_tokens?: number
+          intent?: string | null
           latency_ms?: number | null
           model: string
           output_tokens?: number
           provider: string
           question_type?: string[] | null
           session_id?: string | null
+          success?: boolean | null
+          tool_latency_ms?: Json | null
+          tools_used?: Json | null
+          total_latency_ms?: number | null
           total_tokens?: number | null
           user_message_preview?: string | null
         }
@@ -58,17 +70,23 @@ export type Database = {
           client_ip?: string | null
           created_at?: string | null
           data_sources_used?: string[] | null
+          error_code?: string | null
           estimated_cost_millicents?: number
           fallback_from?: string | null
           fallback_used?: boolean | null
           id?: string
           input_tokens?: number
+          intent?: string | null
           latency_ms?: number | null
           model?: string
           output_tokens?: number
           provider?: string
           question_type?: string[] | null
           session_id?: string | null
+          success?: boolean | null
+          tool_latency_ms?: Json | null
+          tools_used?: Json | null
+          total_latency_ms?: number | null
           total_tokens?: number | null
           user_message_preview?: string | null
         }
@@ -220,6 +238,100 @@ export type Database = {
           synced_at?: string | null
         }
         Relationships: []
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          role: string
+          session_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          role: string
+          session_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_chat_messages_session"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["session_id"]
+          },
+        ]
+      }
+      chat_sessions: {
+        Row: {
+          created_at: string | null
+          id: string
+          ip_hash: string | null
+          last_seen: string | null
+          session_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          last_seen?: string | null
+          session_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ip_hash?: string | null
+          last_seen?: string | null
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      chat_summaries: {
+        Row: {
+          last_addresses: Json | null
+          last_assets: Json | null
+          rolling_summary: string | null
+          session_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          last_addresses?: Json | null
+          last_assets?: Json | null
+          rolling_summary?: string | null
+          session_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          last_addresses?: Json | null
+          last_assets?: Json | null
+          rolling_summary?: string | null
+          session_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_chat_summaries_session"
+            columns: ["session_id"]
+            isOneToOne: true
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["session_id"]
+          },
+        ]
       }
       coingecko_assets: {
         Row: {
