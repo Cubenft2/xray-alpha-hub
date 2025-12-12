@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
 
 interface NewsItem {
   title: string;
@@ -16,6 +17,20 @@ interface NewsItem {
   imageUrl?: string;
   author?: string;
 }
+
+interface CachedNewsResponse {
+  crypto: NewsItem[];
+  stocks: NewsItem[];
+  trump: NewsItem[];
+  cached: boolean;
+  cached_at?: string;
+}
+
+// Cache configuration
+const CACHE_KEY = 'news_fetch_v1';
+const CACHE_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+const LOCK_KEY = 'news_fetch_refresh_lock';
+const LOCK_TTL_MS = 30 * 1000; // 30 seconds
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -132,17 +147,7 @@ async function fetchPolygonNews(apiKey: string): Promise<NewsItem[]> {
   }
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS_HEADERS });
-  }
-
-  const { limit } = await (async () => {
-    try { return await req.json(); } catch { return {}; }
-  })() as { limit?: number };
-
-  const max = Math.min(Math.max(limit ?? 100, 10), 200);
-
+async function fetchFreshNews(max: number): Promise<{ crypto: NewsItem[]; stocks: NewsItem[]; trump: NewsItem[] }> {
   const cryptoFeeds = [
     "https://www.coindesk.com/arc/outboundfeeds/rss/",
     "https://cointelegraph.com/rss",
@@ -285,7 +290,125 @@ serve(async (req) => {
     }).catch(err => console.error('Asset sentiment calculation error:', err));
   }
 
-  return new Response(JSON.stringify({ crypto: cryptoItems, stocks: stockItems, trump: trumpItems }), {
-    headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS },
+  return { crypto: cryptoItems, stocks: stockItems, trump: trumpItems };
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: CORS_HEADERS });
+  }
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const { limit } = await (async () => {
+    try { return await req.json(); } catch { return {}; }
+  })() as { limit?: number };
+
+  const max = Math.min(Math.max(limit ?? 100, 10), 200);
+
+  // Step 1: Check cache first
+  const now = new Date();
+  const { data: cached } = await supabase
+    .from('cache_kv')
+    .select('v, expires_at, created_at')
+    .eq('k', CACHE_KEY)
+    .single();
+
+  if (cached) {
+    const expiresAt = new Date(cached.expires_at);
+    const isExpired = expiresAt <= now;
+    
+    // Cache is fresh - return immediately
+    if (!isExpired) {
+      console.log('📦 Cache HIT - returning cached news');
+      const cachedData = cached.v as { crypto: NewsItem[]; stocks: NewsItem[]; trump: NewsItem[] };
+      const response: CachedNewsResponse = {
+        ...cachedData,
+        cached: true,
+        cached_at: cached.created_at
+      };
+      return new Response(JSON.stringify(response), {
+        headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS },
+      });
+    }
+
+    // Cache is stale - check if another request is refreshing
+    const { data: lock } = await supabase
+      .from('cache_kv')
+      .select('expires_at')
+      .eq('k', LOCK_KEY)
+      .single();
+
+    if (lock?.expires_at && new Date(lock.expires_at) > now) {
+      // Another request is refreshing - return stale data immediately (SWR)
+      console.log('🔄 Cache STALE but refresh in progress - returning stale data');
+      const cachedData = cached.v as { crypto: NewsItem[]; stocks: NewsItem[]; trump: NewsItem[] };
+      const response: CachedNewsResponse = {
+        ...cachedData,
+        cached: true,
+        cached_at: cached.created_at
+      };
+      return new Response(JSON.stringify(response), {
+        headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS },
+      });
+    }
+  }
+
+  // Step 2: Acquire refresh lock
+  console.log('🔒 Acquiring refresh lock...');
+  await supabase.from('cache_kv').upsert({
+    k: LOCK_KEY,
+    v: { refreshing: true, started_at: now.toISOString() },
+    expires_at: new Date(now.getTime() + LOCK_TTL_MS).toISOString()
   });
+
+  try {
+    // Step 3: Fetch fresh news
+    console.log('🌐 Cache MISS - fetching fresh news from 22+ sources...');
+    const freshData = await fetchFreshNews(max);
+
+    // Step 4: Update cache
+    const expiresAt = new Date(now.getTime() + CACHE_DURATION_MS);
+    await supabase.from('cache_kv').upsert({
+      k: CACHE_KEY,
+      v: freshData,
+      expires_at: expiresAt.toISOString()
+    });
+    console.log(`✅ Cache updated, expires at ${expiresAt.toISOString()}`);
+
+    // Step 5: Release lock
+    await supabase.from('cache_kv').delete().eq('k', LOCK_KEY);
+
+    const response: CachedNewsResponse = {
+      ...freshData,
+      cached: false,
+      cached_at: now.toISOString()
+    };
+
+    return new Response(JSON.stringify(response), {
+      headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS },
+    });
+  } catch (error) {
+    // Release lock on error
+    await supabase.from('cache_kv').delete().eq('k', LOCK_KEY);
+    console.error('❌ Error fetching news:', error);
+    
+    // If we have stale cache, return it
+    if (cached) {
+      console.log('⚠️ Returning stale cache due to error');
+      const cachedData = cached.v as { crypto: NewsItem[]; stocks: NewsItem[]; trump: NewsItem[] };
+      const response: CachedNewsResponse = {
+        ...cachedData,
+        cached: true,
+        cached_at: cached.created_at
+      };
+      return new Response(JSON.stringify(response), {
+        headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS },
+      });
+    }
+
+    throw error;
+  }
 });
