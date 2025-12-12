@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Heart, Copy, Check, Bitcoin, Wallet } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function Support() {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
@@ -12,19 +13,22 @@ export default function Support() {
       currency: 'Bitcoin',
       symbol: 'BTC',
       address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
-      icon: <Bitcoin className="w-5 h-5" />
+      icon: <Bitcoin className="w-5 h-5" />,
+      qrPrefix: 'bitcoin:'
     },
     {
       currency: 'Ethereum',
       symbol: 'ETH',
       address: '0x26fDb7d5B8a8A0fA3E5C7C7C8B4B3C2B1A9D8E7F',
-      icon: <Wallet className="w-5 h-5" />
+      icon: <Wallet className="w-5 h-5" />,
+      qrPrefix: 'ethereum:'
     },
     {
       currency: 'Solana',
       symbol: 'SOL',
       address: '6y6KJz3F2H8L9N4M3K2J1G9F8E7D6C5B4A3Z2Y1X',
-      icon: <Wallet className="w-5 h-5" />
+      icon: <Wallet className="w-5 h-5" />,
+      qrPrefix: 'solana:'
     }
   ];
 
@@ -66,7 +70,7 @@ export default function Support() {
               
               {wallets.map((wallet) => (
                 <div key={wallet.symbol} className="border border-border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
                       {wallet.icon}
                       <span className="xr-nav-text">{wallet.currency}</span>
@@ -74,32 +78,45 @@ export default function Support() {
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
-                    <code 
-                      className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all cursor-pointer hover:bg-muted/70 active:bg-muted/50 transition-colors"
-                      onClick={() => copyToClipboard(wallet.address, wallet.symbol)}
-                      title="Click to copy"
-                    >
-                      {wallet.address}
-                    </code>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(wallet.address, wallet.symbol)}
-                      className="shrink-0"
-                    >
-                      {copiedAddress === wallet.symbol ? (
-                        <>
-                          <Check className="w-4 h-4 mr-1" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4 mr-1" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
+                  <div className="flex gap-4">
+                    {/* QR Code */}
+                    <div className="shrink-0 bg-white p-2 rounded-lg">
+                      <QRCodeSVG 
+                        value={`${wallet.qrPrefix}${wallet.address}`}
+                        size={80}
+                        level="M"
+                        includeMargin={false}
+                      />
+                    </div>
+                    
+                    {/* Address and Copy Button */}
+                    <div className="flex-1 flex flex-col justify-center gap-2">
+                      <code 
+                        className="bg-muted px-3 py-2 rounded text-xs font-mono break-all cursor-pointer hover:bg-muted/70 active:bg-muted/50 transition-colors"
+                        onClick={() => copyToClipboard(wallet.address, wallet.symbol)}
+                        title="Click to copy"
+                      >
+                        {wallet.address}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(wallet.address, wallet.symbol)}
+                        className="w-fit"
+                      >
+                        {copiedAddress === wallet.symbol ? (
+                          <>
+                            <Check className="w-4 h-4 mr-1" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4 mr-1" />
+                            Copy
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
