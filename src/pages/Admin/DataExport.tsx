@@ -9,20 +9,41 @@ export function DataExport() {
   const [loading, setLoading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
 
+  const fetchAllRecords = async () => {
+    const allData: { cg_id: string; symbol: string; name: string }[] = [];
+    const pageSize = 1000;
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('cg_master')
+        .select('cg_id, symbol, name')
+        .order('cg_id', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        allData.push(...data);
+        offset += pageSize;
+        hasMore = data.length === pageSize;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    return allData;
+  };
+
   const exportCoinGeckoIds = async () => {
     setLoading(true);
     setDownloaded(false);
     
     try {
-      // Fetch all CoinGecko IDs from cg_master
-      const { data, error } = await supabase
-        .from('cg_master')
-        .select('cg_id, symbol, name')
-        .order('cg_id', { ascending: true });
+      const data = await fetchAllRecords();
 
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
+      if (data.length === 0) {
         toast.error('No CoinGecko IDs found');
         return;
       }
@@ -56,14 +77,9 @@ export function DataExport() {
     setDownloaded(false);
     
     try {
-      const { data, error } = await supabase
-        .from('cg_master')
-        .select('cg_id, symbol, name')
-        .order('cg_id', { ascending: true });
+      const data = await fetchAllRecords();
 
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
+      if (data.length === 0) {
         toast.error('No CoinGecko IDs found');
         return;
       }
