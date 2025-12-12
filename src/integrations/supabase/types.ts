@@ -305,6 +305,7 @@ export type Database = {
         Row: {
           last_addresses: Json | null
           last_assets: Json | null
+          last_resolved_asset: string | null
           rolling_summary: string | null
           session_id: string
           updated_at: string | null
@@ -312,6 +313,7 @@ export type Database = {
         Insert: {
           last_addresses?: Json | null
           last_assets?: Json | null
+          last_resolved_asset?: string | null
           rolling_summary?: string | null
           session_id: string
           updated_at?: string | null
@@ -319,6 +321,7 @@ export type Database = {
         Update: {
           last_addresses?: Json | null
           last_assets?: Json | null
+          last_resolved_asset?: string | null
           rolling_summary?: string | null
           session_id?: string
           updated_at?: string | null
