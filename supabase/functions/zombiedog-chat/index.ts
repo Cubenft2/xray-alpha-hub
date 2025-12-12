@@ -12,6 +12,40 @@ type AIProvider = 'lovable' | 'openai' | 'anthropic';
 // Top cryptos to fetch general prices for
 const TOP_CRYPTOS = ['BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'LINK', 'AVAX', 'DOT', 'MATIC', 'SHIB', 'UNI', 'LTC', 'BCH', 'ATOM'];
 
+// MODULE-LEVEL: Comprehensive filter words used by BOTH extractRecentContext() and extractRecentAssets()
+// This prevents common English words from being mistaken for ticker symbols
+const FILTER_WORDS = new Set([
+  // Articles, pronouns, prepositions
+  'THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'HAS', 'HAD', 'WAS', 'HIS', 'HER',
+  'CAN', 'NOW', 'HOW', 'WHY', 'WHO', 'ALL', 'GET', 'NEW', 'ONE', 'TWO', 'OUT', 'OUR', 'DAY', 'ANY',
+  'IT', 'ITS', 'IS', 'BE', 'AM', 'IF', 'OR', 'AS', 'AT', 'BY', 'TO', 'OF', 'ON', 'IN', 'UP',
+  'SO', 'GO', 'NO', 'AN', 'A', 'I', 'ME', 'MY', 'MINE', 'WE', 'US', 'THEY', 'THEM', 'THEIR',
+  // Crypto/Finance abbreviations that aren't tickers
+  'DEX', 'CEX', 'API', 'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL',
+  // Context words
+  'THIS', 'THAT', 'WITH', 'FROM', 'YOUR', 'MAKE', 'POST', 'ABOUT', 'WHAT', 'SAFE', 'ADDRESS',
+  // Common conversational words
+  'OK', 'OKAY', 'ALRIGHT', 'HEY', 'HELLO', 'HI', 'YES', 'YEAH', 'YEP', 'SURE', 'NAH', 'NOP',
+  'NEED', 'GIVE', 'GAVE', 'LET', 'LETS', 'COPY', 'PASTE',
+  'TOKEN', 'TOKENS', 'COIN', 'COINS', 'CRYPTO', 'PRICE', 'PRICES', 'DATA', 'INFO', 'CHART',
+  'COMPLETE', 'ANALYSIS', 'ANALYZE', 'CHECK', 'LOOK', 'SHOW', 'TELL', 'FIND', 'SEARCH', 'SEE',
+  'WANT', 'WANTS', 'WOULD', 'COULD', 'SHOULD', 'WILL', 'MIGHT', 'MUST', 'SHALL', 'MAY',
+  'HAVE', 'BEEN', 'BEING', 'WERE', 'SOME', 'MANY', 'MUCH', 'MOST', 'MORE', 'LESS', 'FEW',
+  'JUST', 'ALSO', 'ONLY', 'EVEN', 'VERY', 'REALLY', 'PLEASE', 'THANKS', 'THANK', 'THX',
+  'LIKE', 'GOOD', 'WELL', 'BEST', 'GREAT', 'NICE', 'COOL', 'BAD', 'WORST', 'AWESOME',
+  'WHEN', 'WHERE', 'THEN', 'THAN', 'HERE', 'THERE', 'WHICH', 'EACH', 'EVERY', 'BOTH',
+  'SAID', 'SAYS', 'SAY', 'ASK', 'ASKED', 'TELL', 'TOLD', 'ASKING',
+  'MARKET', 'MARKETS', 'TRADE', 'TRADES', 'BUY', 'SELL', 'HOLD', 'LONG', 'SHORT',
+  'HELP', 'HELPED', 'DO', 'DOES', 'DID', 'DONE', 'DOING', 'TRY', 'TRIED',
+  'THINK', 'KNOW', 'FEEL', 'BELIEVE',
+  'STILL', 'YET', 'ALREADY', 'AGAIN', 'TOO', 'NEVER', 'ALWAYS', 'OFTEN', 'SOMETIMES',
+  'SEND', 'SENT', 'PUT', 'GOT', 'TAKE', 'TOOK', 'COME', 'CAME', 'WENT', 'GOING', 'RUN', 'SET',
+  'THING', 'THINGS', 'STUFF', 'WAY', 'WAYS', 'PART', 'PARTS', 'FULL', 'EMPTY',
+  // Words from logs that caused issues
+  'ETHE', 'ETH', 'ETHEREUM', 'BLOCKCHAIN', 'QUESTION', 'HIGHLIGHTS', 'KEY', 'INTERESTING',
+  'NTERESTING', 'WORKS', 'WORK', 'WORKING', 'USE', 'USING', 'USED'
+]);
+
 // ============================================
 // V3: GLOBAL TIMEOUT WRAPPER - MANDATORY FOR ALL EXTERNAL CALLS
 // ============================================
@@ -59,33 +93,6 @@ function extractRecentContext(messages: any[], lookback = 10): RecentContext {
   
   const evmRe = /\b0x[a-fA-F0-9]{40}\b/g;
   const solRe = /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g;
-  
-  // Common words to filter out - comprehensive list to prevent false positives
-  const FILTER_WORDS = new Set([
-    // Original words
-    'THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'HAS', 'HAD', 'WAS', 'HIS', 'HER',
-    'CAN', 'NOW', 'HOW', 'WHY', 'WHO', 'ALL', 'GET', 'NEW', 'ONE', 'TWO', 'OUT', 'OUR', 'DAY', 'ANY',
-    'DEX', 'CEX', 'API', 'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL',
-    'THIS', 'THAT', 'WITH', 'FROM', 'YOUR', 'MAKE', 'POST', 'ABOUT', 'WHAT', 'SAFE', 'ADDRESS',
-    // Common conversational words causing issues
-    'OK', 'OKAY', 'ALRIGHT', 'HEY', 'HELLO', 'HI', 'YES', 'NO', 'YEAH', 'YEP', 'SURE', 'NAH', 'NOP',
-    'NEED', 'GIVE', 'GAVE', 'ME', 'MY', 'MINE', 'THEY', 'THEM', 'THEIR', 'WE', 'US', 'OUR',
-    'TOKEN', 'TOKENS', 'COIN', 'COINS', 'CRYPTO', 'PRICE', 'PRICES', 'DATA', 'INFO', 'CHART',
-    'COMPLETE', 'ANALYSIS', 'ANALYZE', 'CHECK', 'LOOK', 'SHOW', 'TELL', 'FIND', 'SEARCH', 'SEE',
-    'WANT', 'WANTS', 'WOULD', 'COULD', 'SHOULD', 'WILL', 'MIGHT', 'MUST', 'SHALL', 'MAY',
-    'HAVE', 'BEEN', 'BEING', 'WERE', 'SOME', 'MANY', 'MUCH', 'MOST', 'MORE', 'LESS', 'FEW',
-    'JUST', 'ALSO', 'ONLY', 'EVEN', 'VERY', 'REALLY', 'PLEASE', 'THANKS', 'THANK', 'THX',
-    'LIKE', 'GOOD', 'WELL', 'BEST', 'GREAT', 'NICE', 'COOL', 'BAD', 'WORST', 'AWESOME',
-    'WHEN', 'WHERE', 'THEN', 'THAN', 'HERE', 'THERE', 'WHICH', 'EACH', 'EVERY', 'BOTH',
-    'SAID', 'SAYS', 'SAY', 'ASK', 'ASKED', 'TELL', 'TOLD', 'ASKING',
-    'MARKET', 'MARKETS', 'TRADE', 'TRADES', 'BUY', 'SELL', 'HOLD', 'LONG', 'SHORT',
-    'HELP', 'HELPED', 'DO', 'DOES', 'DID', 'DONE', 'DOING', 'TRY', 'TRIED',
-    'IT', 'ITS', 'IS', 'BE', 'AM', 'IF', 'OR', 'AS', 'AT', 'BY', 'TO', 'OF', 'ON', 'IN', 'UP',
-    'SO', 'GO', 'NO', 'AN', 'A', 'I', 'THINK', 'KNOW', 'THINK', 'FEEL', 'BELIEVE',
-    'STILL', 'YET', 'ALREADY', 'AGAIN', 'TOO', 'NEVER', 'ALWAYS', 'OFTEN', 'SOMETIMES',
-    'SEND', 'SENT', 'PUT', 'GOT', 'TAKE', 'TOOK', 'COME', 'CAME', 'WENT', 'GOING',
-    'THING', 'THINGS', 'STUFF', 'WAY', 'WAYS', 'PART', 'PARTS', 'FULL', 'EMPTY'
-  ]);
   
   for (const m of recent) {
     const content = String(m?.content ?? m?.message ?? "");
@@ -933,11 +940,8 @@ function extractRecentAssets(conversationHistory: Array<{role: string, content: 
     if (tickerMatches) {
       for (const match of tickerMatches) {
         const ticker = match.replace('$', '');
-        // Filter out common words that match the pattern
-        const commonWords = ['THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'HAS', 'HAD', 'WAS', 'HIS', 'HER', 
-          'CAN', 'NOW', 'HOW', 'WHY', 'WHO', 'ALL', 'GET', 'NEW', 'ONE', 'TWO', 'OUT', 'OUR', 'DAY', 'ANY',
-          'DEX', 'CEX', 'API', 'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL'];
-        if (!commonWords.includes(ticker) && ticker.length >= 2) {
+        // Use the shared FILTER_WORDS set (module-level) to filter out common words
+        if (!FILTER_WORDS.has(ticker) && ticker.length >= 2 && ticker.length <= 10) {
           recentAssets.push(ticker);
         }
       }
