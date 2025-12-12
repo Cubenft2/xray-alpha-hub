@@ -21,18 +21,21 @@ function timeoutSignal(ms: number) {
   return { signal: controller.signal, cancel: () => clearTimeout(id) };
 }
 
-// V3 FIX 1: Return null on timeout instead of throwing - prevents agent crashes
+// V3 FIX 4: Return null ONLY for timeout, return Response for HTTP errors so callers can log status
 async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 10000): Promise<Response | null> {
   const t = timeoutSignal(ms);
   try {
-    return await fetch(url, { ...init, signal: t.signal });
+    const response = await fetch(url, { ...init, signal: t.signal });
+    // Return the Response even if non-2xx - let caller decide how to handle
+    return response;
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       console.warn(`[Timeout] Request to ${url.slice(0, 50)}... timed out after ${ms}ms - returning null`);
-      return null; // V3: Return null, don't throw - caller handles gracefully
+      return null; // Only return null for timeouts
     }
-    console.error(`[Fetch Error] ${url.slice(0, 50)}... failed:`, error);
-    return null; // V3: Return null on any fetch error for resilience
+    // Network errors (DNS, connection refused, etc.) - return null
+    console.error(`[Network Error] ${url.slice(0, 50)}... failed:`, error);
+    return null;
   } finally {
     t.cancel();
   }
@@ -134,7 +137,6 @@ function extractTickerFromQuery(query: string): string | null {
   for (const pattern of patterns) {
     const match = query.match(pattern);
     if (match) {
-      // Handle patterns with 2 capture groups
       const ticker = match[2] || match[1];
       return ticker?.toUpperCase() || null;
     }
@@ -142,33 +144,64 @@ function extractTickerFromQuery(query: string): string | null {
   return null;
 }
 
+// V3 FIX 3: Extract address from query (0x... or Solana mint)
+function extractAddressFromQuery(query: string): string | null {
+  // EVM address
+  const evmMatch = query.match(/\b(0x[a-fA-F0-9]{40})\b/);
+  if (evmMatch) return evmMatch[1].toLowerCase();
+  
+  // Solana address (base58, 32-44 chars, mixed case + digits)
+  const solMatch = query.match(/\b([1-9A-HJ-NP-Za-km-z]{32,44})\b/);
+  if (solMatch && /[A-Z]/.test(solMatch[1]) && /[a-z]/.test(solMatch[1]) && /[0-9]/.test(solMatch[1])) {
+    return solMatch[1];
+  }
+  return null;
+}
+
+// V3 FIX 1: Check if query contains explicit ticker (to guard market_overview)
+function queryHasExplicitTicker(query: string): boolean {
+  const COMMON_WORDS = new Set(['THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'CAN', 'NOW', 'HOW', 'WHY', 'WHO',
+    'DEX', 'CEX', 'API', 'USD', 'EUR', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL', 'ABOUT', 'THIS', 'THAT',
+    'TODAY', 'MARKET', 'CRYPTO', 'DOING', 'GOING', 'LOOKING', 'OVERALL']);
+  
+  const tickers = query.toUpperCase().match(/\$?[A-Z]{2,10}\b/g) || [];
+  for (const t of tickers) {
+    const cleaned = t.replace('$', '');
+    if (!COMMON_WORDS.has(cleaned) && cleaned.length >= 2 && cleaned.length <= 6) {
+      return true; // Found a likely ticker
+    }
+  }
+  return false;
+}
+
 function detectPreGeminiRoute(userQuery: string, recentContext: RecentContext): PreRoutingResult {
   const query = userQuery.trim();
   
-  // A) Content creation detection - return immediately
+  // A) Content creation detection
   if (CONTENT_CREATION_PATTERN.test(query) && recentContext.assets.length > 0) {
     console.log(`[Pre-Route] Content creation detected, using recent asset: ${recentContext.assets[0]}`);
     return { handled: true, intent: 'content', targetAsset: recentContext.assets[0] };
   }
   
-  // B) Address verification detection - V3 FIX: Extract ticker from query first
+  // B) Address verification - V3 FIX 3: Extract address from query first
   if (ADDRESS_VERIFICATION_PATTERN.test(query)) {
     const queryTicker = extractTickerFromQuery(query);
+    const queryAddress = extractAddressFromQuery(query);
     const targetAsset = queryTicker || (recentContext.assets.length > 0 ? recentContext.assets[0] : undefined);
-    const targetAddress = recentContext.addresses.length > 0 ? recentContext.addresses[0].address : undefined;
-    console.log(`[Pre-Route] Verification detected, queryTicker: ${queryTicker}, asset: ${targetAsset}, address: ${targetAddress}`);
+    const targetAddress = queryAddress || (recentContext.addresses.length > 0 ? recentContext.addresses[0].address : undefined);
+    console.log(`[Pre-Route] Verification: queryTicker=${queryTicker}, queryAddr=${queryAddress?.slice(0,10)}, asset=${targetAsset}, addr=${targetAddress?.slice(0,10)}`);
     return { handled: true, intent: 'verification', targetAsset, targetAddress };
   }
   
-  // C) Market overview detection - return immediately
-  if (MARKET_OVERVIEW_PATTERN.test(query)) {
-    console.log(`[Pre-Route] Market overview detected`);
+  // C) Market overview - V3 FIX 1: Only if NO explicit ticker in query
+  if (MARKET_OVERVIEW_PATTERN.test(query) && !queryHasExplicitTicker(query)) {
+    console.log(`[Pre-Route] Market overview detected (no explicit ticker)`);
     return { handled: true, intent: 'market_overview' };
   }
   
-  // D) Follow-up answer detection (after clarification) - return immediately
+  // D) Follow-up answer detection
   if (FOLLOW_UP_PATTERN.test(query) && recentContext.assets.length > 0) {
-    console.log(`[Pre-Route] Follow-up answer detected, using recent asset: ${recentContext.assets[0]}`);
+    console.log(`[Pre-Route] Follow-up detected, using recent asset: ${recentContext.assets[0]}`);
     return { handled: true, intent: 'follow_up', targetAsset: recentContext.assets[0] };
   }
   
@@ -4218,11 +4251,11 @@ serve(async (req) => {
       });
     }
     
-    // V3 FIX 5: Handle content creation route immediately (no AI understanding needed)
+    // V3 FIX 2: Handle content creation route - EARLY RETURN (no understandQuestion)
     if (preRoute.handled && preRoute.intent === 'content' && preRoute.targetAsset) {
-      console.log(`[V3 Pre-Route] Content creation for: ${preRoute.targetAsset} - bypassing AI understanding`);
+      console.log(`[V3 Pre-Route] Content creation for: ${preRoute.targetAsset} - EARLY RETURN`);
       
-      // Fetch minimal data for the asset
+      // Fetch asset data
       const { data: assetData } = await supabase
         .from('crypto_snapshot')
         .select('*')
@@ -4230,50 +4263,72 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
       
-      // Build a simple prompt and continue with content generation
-      // Don't return early - let it flow through to AI with the resolved asset
-    }
-    
-    // V3 FIX 5: Handle market overview route (force TOP_CRYPTOS, skip clarification)
-    if (preRoute.handled && preRoute.intent === 'market_overview') {
-      console.log(`[V3 Pre-Route] Market overview - forcing TOP_CRYPTOS, bypassing AI understanding`);
+      const priceInfo = assetData ? `$${assetData.price?.toFixed(2)} (${assetData.percent_change_24h >= 0 ? '+' : ''}${assetData.percent_change_24h?.toFixed(2)}%)` : '';
+      const contentResponse = `📝 **Content for ${preRoute.targetAsset}**\n\n🐕 Here's a post about ${assetData?.name || preRoute.targetAsset}:\n\n"${assetData?.name || preRoute.targetAsset} (${preRoute.targetAsset}) ${priceInfo}\n\n${assetData?.percent_change_24h >= 0 ? '📈 Momentum building!' : '📉 Dip opportunity?'} What's your move?\n\n#${preRoute.targetAsset} #Crypto"\n\n*wags tail* Feel free to customize! 🐾`;
       
-      // Create a synthetic questionUnderstanding to skip the AI call
-      const syntheticUnderstanding = {
-        intent: 'general' as const,
-        needsClarification: false,
-        clarificationMessage: null,
-        assets: TOP_CRYPTOS.slice(0, 5).map(s => ({
-          symbol: s, 
-          name: s, 
-          type: 'crypto' as const, 
-          confidence: 0.95, 
-          contractAddress: null
-        })),
-        dataSources: { 
-          prices: true, 
-          social: true, 
-          derivatives: true, 
-          news: true,
-          technicals: false,
-          companyDetails: false,
-          webSearch: false,
-          securityCheck: false
+      await logAIUsage(supabase, 'lovable', 30, 60, 80, {
+        questionTypes: ['content'],
+        assetsQueried: [preRoute.targetAsset],
+        dataSourcesUsed: ['crypto_snapshot'],
+        userMessagePreview: userQuery,
+        clientIp,
+      }).catch(e => console.error('[AI Usage] Log failed:', e));
+      
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text: contentResponse } })}\n\n`));
+          controller.enqueue(encoder.encode('event: message_stop\ndata: {}\n\n'));
+          controller.close();
         }
-      };
-      
-      // Skip to data fetching with synthetic understanding
-      // Continue with the rest of the flow using this understanding
+      });
+      return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
     }
     
-    // V3 FIX 5: Handle follow-up route (use recent asset, skip clarification)
+    // V3 FIX 2: Handle market overview route - EARLY RETURN (no understandQuestion)
+    if (preRoute.handled && preRoute.intent === 'market_overview') {
+      console.log(`[V3 Pre-Route] Market overview - EARLY RETURN with TOP_CRYPTOS`);
+      
+      // Fetch top crypto prices
+      const { data: topCryptos } = await supabase
+        .from('crypto_snapshot')
+        .select('symbol, name, price, percent_change_24h, market_cap_rank')
+        .in('symbol', TOP_CRYPTOS.slice(0, 10))
+        .order('market_cap_rank', { ascending: true });
+      
+      const gainers = (topCryptos || []).filter(c => c.percent_change_24h > 0).sort((a, b) => b.percent_change_24h - a.percent_change_24h);
+      const losers = (topCryptos || []).filter(c => c.percent_change_24h < 0).sort((a, b) => a.percent_change_24h - b.percent_change_24h);
+      
+      const overviewResponse = `🐕 **Market Overview**\n\n📊 **Top Movers (24h)**\n\n🟢 **Gainers:**\n${gainers.slice(0, 3).map(c => `• ${c.symbol}: $${c.price?.toFixed(2)} (+${c.percent_change_24h?.toFixed(2)}%)`).join('\n') || '• No major gainers'}\n\n🔴 **Losers:**\n${losers.slice(0, 3).map(c => `• ${c.symbol}: $${c.price?.toFixed(2)} (${c.percent_change_24h?.toFixed(2)}%)`).join('\n') || '• No major losers'}\n\n*sniffs the charts* Want details on any specific coin? Just ask! 🐾`;
+      
+      await logAIUsage(supabase, 'lovable', 30, 80, 100, {
+        questionTypes: ['market_overview'],
+        assetsQueried: TOP_CRYPTOS.slice(0, 10),
+        dataSourcesUsed: ['crypto_snapshot'],
+        userMessagePreview: userQuery,
+        clientIp,
+      }).catch(e => console.error('[AI Usage] Log failed:', e));
+      
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode(`event: content_block_delta\ndata: ${JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text: overviewResponse } })}\n\n`));
+          controller.enqueue(encoder.encode('event: message_stop\ndata: {}\n\n'));
+          controller.close();
+        }
+      });
+      return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+    }
+    
+    // V3 FIX 2: Handle follow-up route - EARLY RETURN (no understandQuestion)
     if (preRoute.handled && preRoute.intent === 'follow_up' && preRoute.targetAsset) {
-      console.log(`[V3 Pre-Route] Follow-up for: ${preRoute.targetAsset} - bypassing AI understanding`);
-      // Will be handled by the existing database fallback logic below
+      console.log(`[V3 Pre-Route] Follow-up for: ${preRoute.targetAsset} - using as resolved asset`);
+      // Don't early-return here - let it flow through with the pre-resolved asset
+      // The database fallback below will pick up the recent asset
     }
     
     // PHASE 5: AI-Powered Question Understanding (Gemini)
-    // V3: Pass pre-routing context to reduce unnecessary clarifications
+    // Only called if no pre-route matched
     let questionUnderstanding = await understandQuestion(userQuery, messages || [], recentAssets);
     
     // 🔧 FIX: Database fallback - override clarification if we find a valid ticker in the message
