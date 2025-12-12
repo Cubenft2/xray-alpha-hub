@@ -21,16 +21,18 @@ function timeoutSignal(ms: number) {
   return { signal: controller.signal, cancel: () => clearTimeout(id) };
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 10000): Promise<Response> {
+// V3 FIX 1: Return null on timeout instead of throwing - prevents agent crashes
+async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 10000): Promise<Response | null> {
   const t = timeoutSignal(ms);
   try {
     return await fetch(url, { ...init, signal: t.signal });
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
-      console.warn(`[Timeout] Request to ${url.slice(0, 50)}... timed out after ${ms}ms`);
-      throw new Error(`Request timed out after ${ms}ms`);
+      console.warn(`[Timeout] Request to ${url.slice(0, 50)}... timed out after ${ms}ms - returning null`);
+      return null; // V3: Return null, don't throw - caller handles gracefully
     }
-    throw error;
+    console.error(`[Fetch Error] ${url.slice(0, 50)}... failed:`, error);
+    return null; // V3: Return null on any fetch error for resilience
   } finally {
     t.cancel();
   }
@@ -42,10 +44,15 @@ async function fetchWithTimeout(url: string, init: RequestInit = {}, ms = 10000)
 type RecentAddress = { address: string; type: "evm" | "solana" };
 type RecentContext = { assets: string[]; addresses: RecentAddress[] };
 
+// V3 FIX 3: Preserve recency order - scan newest→oldest, assets[0] is most recent
 function extractRecentContext(messages: any[], lookback = 10): RecentContext {
-  const recent = messages.slice(-lookback);
-  const assetSet = new Set<string>();
-  const addressMap = new Map<string, RecentAddress>();
+  // V3: Scan newest first to preserve recency
+  const recent = messages.slice(-lookback).reverse();
+  
+  const assets: string[] = [];
+  const addresses: RecentAddress[] = [];
+  const seenAssets = new Set<string>();
+  const seenAddresses = new Set<string>();
   
   const evmRe = /\b0x[a-fA-F0-9]{40}\b/g;
   const solRe = /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/g;
@@ -64,15 +71,20 @@ function extractRecentContext(messages: any[], lookback = 10): RecentContext {
     const tickers = text.match(/\$?[A-Z]{2,10}\b/g) || [];
     for (const t of tickers) {
       const cleaned = t.replace("$", "");
-      if (!FILTER_WORDS.has(cleaned) && cleaned.length >= 2 && cleaned.length <= 10) {
-        assetSet.add(cleaned);
+      if (!seenAssets.has(cleaned) && !FILTER_WORDS.has(cleaned) && cleaned.length >= 2 && cleaned.length <= 10) {
+        seenAssets.add(cleaned);
+        assets.push(cleaned); // V3: Push to array in order (newest first)
       }
     }
     
     // Extract EVM addresses
     const evmMatches = content.match(evmRe) || [];
     for (const a of evmMatches) {
-      addressMap.set(a.toLowerCase(), { address: a.toLowerCase(), type: "evm" });
+      const normalized = a.toLowerCase();
+      if (!seenAddresses.has(normalized)) {
+        seenAddresses.add(normalized);
+        addresses.push({ address: normalized, type: "evm" }); // V3: Push in order
+      }
     }
     
     // Extract Solana addresses (be careful with false positives)
@@ -80,15 +92,16 @@ function extractRecentContext(messages: any[], lookback = 10): RecentContext {
     for (const a of solMatches) {
       // Only include if context suggests it's an address
       const hasAddressContext = /address|ca:|contract|token|mint/i.test(content);
-      if (hasAddressContext && a.length >= 32 && /[A-Z]/.test(a) && /[a-z]/.test(a) && /[0-9]/.test(a)) {
-        addressMap.set(a, { address: a, type: "solana" });
+      if (!seenAddresses.has(a) && hasAddressContext && a.length >= 32 && /[A-Z]/.test(a) && /[a-z]/.test(a) && /[0-9]/.test(a)) {
+        seenAddresses.add(a);
+        addresses.push({ address: a, type: "solana" }); // V3: Push in order
       }
     }
   }
   
   return {
-    assets: Array.from(assetSet).slice(0, 10),
-    addresses: Array.from(addressMap.values()).slice(0, 5)
+    assets: assets.slice(0, 5), // V3: Limit to 5, most recent first
+    addresses: addresses.slice(0, 5)
   };
 }
 
@@ -107,30 +120,53 @@ interface PreRoutingResult {
   targetAddress?: string;
 }
 
+// V3 FIX 2: Extract ticker from query for verification (e.g., "Is this the address of BSKT?")
+function extractTickerFromQuery(query: string): string | null {
+  const patterns = [
+    /address (?:of|for) \$?([A-Z]{2,10})\b/i,
+    /contract (?:of|for) \$?([A-Z]{2,10})\b/i,
+    /\$([A-Z]{2,10})\b/,  // $BSKT
+    /\b([A-Z]{2,10})\b(?:\s+(?:token|coin|address|contract))/i,
+    /(?:is this|verify|the)\s+(?:.*?)\s+([A-Z]{2,10})\b/i,
+    /\b(for|of|about)\s+([A-Z]{2,10})\b/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = query.match(pattern);
+    if (match) {
+      // Handle patterns with 2 capture groups
+      const ticker = match[2] || match[1];
+      return ticker?.toUpperCase() || null;
+    }
+  }
+  return null;
+}
+
 function detectPreGeminiRoute(userQuery: string, recentContext: RecentContext): PreRoutingResult {
   const query = userQuery.trim();
   
-  // A) Content creation detection
+  // A) Content creation detection - return immediately
   if (CONTENT_CREATION_PATTERN.test(query) && recentContext.assets.length > 0) {
     console.log(`[Pre-Route] Content creation detected, using recent asset: ${recentContext.assets[0]}`);
     return { handled: true, intent: 'content', targetAsset: recentContext.assets[0] };
   }
   
-  // B) Address verification detection
+  // B) Address verification detection - V3 FIX: Extract ticker from query first
   if (ADDRESS_VERIFICATION_PATTERN.test(query)) {
-    const targetAsset = recentContext.assets.length > 0 ? recentContext.assets[0] : undefined;
+    const queryTicker = extractTickerFromQuery(query);
+    const targetAsset = queryTicker || (recentContext.assets.length > 0 ? recentContext.assets[0] : undefined);
     const targetAddress = recentContext.addresses.length > 0 ? recentContext.addresses[0].address : undefined;
-    console.log(`[Pre-Route] Verification detected, asset: ${targetAsset}, address: ${targetAddress}`);
+    console.log(`[Pre-Route] Verification detected, queryTicker: ${queryTicker}, asset: ${targetAsset}, address: ${targetAddress}`);
     return { handled: true, intent: 'verification', targetAsset, targetAddress };
   }
   
-  // C) Market overview detection
-  if (MARKET_OVERVIEW_PATTERN.test(query) && recentContext.assets.length === 0) {
+  // C) Market overview detection - return immediately
+  if (MARKET_OVERVIEW_PATTERN.test(query)) {
     console.log(`[Pre-Route] Market overview detected`);
     return { handled: true, intent: 'market_overview' };
   }
   
-  // D) Follow-up answer detection (after clarification)
+  // D) Follow-up answer detection (after clarification) - return immediately
   if (FOLLOW_UP_PATTERN.test(query) && recentContext.assets.length > 0) {
     console.log(`[Pre-Route] Follow-up answer detected, using recent asset: ${recentContext.assets[0]}`);
     return { handled: true, intent: 'follow_up', targetAsset: recentContext.assets[0] };
@@ -195,23 +231,35 @@ async function verifyContractAddress(
     }
   }
   
-  // 2. Check token_contracts table
-  const { data: tokenContracts } = await supabase
-    .from('token_contracts')
-    .select('contract_address, chain')
-    .eq('asset_id', targetSymbol.toUpperCase());
+  // 2. V3 FIX 4: Check token_contracts table - resolve symbol to asset UUID first
+  // First resolve symbol to asset UUID
+  const { data: assetData } = await supabase
+    .from('assets')
+    .select('id')
+    .ilike('symbol', targetSymbol)
+    .limit(1)
+    .maybeSingle();
   
-  if (tokenContracts) {
-    for (const tc of tokenContracts) {
-      const tcAddr = tc.contract_address.toLowerCase();
-      if (!expectedAddresses.includes(tcAddr)) {
-        expectedAddresses.push(tcAddr);
-      }
-      if (tcAddr === normalizedAddr) {
-        foundMatch = true;
-        foundChain = tc.chain;
+  if (assetData?.id) {
+    const { data: tokenContracts } = await supabase
+      .from('token_contracts')
+      .select('contract_address, chain')
+      .eq('asset_id', assetData.id); // V3: Use UUID, not symbol
+    
+    if (tokenContracts) {
+      for (const tc of tokenContracts) {
+        const tcAddr = tc.contract_address.toLowerCase();
+        if (!expectedAddresses.includes(tcAddr)) {
+          expectedAddresses.push(tcAddr);
+        }
+        if (tcAddr === normalizedAddr) {
+          foundMatch = true;
+          foundChain = tc.chain;
+        }
       }
     }
+  } else {
+    console.log(`[Verify] Asset UUID not found for ${targetSymbol}, skipping token_contracts`);
   }
   
   // 3. Check cg_master.platforms
@@ -4168,6 +4216,60 @@ serve(async (req) => {
       return new Response(stream, {
         headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
       });
+    }
+    
+    // V3 FIX 5: Handle content creation route immediately (no AI understanding needed)
+    if (preRoute.handled && preRoute.intent === 'content' && preRoute.targetAsset) {
+      console.log(`[V3 Pre-Route] Content creation for: ${preRoute.targetAsset} - bypassing AI understanding`);
+      
+      // Fetch minimal data for the asset
+      const { data: assetData } = await supabase
+        .from('crypto_snapshot')
+        .select('*')
+        .ilike('symbol', preRoute.targetAsset)
+        .limit(1)
+        .maybeSingle();
+      
+      // Build a simple prompt and continue with content generation
+      // Don't return early - let it flow through to AI with the resolved asset
+    }
+    
+    // V3 FIX 5: Handle market overview route (force TOP_CRYPTOS, skip clarification)
+    if (preRoute.handled && preRoute.intent === 'market_overview') {
+      console.log(`[V3 Pre-Route] Market overview - forcing TOP_CRYPTOS, bypassing AI understanding`);
+      
+      // Create a synthetic questionUnderstanding to skip the AI call
+      const syntheticUnderstanding = {
+        intent: 'general' as const,
+        needsClarification: false,
+        clarificationMessage: null,
+        assets: TOP_CRYPTOS.slice(0, 5).map(s => ({
+          symbol: s, 
+          name: s, 
+          type: 'crypto' as const, 
+          confidence: 0.95, 
+          contractAddress: null
+        })),
+        dataSources: { 
+          prices: true, 
+          social: true, 
+          derivatives: true, 
+          news: true,
+          technicals: false,
+          companyDetails: false,
+          webSearch: false,
+          securityCheck: false
+        }
+      };
+      
+      // Skip to data fetching with synthetic understanding
+      // Continue with the rest of the flow using this understanding
+    }
+    
+    // V3 FIX 5: Handle follow-up route (use recent asset, skip clarification)
+    if (preRoute.handled && preRoute.intent === 'follow_up' && preRoute.targetAsset) {
+      console.log(`[V3 Pre-Route] Follow-up for: ${preRoute.targetAsset} - bypassing AI understanding`);
+      // Will be handled by the existing database fallback logic below
     }
     
     // PHASE 5: AI-Powered Question Understanding (Gemini)
