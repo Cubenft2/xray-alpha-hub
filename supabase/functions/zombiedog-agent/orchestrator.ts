@@ -1,10 +1,36 @@
-// Tool Orchestrator: Execute tools in parallel with timeouts, fallbacks, and AbortController
-// FIXES: #7 (GoPlus chain), #8 (derivs call), #9 (AbortController timeout)
+// Tool Orchestrator: Cache-first execution with TTL, budgets, and timeouts
+// Supports thousands of concurrent users without per-request API spam
 
 import { RouteConfig } from "./router.ts";
 import { ResolvedAsset } from "./resolver.ts";
 
 const TOOL_TIMEOUT_MS = 5000;
+
+// TTL Configuration (in seconds)
+const TTL_SEC = {
+  live_prices: 180,      // 3 min (pollers run every 2-5 min)
+  crypto_snapshot: 300,  // 5 min (LunarCrush sync every 1 min)
+  stock_snapshot: 300,   // 5 min fallback
+  indicators: 3600,      // 1 hour
+  derivs: 300,           // 5 min
+  news: 1800,            // 30 min
+  security: 86400,       // 24h (mostly static)
+};
+
+// Per-request API budget (limits external calls)
+interface BudgetState {
+  coinglass: number;
+  tavily: number;
+  goplus: number;
+  dexscreener: number;
+}
+
+const DEFAULT_BUDGET: BudgetState = {
+  coinglass: 1,   // Max 1 CoinGlass call per request
+  tavily: 1,      // Max 1 Tavily search per request
+  goplus: 1,      // Max 1 GoPlus call per request
+  dexscreener: 1, // Max 1 DexScreener call per request
+};
 
 // GoPlus supported chain IDs
 const GOPLUS_CHAINS: Record<string, string> = {
@@ -26,6 +52,12 @@ export interface ToolResults {
   news?: NewsItem[];
   charts?: ChartData;
   timestamps: Record<string, string>;
+  cacheStats: {
+    hits: string[];
+    misses: string[];
+    apiCalls: string[];
+    ages: Record<string, number>; // seconds since last update
+  };
 }
 
 export interface PriceData {
@@ -35,6 +67,7 @@ export interface PriceData {
   marketCap?: number;
   volume24h?: number;
   source: string;
+  updatedAt?: string;
 }
 
 export interface SocialData {
@@ -43,12 +76,14 @@ export interface SocialData {
   altRank?: number;
   sentiment?: number;
   socialVolume?: number;
+  updatedAt?: string;
 }
 
 export interface DerivsData {
   symbol: string;
   fundingRate: number;
   liquidations24h: { long: number; short: number; total: number };
+  updatedAt?: string;
 }
 
 export interface SecurityData {
@@ -72,9 +107,21 @@ export interface ChartData {
   macd?: { value: number; signal: number; histogram: number };
   sma20?: number;
   sma50?: number;
+  updatedAt?: string;
 }
 
-// FIX #9: Proper timeout with AbortController
+// Helper: Calculate age in seconds
+function ageSec(ts?: string | null): number {
+  if (!ts) return Infinity;
+  return (Date.now() - new Date(ts).getTime()) / 1000;
+}
+
+// Helper: Check if data is fresh
+function isFresh(ts: string | null | undefined, ttl: number): boolean {
+  return ageSec(ts) <= ttl;
+}
+
+// Proper timeout with AbortController
 async function fetchWithTimeout<T>(
   fetchFn: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number
@@ -102,7 +149,17 @@ export async function executeTools(
 ): Promise<ToolResults> {
   const results: ToolResults = {
     timestamps: {},
+    cacheStats: {
+      hits: [],
+      misses: [],
+      apiCalls: [],
+      ages: {},
+    },
   };
+  
+  // Initialize per-request budget
+  const budget: BudgetState = { ...DEFAULT_BUDGET };
+  
   const symbols = assets.map(a => a.symbol);
   
   if (symbols.length === 0) {
@@ -115,11 +172,11 @@ export async function executeTools(
   
   const tasks: Promise<void>[] = [];
   
-  // Price fetching
+  // Price fetching (cache-first: live_prices → crypto_snapshot → stock_snapshot)
   if (config.fetchPrices) {
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchPrices(supabase, symbols, signal),
+        (signal) => fetchPrices(supabase, symbols, signal, results.cacheStats),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -130,11 +187,11 @@ export async function executeTools(
     );
   }
   
-  // Social data
+  // Social data (cache-only from crypto_snapshot)
   if (config.fetchSocial) {
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchSocial(supabase, symbols, signal),
+        (signal) => fetchSocial(supabase, symbols, signal, results.cacheStats),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -145,11 +202,11 @@ export async function executeTools(
     );
   }
   
-  // FIX #8: Direct derivatives fetch instead of calling edge function
+  // Derivatives (cache-first with budget)
   if (config.fetchDerivs) {
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchDerivativesDirect(symbols, signal),
+        (signal) => fetchDerivatives(supabase, symbols, signal, budget, results.cacheStats),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -160,12 +217,12 @@ export async function executeTools(
     );
   }
   
-  // FIX #7: Security check with proper chain detection
+  // Security check with proper chain detection
   if (config.fetchSecurity && assets[0]?.address) {
-    const chain = detectChain(supabase, assets[0]);
+    const chain = await detectChain(supabase, assets[0]);
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchSecurity(assets[0].address!, chain, signal),
+        (signal) => fetchSecurity(assets[0].address!, chain, signal, budget, results.cacheStats),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -176,11 +233,11 @@ export async function executeTools(
     );
   }
   
-  // News (optional, skip gracefully if slow)
+  // News (cache-first with budget)
   if (config.fetchNews) {
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchNews(symbols[0], signal),
+        (signal) => fetchNews(supabase, symbols[0], signal, budget, results.cacheStats),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -191,11 +248,11 @@ export async function executeTools(
     );
   }
   
-  // Charts/technical
+  // Charts/technical (cache-only)
   if (config.fetchCharts) {
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchCharts(supabase, symbols[0], signal),
+        (signal) => fetchCharts(supabase, symbols[0], signal, results.cacheStats),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -207,13 +264,15 @@ export async function executeTools(
   }
   
   await Promise.allSettled(tasks);
+  
+  console.log(`[Tool] Cache stats: ${results.cacheStats.hits.length} hits, ${results.cacheStats.misses.length} misses, ${results.cacheStats.apiCalls.length} API calls`);
+  
   return results;
 }
 
-// FIX #7: Detect chain from asset or token_contracts
+// Detect chain from asset or token_contracts
 async function detectChain(supabase: any, asset: ResolvedAsset): Promise<string> {
   if (asset.address) {
-    // Check token_contracts table for chain info
     try {
       const { data } = await supabase
         .from('token_contracts')
@@ -228,9 +287,8 @@ async function detectChain(supabase: any, asset: ResolvedAsset): Promise<string>
       // Ignore errors
     }
     
-    // Default based on address format
     if (asset.address.startsWith('0x')) {
-      return 'ethereum'; // Default EVM to ETH mainnet
+      return 'ethereum';
     }
   }
   
@@ -239,113 +297,294 @@ async function detectChain(supabase: any, asset: ResolvedAsset): Promise<string>
 
 // --- TOOL IMPLEMENTATIONS ---
 
-async function fetchPrices(supabase: any, symbols: string[], signal: AbortSignal): Promise<PriceData[]> {
+// CRITICAL: Cache-first price fetching with correct priority
+// Priority: live_prices (freshest) → crypto_snapshot → stock_snapshot
+async function fetchPrices(
+  supabase: any, 
+  symbols: string[], 
+  signal: AbortSignal,
+  cacheStats: ToolResults['cacheStats']
+): Promise<PriceData[]> {
   if (signal.aborted) return [];
   
   const results: PriceData[] = [];
+  const foundSymbols = new Set<string>();
+  let oldestAge = 0;
   
-  // Try crypto_snapshot first
-  const { data: cryptoData } = await supabase
-    .from('crypto_snapshot')
-    .select('symbol, price, change_percent, market_cap, volume_24h')
-    .in('symbol', symbols);
+  // Build all possible ticker formats for live_prices lookup
+  const tickerVariants: string[] = [];
+  for (const sym of symbols) {
+    tickerVariants.push(sym);
+    tickerVariants.push(`X:${sym}USD`);  // Crypto format
+    tickerVariants.push(sym.toUpperCase());
+  }
   
-  if (cryptoData) {
-    for (const c of cryptoData) {
-      results.push({
-        symbol: c.symbol,
-        price: c.price,
-        change24h: c.change_percent || 0,
-        marketCap: c.market_cap,
-        volume24h: c.volume_24h,
-        source: 'crypto_snapshot',
-      });
+  // 1. Query live_prices FIRST (freshest data from pollers)
+  const { data: liveData } = await supabase
+    .from('live_prices')
+    .select('ticker, price, change24h, updated_at')
+    .in('ticker', tickerVariants);
+  
+  if (liveData) {
+    for (const l of liveData) {
+      // Normalize symbol from ticker format
+      let normalizedSymbol = l.ticker;
+      if (l.ticker.startsWith('X:') && l.ticker.endsWith('USD')) {
+        normalizedSymbol = l.ticker.slice(2, -3); // X:BTCUSD → BTC
+      }
+      
+      const age = ageSec(l.updated_at);
+      
+      // Only include if fresh
+      if (isFresh(l.updated_at, TTL_SEC.live_prices)) {
+        results.push({
+          symbol: normalizedSymbol,
+          price: l.price,
+          change24h: l.change24h || 0,
+          source: 'live_prices',
+          updatedAt: l.updated_at,
+        });
+        foundSymbols.add(normalizedSymbol);
+        cacheStats.hits.push(`price:${normalizedSymbol}`);
+        if (age > oldestAge) oldestAge = age;
+      } else {
+        // Data exists but is stale - still return it but mark as stale
+        results.push({
+          symbol: normalizedSymbol,
+          price: l.price,
+          change24h: l.change24h || 0,
+          source: 'live_prices_stale',
+          updatedAt: l.updated_at,
+        });
+        foundSymbols.add(normalizedSymbol);
+        cacheStats.hits.push(`price:${normalizedSymbol}:stale`);
+        if (age > oldestAge) oldestAge = age;
+      }
     }
   }
   
-  // Check for missing symbols in stock_snapshot
-  const foundSymbols = new Set(results.map(r => r.symbol));
-  const missingSymbols = symbols.filter(s => !foundSymbols.has(s));
+  // 2. Check crypto_snapshot for missing symbols
+  const missingAfterLive = symbols.filter(s => !foundSymbols.has(s));
+  if (missingAfterLive.length > 0) {
+    const { data: cryptoData } = await supabase
+      .from('crypto_snapshot')
+      .select('symbol, price, change_percent, market_cap, volume_24h, updated_at')
+      .in('symbol', missingAfterLive);
+    
+    if (cryptoData) {
+      for (const c of cryptoData) {
+        const age = ageSec(c.updated_at);
+        results.push({
+          symbol: c.symbol,
+          price: c.price,
+          change24h: c.change_percent || 0,
+          marketCap: c.market_cap,
+          volume24h: c.volume_24h,
+          source: isFresh(c.updated_at, TTL_SEC.crypto_snapshot) ? 'crypto_snapshot' : 'crypto_snapshot_stale',
+          updatedAt: c.updated_at,
+        });
+        foundSymbols.add(c.symbol);
+        cacheStats.hits.push(`price:${c.symbol}:snapshot`);
+        if (age > oldestAge) oldestAge = age;
+      }
+    }
+  }
   
-  if (missingSymbols.length > 0) {
+  // 3. Check stock_snapshot for still-missing symbols (stocks only)
+  const missingAfterCrypto = symbols.filter(s => !foundSymbols.has(s));
+  if (missingAfterCrypto.length > 0) {
     const { data: stockData } = await supabase
       .from('stock_snapshot')
-      .select('symbol, price, change_percent, market_cap, volume_24h')
-      .in('symbol', missingSymbols);
+      .select('symbol, price, change_percent, market_cap, volume_24h, updated_at')
+      .in('symbol', missingAfterCrypto);
     
     if (stockData) {
       for (const s of stockData) {
+        const age = ageSec(s.updated_at);
         results.push({
           symbol: s.symbol,
           price: s.price,
           change24h: s.change_percent || 0,
           marketCap: s.market_cap,
           volume24h: s.volume_24h,
-          source: 'stock_snapshot',
+          source: isFresh(s.updated_at, TTL_SEC.stock_snapshot) ? 'stock_snapshot' : 'stock_snapshot_stale',
+          updatedAt: s.updated_at,
         });
+        foundSymbols.add(s.symbol);
+        cacheStats.hits.push(`price:${s.symbol}:stock`);
+        if (age > oldestAge) oldestAge = age;
       }
     }
   }
   
-  // Fallback to live_prices for any still missing
-  const stillFoundSymbols = new Set(results.map(r => r.symbol));
-  const stillMissing = symbols.filter(s => !stillFoundSymbols.has(s));
-  
-  if (stillMissing.length > 0) {
-    const { data: liveData } = await supabase
-      .from('live_prices')
-      .select('ticker, price, change24h')
-      .in('ticker', stillMissing);
-    
-    if (liveData) {
-      for (const l of liveData) {
-        results.push({
-          symbol: l.ticker,
-          price: l.price,
-          change24h: l.change24h || 0,
-          source: 'live_prices',
-        });
-      }
-    }
+  // Log misses
+  const stillMissing = symbols.filter(s => !foundSymbols.has(s));
+  for (const sym of stillMissing) {
+    cacheStats.misses.push(`price:${sym}`);
   }
+  
+  // Record oldest age for recency display
+  if (results.length > 0) {
+    cacheStats.ages.prices = Math.round(oldestAge);
+  }
+  
+  console.log(`[Tool] Prices: ${results.length}/${symbols.length} found, oldest ${Math.round(oldestAge)}s`);
   
   return results;
 }
 
-async function fetchSocial(supabase: any, symbols: string[], signal: AbortSignal): Promise<SocialData[]> {
+// Social data - cache-only from crypto_snapshot (no API calls)
+async function fetchSocial(
+  supabase: any, 
+  symbols: string[], 
+  signal: AbortSignal,
+  cacheStats: ToolResults['cacheStats']
+): Promise<SocialData[]> {
   if (signal.aborted) return [];
   
   const { data } = await supabase
     .from('crypto_snapshot')
-    .select('symbol, galaxy_score, alt_rank, sentiment, social_volume_24h')
+    .select('symbol, galaxy_score, alt_rank, sentiment, social_volume_24h, updated_at')
     .in('symbol', symbols);
   
-  if (!data) return [];
+  if (!data || data.length === 0) {
+    for (const sym of symbols) {
+      cacheStats.misses.push(`social:${sym}`);
+    }
+    console.log('[Tool] Social: cache miss (no data in crypto_snapshot)');
+    return [];
+  }
   
-  return data.map((d: any) => ({
-    symbol: d.symbol,
-    galaxyScore: d.galaxy_score,
-    altRank: d.alt_rank,
-    sentiment: d.sentiment,
-    socialVolume: d.social_volume_24h,
-  }));
+  let oldestAge = 0;
+  const results: SocialData[] = [];
+  
+  for (const d of data) {
+    const age = ageSec(d.updated_at);
+    results.push({
+      symbol: d.symbol,
+      galaxyScore: d.galaxy_score,
+      altRank: d.alt_rank,
+      sentiment: d.sentiment,
+      socialVolume: d.social_volume_24h,
+      updatedAt: d.updated_at,
+    });
+    cacheStats.hits.push(`social:${d.symbol}`);
+    if (age > oldestAge) oldestAge = age;
+  }
+  
+  cacheStats.ages.social = Math.round(oldestAge);
+  console.log(`[Tool] Social: ${results.length}/${symbols.length} cache hits, oldest ${Math.round(oldestAge)}s`);
+  
+  return results;
 }
 
-// FIX #8: Direct CoinGlass fetch instead of calling edge function
-async function fetchDerivativesDirect(symbols: string[], signal: AbortSignal): Promise<DerivsData[]> {
-  const coinglassKey = Deno.env.get('COINGLASS_API_KEY');
-  if (!coinglassKey || signal.aborted) return [];
+// Derivatives - cache-first with budget-limited API fallback
+async function fetchDerivatives(
+  supabase: any,
+  symbols: string[], 
+  signal: AbortSignal,
+  budget: BudgetState,
+  cacheStats: ToolResults['cacheStats']
+): Promise<DerivsData[]> {
+  if (signal.aborted) return [];
   
   const results: DerivsData[] = [];
+  const needsApiCall: string[] = [];
+  let oldestAge = 0;
   
-  for (const symbol of symbols.slice(0, 3)) { // Limit to 3 to avoid rate limits
+  // 1. Check cache first
+  const { data: cached } = await supabase
+    .from('derivatives_cache')
+    .select('symbol, funding_rate, open_interest, liquidations_24h, updated_at')
+    .in('symbol', symbols);
+  
+  if (cached) {
+    for (const c of cached) {
+      const age = ageSec(c.updated_at);
+      
+      if (isFresh(c.updated_at, TTL_SEC.derivs)) {
+        results.push({
+          symbol: c.symbol,
+          fundingRate: c.funding_rate || 0,
+          liquidations24h: c.liquidations_24h || { long: 0, short: 0, total: 0 },
+          updatedAt: c.updated_at,
+        });
+        cacheStats.hits.push(`derivs:${c.symbol}`);
+        if (age > oldestAge) oldestAge = age;
+      } else {
+        // Stale - needs refresh
+        needsApiCall.push(c.symbol);
+      }
+    }
+  }
+  
+  // Find symbols not in cache at all
+  const cachedSymbols = new Set((cached || []).map((c: any) => c.symbol));
+  for (const sym of symbols) {
+    if (!cachedSymbols.has(sym) && !needsApiCall.includes(sym)) {
+      needsApiCall.push(sym);
+    }
+  }
+  
+  // 2. Only call CoinGlass if budget allows AND we have missing/stale data
+  if (needsApiCall.length > 0 && budget.coinglass > 0 && !signal.aborted) {
+    const coinglassKey = Deno.env.get('COINGLASS_API_KEY');
+    
+    if (coinglassKey) {
+      budget.coinglass--; // Consume budget
+      cacheStats.apiCalls.push('coinglass');
+      
+      const apiResults = await fetchDerivativesFromAPI(needsApiCall.slice(0, 3), coinglassKey, signal);
+      
+      // Upsert to cache
+      if (apiResults.length > 0) {
+        await supabase.from('derivatives_cache').upsert(
+          apiResults.map(d => ({
+            symbol: d.symbol,
+            funding_rate: d.fundingRate,
+            liquidations_24h: d.liquidations24h,
+            updated_at: new Date().toISOString(),
+          })),
+          { onConflict: 'symbol' }
+        );
+        
+        results.push(...apiResults);
+        for (const d of apiResults) {
+          cacheStats.hits.push(`derivs:${d.symbol}:fresh`);
+        }
+      }
+    }
+  } else if (needsApiCall.length > 0) {
+    for (const sym of needsApiCall) {
+      cacheStats.misses.push(`derivs:${sym}`);
+    }
+  }
+  
+  if (results.length > 0) {
+    cacheStats.ages.derivs = Math.round(oldestAge);
+  }
+  
+  console.log(`[Tool] Derivs: ${results.length}/${symbols.length}, budget remaining: ${budget.coinglass}`);
+  
+  return results;
+}
+
+// Direct CoinGlass API call (used only when cache is stale/missing)
+async function fetchDerivativesFromAPI(
+  symbols: string[], 
+  apiKey: string,
+  signal: AbortSignal
+): Promise<DerivsData[]> {
+  const results: DerivsData[] = [];
+  
+  for (const symbol of symbols) {
     if (signal.aborted) break;
     
     try {
       const response = await fetch(
         `https://open-api.coinglass.com/public/v2/funding?symbol=${symbol}&time_type=h8`,
         {
-          headers: { 'coinglassSecret': coinglassKey },
+          headers: { 'coinglassSecret': apiKey },
           signal,
         }
       );
@@ -357,13 +596,14 @@ async function fetchDerivativesDirect(symbols: string[], signal: AbortSignal): P
           results.push({
             symbol,
             fundingRate: parseFloat(latest.fundingRate) || 0,
-            liquidations24h: { long: 0, short: 0, total: 0 }, // Would need separate call
+            liquidations24h: { long: 0, short: 0, total: 0 },
+            updatedAt: new Date().toISOString(),
           });
         }
       }
     } catch (e) {
       if (e instanceof Error && e.name !== 'AbortError') {
-        console.error(`[Tool] Derivs error for ${symbol}:`, e);
+        console.error(`[Tool] CoinGlass error for ${symbol}:`, e);
       }
     }
   }
@@ -371,8 +611,14 @@ async function fetchDerivativesDirect(symbols: string[], signal: AbortSignal): P
   return results;
 }
 
-// FIX #7: Security check with multi-chain support
-async function fetchSecurity(address: string, chain: string, signal: AbortSignal): Promise<SecurityData> {
+// Security check with multi-chain support
+async function fetchSecurity(
+  address: string, 
+  chain: string, 
+  signal: AbortSignal,
+  budget: BudgetState,
+  cacheStats: ToolResults['cacheStats']
+): Promise<SecurityData> {
   const result: SecurityData = {
     riskLevel: 'Unknown',
     flags: [],
@@ -387,83 +633,91 @@ async function fetchSecurity(address: string, chain: string, signal: AbortSignal
   if (chain !== 'unknown' && GOPLUS_CHAINS[chain]) {
     chainIds = [GOPLUS_CHAINS[chain]];
   } else if (address.startsWith('0x')) {
-    // Try top EVM chains in order of popularity
-    chainIds = ['1', '56', '8453', '42161', '137']; // ETH, BSC, Base, Arbitrum, Polygon
+    chainIds = ['1', '56', '8453', '42161', '137'];
   } else {
-    // Likely Solana
     chainIds = ['solana'];
   }
   
-  // GoPlus Security API (try chains until we get a hit)
-  for (const chainId of chainIds) {
-    if (signal.aborted) break;
+  // GoPlus Security API (budget-limited)
+  if (budget.goplus > 0) {
+    budget.goplus--;
+    cacheStats.apiCalls.push('goplus');
     
-    try {
-      const goplusUrl = chainId === 'solana'
-        ? `https://api.gopluslabs.io/api/v1/solana/token_security?contract_addresses=${address}`
-        : `https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${address}`;
+    for (const chainId of chainIds) {
+      if (signal.aborted) break;
       
-      const response = await fetch(goplusUrl, { signal });
-      if (!response.ok) continue;
-      
-      const data = await response.json();
-      const tokenData = data.result?.[address.toLowerCase()] || data.result?.[address];
-      
-      if (tokenData) {
-        result.chain = chainId === 'solana' ? 'solana' : 
-          chainId === '1' ? 'ethereum' :
-          chainId === '56' ? 'bsc' :
-          chainId === '8453' ? 'base' :
-          chainId === '42161' ? 'arbitrum' :
-          chainId === '137' ? 'polygon' : 'unknown';
+      try {
+        const goplusUrl = chainId === 'solana'
+          ? `https://api.gopluslabs.io/api/v1/solana/token_security?contract_addresses=${address}`
+          : `https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${address}`;
         
-        const flags: string[] = [];
+        const response = await fetch(goplusUrl, { signal });
+        if (!response.ok) continue;
         
-        if (tokenData.is_honeypot === '1') {
-          flags.push('🚨 HONEYPOT DETECTED');
-          result.riskLevel = 'High';
-          result.isHoneypot = true;
+        const data = await response.json();
+        const tokenData = data.result?.[address.toLowerCase()] || data.result?.[address];
+        
+        if (tokenData) {
+          result.chain = chainId === 'solana' ? 'solana' : 
+            chainId === '1' ? 'ethereum' :
+            chainId === '56' ? 'bsc' :
+            chainId === '8453' ? 'base' :
+            chainId === '42161' ? 'arbitrum' :
+            chainId === '137' ? 'polygon' : 'unknown';
+          
+          const flags: string[] = [];
+          
+          if (tokenData.is_honeypot === '1') {
+            flags.push('🚨 HONEYPOT DETECTED');
+            result.riskLevel = 'High';
+            result.isHoneypot = true;
+          }
+          
+          if (tokenData.is_mintable === '1') {
+            flags.push('⚠️ Token is mintable');
+          }
+          
+          if (tokenData.cannot_sell_all === '1') {
+            flags.push('⚠️ Sell restrictions detected');
+          }
+          
+          const holderCount = parseInt(tokenData.holder_count || '0');
+          if (holderCount < 100) {
+            flags.push(`⚠️ Low holder count: ${holderCount}`);
+          }
+          
+          if (flags.length === 0) {
+            result.riskLevel = 'Low';
+          } else if (flags.length <= 2 && !result.isHoneypot) {
+            result.riskLevel = 'Medium';
+          } else {
+            result.riskLevel = 'High';
+          }
+          
+          result.flags = flags;
+          result.contractInfo = {
+            verified: tokenData.is_open_source === '1',
+            mintable: tokenData.is_mintable === '1',
+          };
+          
+          cacheStats.hits.push('security:goplus');
+          break;
         }
-        
-        if (tokenData.is_mintable === '1') {
-          flags.push('⚠️ Token is mintable');
+      } catch (e) {
+        if (e instanceof Error && e.name !== 'AbortError') {
+          console.error(`[Tool] GoPlus error for chain ${chainId}:`, e);
         }
-        
-        if (tokenData.cannot_sell_all === '1') {
-          flags.push('⚠️ Sell restrictions detected');
-        }
-        
-        const holderCount = parseInt(tokenData.holder_count || '0');
-        if (holderCount < 100) {
-          flags.push(`⚠️ Low holder count: ${holderCount}`);
-        }
-        
-        // Calculate risk level
-        if (flags.length === 0) {
-          result.riskLevel = 'Low';
-        } else if (flags.length <= 2 && !result.isHoneypot) {
-          result.riskLevel = 'Medium';
-        } else {
-          result.riskLevel = 'High';
-        }
-        
-        result.flags = flags;
-        result.contractInfo = {
-          verified: tokenData.is_open_source === '1',
-          mintable: tokenData.is_mintable === '1',
-        };
-        
-        break; // Found data, stop trying other chains
-      }
-    } catch (e) {
-      if (e instanceof Error && e.name !== 'AbortError') {
-        console.error(`[Tool] GoPlus error for chain ${chainId}:`, e);
       }
     }
+  } else {
+    cacheStats.misses.push('security:budget_exceeded');
   }
   
-  // DexScreener for liquidity
-  if (!signal.aborted) {
+  // DexScreener for liquidity (budget-limited)
+  if (!signal.aborted && budget.dexscreener > 0) {
+    budget.dexscreener--;
+    cacheStats.apiCalls.push('dexscreener');
+    
     try {
       const dexUrl = `https://api.dexscreener.com/latest/dex/tokens/${address}`;
       const response = await fetch(dexUrl, { signal });
@@ -483,6 +737,8 @@ async function fetchSecurity(address: string, chain: string, signal: AbortSignal
             result.flags.push(`⚠️ Very low liquidity: $${totalLiquidity.toLocaleString()}`);
             if (result.riskLevel === 'Low') result.riskLevel = 'Medium';
           }
+          
+          cacheStats.hits.push('security:dexscreener');
         }
       }
     } catch (e) {
@@ -495,53 +751,155 @@ async function fetchSecurity(address: string, chain: string, signal: AbortSignal
   return result;
 }
 
-async function fetchNews(symbol: string, signal: AbortSignal): Promise<NewsItem[]> {
-  const tavilyKey = Deno.env.get('TAVILY_API_KEY');
-  if (!tavilyKey || signal.aborted) return [];
+// News - cache-first with budget-limited API fallback
+async function fetchNews(
+  supabase: any,
+  symbol: string, 
+  signal: AbortSignal,
+  budget: BudgetState,
+  cacheStats: ToolResults['cacheStats']
+): Promise<NewsItem[]> {
+  if (signal.aborted) return [];
   
-  try {
-    const response = await fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: tavilyKey,
-        query: `${symbol} cryptocurrency news`,
-        search_depth: 'basic',
-        max_results: 5,
-      }),
-      signal,
-    });
+  // 1. Check cache first (last 30 minutes)
+  const cacheThreshold = new Date(Date.now() - TTL_SEC.news * 1000).toISOString();
+  
+  const { data: cached } = await supabase
+    .from('news_cache')
+    .select('title, source, published_at, summary, created_at')
+    .eq('symbol', symbol)
+    .gte('created_at', cacheThreshold)
+    .order('created_at', { ascending: false })
+    .limit(5);
+  
+  if (cached && cached.length > 0) {
+    const age = ageSec(cached[0].created_at);
+    cacheStats.hits.push(`news:${symbol}`);
+    cacheStats.ages.news = Math.round(age);
     
-    if (!response.ok) return [];
+    console.log(`[Tool] News: cache hit for ${symbol}, age ${Math.round(age)}s`);
     
-    const data = await response.json();
-    return (data.results || []).map((r: any) => ({
-      title: r.title,
-      source: r.source || 'Unknown',
-      date: r.published_date || new Date().toISOString(),
-      summary: r.content?.slice(0, 200),
+    return cached.map((n: any) => ({
+      title: n.title,
+      source: n.source || 'Unknown',
+      date: n.published_at || n.created_at,
+      summary: n.summary,
     }));
-  } catch (e) {
-    if (e instanceof Error && e.name !== 'AbortError') {
-      console.error('[Tool] Tavily error:', e);
-    }
-    return [];
   }
+  
+  // 2. Cache miss - call Tavily if budget allows
+  if (budget.tavily > 0) {
+    const tavilyKey = Deno.env.get('TAVILY_API_KEY');
+    
+    if (tavilyKey && !signal.aborted) {
+      budget.tavily--;
+      cacheStats.apiCalls.push('tavily');
+      
+      try {
+        const response = await fetch('https://api.tavily.com/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            api_key: tavilyKey,
+            query: `${symbol} cryptocurrency news`,
+            search_depth: 'basic',
+            max_results: 5,
+          }),
+          signal,
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          const newsItems: NewsItem[] = (data.results || []).map((r: any) => ({
+            title: r.title,
+            source: r.source || 'Unknown',
+            date: r.published_date || new Date().toISOString(),
+            summary: r.content?.slice(0, 200),
+          }));
+          
+          // Cache the results
+          if (newsItems.length > 0) {
+            await supabase.from('news_cache').insert(
+              newsItems.map(n => ({
+                symbol,
+                title: n.title,
+                source: n.source,
+                url: '',
+                published_at: n.date,
+                summary: n.summary,
+              }))
+            );
+            
+            cacheStats.hits.push(`news:${symbol}:fresh`);
+            cacheStats.ages.news = 0; // Just fetched
+          }
+          
+          console.log(`[Tool] News: Tavily returned ${newsItems.length} articles for ${symbol}`);
+          return newsItems;
+        }
+      } catch (e) {
+        if (e instanceof Error && e.name !== 'AbortError') {
+          console.error('[Tool] Tavily error:', e);
+        }
+      }
+    }
+  } else {
+    cacheStats.misses.push(`news:${symbol}:budget_exceeded`);
+  }
+  
+  cacheStats.misses.push(`news:${symbol}`);
+  console.log(`[Tool] News: cache miss for ${symbol}, no budget for API call`);
+  
+  return [];
 }
 
-async function fetchCharts(supabase: any, symbol: string, signal: AbortSignal): Promise<ChartData | null> {
+// Charts/technical - cache-only from technical_indicators
+async function fetchCharts(
+  supabase: any, 
+  symbol: string, 
+  signal: AbortSignal,
+  cacheStats: ToolResults['cacheStats']
+): Promise<ChartData | null> {
   if (signal.aborted) return null;
   
   const { data } = await supabase
     .from('technical_indicators')
-    .select('indicator_type, value')
+    .select('indicator_type, value, created_at, expires_at')
     .eq('ticker', symbol)
     .gt('expires_at', new Date().toISOString());
   
-  if (!data || data.length === 0) return null;
+  if (!data || data.length === 0) {
+    // Also try X:BTCUSD format for crypto
+    const { data: cryptoData } = await supabase
+      .from('technical_indicators')
+      .select('indicator_type, value, created_at, expires_at')
+      .eq('ticker', `X:${symbol}USD`)
+      .gt('expires_at', new Date().toISOString());
+    
+    if (!cryptoData || cryptoData.length === 0) {
+      cacheStats.misses.push(`charts:${symbol}`);
+      console.log(`[Tool] Charts: cache miss for ${symbol}`);
+      return null;
+    }
+    
+    return parseChartData(cryptoData, symbol, cacheStats);
+  }
   
+  return parseChartData(data, symbol, cacheStats);
+}
+
+function parseChartData(
+  data: any[], 
+  symbol: string,
+  cacheStats: ToolResults['cacheStats']
+): ChartData {
   const result: ChartData = {};
+  let oldestAge = 0;
+  
   for (const d of data) {
+    const age = ageSec(d.created_at);
+    if (age > oldestAge) oldestAge = age;
+    
     if (d.indicator_type === 'rsi') result.rsi = d.value?.rsi;
     if (d.indicator_type === 'macd') result.macd = d.value;
     if (d.indicator_type === 'sma') {
@@ -549,6 +907,11 @@ async function fetchCharts(supabase: any, symbol: string, signal: AbortSignal): 
       result.sma50 = d.value?.sma50;
     }
   }
+  
+  cacheStats.hits.push(`charts:${symbol}`);
+  cacheStats.ages.charts = Math.round(oldestAge);
+  
+  console.log(`[Tool] Charts: cache hit for ${symbol}, age ${Math.round(oldestAge)}s`);
   
   return result;
 }

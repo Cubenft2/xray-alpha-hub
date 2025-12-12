@@ -107,7 +107,7 @@ serve(async (req) => {
       updateSessionAssets(supabaseService, sessionId, resolvedAssets.map(a => a.symbol)).catch(console.error);
     }
 
-    // FIX #5: Log actual provider/model used (async, after stream starts)
+    // FIX #5: Log actual provider/model used with cache stats (async, after stream starts)
     const totalLatencyMs = Date.now() - startTime;
     logUsage(supabaseService, {
       clientIP: ipHash, // Store hash, not raw IP
@@ -119,6 +119,7 @@ serve(async (req) => {
       totalLatencyMs,
       provider: llmResult.provider,
       model: llmResult.model,
+      cacheStats: toolResults.cacheStats,
     }).catch(console.error);
 
     return new Response(llmResult.stream, {
@@ -227,7 +228,7 @@ async function handleUsageCheck(req: Request, supabase: any): Promise<Response> 
   });
 }
 
-// FIX #5: Log actual provider and model used
+// FIX #5: Log actual provider and model used with cache stats
 async function logUsage(supabase: any, data: {
   clientIP: string;
   sessionId: string;
@@ -238,6 +239,12 @@ async function logUsage(supabase: any, data: {
   totalLatencyMs: number;
   provider: string;
   model: string;
+  cacheStats?: {
+    hits: string[];
+    misses: string[];
+    apiCalls: string[];
+    ages: Record<string, number>;
+  };
 }) {
   await supabase.from('ai_usage_logs').insert({
     provider: data.provider,
@@ -250,8 +257,14 @@ async function logUsage(supabase: any, data: {
     intent: data.intent,
     assets_queried: data.assets,
     tools_used: data.toolsUsed,
-    tool_latency_ms: { total: data.toolLatencyMs },
+    tool_latency_ms: { 
+      total: data.toolLatencyMs,
+      cache_hits: data.cacheStats?.hits?.length || 0,
+      cache_misses: data.cacheStats?.misses?.length || 0,
+      api_calls: data.cacheStats?.apiCalls || [],
+    },
     total_latency_ms: data.totalLatencyMs,
     success: true,
+    data_sources_used: data.cacheStats?.apiCalls || [],
   });
 }

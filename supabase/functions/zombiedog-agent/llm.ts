@@ -42,7 +42,7 @@ const PROVIDERS = [
   },
 ];
 
-// FIX #4: Strict tool data contract with timestamps
+// FIX #4: Strict tool data contract with timestamps and recency
 export function buildSystemPrompt(
   context: SessionContext,
   assets: ResolvedAsset[],
@@ -59,12 +59,23 @@ export function buildSystemPrompt(
     `## Your Rules:`,
     `- NEVER ask clarifying questions. Use the data provided.`,
     `- If tool data is marked "MISSING", say "I don't have that data right now" — do NOT guess.`,
-    `- For prices: show symbol, price, 24h %, and source.`,
+    `- For prices: show symbol, price, 24h %, and data age (e.g., "updated 42s ago").`,
     `- For safety: show risk level, flags, and verdict.`,
     `- For content creation: output ONLY the requested content.`,
     `- Keep responses concise but informative.`,
     `- Respond in the SAME LANGUAGE the user writes in.`,
+    `- When data shows "_stale" source, mention it may be slightly delayed.`,
   ];
+  
+  // Add data recency summary
+  if (tools.cacheStats?.ages && Object.keys(tools.cacheStats.ages).length > 0) {
+    parts.push('');
+    parts.push('## Data Recency:');
+    for (const [key, ageSec] of Object.entries(tools.cacheStats.ages)) {
+      const ageLabel = ageSec < 60 ? `${ageSec}s` : `${Math.round(ageSec / 60)}m`;
+      parts.push(`- ${key}: updated ${ageLabel} ago`);
+    }
+  }
   
   // Add context about resolved assets
   if (assets.length > 0) {
@@ -96,12 +107,14 @@ export function buildSystemPrompt(
     if (tools.prices && tools.prices.length > 0) {
       toolData.prices = {
         as_of: tools.timestamps.prices || now,
+        age_seconds: tools.cacheStats?.ages?.prices || null,
         data: tools.prices.map(p => ({
           symbol: p.symbol,
           price: p.price,
           change_24h_pct: p.change24h,
           market_cap: p.marketCap || null,
           source: p.source,
+          is_stale: p.source.includes('stale'),
         })),
       };
     } else {
@@ -114,6 +127,7 @@ export function buildSystemPrompt(
     if (tools.social && tools.social.length > 0) {
       toolData.social = {
         as_of: tools.timestamps.social || now,
+        age_seconds: tools.cacheStats?.ages?.social || null,
         source: 'LunarCrush',
         data: tools.social.map(s => ({
           symbol: s.symbol,
@@ -133,6 +147,7 @@ export function buildSystemPrompt(
     if (tools.derivs && tools.derivs.length > 0) {
       toolData.derivatives = {
         as_of: tools.timestamps.derivs || now,
+        age_seconds: tools.cacheStats?.ages?.derivs || null,
         source: 'CoinGlass',
         data: tools.derivs.map(d => ({
           symbol: d.symbol,
@@ -169,6 +184,7 @@ export function buildSystemPrompt(
     if (tools.news && tools.news.length > 0) {
       toolData.news = {
         as_of: tools.timestamps.news || now,
+        age_seconds: tools.cacheStats?.ages?.news || null,
         source: 'Tavily',
         articles: tools.news.slice(0, 3).map(n => ({
           title: n.title,
@@ -186,6 +202,7 @@ export function buildSystemPrompt(
     if (tools.charts && Object.keys(tools.charts).length > 0) {
       toolData.technicals = {
         as_of: tools.timestamps.charts || now,
+        age_seconds: tools.cacheStats?.ages?.charts || null,
         source: 'Polygon',
         rsi: tools.charts.rsi || null,
         sma_20: tools.charts.sma20 || null,
