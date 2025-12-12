@@ -590,6 +590,33 @@ export type Database = {
           },
         ]
       }
+      derivatives_cache: {
+        Row: {
+          funding_rate: number | null
+          liquidations_24h: Json | null
+          open_interest: number | null
+          source: string | null
+          symbol: string
+          updated_at: string | null
+        }
+        Insert: {
+          funding_rate?: number | null
+          liquidations_24h?: Json | null
+          open_interest?: number | null
+          source?: string | null
+          symbol: string
+          updated_at?: string | null
+        }
+        Update: {
+          funding_rate?: number | null
+          liquidations_24h?: Json | null
+          open_interest?: number | null
+          source?: string | null
+          symbol?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       earnings_calendar: {
         Row: {
           category: string | null
@@ -968,6 +995,39 @@ export type Database = {
           resolved?: boolean | null
           resolved_at?: string | null
           symbol?: string
+        }
+        Relationships: []
+      }
+      news_cache: {
+        Row: {
+          created_at: string | null
+          id: string
+          published_at: string | null
+          source: string | null
+          summary: string | null
+          symbol: string
+          title: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          published_at?: string | null
+          source?: string | null
+          summary?: string | null
+          symbol: string
+          title: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          published_at?: string | null
+          source?: string | null
+          summary?: string | null
+          symbol?: string
+          title?: string
+          url?: string | null
         }
         Relationships: []
       }
