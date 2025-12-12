@@ -1,32 +1,61 @@
 // Context Manager: Session memory, recent assets/addresses extraction
+// FIX #2: Added lastResolvedAsset for proper follow-up binding
 
 export interface SessionContext {
   sessionId: string;
   recentAssets: string[];
   recentAddresses: { address: string; type: 'evm' | 'solana' }[];
   rollingSummary: string | null;
+  lastResolvedAsset: string | null;
   messageCount: number;
 }
 
-const FILTER_WORDS = new Set([
-  'THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'HAS', 'HAD', 'WAS', 'HIS', 'HER',
-  'CAN', 'NOW', 'HOW', 'WHY', 'WHO', 'ALL', 'GET', 'NEW', 'ONE', 'TWO', 'OUT', 'OUR', 'DAY', 'ANY',
-  'IT', 'ITS', 'IS', 'BE', 'AM', 'IF', 'OR', 'AS', 'AT', 'BY', 'TO', 'OF', 'ON', 'IN', 'UP',
-  'SO', 'GO', 'NO', 'AN', 'A', 'I', 'ME', 'MY', 'MINE', 'WE', 'US', 'THEY', 'THEM', 'THEIR',
-  'DEX', 'CEX', 'API', 'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL',
-  'THIS', 'THAT', 'WITH', 'FROM', 'YOUR', 'MAKE', 'POST', 'ABOUT', 'WHAT', 'SAFE', 'ADDRESS',
-  'OK', 'OKAY', 'ALRIGHT', 'HEY', 'HELLO', 'HI', 'YES', 'YEAH', 'YEP', 'SURE', 'NAH', 'NOP',
-  'NEED', 'GIVE', 'GAVE', 'LET', 'LETS', 'COPY', 'PASTE', 'TOKEN', 'TOKENS', 'COIN', 'COINS',
-  'CRYPTO', 'PRICE', 'PRICES', 'DATA', 'INFO', 'CHART', 'COMPLETE', 'ANALYSIS', 'ANALYZE',
-  'CHECK', 'LOOK', 'SHOW', 'TELL', 'FIND', 'SEARCH', 'SEE', 'WANT', 'WANTS', 'WOULD', 'COULD',
-  'SHOULD', 'WILL', 'MIGHT', 'MUST', 'SHALL', 'MAY', 'HAVE', 'BEEN', 'BEING', 'WERE', 'SOME',
-  'MANY', 'MUCH', 'MOST', 'MORE', 'LESS', 'FEW', 'JUST', 'ALSO', 'ONLY', 'EVEN', 'VERY',
-  'REALLY', 'PLEASE', 'THANKS', 'THANK', 'THX', 'LIKE', 'GOOD', 'WELL', 'BEST', 'GREAT',
-  'NICE', 'COOL', 'BAD', 'WORST', 'AWESOME', 'WHEN', 'WHERE', 'THEN', 'THAN', 'HERE', 'THERE',
-  'WHICH', 'EACH', 'EVERY', 'BOTH', 'SAID', 'SAYS', 'SAY', 'ASK', 'ASKED', 'TELL', 'TOLD',
-  'ASKING', 'MARKET', 'MARKETS', 'TRADE', 'TRADES', 'BUY', 'SELL', 'HOLD', 'LONG', 'SHORT',
-  'HELP', 'HELPED', 'DO', 'DOES', 'DID', 'DONE', 'DOING', 'TRY', 'TRIED', 'THINK', 'KNOW',
-  'FEEL', 'BELIEVE', 'STILL', 'YET', 'ALREADY', 'AGAIN', 'TOO', 'NEVER', 'ALWAYS', 'OFTEN',
+// Comprehensive stopwords - shared with resolver
+const STOPWORDS = new Set([
+  // Pronouns / possessives
+  'I', 'ME', 'MY', 'MINE', 'YOU', 'YOUR', 'YOURS', 'WE', 'US', 'OUR', 'OURS',
+  'THEY', 'THEM', 'THEIR', 'THEIRS', 'IT', 'ITS', 'HE', 'HIM', 'HIS', 'SHE', 'HER', 'HERS',
+  
+  // Common verbs / helpers
+  'IS', 'ARE', 'WAS', 'WERE', 'BE', 'BEEN', 'BEING', 'AM',
+  'DO', 'DOES', 'DID', 'DONE', 'DOING',
+  'HAS', 'HAD', 'HAVE', 'HAVING',
+  'CAN', 'COULD', 'SHOULD', 'WOULD', 'WILL', 'WONT', 'DONT', 'NOT',
+  'YES', 'NO', 'YEAH', 'NAH', 'YEP', 'NOPE', 'OK', 'OKAY',
+  
+  // Question words
+  'WHAT', 'WHY', 'HOW', 'WHEN', 'WHERE', 'WHO', 'WHOM', 'WHICH',
+  
+  // Articles / prepositions / conjunctions
+  'A', 'AN', 'THE', 'AND', 'OR', 'BUT', 'IF', 'THEN', 'ELSE',
+  'WITH', 'WITHOUT', 'OF', 'FOR', 'TO', 'FROM', 'IN', 'ON', 'AT', 'BY',
+  
+  // Chat/task words
+  'WRITE', 'MAKE', 'CREATE', 'POST', 'TWEET', 'THREAD', 'CAPTION',
+  'ANALYZE', 'ANALYSIS', 'CHECK', 'SAFE', 'SAFETY', 'NEWS',
+  'PRICE', 'CHART', 'TRENDING', 'SENTIMENT', 'TODAY', 'NOW',
+  'PLEASE', 'HELP', 'GIVE', 'GAVE', 'LET', 'LETS', 'TELL', 'TOLD',
+  'SHOW', 'FIND', 'SEARCH', 'LOOK', 'SEE', 'WANT', 'NEED', 'ASK',
+  
+  // Common crypto/finance words
+  'CRYPTO', 'TOKEN', 'TOKENS', 'COIN', 'COINS',
+  'MARKET', 'MARKETS', 'VOLUME', 'MCAP', 'LIQUIDITY',
+  'DEX', 'CEX', 'WALLET', 'ADDRESS', 'CONTRACT',
+  'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL',
+  'BUY', 'SELL', 'HOLD', 'TRADE', 'TRADES', 'LONG', 'SHORT',
+  
+  // Additional common words
+  'THIS', 'THAT', 'THESE', 'THOSE', 'SUCH', 'OWN',
+  'REAL', 'TRUE', 'FALSE', 'HIGH', 'LOW', 'BIG', 'SMALL', 'LARGE',
+  'FIRST', 'LAST', 'SAME', 'OTHER', 'ANOTHER', 'NEXT',
+  'BECAUSE', 'SINCE', 'AFTER', 'BEFORE', 'DURING', 'UNTIL', 'WHILE',
+  'SOME', 'MANY', 'MUCH', 'MOST', 'MORE', 'LESS', 'FEW',
+  'JUST', 'ALSO', 'ONLY', 'EVEN', 'VERY', 'REALLY', 'STILL', 'YET',
+  'ALL', 'GET', 'NEW', 'ONE', 'TWO', 'OUT', 'DAY', 'ANY',
+  'GOOD', 'WELL', 'BEST', 'GREAT', 'NICE', 'COOL', 'BAD', 'WORST',
+  'ABOUT', 'SAID', 'SAYS', 'SAY', 'THINK', 'KNOW', 'FEEL', 'BELIEVE',
+  'THANKS', 'THANK', 'THX', 'LIKE', 'AWESOME',
+  'COPY', 'PASTE', 'DATA', 'INFO', 'COMPLETE',
 ]);
 
 const TICKER_ALIASES: Record<string, string> = {
@@ -56,6 +85,17 @@ const TICKER_ALIASES: Record<string, string> = {
   'MICROSTRATEGY': 'MSTR', 'MICROSTR': 'MSTR',
 };
 
+// Check if token looks like a valid ticker (matching resolver logic)
+function looksLikeTicker(token: string, hadDollar: boolean): boolean {
+  if (hadDollar) return /^[A-Z0-9]{2,10}$/.test(token);
+  if (!/^[A-Z0-9]{2,6}$/.test(token)) return false;
+  if (STOPWORDS.has(token)) return false;
+  if (token.length === 2 && ['IN', 'ON', 'AT', 'TO', 'OF', 'IT', 'IS', 'AS', 'OR', 'AN', 'UP', 'SO', 'GO', 'NO', 'IF', 'BY', 'BE', 'AM', 'WE', 'US', 'ME', 'MY', 'HE'].includes(token)) {
+    return false;
+  }
+  return true;
+}
+
 export async function loadContext(
   supabase: any,
   sessionId: string,
@@ -67,17 +107,19 @@ export async function loadContext(
   // Try to load from database
   let rollingSummary: string | null = null;
   let dbAssets: string[] = [];
+  let lastResolvedAsset: string | null = null;
   
   try {
     const { data: summary } = await supabase
       .from('chat_summaries')
-      .select('rolling_summary, last_assets')
+      .select('rolling_summary, last_assets, last_resolved_asset')
       .eq('session_id', sessionId)
       .maybeSingle();
     
     if (summary) {
       rollingSummary = summary.rolling_summary;
       dbAssets = summary.last_assets || [];
+      lastResolvedAsset = summary.last_resolved_asset || null;
     }
   } catch (e) {
     console.warn('[Context] Failed to load from DB:', e);
@@ -91,6 +133,7 @@ export async function loadContext(
     recentAssets: mergedAssets,
     recentAddresses: addresses,
     rollingSummary,
+    lastResolvedAsset,
     messageCount: messages.length,
   };
 }
@@ -111,13 +154,15 @@ function extractFromMessages(messages: { role: string; content: string }[]): {
   for (const m of recent) {
     const content = String(m?.content ?? '');
     
-    // Extract tickers
-    const tickers = content.match(/\$?[A-Za-z]{2,10}\b/g) || [];
+    // Extract tickers with improved filtering
+    const tickers = content.match(/\$?[A-Za-z0-9]{2,10}\b/g) || [];
     for (const t of tickers) {
+      const hadDollar = t.startsWith('$');
       const cleaned = t.replace('$', '').toUpperCase();
       const resolved = TICKER_ALIASES[cleaned] || cleaned;
       
-      if (!FILTER_WORDS.has(resolved) && !seenAssets.has(resolved) && resolved.length >= 2 && resolved.length <= 10) {
+      // Use proper validation
+      if (!seenAssets.has(resolved) && looksLikeTicker(resolved, hadDollar)) {
         seenAssets.add(resolved);
         assets.push(resolved);
       }
@@ -169,6 +214,7 @@ export async function saveMessage(
   });
 }
 
+// FIX #2: Update session with lastResolvedAsset for follow-up binding
 export async function updateSessionAssets(
   supabase: any,
   sessionId: string,
@@ -179,6 +225,7 @@ export async function updateSessionAssets(
     .upsert({
       session_id: sessionId,
       last_assets: assets,
+      last_resolved_asset: assets[0] ?? null,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'session_id' });
 }
