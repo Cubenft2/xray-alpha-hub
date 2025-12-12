@@ -18,7 +18,8 @@ import {
   Dog,
   Activity,
   Database,
-  Wrench
+  Wrench,
+  Download
 } from 'lucide-react';
 import { GenerateBrief } from './GenerateBrief';
 import QuoteLibraryAdmin from './QuoteLibraryAdmin';
@@ -26,6 +27,7 @@ import { ZombieDogAnalytics } from './ZombieDogAnalytics';
 import { SystemHealth } from './SystemHealth';
 import { DataSources } from './DataSources';
 import { Diagnostics } from './Diagnostics';
+import { DataExport } from './DataExport';
 
 function AdminContent() {
   const [activeView, setActiveView] = useState('dashboard');
@@ -98,6 +100,15 @@ function AdminContent() {
                 <span>Diagnostics</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => handleViewChange('data-export')}
+                isActive={activeView === 'data-export'}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                <span>Data Export</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>
@@ -117,6 +128,7 @@ function AdminContent() {
           {activeView === 'data-sources' && <DataSources />}
           {activeView === 'zombiedog-analytics' && <ZombieDogAnalytics />}
           {activeView === 'diagnostics' && <Diagnostics />}
+          {activeView === 'data-export' && <DataExport />}
         </main>
       </div>
     </>
