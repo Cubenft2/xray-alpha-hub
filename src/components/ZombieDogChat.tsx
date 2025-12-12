@@ -25,7 +25,7 @@ const welcomeMessage: Message = {
 // Hardcoded Supabase constants (env vars not available in this context)
 const SUPABASE_URL = "https://odncvfiuzliyohxrsigc.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9kbmN2Zml1emxpeW9oeHJzaWdjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg3Mzk4MjEsImV4cCI6MjA3NDMxNTgyMX0.7cnRatKpHqsylletKVel7WAprIYdpP85AXtXLswMYXQ";
-const CHAT_URL = `${SUPABASE_URL}/functions/v1/zombiedog-chat`;
+const CHAT_URL = `${SUPABASE_URL}/functions/v1/zombiedog-agent`;
 
 // Fetch usage count from backend
 async function fetchUsageCount(): Promise<{ remaining: number; isAdmin: boolean }> {

@@ -1,5 +1,8 @@
 project_id = "odncvfiuzliyohxrsigc"
 
+[functions.zombiedog-agent]
+verify_jwt = false
+
 [functions.zombiedog-chat]
 verify_jwt = false
 
