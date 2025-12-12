@@ -1,5 +1,6 @@
 // Entity Resolver: Resolve tickers, names, addresses to canonical assets
 // FIX #6: Proper ambiguity handling with ranking by market cap
+// FIX: Comprehensive stopword filtering to prevent common words as tickers
 
 import { SessionContext } from "./context.ts";
 
@@ -40,90 +41,110 @@ const TICKER_ALIASES: Record<string, string> = {
   'MICROSTRATEGY': 'MSTR', 'MICROSTR': 'MSTR',
 };
 
-const FILTER_WORDS = new Set([
-  'THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'CAN', 'NOW', 'HOW', 'WHY', 'WHO',
-  'DEX', 'CEX', 'API', 'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL',
-  'THIS', 'THAT', 'WITH', 'FROM', 'YOUR', 'MAKE', 'POST', 'ABOUT', 'WHAT', 'SAFE', 'ADDRESS',
-  'TOKEN', 'TOKENS', 'COIN', 'COINS', 'CRYPTO', 'PRICE', 'PRICES', 'DATA', 'INFO', 'CHART',
-  'MARKET', 'MARKETS', 'TRADE', 'TRADES', 'BUY', 'SELL', 'HOLD', 'TODAY', 'NEWS', 'CHECK',
+// FIX #1: Comprehensive stopword blacklist - pronouns, verbs, helpers, chat words
+const STOPWORDS = new Set([
+  // Pronouns / possessives
+  'I', 'ME', 'MY', 'MINE', 'YOU', 'YOUR', 'YOURS', 'WE', 'US', 'OUR', 'OURS',
+  'THEY', 'THEM', 'THEIR', 'THEIRS', 'IT', 'ITS', 'HE', 'HIM', 'HIS', 'SHE', 'HER', 'HERS',
+  
+  // Common verbs / helpers
+  'IS', 'ARE', 'WAS', 'WERE', 'BE', 'BEEN', 'BEING', 'AM',
+  'DO', 'DOES', 'DID', 'DONE', 'DOING',
+  'HAS', 'HAD', 'HAVE', 'HAVING',
+  'CAN', 'COULD', 'SHOULD', 'WOULD', 'WILL', 'WONT', 'DONT', 'NOT',
+  'YES', 'NO', 'YEAH', 'NAH', 'YEP', 'NOPE', 'OK', 'OKAY',
+  
+  // Question words
+  'WHAT', 'WHY', 'HOW', 'WHEN', 'WHERE', 'WHO', 'WHOM', 'WHICH',
+  
+  // Articles / prepositions / conjunctions
+  'A', 'AN', 'THE', 'AND', 'OR', 'BUT', 'IF', 'THEN', 'ELSE',
+  'WITH', 'WITHOUT', 'OF', 'FOR', 'TO', 'FROM', 'IN', 'ON', 'AT', 'BY',
+  
+  // Chat/task words that trigger false positives
+  'WRITE', 'MAKE', 'CREATE', 'POST', 'TWEET', 'THREAD', 'CAPTION',
+  'ANALYZE', 'ANALYSIS', 'CHECK', 'SAFE', 'SAFETY', 'NEWS',
+  'PRICE', 'CHART', 'TRENDING', 'SENTIMENT', 'TODAY', 'NOW',
+  'PLEASE', 'HELP', 'GIVE', 'GAVE', 'LET', 'LETS', 'TELL', 'TOLD',
+  'SHOW', 'FIND', 'SEARCH', 'LOOK', 'SEE', 'WANT', 'NEED', 'ASK',
+  
+  // Common crypto/finance words that aren't tickers
+  'CRYPTO', 'TOKEN', 'TOKENS', 'COIN', 'COINS',
+  'MARKET', 'MARKETS', 'VOLUME', 'MCAP', 'LIQUIDITY',
+  'DEX', 'CEX', 'WALLET', 'ADDRESS', 'CONTRACT',
+  'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL',
+  'BUY', 'SELL', 'HOLD', 'TRADE', 'TRADES', 'LONG', 'SHORT',
+  
+  // Additional common words
+  'THIS', 'THAT', 'THESE', 'THOSE', 'SUCH', 'OWN',
+  'REAL', 'TRUE', 'FALSE', 'HIGH', 'LOW', 'BIG', 'SMALL', 'LARGE',
+  'FIRST', 'LAST', 'SAME', 'OTHER', 'ANOTHER', 'NEXT',
+  'BECAUSE', 'SINCE', 'AFTER', 'BEFORE', 'DURING', 'UNTIL', 'WHILE',
+  'SOME', 'MANY', 'MUCH', 'MOST', 'MORE', 'LESS', 'FEW',
+  'JUST', 'ALSO', 'ONLY', 'EVEN', 'VERY', 'REALLY', 'STILL', 'YET',
+  'ALL', 'GET', 'NEW', 'ONE', 'TWO', 'OUT', 'DAY', 'ANY',
+  'GOOD', 'WELL', 'BEST', 'GREAT', 'NICE', 'COOL', 'BAD', 'WORST',
+  'ABOUT', 'SAID', 'SAYS', 'SAY', 'THINK', 'KNOW', 'FEEL', 'BELIEVE',
+  'THANKS', 'THANK', 'THX', 'LIKE', 'AWESOME',
+  'COPY', 'PASTE', 'DATA', 'INFO', 'COMPLETE',
 ]);
 
-// Top cryptos by market cap for popularity ranking
+// Top cryptos by market cap for popularity ranking and validation
 const TOP_CRYPTOS = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'DOGE', 'AVAX',
-  'TRX', 'LINK', 'DOT', 'MATIC', 'SHIB', 'LTC', 'BCH', 'UNI', 'ATOM', 'XLM'];
+  'TRX', 'LINK', 'DOT', 'MATIC', 'SHIB', 'LTC', 'BCH', 'UNI', 'ATOM', 'XLM',
+  'NEAR', 'APT', 'ARB', 'OP', 'FIL', 'INJ', 'AAVE', 'MKR', 'RENDER', 'FET',
+  'SUI', 'PEPE', 'WIF', 'BONK', 'FLOKI', 'MEME', 'TAO', 'KAS', 'HBAR', 'VET'];
 
-export async function resolveEntities(
-  supabase: any,
-  userQuery: string,
-  context: SessionContext
-): Promise<ResolvedAsset[]> {
-  const resolved: ResolvedAsset[] = [];
-  const seen = new Set<string>();
-  
-  // Extract potential tickers from query
-  const queryTickers = extractTickers(userQuery);
-  
-  // Extract addresses from query
-  const queryAddress = extractAddress(userQuery);
-  
-  // Handle pronouns ("it", "this") - use context
-  if (isPronouns(userQuery) && context.recentAssets.length > 0) {
-    const contextAsset = context.recentAssets[0];
-    if (!seen.has(contextAsset)) {
-      seen.add(contextAsset);
-      resolved.push({
-        symbol: contextAsset,
-        type: 'crypto',
-        source: 'context',
-      });
-    }
+// FIX #1: Check if token looks like a valid ticker
+function looksLikeTicker(token: string, hadDollar: boolean): boolean {
+  // If user typed $ETH, treat it as intentional
+  if (hadDollar) return /^[A-Z0-9]{2,10}$/.test(token);
+
+  // Without $, be stricter: 2-6 chars, mostly letters, avoid pure words
+  if (!/^[A-Z0-9]{2,6}$/.test(token)) return false;
+  if (STOPWORDS.has(token)) return false;
+
+  // Block super-common English two-letter words (extra defense)
+  if (token.length === 2 && ['IN', 'ON', 'AT', 'TO', 'OF', 'IT', 'IS', 'AS', 'OR', 'AN', 'UP', 'SO', 'GO', 'NO', 'IF', 'BY', 'BE', 'AM', 'WE', 'US', 'ME', 'MY', 'HE'].includes(token)) {
+    return false;
   }
-  
-  // Resolve each extracted ticker
-  for (const ticker of queryTickers) {
-    if (seen.has(ticker)) continue;
-    
-    const asset = await resolveSingleTicker(supabase, ticker, context);
-    if (asset) {
-      seen.add(asset.symbol);
-      resolved.push(asset);
-    }
-  }
-  
-  // If no assets found but context has assets, use first context asset
-  if (resolved.length === 0 && context.recentAssets.length > 0) {
-    const contextAsset = context.recentAssets[0];
-    resolved.push({
-      symbol: contextAsset,
-      type: 'crypto',
-      source: 'context',
-    });
-  }
-  
-  // Attach address if found
-  if (queryAddress && resolved.length > 0) {
-    resolved[0].address = queryAddress;
-  }
-  
-  return resolved.slice(0, 5); // Max 5 assets
+
+  return true;
 }
 
+// FIX #1: Updated extractTickers with comprehensive filtering
 function extractTickers(query: string): string[] {
-  const tickers: string[] = [];
-  const matches = query.match(/\$?[A-Za-z]{2,10}\b/g) || [];
+  const out: string[] = [];
+  const matches = query.match(/\$?[A-Za-z0-9]{2,10}\b/g) || [];
+
+  for (const m of matches) {
+    const hadDollar = m.startsWith('$');
+    const cleanedRaw = m.replace('$', '');
+    const cleaned = cleanedRaw.toUpperCase();
+
+    const aliased = TICKER_ALIASES[cleaned] || cleaned;
+
+    if (!looksLikeTicker(aliased, hadDollar)) continue;
+
+    if (!out.includes(aliased)) out.push(aliased);
+  }
+
+  return out;
+}
+
+// FIX #3: For content intent, only extract tickers with $ prefix
+function extractTickersOnlyWithDollar(query: string): string[] {
+  const out: string[] = [];
+  const matches = query.match(/\$[A-Za-z0-9]{2,10}\b/g) || [];
   
   for (const m of matches) {
     const cleaned = m.replace('$', '').toUpperCase();
-    const resolved = TICKER_ALIASES[cleaned] || cleaned;
-    
-    if (!FILTER_WORDS.has(resolved) && resolved.length >= 2 && resolved.length <= 10) {
-      if (!tickers.includes(resolved)) {
-        tickers.push(resolved);
-      }
-    }
+    const aliased = TICKER_ALIASES[cleaned] || cleaned;
+    if (!/^[A-Z0-9]{2,10}$/.test(aliased)) continue;
+    if (!out.includes(aliased)) out.push(aliased);
   }
   
-  return tickers;
+  return out;
 }
 
 function extractAddress(query: string): string | null {
@@ -142,10 +163,72 @@ function extractAddress(query: string): string | null {
 
 function isPronouns(query: string): boolean {
   const pronounPattern = /\b(it|this|that|the same|this one|that one)\b/i;
-  return pronounPattern.test(query) && !extractTickers(query).length;
+  const tickers = extractTickers(query);
+  return pronounPattern.test(query) && tickers.length === 0;
 }
 
-// FIX #6: Proper ambiguity handling with ranking
+export async function resolveEntities(
+  supabase: any,
+  userQuery: string,
+  context: SessionContext,
+  intent?: string
+): Promise<ResolvedAsset[]> {
+  const resolved: ResolvedAsset[] = [];
+  const seen = new Set<string>();
+  
+  // FIX #3: For content intent, only extract $TICKER or use context
+  const queryTickers = (intent === 'content')
+    ? extractTickersOnlyWithDollar(userQuery)
+    : extractTickers(userQuery);
+  
+  // Extract addresses from query
+  const queryAddress = extractAddress(userQuery);
+  
+  // FIX #2: Handle pronouns ("it", "this") - use lastResolvedAsset first
+  if (isPronouns(userQuery)) {
+    const ref = context.lastResolvedAsset || context.recentAssets[0];
+    if (ref && !seen.has(ref)) {
+      seen.add(ref);
+      resolved.push({
+        symbol: ref,
+        type: 'crypto',
+        source: 'context',
+      });
+    }
+  }
+  
+  // Resolve each extracted ticker with DB validation
+  for (const ticker of queryTickers) {
+    if (seen.has(ticker)) continue;
+    
+    const asset = await resolveSingleTicker(supabase, ticker, context);
+    if (asset) {
+      seen.add(asset.symbol);
+      resolved.push(asset);
+    }
+  }
+  
+  // FIX #2: If no assets found but context has assets, use lastResolvedAsset
+  if (resolved.length === 0) {
+    const ref = context.lastResolvedAsset || context.recentAssets[0];
+    if (ref) {
+      resolved.push({
+        symbol: ref,
+        type: 'crypto',
+        source: 'context',
+      });
+    }
+  }
+  
+  // Attach address if found
+  if (queryAddress && resolved.length > 0) {
+    resolved[0].address = queryAddress;
+  }
+  
+  return resolved.slice(0, 5); // Max 5 assets
+}
+
+// FIX #4 & #6: Proper ambiguity handling with ranking + no guessing for unknown
 async function resolveSingleTicker(
   supabase: any,
   ticker: string,
@@ -154,12 +237,16 @@ async function resolveSingleTicker(
   const normalized = ticker.toUpperCase();
   
   // Check alias first
-  if (TICKER_ALIASES[normalized]) {
-    return {
-      symbol: TICKER_ALIASES[normalized],
-      type: 'crypto',
-      source: 'alias',
-    };
+  if (TICKER_ALIASES[normalized] && TICKER_ALIASES[normalized] !== normalized) {
+    const aliasedSymbol = TICKER_ALIASES[normalized];
+    // Verify aliased symbol exists in DB or TOP_CRYPTOS
+    if (TOP_CRYPTOS.includes(aliasedSymbol)) {
+      return {
+        symbol: aliasedSymbol,
+        type: 'crypto',
+        source: 'alias',
+      };
+    }
   }
   
   // FIX #6: Query ALL matches and rank them
@@ -241,9 +328,8 @@ async function resolveSingleTicker(
     }
   }
   
-  // If no candidates, make a best guess
+  // FIX #4: If no DB matches, only allow if it's a known top crypto
   if (candidates.length === 0) {
-    // Check if it's a top crypto
     if (TOP_CRYPTOS.includes(normalized)) {
       return {
         symbol: normalized,
@@ -252,18 +338,8 @@ async function resolveSingleTicker(
       };
     }
     
-    // Check context for type inference
-    const isCryptoContext = context.recentAssets.some(a => TOP_CRYPTOS.includes(a));
-    
-    if (/^[A-Z]{2,6}$/.test(normalized)) {
-      return {
-        symbol: normalized,
-        type: isCryptoContext ? 'crypto' : 'unknown',
-        source: 'guess',
-        assumptionNote: `Assuming ${normalized} is ${isCryptoContext ? 'crypto' : 'an asset'} — say "switch to X" if different.`,
-      };
-    }
-    
+    // FIX #4: Do NOT guess for unknown tickers - return null
+    // This prevents random uppercase words from becoming fake assets
     return null;
   }
   
