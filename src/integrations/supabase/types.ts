@@ -1388,6 +1388,42 @@ export type Database = {
         }
         Relationships: []
       }
+      security_cache: {
+        Row: {
+          address: string
+          chain: string | null
+          contract_info: Json | null
+          flags: Json | null
+          is_honeypot: boolean | null
+          liquidity: Json | null
+          risk_level: string | null
+          source: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address: string
+          chain?: string | null
+          contract_info?: Json | null
+          flags?: Json | null
+          is_honeypot?: boolean | null
+          liquidity?: Json | null
+          risk_level?: string | null
+          source?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string
+          chain?: string | null
+          contract_info?: Json | null
+          flags?: Json | null
+          is_honeypot?: boolean | null
+          liquidity?: Json | null
+          risk_level?: string | null
+          source?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       site_settings: {
         Row: {
           created_at: string
@@ -1771,6 +1807,23 @@ export type Database = {
       }
     }
     Views: {
+      api_calls_daily: {
+        Row: {
+          api: string | null
+          call_count: number | null
+          day: string | null
+        }
+        Relationships: []
+      }
+      cache_perf_daily: {
+        Row: {
+          avg_total_latency_ms: number | null
+          day: string | null
+          requests: number | null
+          with_data_sources: number | null
+        }
+        Relationships: []
+      }
       ticker_mappings_v2: {
         Row: {
           alt_rank: number | null

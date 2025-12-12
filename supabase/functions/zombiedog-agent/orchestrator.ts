@@ -217,12 +217,12 @@ export async function executeTools(
     );
   }
   
-  // Security check with proper chain detection
+  // Security check with proper chain detection (cache-first)
   if (config.fetchSecurity && assets[0]?.address) {
     const chain = await detectChain(supabase, assets[0]);
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchSecurity(assets[0].address!, chain, signal, budget, results.cacheStats),
+        (signal) => fetchSecurity(assets[0].address!, chain, signal, budget, results.cacheStats, supabase),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -309,7 +309,8 @@ async function fetchPrices(
   
   const results: PriceData[] = [];
   const foundSymbols = new Set<string>();
-  let oldestAge = 0;
+  let stalestAge = 0;  // Renamed for clarity: this is the worst-case (stalest) data age
+  let newestAge = Infinity;  // Best-case: freshest data age
   
   // Build all possible ticker formats for live_prices lookup
   const tickerVariants: string[] = [];
@@ -346,7 +347,8 @@ async function fetchPrices(
         });
         foundSymbols.add(normalizedSymbol);
         cacheStats.hits.push(`price:${normalizedSymbol}`);
-        if (age > oldestAge) oldestAge = age;
+        if (age > stalestAge) stalestAge = age;
+        if (age < newestAge) newestAge = age;
       } else {
         // Data exists but is stale - still return it but mark as stale
         results.push({
@@ -358,7 +360,8 @@ async function fetchPrices(
         });
         foundSymbols.add(normalizedSymbol);
         cacheStats.hits.push(`price:${normalizedSymbol}:stale`);
-        if (age > oldestAge) oldestAge = age;
+        if (age > stalestAge) stalestAge = age;
+        if (age < newestAge) newestAge = age;
       }
     }
   }
@@ -385,7 +388,8 @@ async function fetchPrices(
         });
         foundSymbols.add(c.symbol);
         cacheStats.hits.push(`price:${c.symbol}:snapshot`);
-        if (age > oldestAge) oldestAge = age;
+        if (age > stalestAge) stalestAge = age;
+        if (age < newestAge) newestAge = age;
       }
     }
   }
@@ -412,7 +416,8 @@ async function fetchPrices(
         });
         foundSymbols.add(s.symbol);
         cacheStats.hits.push(`price:${s.symbol}:stock`);
-        if (age > oldestAge) oldestAge = age;
+        if (age > stalestAge) stalestAge = age;
+        if (age < newestAge) newestAge = age;
       }
     }
   }
@@ -423,12 +428,13 @@ async function fetchPrices(
     cacheStats.misses.push(`price:${sym}`);
   }
   
-  // Record oldest age for recency display
+  // Record both stalest (worst-case) and freshest ages
   if (results.length > 0) {
-    cacheStats.ages.prices = Math.round(oldestAge);
+    cacheStats.ages.prices = Math.round(stalestAge);  // Show stalest for transparency
+    cacheStats.ages.prices_newest = Math.round(newestAge);  // Also track freshest
   }
   
-  console.log(`[Tool] Prices: ${results.length}/${symbols.length} found, oldest ${Math.round(oldestAge)}s`);
+  console.log(`[Tool] Prices: ${results.length}/${symbols.length} found, stalest ${Math.round(stalestAge)}s, freshest ${Math.round(newestAge)}s`);
   
   return results;
 }
@@ -611,13 +617,14 @@ async function fetchDerivativesFromAPI(
   return results;
 }
 
-// Security check with multi-chain support
+// Security check - CACHE-FIRST with multi-chain support
 async function fetchSecurity(
   address: string, 
   chain: string, 
   signal: AbortSignal,
   budget: BudgetState,
-  cacheStats: ToolResults['cacheStats']
+  cacheStats: ToolResults['cacheStats'],
+  supabase?: any
 ): Promise<SecurityData> {
   const result: SecurityData = {
     riskLevel: 'Unknown',
@@ -626,6 +633,40 @@ async function fetchSecurity(
   };
   
   if (signal.aborted) return result;
+  
+  const normalizedAddress = address.toLowerCase();
+  
+  // 1. Check security_cache FIRST (24h TTL)
+  if (supabase) {
+    const { data: cached } = await supabase
+      .from('security_cache')
+      .select('*')
+      .eq('address', normalizedAddress)
+      .maybeSingle();
+    
+    if (cached) {
+      const age = ageSec(cached.updated_at);
+      
+      if (age <= TTL_SEC.security) {
+        cacheStats.hits.push('security:cached');
+        cacheStats.ages.security = Math.round(age);
+        console.log(`[Tool] Security: cache hit for ${address}, age ${Math.round(age)}s`);
+        
+        return {
+          riskLevel: cached.risk_level || 'Unknown',
+          flags: cached.flags || [],
+          isHoneypot: cached.is_honeypot,
+          liquidity: cached.liquidity,
+          contractInfo: cached.contract_info,
+          chain: cached.chain || chain,
+        };
+      } else {
+        console.log(`[Tool] Security: cache stale for ${address}, age ${Math.round(age)}s`);
+      }
+    }
+  }
+  
+  // 2. Cache miss - call APIs if budget allows
   
   // Determine which chain IDs to try
   let chainIds: string[] = [];
@@ -655,7 +696,7 @@ async function fetchSecurity(
         if (!response.ok) continue;
         
         const data = await response.json();
-        const tokenData = data.result?.[address.toLowerCase()] || data.result?.[address];
+        const tokenData = data.result?.[normalizedAddress] || data.result?.[address];
         
         if (tokenData) {
           result.chain = chainId === 'solana' ? 'solana' : 
@@ -746,6 +787,24 @@ async function fetchSecurity(
         console.error('[Tool] DexScreener error:', e);
       }
     }
+  }
+  
+  // 3. Cache the result for future requests
+  if (supabase && result.riskLevel !== 'Unknown') {
+    await supabase.from('security_cache').upsert({
+      address: normalizedAddress,
+      chain: result.chain,
+      risk_level: result.riskLevel,
+      flags: result.flags,
+      is_honeypot: result.isHoneypot || false,
+      liquidity: result.liquidity || {},
+      contract_info: result.contractInfo || {},
+      source: 'goplus+dexscreener',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'address' });
+    
+    cacheStats.ages.security = 0; // Just fetched
+    console.log(`[Tool] Security: cached result for ${address}`);
   }
   
   return result;

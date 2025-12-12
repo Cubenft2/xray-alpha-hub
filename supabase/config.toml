@@ -210,3 +210,16 @@ verify_jwt = false
 
 [[functions.lunarcrush-sync.cron]]
 schedule = "* * * * *"
+
+# Cache warmers - keep derivs/news caches warm for all users
+[functions.warm-derivs-cache]
+verify_jwt = false
+
+[[functions.warm-derivs-cache.cron]]
+schedule = "*/5 * * * *"
+
+[functions.warm-news-cache]
+verify_jwt = false
+
+[[functions.warm-news-cache.cron]]
+schedule = "*/30 * * * *"
