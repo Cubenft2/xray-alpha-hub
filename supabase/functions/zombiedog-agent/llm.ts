@@ -214,6 +214,28 @@ export function buildSystemPrompt(
     }
   }
   
+  // Asset details (fundamentals)
+  if (config.fetchDetails) {
+    if (tools.details) {
+      toolData.details = {
+        as_of: tools.details.as_of || tools.timestamps.details || now,
+        age_seconds: tools.details.age_seconds ?? null,
+        type: tools.details.type,
+        name: tools.details.name,
+        description: tools.details.description?.slice(0, 800) || null,
+        categories: tools.details.categories || [],
+        market_cap: tools.details.market?.market_cap ?? null,
+        supply: tools.details.supply ?? null,
+        social: tools.details.social ?? null,
+        stale: !!tools.details.stale,
+        swr: !!tools.details.swr,
+        notes: tools.details.notes ?? null,
+      };
+    } else {
+      toolData.details = { status: 'MISSING', reason: 'No asset details found' };
+    }
+  }
+  
   parts.push(JSON.stringify(toolData, null, 2));
   parts.push('```');
   
