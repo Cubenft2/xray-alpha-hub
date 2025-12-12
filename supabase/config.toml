@@ -211,6 +211,10 @@ verify_jwt = false
 [[functions.lunarcrush-sync.cron]]
 schedule = "* * * * *"
 
+# Unified asset details endpoint (stocks + crypto fundamentals)
+[functions.asset-details]
+verify_jwt = false
+
 # Cache warmers - keep derivs/news caches warm for all users
 [functions.warm-derivs-cache]
 verify_jwt = false

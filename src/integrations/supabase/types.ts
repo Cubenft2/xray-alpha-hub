@@ -459,6 +459,57 @@ export type Database = {
         }
         Relationships: []
       }
+      crypto_details: {
+        Row: {
+          categories: string[] | null
+          coingecko_id: string | null
+          community: Json | null
+          description: string | null
+          developer: Json | null
+          expires_at: string | null
+          image: Json | null
+          links: Json | null
+          market: Json | null
+          name: string | null
+          source: string | null
+          supply: Json | null
+          symbol: string
+          updated_at: string | null
+        }
+        Insert: {
+          categories?: string[] | null
+          coingecko_id?: string | null
+          community?: Json | null
+          description?: string | null
+          developer?: Json | null
+          expires_at?: string | null
+          image?: Json | null
+          links?: Json | null
+          market?: Json | null
+          name?: string | null
+          source?: string | null
+          supply?: Json | null
+          symbol: string
+          updated_at?: string | null
+        }
+        Update: {
+          categories?: string[] | null
+          coingecko_id?: string | null
+          community?: Json | null
+          description?: string | null
+          developer?: Json | null
+          expires_at?: string | null
+          image?: Json | null
+          links?: Json | null
+          market?: Json | null
+          name?: string | null
+          source?: string | null
+          supply?: Json | null
+          symbol?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       crypto_snapshot: {
         Row: {
           alt_rank: number | null
