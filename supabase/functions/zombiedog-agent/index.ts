@@ -84,7 +84,7 @@ serve(async (req) => {
     console.log(`[Agent] Intent: ${routeConfig.intent}`);
 
     // Step 3: Resolve entities (tickers, addresses)
-    const resolvedAssets = await resolveEntities(supabaseAnon, userMessage, context);
+    const resolvedAssets = await resolveEntities(supabaseAnon, userMessage, context, routeConfig.intent);
     console.log(`[Agent] Resolved ${resolvedAssets.length} assets:`, resolvedAssets.map(a => a.symbol));
 
     // Step 4: Execute tools in parallel with timeouts
