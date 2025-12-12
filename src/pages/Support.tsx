@@ -75,7 +75,11 @@ export default function Support() {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all">
+                    <code 
+                      className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all cursor-pointer hover:bg-muted/70 active:bg-muted/50 transition-colors"
+                      onClick={() => copyToClipboard(wallet.address, wallet.symbol)}
+                      title="Click to copy"
+                    >
                       {wallet.address}
                     </code>
                     <Button
@@ -107,7 +111,11 @@ export default function Support() {
               </p>
               <div className="space-y-3">
                 <div className="flex items-center justify-center space-x-2">
-                  <code className="bg-muted px-3 py-2 rounded font-mono">
+                  <code 
+                    className="bg-muted px-3 py-2 rounded font-mono cursor-pointer hover:bg-muted/70 active:bg-muted/50 transition-colors"
+                    onClick={() => copyToClipboard('xraycrypto.x', 'UD')}
+                    title="Click to copy"
+                  >
                     xraycrypto.x
                   </code>
                   <Button
