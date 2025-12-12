@@ -23,6 +23,7 @@ export interface RouteConfig {
   fetchSecurity: boolean;
   fetchNews: boolean;
   fetchCharts: boolean;
+  fetchDetails: boolean; // Asset fundamentals (description, categories, etc.)
   isSimpleQuery: boolean; // For model routing
 }
 
@@ -37,6 +38,7 @@ const CONTENT_PATTERN = /\b(write|make|create|draft|generate|compose)\b.*\b(post
 const VERIFY_PATTERN = /\b(is this|verify|confirm|correct|right|legit|real|official|valid)\b.*\b(address|contract|ca|token)\b/i;
 const MARKET_PATTERN = /\b(market|crypto|how('s|s| is)|what('s|s| is))\b.*\b(today|doing|looking|going|overall)\b/i;
 const ANALYSIS_PATTERN = /\b(analysis|analyze|deep dive|breakdown|overview|tell me about|explain)\b/i;
+const DETAILS_PATTERN = /\b(what is|what are|about|fundamentals|describe|who is|explain|overview|info)\b/i;
 
 // Check if query contains explicit ticker
 function hasExplicitTicker(query: string): boolean {
@@ -54,6 +56,9 @@ function hasExplicitTicker(query: string): boolean {
 export function detectIntent(userQuery: string, context: SessionContext): RouteConfig {
   const query = userQuery.trim();
   
+  // Check if details should be fetched (fundamentals/about queries)
+  const wantsDetails = DETAILS_PATTERN.test(query);
+  
   // Content creation - high confidence pre-route
   if (CONTENT_PATTERN.test(query)) {
     console.log('[Router] Content creation detected');
@@ -65,6 +70,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: false,
       fetchNews: true,
       fetchCharts: false,
+      fetchDetails: true, // Content needs context
       isSimpleQuery: false,
     };
   }
@@ -80,6 +86,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: true,
       fetchNews: false,
       fetchCharts: false,
+      fetchDetails: false,
       isSimpleQuery: true,
     };
   }
@@ -95,6 +102,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: false,
       fetchNews: true,
       fetchCharts: false,
+      fetchDetails: false, // Market overview doesn't need individual asset details
       isSimpleQuery: false,
     };
   }
@@ -110,6 +118,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: true,
       fetchNews: false,
       fetchCharts: false,
+      fetchDetails: true, // Safety needs context about what the token is
       isSimpleQuery: false,
     };
   }
@@ -125,6 +134,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: false,
       fetchNews: false,
       fetchCharts: false,
+      fetchDetails: false,
       isSimpleQuery: true,
     };
   }
@@ -140,6 +150,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: false,
       fetchNews: true,
       fetchCharts: false,
+      fetchDetails: false,
       isSimpleQuery: false,
     };
   }
@@ -155,6 +166,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: false,
       fetchNews: true,
       fetchCharts: false,
+      fetchDetails: false,
       isSimpleQuery: false,
     };
   }
@@ -170,6 +182,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: false,
       fetchNews: false,
       fetchCharts: true,
+      fetchDetails: false,
       isSimpleQuery: false,
     };
   }
@@ -185,6 +198,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: false,
       fetchNews: false,
       fetchCharts: false,
+      fetchDetails: false,
       isSimpleQuery: true,
     };
   }
@@ -200,6 +214,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchSecurity: false,
       fetchNews: true,
       fetchCharts: true,
+      fetchDetails: true, // Analysis needs fundamentals
       isSimpleQuery: false,
     };
   }
@@ -214,6 +229,7 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
     fetchSecurity: false,
     fetchNews: false,
     fetchCharts: false,
+    fetchDetails: wantsDetails, // Only if "what is" / "about" detected
     isSimpleQuery: false,
   };
 }

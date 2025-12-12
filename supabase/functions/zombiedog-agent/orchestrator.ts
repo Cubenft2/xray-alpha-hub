@@ -23,6 +23,7 @@ interface BudgetState {
   tavily: number;
   goplus: number;
   dexscreener: number;
+  assetDetails: number; // CoinGecko details call budget
 }
 
 const DEFAULT_BUDGET: BudgetState = {
@@ -30,6 +31,7 @@ const DEFAULT_BUDGET: BudgetState = {
   tavily: 1,      // Max 1 Tavily search per request
   goplus: 1,      // Max 1 GoPlus call per request
   dexscreener: 1, // Max 1 DexScreener call per request
+  assetDetails: 1, // Max 1 asset-details call per request
 };
 
 // GoPlus supported chain IDs
@@ -51,6 +53,7 @@ export interface ToolResults {
   security?: SecurityData;
   news?: NewsItem[];
   charts?: ChartData;
+  details?: AssetDetails; // Asset fundamentals
   timestamps: Record<string, string>;
   cacheStats: {
     hits: string[];
@@ -108,6 +111,29 @@ export interface ChartData {
   sma20?: number;
   sma50?: number;
   updatedAt?: string;
+}
+
+export interface AssetDetails {
+  symbol: string;
+  type: "stock" | "crypto";
+  name?: string | null;
+  description?: string | null;
+  categories?: string[];
+  links?: any;
+  image?: any;
+  market?: { market_cap?: number | null; fdv?: number | null };
+  supply?: { circulating?: number | null; total?: number | null; max?: number | null };
+  social?: {
+    galaxy_score?: number | null;
+    alt_rank?: number | null;
+    sentiment?: number | null;
+    social_volume_24h?: number | null;
+  };
+  as_of?: string | null;
+  age_seconds?: number | null;
+  stale?: boolean;
+  swr?: boolean;
+  notes?: string;
 }
 
 // Helper: Calculate age in seconds
@@ -263,11 +289,82 @@ export async function executeTools(
     );
   }
   
+  // Asset details (fundamentals via asset-details edge function)
+  if (config.fetchDetails && symbols.length > 0) {
+    const primary = symbols[0];
+    const typeHint = assets[0]?.type === 'stock' ? 'stock' : assets[0]?.type === 'crypto' ? 'crypto' : 'auto';
+    
+    tasks.push(
+      fetchWithTimeout(
+        (signal) => fetchAssetDetails(primary, typeHint, signal, budget, results.cacheStats),
+        TOOL_TIMEOUT_MS
+      ).then(data => {
+        if (data) {
+          results.details = data;
+          results.timestamps.details = new Date().toISOString();
+        }
+      }).catch(e => console.error('[Tool] Details error:', e))
+    );
+  }
+  
   await Promise.allSettled(tasks);
   
   console.log(`[Tool] Cache stats: ${results.cacheStats.hits.length} hits, ${results.cacheStats.misses.length} misses, ${results.cacheStats.apiCalls.length} API calls`);
   
   return results;
+}
+
+// Fetch asset details via edge function (budget-limited)
+async function fetchAssetDetails(
+  symbol: string,
+  typeHint: 'stock' | 'crypto' | 'auto',
+  signal: AbortSignal,
+  budget: BudgetState,
+  cacheStats: ToolResults['cacheStats']
+): Promise<AssetDetails | null> {
+  if (signal.aborted) return null;
+  if (budget.assetDetails <= 0) {
+    cacheStats.misses.push(`details:${symbol}:budget_exceeded`);
+    console.log(`[Tool] Details: budget exceeded for ${symbol}`);
+    return null;
+  }
+  
+  budget.assetDetails--;
+  cacheStats.apiCalls.push('asset-details');
+  
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/asset-details`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({ symbol, type: typeHint === 'auto' ? '' : typeHint }),
+      signal,
+    });
+    
+    if (!res.ok) {
+      console.error(`[Tool] Details: ${res.status} ${res.statusText}`);
+      cacheStats.misses.push(`details:${symbol}:error`);
+      return null;
+    }
+    
+    const data = await res.json();
+    cacheStats.hits.push(`details:${symbol}`);
+    if (typeof data.age_seconds === 'number') {
+      cacheStats.ages.details = data.age_seconds;
+    }
+    
+    console.log(`[Tool] Details: fetched ${symbol} (${data.type}), age ${data.age_seconds}s`);
+    return data as AssetDetails;
+  } catch (e) {
+    console.error(`[Tool] Details fetch error:`, e);
+    cacheStats.misses.push(`details:${symbol}:exception`);
+    return null;
+  }
 }
 
 // Detect chain from asset or token_contracts
