@@ -45,29 +45,42 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch top 3000 coins from LunarCrush by market cap
-    console.log('[lunarcrush-sync] Fetching top 3000 coins from LunarCrush API v4...');
-    const response = await fetch(
-      'https://lunarcrush.com/api4/public/coins/list/v1?limit=3000&sort=market_cap&desc=1',
-      {
-        headers: {
-          'Authorization': `Bearer ${LUNARCRUSH_API_KEY}`
-        }
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[lunarcrush-sync] API error:', response.status, errorText);
-      throw new Error(`LunarCrush API error: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log('[lunarcrush-sync] API response structure:', Object.keys(data));
+    // Fetch top 3000 coins from LunarCrush by market cap (3 pages of 1000)
+    console.log('[lunarcrush-sync] Fetching 3000 coins from LunarCrush API v4 (3 pages)...');
     
-    // LunarCrush v4 returns data in 'data' array
-    const rawCoins: LunarCrushCoin[] = data.data || data.coins || data || [];
-    console.log(`[lunarcrush-sync] Received ${rawCoins.length} coins from API`);
+    let allCoins: LunarCrushCoin[] = [];
+    
+    for (let page = 0; page < 3; page++) {
+      const offset = page * 1000;
+      const response = await fetch(
+        `https://lunarcrush.com/api4/public/coins/list/v1?limit=1000&offset=${offset}&sort=market_cap&desc=1`,
+        {
+          headers: {
+            'Authorization': `Bearer ${LUNARCRUSH_API_KEY}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[lunarcrush-sync] Page ${page + 1} error:`, response.status, errorText);
+        // Continue to next page instead of failing completely
+        continue;
+      }
+
+      const data = await response.json();
+      const pageCoins: LunarCrushCoin[] = data.data || [];
+      console.log(`[lunarcrush-sync] Page ${page + 1}: ${pageCoins.length} coins (offset: ${offset})`);
+      allCoins = [...allCoins, ...pageCoins];
+      
+      // Rate limit delay between pages (300ms)
+      if (page < 2) {
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+    
+    console.log(`[lunarcrush-sync] Total fetched: ${allCoins.length} coins`);
+    const rawCoins = allCoins;
 
     if (!Array.isArray(rawCoins) || rawCoins.length === 0) {
       console.error('[lunarcrush-sync] No coins in response:', JSON.stringify(data).slice(0, 500));
