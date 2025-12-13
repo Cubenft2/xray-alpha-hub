@@ -46,7 +46,10 @@ const EXPECTED_CRON_JOBS = [
   { name: 'exchange-sync', schedule: '0 2 * * *', description: 'Exchange pairs daily 2 AM' },
   { name: 'exchange-data-aggregator', schedule: '*/15 * * * *', description: 'Exchange prices every 15 min' },
   { name: 'coingecko-sync', schedule: '0 3 * * *', description: 'CoinGecko sync daily 3 AM' },
-  { name: 'lunarcrush-universe', schedule: '*/5 * * * *', description: 'LunarCrush every 5 min' },
+  { name: 'lunarcrush-sync', schedule: '*/5 * * * *', description: 'LunarCrush crypto sync (3000)' },
+  { name: 'lunarcrush-universe', schedule: '*/5 * * * *', description: 'LunarCrush cache for UI' },
+  { name: 'massive-crypto-snapshot', schedule: '*/2 * * * *', description: 'Unified crypto snapshot' },
+  { name: 'manual-price-sync', schedule: '*/5 * * * *', description: 'CoinGecko prices (3000)' },
 ];
 
 export function SystemHealth() {
@@ -570,31 +573,60 @@ $$;`}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* PRIMARY: LunarCrush Sync - 3000 tokens */}
             <Button 
-              onClick={() => triggerFunction('polygon-rest-poller', 'Crypto Price Poller')} 
+              onClick={() => triggerFunction('lunarcrush-sync', 'LunarCrush Sync')} 
+              variant="outline" 
+              className="w-full justify-start border-primary/50"
+              disabled={triggeringJob === 'lunarcrush-sync'}
+            >
+              {triggeringJob === 'lunarcrush-sync' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Activity className="mr-2 h-4 w-4 text-primary" />
+              )}
+              LunarCrush Sync (3000)
+            </Button>
+            {/* CoinGecko Prices - 3000 tokens */}
+            <Button 
+              onClick={() => triggerFunction('manual-price-sync', 'CoinGecko Prices')} 
+              variant="outline" 
+              className="w-full justify-start border-primary/50"
+              disabled={triggeringJob === 'manual-price-sync'}
+            >
+              {triggeringJob === 'manual-price-sync' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Database className="mr-2 h-4 w-4 text-primary" />
+              )}
+              CoinGecko Prices (3000)
+            </Button>
+            {/* Massive Crypto Snapshot */}
+            <Button 
+              onClick={() => triggerFunction('massive-crypto-snapshot', 'Crypto Snapshot')} 
               variant="outline" 
               className="w-full justify-start"
-              disabled={triggeringJob === 'polygon-rest-poller'}
+              disabled={triggeringJob === 'massive-crypto-snapshot'}
             >
-              {triggeringJob === 'polygon-rest-poller' ? (
+              {triggeringJob === 'massive-crypto-snapshot' ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Database className="mr-2 h-4 w-4" />
               )}
-              Crypto Prices
+              Crypto Snapshot
             </Button>
             <Button 
-              onClick={() => triggerFunction('polygon-stock-poller', 'Stock Price Poller')} 
+              onClick={() => triggerFunction('polygon-stock-snapshot', 'Stock Snapshot')} 
               variant="outline" 
               className="w-full justify-start"
-              disabled={triggeringJob === 'polygon-stock-poller'}
+              disabled={triggeringJob === 'polygon-stock-snapshot'}
             >
-              {triggeringJob === 'polygon-stock-poller' ? (
+              {triggeringJob === 'polygon-stock-snapshot' ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Database className="mr-2 h-4 w-4" />
               )}
-              Stock Prices
+              Stock Snapshot
             </Button>
             <Button 
               onClick={() => triggerFunction('polygon-indicators-refresh', 'Technical Indicators')} 
@@ -636,7 +668,7 @@ $$;`}
               Exchange Aggregator
             </Button>
             <Button 
-              onClick={() => triggerFunction('coingecko-sync', 'CoinGecko Sync')} 
+              onClick={() => triggerFunction('coingecko-sync', 'CoinGecko Metadata')} 
               variant="outline" 
               className="w-full justify-start"
               disabled={triggeringJob === 'coingecko-sync'}
@@ -646,10 +678,10 @@ $$;`}
               ) : (
                 <Database className="mr-2 h-4 w-4" />
               )}
-              CoinGecko Sync
+              CoinGecko Metadata
             </Button>
             <Button 
-              onClick={() => triggerFunction('lunarcrush-universe', 'LunarCrush Universe')} 
+              onClick={() => triggerFunction('lunarcrush-universe', 'LunarCrush Cache')} 
               variant="outline" 
               className="w-full justify-start"
               disabled={triggeringJob === 'lunarcrush-universe'}
@@ -659,7 +691,7 @@ $$;`}
               ) : (
                 <Activity className="mr-2 h-4 w-4" />
               )}
-              LunarCrush
+              LunarCrush Cache
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">

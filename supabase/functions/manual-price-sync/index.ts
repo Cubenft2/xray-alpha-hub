@@ -19,24 +19,36 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🚀 Starting manual price sync with bulk CoinGecko...');
+    console.log('🚀 Starting manual price sync with bulk CoinGecko (3000 tokens)...');
 
-    // Fetch top 250 cryptos from CoinGecko Pro by market cap
-    const cgUrl = `https://pro-api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h`;
+    // Fetch top 3000 cryptos from CoinGecko Pro by market cap (12 pages × 250)
+    const baseUrl = 'https://pro-api.coingecko.com/api/v3/coins/markets';
+    let cgCoins: any[] = [];
     
-    let cgCoins = [];
     try {
-      const cgRes = await fetch(cgUrl, {
-        headers: { 'x-cg-pro-api-key': coingeckoKey }
-      });
+      for (let page = 1; page <= 12; page++) {
+        const cgUrl = `${baseUrl}?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&sparkline=false&price_change_percentage=24h`;
+        const cgRes = await fetch(cgUrl, {
+          headers: { 'x-cg-pro-api-key': coingeckoKey }
+        });
 
-      if (!cgRes.ok) {
-        throw new Error(`CoinGecko API error: ${cgRes.status}`);
+        if (!cgRes.ok) {
+          console.warn(`⚠️ CoinGecko page ${page} error: ${cgRes.status}`);
+          continue;
+        }
+
+        const pageData = await cgRes.json();
+        cgCoins = [...cgCoins, ...pageData];
+        console.log(`📊 Page ${page}: fetched ${pageData.length} coins (total: ${cgCoins.length})`);
+        
+        // Rate limit delay between pages
+        if (page < 12) {
+          await new Promise(r => setTimeout(r, 250));
+        }
       }
-
-      cgCoins = await cgRes.json();
-      console.log(`📊 Fetched ${cgCoins.length} coins from CoinGecko Pro`);
-    } catch (error) {
+      
+      console.log(`📊 Total fetched: ${cgCoins.length} coins from CoinGecko Pro`);
+    } catch (error: any) {
       console.error(`❌ CoinGecko bulk fetch failed: ${error.message}`);
       throw new Error(`Failed to fetch from CoinGecko: ${error.message}`);
     }
