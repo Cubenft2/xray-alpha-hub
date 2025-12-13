@@ -90,6 +90,14 @@ Deno.serve(async (req) => {
       throw new Error('Invalid symbols array');
     }
 
+    // Security: Limit input size to prevent resource exhaustion
+    if (symbols.length > 100) {
+      return new Response(
+        JSON.stringify({ error: 'Maximum 100 symbols allowed per request' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log(`Processing ${symbols.length} symbols:`, symbols);
 
     // Check cache first

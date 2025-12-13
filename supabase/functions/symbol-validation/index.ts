@@ -53,6 +53,14 @@ serve(async (req) => {
       );
     }
 
+    // Security: Limit input size to prevent resource exhaustion
+    if (symbols.length > 100) {
+      return new Response(
+        JSON.stringify({ error: 'Maximum 100 symbols allowed per request' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log(`🔍 Validating ${symbols.length} symbols...`);
 
     const validated: ValidationResult[] = [];
