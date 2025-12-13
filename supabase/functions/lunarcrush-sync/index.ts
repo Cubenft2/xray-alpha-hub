@@ -52,8 +52,10 @@ Deno.serve(async (req) => {
     
     for (let page = 0; page < 3; page++) {
       const offset = page * 1000;
+      const apiUrl = `https://lunarcrush.com/api4/public/coins/list/v1?limit=1000&offset=${offset}&sort=market_cap_rank&order=asc`;
+      console.log(`[lunarcrush-sync] Fetching: ${apiUrl}`);
       const response = await fetch(
-        `https://lunarcrush.com/api4/public/coins/list/v1?limit=1000&offset=${offset}&sort=market_cap&desc=1`,
+        apiUrl,
         {
           headers: {
             'Authorization': `Bearer ${LUNARCRUSH_API_KEY}`
@@ -87,9 +89,11 @@ Deno.serve(async (req) => {
       throw new Error('No coins data in LunarCrush response');
     }
 
-    // Log sample coin for debugging
+    // Log first coin from page 1 for debugging (should be BTC)
     if (rawCoins.length > 0) {
-      console.log('[lunarcrush-sync] Sample coin structure:', JSON.stringify(rawCoins[0]).slice(0, 500));
+      const firstCoin = rawCoins[0];
+      console.log('[lunarcrush-sync] First coin (should be BTC):', firstCoin.symbol, 'rank:', firstCoin.market_cap_rank);
+      console.log('[lunarcrush-sync] Sample structure:', JSON.stringify(firstCoin).slice(0, 300));
     }
 
     // Deduplicate by symbol - keep highest market cap rank (lowest number = best)
