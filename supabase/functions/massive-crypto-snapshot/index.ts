@@ -76,14 +76,14 @@ Deno.serve(async (req) => {
     
     console.log(`📊 Received ${tickers.length} tickers from unified snapshot`);
 
-    // Filter to USD pairs only (X:*USD format)
+    // Filter to USD and USDT pairs (X:*USD or X:*USDT format) for maximum coverage
     const usdPairs = tickers.filter(t => 
       t.ticker?.startsWith('X:') && 
-      t.ticker?.endsWith('USD') &&
+      (t.ticker?.endsWith('USD') || t.ticker?.endsWith('USDT')) &&
       (t.lastTrade?.p || t.day?.c || t.prevDay?.c)
     );
     
-    console.log(`💰 Found ${usdPairs.length} USD pairs with valid prices`);
+    console.log(`💰 Found ${usdPairs.length} USD/USDT pairs with valid prices`);
 
     // Get all crypto assets from our assets table for matching
     const { data: assets } = await supabase
@@ -102,8 +102,8 @@ Deno.serve(async (req) => {
     let unmatched = 0;
 
     for (const ticker of usdPairs) {
-      // Extract symbol from X:BTCUSD -> BTC
-      const symbol = ticker.ticker.replace('X:', '').replace('USD', '');
+      // Extract symbol from X:BTCUSD -> BTC or X:BTCUSDT -> BTC
+      const symbol = ticker.ticker.replace('X:', '').replace('USDT', '').replace('USD', '');
       const asset = assetMap.get(symbol);
 
       // Get best available price
