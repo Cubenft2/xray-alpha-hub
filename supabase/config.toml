@@ -81,7 +81,7 @@ verify_jwt = false
 [functions.map-polygon-tickers]
 verify_jwt = false
 
-# Crypto price polling - DISABLED (replaced by lunarcrush-sync)
+# DEPRECATED - replaced by massive-crypto-snapshot
 # [functions.polygon-rest-poller]
 # verify_jwt = false
 # [[functions.polygon-rest-poller.cron]]
@@ -183,7 +183,7 @@ verify_jwt = false
 [functions.migrate-ticker-data]
 verify_jwt = false
 
-# Polygon crypto snapshot - DISABLED (replaced by lunarcrush-sync)
+# DEPRECATED - replaced by massive-crypto-snapshot
 # [functions.polygon-crypto-snapshot]
 # verify_jwt = false
 # [[functions.polygon-crypto-snapshot.cron]]
@@ -227,3 +227,36 @@ verify_jwt = false
 
 [[functions.warm-news-cache.cron]]
 schedule = "*/30 * * * *"
+
+# ============================================
+# MASSIVE API FUNCTIONS (Polygon rebrand)
+# ============================================
+
+# Massive Crypto Unified Snapshot - every 2 minutes
+# Uses /v2/snapshot/locale/global/markets/crypto/tickers (ONE call = ALL crypto)
+[functions.massive-crypto-snapshot]
+verify_jwt = false
+
+[[functions.massive-crypto-snapshot.cron]]
+schedule = "*/2 * * * *"
+
+# Massive Forex Unified Snapshot - every 5 minutes
+# Uses /v2/snapshot/locale/global/markets/forex/tickers
+[functions.massive-forex-snapshot]
+verify_jwt = false
+
+[[functions.massive-forex-snapshot.cron]]
+schedule = "*/5 * * * *"
+
+# Massive Forex Sync - daily at 3 AM (registry builder)
+# Populates assets table with forex pairs
+[functions.massive-forex-sync]
+verify_jwt = false
+
+[[functions.massive-forex-sync.cron]]
+schedule = "0 3 * * *"
+
+# Unified market-data endpoint for UI + ZombieDog
+# Single source of truth for all market data queries
+[functions.market-data]
+verify_jwt = false
