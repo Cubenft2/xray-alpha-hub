@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
       const { error } = await supabase
         .from('crypto_snapshot')
         .upsert(batch, { 
-          onConflict: 'ticker',
+          onConflict: 'symbol',
           ignoreDuplicates: false 
         });
 
