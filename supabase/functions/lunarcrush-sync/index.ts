@@ -45,10 +45,10 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch top 1000 coins from LunarCrush - use v1 endpoint (free tier compatible)
-    console.log('[lunarcrush-sync] Fetching from LunarCrush API v4 (v1 endpoint)...');
+    // Fetch top 3000 coins from LunarCrush by market cap
+    console.log('[lunarcrush-sync] Fetching top 3000 coins from LunarCrush API v4...');
     const response = await fetch(
-      'https://lunarcrush.com/api4/public/coins/list/v1',
+      'https://lunarcrush.com/api4/public/coins/list/v1?limit=3000&sort=market_cap&desc=1',
       {
         headers: {
           'Authorization': `Bearer ${LUNARCRUSH_API_KEY}`

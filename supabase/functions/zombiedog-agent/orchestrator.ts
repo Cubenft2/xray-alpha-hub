@@ -193,7 +193,7 @@ export async function executeTools(
   if (symbols.length === 0) {
     const generalMarketIntents: Intent[] = ['market_overview', 'analysis', 'general', 'sentiment', 'news'];
     if (generalMarketIntents.includes(config.intent)) {
-      symbols.push('BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'MATIC');
+      symbols.push('BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'POL');
       console.log('[Orchestrator] No assets resolved, defaulting to top 10 cryptos for', config.intent);
     } else {
       return results;
