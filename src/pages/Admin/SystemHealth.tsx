@@ -250,6 +250,75 @@ export function SystemHealth() {
 
   const [triggeringJob, setTriggeringJob] = useState<string | null>(null);
 
+  const formatSyncResult = (data: any, displayName: string): string => {
+    if (!data) return 'Operation completed successfully';
+    
+    const parts: string[] = [];
+    
+    // Handle prices_updated (polygon-rest-poller, polygon-stock-poller)
+    if (typeof data.prices_updated === 'number') {
+      parts.push(`${data.prices_updated} prices updated`);
+    }
+    
+    // Handle total_processed
+    if (typeof data.total_processed === 'number' && typeof data.prices_updated !== 'number') {
+      parts.push(`${data.total_processed} processed`);
+    }
+    
+    // Handle upserted count (lunarcrush-sync, coingecko-sync, exchange-sync)
+    if (typeof data.upserted === 'number') {
+      parts.push(`${data.upserted} synced`);
+    }
+    if (typeof data.synced === 'number') {
+      parts.push(`${data.synced} synced`);
+    }
+    if (typeof data.inserted === 'number') {
+      parts.push(`${data.inserted} inserted`);
+    }
+    if (typeof data.updated === 'number') {
+      parts.push(`${data.updated} updated`);
+    }
+    
+    // Handle indicators (polygon-indicators-refresh)
+    if (typeof data.indicators === 'number') {
+      parts.push(`${data.indicators} indicators`);
+    }
+    if (typeof data.assets === 'number') {
+      parts.push(`${data.assets} assets`);
+    }
+    
+    // Handle exchange aggregator
+    if (typeof data.symbols_processed === 'number') {
+      parts.push(`${data.symbols_processed} symbols`);
+    }
+    if (typeof data.exchanges === 'number') {
+      parts.push(`${data.exchanges} exchanges`);
+    }
+    
+    // Handle pairs (exchange-sync)
+    if (typeof data.pairs === 'number') {
+      parts.push(`${data.pairs} pairs`);
+    }
+    
+    // Handle errors
+    if (typeof data.errors === 'number' && data.errors > 0) {
+      parts.push(`${data.errors} errors`);
+    }
+    
+    // Handle duration
+    if (typeof data.duration_ms === 'number') {
+      const seconds = (data.duration_ms / 1000).toFixed(1);
+      parts.push(`${seconds}s`);
+    }
+    
+    // Fallback to message or status
+    if (parts.length === 0) {
+      return data.message || data.status || 'Operation completed successfully';
+    }
+    
+    return parts.join(' • ');
+  };
+
   const triggerFunction = async (functionName: string, displayName: string) => {
     try {
       setTriggeringJob(functionName);
@@ -259,9 +328,11 @@ export function SystemHealth() {
       
       if (error) throw error;
       
+      const description = formatSyncResult(data, displayName);
+      
       toast({
         title: `${displayName} Complete`,
-        description: data?.message || data?.status || 'Operation completed successfully',
+        description,
       });
       
       checkHealth();
