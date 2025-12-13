@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
         marketCapBySymbol.set(coin.symbol.toLowerCase(), data);
       });
     } else {
-      console.log('🔄 Fetching 4 pages from CoinGecko (1,000 tokens)...');
+      console.log('🔄 Fetching 12 pages from CoinGecko (3,000 tokens)...');
       try {
         const cgHeaders: Record<string, string> = { 'Accept': 'application/json' };
         const baseUrl = COINGECKO_API_KEY 
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
         }
         
         let allCoins: CoinGeckoMarket[] = [];
-        const pages = [1, 2, 3, 4]; // 4 pages × 250 = 1,000 tokens
+        const pages = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // 12 pages × 250 = 3,000 tokens
         
         for (const page of pages) {
           const cgUrl = `${baseUrl}?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&sparkline=false`;
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
           }
           
           // Rate limit delay between pages
-          if (page < 4) {
+          if (page < 12) {
             await new Promise(r => setTimeout(r, 250));
           }
         }
