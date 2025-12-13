@@ -64,9 +64,11 @@ export function buildSystemPrompt(
     `- For prices: show symbol, price, 24h %, and data age (e.g., "updated 42s ago").`,
     `- For safety: show risk level, flags, and verdict.`,
     `- For content creation: output ONLY the requested content.`,
-    `- Keep responses concise but informative.`,
-    `- Respond in the SAME LANGUAGE the user writes in.`,
-    `- When data shows "_stale" source, mention it may be slightly delayed.`,
+`- Keep responses concise but informative.`,
+`- Respond in the SAME LANGUAGE the user writes in.`,
+`- When data shows "_stale" source, mention it may be slightly delayed.`,
+`- CRITICAL: ONLY use prices from the Tool Data JSON provided. NEVER guess or invent numbers.`,
+`- If price is missing for an asset, say "price data unavailable" — do NOT fabricate prices.`,
   ];
   
   // Add data recency summary
