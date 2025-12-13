@@ -45,9 +45,11 @@ const GROUP_QUERY_PATTERN = /\b(give me|show me|list|what are|how are)\b.*\b(top
 
 // Check if query contains explicit ticker
 function hasExplicitTicker(query: string): boolean {
-  const COMMON = new Set(['THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'CAN', 'NOW', 'HOW', 'WHY', 'WHO',
+const COMMON = new Set(['THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'CAN', 'NOW', 'HOW', 'WHY', 'WHO',
     'DEX', 'CEX', 'API', 'USD', 'EUR', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL', 'ABOUT', 'THIS', 'THAT',
-    'TODAY', 'MARKET', 'CRYPTO', 'DOING', 'GOING', 'LOOKING', 'OVERALL', 'SAFE', 'NEWS', 'CHART']);
+    'TODAY', 'MARKET', 'CRYPTO', 'DOING', 'GOING', 'LOOKING', 'OVERALL', 'SAFE', 'NEWS', 'CHART',
+    'TOP', 'BEST', 'BIGGEST', 'LARGEST', 'MAJOR', 'PERFORMANCE', 'RANK', 'RANKING',
+    'LIST', 'RUNDOWN', 'SHOW', 'GIVE', 'COMPARE', 'MOVERS', 'GAINERS', 'LOSERS', 'PASS']);
   
   const tickers = query.toUpperCase().match(/\$?[A-Z]{2,10}\b/g) || [];
   return tickers.some(t => {
