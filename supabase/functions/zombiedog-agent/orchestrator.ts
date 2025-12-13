@@ -406,8 +406,10 @@ async function fetchPrices(
   
   const results: PriceData[] = [];
   const foundSymbols = new Set<string>();
-  let stalestAge = 0;  // Renamed for clarity: this is the worst-case (stalest) data age
-  let newestAge = Infinity;  // Best-case: freshest data age
+  const staleCandidates = new Map<string, { row: any; ageMin: number }>();
+  const needSnapshot = new Set<string>();
+  let stalestAge = 0;
+  let newestAge = Infinity;
   
   // Build all possible ticker formats for live_prices lookup
   const tickerVariants: string[] = [];
@@ -432,8 +434,9 @@ async function fetchPrices(
       }
       
       const age = ageSec(l.updated_at);
+      const ageMin = age / 60;
       
-      // Only include if fresh
+      // Only mark as "found" if FRESH - stale goes to fallback candidates
       if (isFresh(l.updated_at, TTL_SEC.live_prices)) {
         results.push({
           symbol: normalizedSymbol,
@@ -447,46 +450,78 @@ async function fetchPrices(
         if (age > stalestAge) stalestAge = age;
         if (age < newestAge) newestAge = age;
       } else {
-        // Data exists but is stale - still return it but mark as stale
-        results.push({
-          symbol: normalizedSymbol,
-          price: l.price,
-          change24h: l.change24h || 0,
-          source: 'live_prices_stale',
-          updatedAt: l.updated_at,
-        });
-        foundSymbols.add(normalizedSymbol);
-        cacheStats.hits.push(`price:${normalizedSymbol}:stale`);
-        if (age > stalestAge) stalestAge = age;
-        if (age < newestAge) newestAge = age;
+        // STALE: hold as fallback, DON'T add to foundSymbols yet
+        staleCandidates.set(normalizedSymbol, { row: l, ageMin });
+        needSnapshot.add(normalizedSymbol);
+        cacheStats.hits.push(`price:${normalizedSymbol}:stale_candidate`);
       }
     }
   }
   
-  // 2. Check crypto_snapshot for missing symbols
-  const missingAfterLive = symbols.filter(s => !foundSymbols.has(s));
-  if (missingAfterLive.length > 0) {
+  // 2. Check crypto_snapshot for missing OR stale symbols (freshest wins!)
+  const symbolsNeedingSnapshot = [
+    ...symbols.filter(s => !foundSymbols.has(s)),  // Never found in live_prices
+    ...needSnapshot,                                // Found but stale in live_prices
+  ];
+  const uniqueNeeded = [...new Set(symbolsNeedingSnapshot)];
+  
+  if (uniqueNeeded.length > 0) {
     const { data: cryptoData } = await supabase
       .from('crypto_snapshot')
       .select('symbol, price, change_percent, market_cap, volume_24h, updated_at')
-      .in('symbol', missingAfterLive);
+      .in('symbol', uniqueNeeded);
     
-    if (cryptoData) {
-      for (const c of cryptoData) {
-        const age = ageSec(c.updated_at);
+    const snapshotMap = new Map((cryptoData || []).map((c: any) => [c.symbol, c]));
+    
+    for (const sym of uniqueNeeded) {
+      if (foundSymbols.has(sym)) continue; // Already have fresh live_prices
+      
+      const snapshot = snapshotMap.get(sym);
+      const staleCandidate = staleCandidates.get(sym);
+      
+      if (snapshot) {
+        const snapAgeMin = ageSec(snapshot.updated_at) / 60;
+        const staleAgeMin = staleCandidate?.ageMin ?? Infinity;
+        
+        // Use snapshot if fresher OR if no stale candidate exists
+        if (snapAgeMin < staleAgeMin || !staleCandidate) {
+          const age = ageSec(snapshot.updated_at);
+          results.push({
+            symbol: snapshot.symbol,
+            price: snapshot.price,
+            change24h: snapshot.change_percent || 0,
+            marketCap: snapshot.market_cap,
+            volume24h: snapshot.volume_24h,
+            source: isFresh(snapshot.updated_at, TTL_SEC.crypto_snapshot) 
+              ? 'crypto_snapshot' 
+              : 'crypto_snapshot_stale',
+            updatedAt: snapshot.updated_at,
+          });
+          foundSymbols.add(snapshot.symbol);
+          cacheStats.hits.push(`price:${snapshot.symbol}:snapshot_preferred`);
+          if (age > stalestAge) stalestAge = age;
+          if (age < newestAge) newestAge = age;
+          console.log(`[Price] ${sym}: snapshot (${Math.round(snapAgeMin)}m) beats live_prices (${Math.round(staleAgeMin)}m)`);
+          continue;
+        }
+      }
+      
+      // Fall back to stale live_prices if snapshot missing or older
+      if (staleCandidate) {
+        const { row, ageMin } = staleCandidate;
+        const age = ageMin * 60;
         results.push({
-          symbol: c.symbol,
-          price: c.price,
-          change24h: c.change_percent || 0,
-          marketCap: c.market_cap,
-          volume24h: c.volume_24h,
-          source: isFresh(c.updated_at, TTL_SEC.crypto_snapshot) ? 'crypto_snapshot' : 'crypto_snapshot_stale',
-          updatedAt: c.updated_at,
+          symbol: sym,
+          price: row.price,
+          change24h: row.change24h || 0,
+          source: 'live_prices_stale',
+          updatedAt: row.updated_at,
         });
-        foundSymbols.add(c.symbol);
-        cacheStats.hits.push(`price:${c.symbol}:snapshot`);
+        foundSymbols.add(sym);
+        cacheStats.hits.push(`price:${sym}:stale_fallback`);
         if (age > stalestAge) stalestAge = age;
         if (age < newestAge) newestAge = age;
+        console.log(`[Price] ${sym}: using stale live_prices (${Math.round(ageMin)}m) as last resort`);
       }
     }
   }
