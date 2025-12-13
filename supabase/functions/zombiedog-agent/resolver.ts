@@ -281,10 +281,10 @@ async function resolveSingleTicker(
   // Also try crypto_snapshot for market cap data
   const { data: cryptoData } = await supabase
     .from('crypto_snapshot')
-    .select('symbol, market_cap, coingecko_id')
+    .select('symbol, market_cap, coingecko_id, name')
     .ilike('symbol', normalized)
     .limit(5);
-  
+
   if (cryptoData) {
     for (const c of cryptoData) {
       // Update or add with market cap
@@ -310,7 +310,7 @@ async function resolveSingleTicker(
     .select('symbol, market_cap')
     .ilike('symbol', normalized)
     .limit(5);
-  
+
   if (stockData) {
     for (const s of stockData) {
       const existing = candidates.find(x => x.symbol === s.symbol);
@@ -323,6 +323,50 @@ async function resolveSingleTicker(
           polygonTicker: s.symbol,
           marketCap: s.market_cap,
           matchType: 'exact',
+        });
+      }
+    }
+  }
+
+  // 4. Try matching by display_name in ticker_mappings (for name-based queries like "memecore")
+  if (candidates.length === 0) {
+    const { data: nameMatches } = await supabase
+      .from('ticker_mappings')
+      .select('symbol, type, coingecko_id, polygon_ticker, display_name')
+      .ilike('display_name', `%${normalized}%`)
+      .eq('is_active', true)
+      .limit(5);
+
+    if (nameMatches) {
+      for (const nm of nameMatches) {
+        candidates.push({
+          symbol: nm.symbol,
+          type: nm.type === 'stock' ? 'stock' : 'crypto',
+          coingeckoId: nm.coingecko_id,
+          polygonTicker: nm.polygon_ticker,
+          matchType: 'alias',
+        });
+      }
+    }
+  }
+
+  // 5. Try matching by name in crypto_snapshot (for LunarCrush data)
+  if (candidates.length === 0) {
+    const { data: cryptoNameData } = await supabase
+      .from('crypto_snapshot')
+      .select('symbol, market_cap, coingecko_id, name')
+      .ilike('name', `%${normalized}%`)
+      .order('market_cap', { ascending: false, nullsFirst: false })
+      .limit(5);
+
+    if (cryptoNameData) {
+      for (const c of cryptoNameData) {
+        candidates.push({
+          symbol: c.symbol,
+          type: 'crypto',
+          coingeckoId: c.coingecko_id,
+          marketCap: c.market_cap,
+          matchType: 'alias',
         });
       }
     }
