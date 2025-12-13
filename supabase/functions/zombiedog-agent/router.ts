@@ -40,8 +40,8 @@ const MARKET_PATTERN = /\b(market|crypto|how('s|s| is)|what('s|s| is))\b.*\b(tod
 const ANALYSIS_PATTERN = /\b(analysis|analyze|deep dive|breakdown|overview|tell me about|explain)\b/i;
 const DETAILS_PATTERN = /\b(what is|what are|about|fundamentals|describe|who is|explain|overview|info)\b/i;
 // NEW: Top N / group queries
-const TOP_N_PATTERN = /\b(top\s*\d+|top\s*ten|top\s*twenty|top\s*100|best|biggest|largest|major|rundown)\b.*\b(coins?|crypto|tokens?|assets?|currencies?|market)?\b/i;
-const GROUP_QUERY_PATTERN = /\b(give me|show me|list|what are|how are)\b.*\b(top|biggest|best|major|all)\b/i;
+const TOP_N_PATTERN = /\b(top\s*\d+|top\s*ten|top\s*twenty|top\s*100|best|biggest|largest|major|rundown|movers?|gainers?|losers?)\b.*\b(coins?|crypto|tokens?|assets?|currencies?|market|performance)?\b/i;
+const GROUP_QUERY_PATTERN = /\b(give me|show me|list|what are|how are|can you make|make me)\b.*\b(top|biggest|best|major|all|movers?|gainers?|losers?)\b/i;
 
 // Check if query contains explicit ticker
 function hasExplicitTicker(query: string): boolean {
