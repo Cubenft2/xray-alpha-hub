@@ -92,11 +92,21 @@ export function buildSystemPrompt(
     }
   }
   
-  // Add conversation context
-  if (context.recentAssets.length > 0) {
+  // Add conversation context - BUT NOT for market_overview queries
+  if (context.recentAssets.length > 0 && config.intent !== 'market_overview') {
     parts.push('');
     parts.push(`## Recent conversation context:`);
     parts.push(`Previously discussed: ${context.recentAssets.join(', ')}`);
+  }
+  
+  // For market_overview: explicit instruction to use ONLY the fresh data
+  if (config.intent === 'market_overview') {
+    parts.push('');
+    parts.push(`## MARKET OVERVIEW INSTRUCTIONS:`);
+    parts.push(`- IGNORE any previous conversation context for this query.`);
+    parts.push(`- Use ONLY the top 25 data from crypto_snapshot provided in Tool Data below.`);
+    parts.push(`- Synthesize: Market Tone (bullish/bearish/neutral), Breadth (X% green), Leaders, Laggards.`);
+    parts.push(`- Include Galaxy Score and Sentiment for top coins if available.`);
   }
   
   // FIX #4: Tool Data Contract — explicit timestamps and missing data handling
