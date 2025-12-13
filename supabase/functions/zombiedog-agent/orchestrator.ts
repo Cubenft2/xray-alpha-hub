@@ -46,6 +46,17 @@ const GOPLUS_CHAINS: Record<string, string> = {
   'solana': 'solana',
 };
 
+export interface MarketSummary {
+  total: number;
+  greenCount: number;
+  redCount: number;
+  breadthPct: number;
+  leaders: { symbol: string; change: number }[];
+  laggards: { symbol: string; change: number }[];
+  avgGalaxyScore?: number;
+  topSentiment?: { symbol: string; score: number }[];
+}
+
 export interface ToolResults {
   prices?: PriceData[];
   social?: SocialData[];
@@ -54,6 +65,7 @@ export interface ToolResults {
   news?: NewsItem[];
   charts?: ChartData;
   details?: AssetDetails; // Asset fundamentals
+  marketSummary?: MarketSummary; // Pre-computed for market_overview
   timestamps: Record<string, string>;
   cacheStats: {
     hits: string[];
@@ -188,10 +200,74 @@ export async function executeTools(
   
   const symbols = assets.map(a => a.symbol);
   
-  // For general market questions or analysis without specific assets,
-  // default to top cryptocurrencies to provide useful data
+  // For market_overview: fetch top 25 by market cap from crypto_snapshot
+  if (config.intent === 'market_overview' && symbols.length === 0) {
+    console.log('[Orchestrator] Market overview: fetching top 25 cryptos');
+    
+    const { data: topCoins } = await supabase
+      .from('crypto_snapshot')
+      .select('symbol, price, change_percent, market_cap, market_cap_rank, galaxy_score, sentiment, volume_24h, updated_at')
+      .order('market_cap_rank', { ascending: true })
+      .limit(25);
+    
+    if (topCoins && topCoins.length > 0) {
+      // Populate prices directly
+      results.prices = topCoins.map((c: any) => ({
+        symbol: c.symbol,
+        price: c.price,
+        change24h: c.change_percent || 0,
+        marketCap: c.market_cap,
+        volume24h: c.volume_24h,
+        source: 'crypto_snapshot',
+        updatedAt: c.updated_at,
+      }));
+      results.timestamps.prices = new Date().toISOString();
+      results.cacheStats.hits.push('market_overview:top25');
+      
+      // Populate social directly
+      results.social = topCoins.map((c: any) => ({
+        symbol: c.symbol,
+        galaxyScore: c.galaxy_score,
+        sentiment: c.sentiment,
+        updatedAt: c.updated_at,
+      }));
+      results.timestamps.social = new Date().toISOString();
+      
+      // Compute market summary for easy synthesis
+      const prices = results.prices;
+      const greenCount = prices.filter(p => p.change24h > 0).length;
+      const redCount = prices.filter(p => p.change24h < 0).length;
+      const sorted = [...prices].sort((a, b) => b.change24h - a.change24h);
+      
+      const socialWithScores = results.social.filter(s => s.galaxyScore);
+      const avgGalaxyScore = socialWithScores.length > 0
+        ? Math.round(socialWithScores.reduce((sum, s) => sum + (s.galaxyScore || 0), 0) / socialWithScores.length)
+        : undefined;
+      
+      results.marketSummary = {
+        total: prices.length,
+        greenCount,
+        redCount,
+        breadthPct: Math.round((greenCount / prices.length) * 100),
+        leaders: sorted.slice(0, 3).map(p => ({ symbol: p.symbol, change: p.change24h })),
+        laggards: sorted.slice(-3).reverse().map(p => ({ symbol: p.symbol, change: p.change24h })),
+        avgGalaxyScore,
+        topSentiment: results.social
+          .filter(s => s.sentiment)
+          .sort((a, b) => (b.sentiment || 0) - (a.sentiment || 0))
+          .slice(0, 3)
+          .map(s => ({ symbol: s.symbol, score: s.sentiment || 0 })),
+      };
+      results.timestamps.marketSummary = new Date().toISOString();
+      
+      console.log(`[Orchestrator] Market overview: ${greenCount} green, ${redCount} red, ${results.marketSummary.breadthPct}% breadth`);
+      return results; // Early return - we have everything for market_overview
+    }
+  }
+  
+  // For other general queries, default to top 10
   if (symbols.length === 0) {
-    const generalMarketIntents: Intent[] = ['market_overview', 'analysis', 'general', 'sentiment', 'news'];
+    const generalMarketIntents: Intent[] = ['analysis', 'general', 'sentiment', 'news'];
     if (generalMarketIntents.includes(config.intent)) {
       symbols.push('BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'POL');
       console.log('[Orchestrator] No assets resolved, defaulting to top 10 cryptos for', config.intent);

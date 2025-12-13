@@ -3,7 +3,7 @@
 
 import { SessionContext } from "./context.ts";
 import { ResolvedAsset } from "./resolver.ts";
-import { ToolResults } from "./orchestrator.ts";
+import { ToolResults, MarketSummary } from "./orchestrator.ts";
 import { RouteConfig, Intent } from "./router.ts";
 
 interface Message {
@@ -58,7 +58,9 @@ export function buildSystemPrompt(
     ``,
     `## Your Rules:`,
     `- NEVER ask clarifying questions. Use the data provided.`,
-    `- If tool data is marked "MISSING", say "I don't have that data right now" — do NOT guess.`,
+    `- NEVER say "I don't have aggregated data" or "I can't analyze a list I don't have" — you DO have the data.`,
+    `- If specific data is marked "MISSING", acknowledge it but still synthesize what you DO have.`,
+    `- For multi-asset/group questions: compute aggregations yourself from the data provided (e.g., "68% green").`,
     `- For prices: show symbol, price, 24h %, and data age (e.g., "updated 42s ago").`,
     `- For safety: show risk level, flags, and verdict.`,
     `- For content creation: output ONLY the requested content.`,
@@ -255,6 +257,39 @@ export function buildSystemPrompt(
     parts.push('4. Flags found');
     parts.push('5. Liquidity info');
     parts.push('6. Verdict (2 sentences max)');
+  }
+  
+  // NEW: Market Overview response template
+  if (config.intent === 'market_overview' && tools.marketSummary) {
+    const ms = tools.marketSummary;
+    parts.push('');
+    parts.push('## Market Overview Response Format:');
+    parts.push('You MUST synthesize the data into a high-level summary. Use this structure:');
+    parts.push('');
+    parts.push('### Top [N] Market Snapshot');
+    parts.push('');
+    parts.push(`**Pre-computed summary (use this!):**`);
+    parts.push(`- Total assets: ${ms.total}`);
+    parts.push(`- Green: ${ms.greenCount} | Red: ${ms.redCount}`);
+    parts.push(`- Breadth: ${ms.breadthPct}%`);
+    parts.push(`- Leaders: ${ms.leaders.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
+    parts.push(`- Laggards: ${ms.laggards.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
+    if (ms.avgGalaxyScore) parts.push(`- Avg Galaxy Score: ${ms.avgGalaxyScore}/100`);
+    parts.push('');
+    parts.push('**Your response should include:**');
+    parts.push('1. **Market Tone**: (Bullish/Neutral/Bearish) based on breadth %');
+    parts.push('2. **Breadth**: "X% of top N green" from the pre-computed breadthPct');
+    parts.push('3. **Leaders**: Top 3 performers with % gains (from pre-computed leaders)');
+    parts.push('4. **Laggards**: Bottom 3 performers with % losses (from pre-computed laggards)');
+    parts.push('5. **Social Pulse**: Mention Galaxy Score / sentiment if notable');
+    parts.push('6. **One-liner summary**: Quick market vibe, no tables');
+    parts.push('');
+    parts.push('End with: "Want a deeper dive on any specific coin?"');
+    parts.push('');
+    parts.push('DO NOT:');
+    parts.push('- Say "I don\'t have aggregated data" - you DO, it\'s pre-computed above');
+    parts.push('- Output raw data tables');
+    parts.push('- Refuse to synthesize');
   }
   
   return parts.join('\n');
