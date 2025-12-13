@@ -200,6 +200,8 @@ export async function executeTools(
   
   const symbols = assets.map(a => a.symbol);
   
+  console.log(`[Orchestrator] Intent: ${config.intent}, assets: [${symbols.join(', ')}], count: ${symbols.length}`);
+  
   // For market_overview: fetch top 25 by market cap from crypto_snapshot
   if (config.intent === 'market_overview' && symbols.length === 0) {
     console.log('[Orchestrator] Market overview: fetching top 25 cryptos');

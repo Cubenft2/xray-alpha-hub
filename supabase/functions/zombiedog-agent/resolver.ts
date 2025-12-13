@@ -212,7 +212,8 @@ export async function resolveEntities(
   }
   
   // FIX #2: If no assets found but context has assets, use lastResolvedAsset
-  if (resolved.length === 0) {
+  // SKIP for market_overview intent - orchestrator will fetch top 25 from crypto_snapshot
+  if (resolved.length === 0 && intent !== 'market_overview') {
     const ref = context.lastResolvedAsset || context.recentAssets[0];
     if (ref) {
       resolved.push({
