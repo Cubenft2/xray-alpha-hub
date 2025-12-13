@@ -1,7 +1,7 @@
 // Tool Orchestrator: Cache-first execution with TTL, budgets, and timeouts
 // Supports thousands of concurrent users without per-request API spam
 
-import { RouteConfig } from "./router.ts";
+import { RouteConfig, Intent } from "./router.ts";
 import { ResolvedAsset } from "./resolver.ts";
 
 const TOOL_TIMEOUT_MS = 5000;
@@ -188,9 +188,13 @@ export async function executeTools(
   
   const symbols = assets.map(a => a.symbol);
   
+  // For general market questions or analysis without specific assets,
+  // default to top cryptocurrencies to provide useful data
   if (symbols.length === 0) {
-    if (config.intent === 'market_overview') {
-      symbols.push('BTC', 'ETH', 'SOL', 'XRP', 'DOGE');
+    const generalMarketIntents: Intent[] = ['market_overview', 'analysis', 'general', 'sentiment', 'news'];
+    if (generalMarketIntents.includes(config.intent)) {
+      symbols.push('BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'LINK', 'DOT', 'MATIC');
+      console.log('[Orchestrator] No assets resolved, defaulting to top 10 cryptos for', config.intent);
     } else {
       return results;
     }
