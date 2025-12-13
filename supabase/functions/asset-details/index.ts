@@ -51,24 +51,29 @@ serve(async (req) => {
   const now = new Date();
 
   // ---- Decide type FIRST (before lock key) ----
-  let resolvedType: "stock" | "crypto" = "crypto";
+  let resolvedType: "stock" | "crypto" | "forex" = "crypto";
 
-  if (type === "stock" || type === "crypto") {
-    resolvedType = type as "stock" | "crypto";
+  if (type === "stock" || type === "crypto" || type === "forex") {
+    resolvedType = type as "stock" | "crypto" | "forex";
   } else {
-    // Heuristic: 1-5 uppercase letters = stock, else crypto
-    // This avoids DB lookup dependency and false negatives for uncached stocks
-    const looksStocky = /^[A-Z]{1,5}$/.test(symbol);
-    if (looksStocky) {
-      // Double-check: if it's in live_prices with X: prefix, it's actually crypto
-      const { data: maybeCrypto } = await supabase
-        .from("live_prices")
-        .select("ticker")
-        .eq("ticker", `X:${symbol}USD`)
-        .maybeSingle();
-      resolvedType = maybeCrypto?.ticker ? "crypto" : "stock";
+    // Check for forex pattern first (EUR/USD or EURUSD or C:EURUSD)
+    const forexPattern = /^(C:)?[A-Z]{3}\/?[A-Z]{3}$/;
+    if (forexPattern.test(symbol)) {
+      resolvedType = "forex";
     } else {
-      resolvedType = "crypto";
+      // Heuristic: 1-5 uppercase letters = stock, else crypto
+      const looksStocky = /^[A-Z]{1,5}$/.test(symbol);
+      if (looksStocky) {
+        // Double-check: if it's in live_prices with X: prefix, it's actually crypto
+        const { data: maybeCrypto } = await supabase
+          .from("live_prices")
+          .select("ticker")
+          .eq("ticker", `X:${symbol}USD`)
+          .maybeSingle();
+        resolvedType = maybeCrypto?.ticker ? "crypto" : "stock";
+      } else {
+        resolvedType = "crypto";
+      }
     }
   }
 
@@ -183,6 +188,50 @@ serve(async (req) => {
       as_of: post?.updated_at ?? null,
       age_seconds: post?.updated_at ? Math.round(ageSec(post.updated_at)) : null,
       stale: post?.updated_at ? !isFresh(post.updated_at, TTL_SEC.stock_details) : true,
+    }), { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
+  }
+
+  // =========================
+  // FOREX ROUTE
+  // =========================
+  if (resolvedType === "forex") {
+    // Extract raw symbol from various formats
+    let rawSymbol = symbol.replace("C:", "").replace("/", "");
+    const displaySymbol = rawSymbol.length === 6 
+      ? `${rawSymbol.slice(0, 3)}/${rawSymbol.slice(3)}` 
+      : rawSymbol;
+    const baseCurrency = rawSymbol.length >= 3 ? rawSymbol.slice(0, 3) : null;
+    const quoteCurrency = rawSymbol.length >= 6 ? rawSymbol.slice(3, 6) : null;
+
+    // Get latest price from live_prices
+    const { data: priceData } = await supabase
+      .from("live_prices")
+      .select("price, change24h, updated_at, day_open, day_high, day_low")
+      .eq("ticker", `C:${rawSymbol}`)
+      .maybeSingle();
+
+    // Get forex pair info if available
+    const { data: pairInfo } = await supabase
+      .from("poly_fx_pairs")
+      .select("name, base_currency, quote_currency")
+      .eq("ticker", `C:${rawSymbol}`)
+      .maybeSingle();
+
+    return new Response(JSON.stringify({
+      symbol: displaySymbol,
+      type: "forex",
+      base_currency: baseCurrency,
+      quote_currency: quoteCurrency,
+      name: pairInfo?.name || displaySymbol,
+      price: priceData?.price ?? null,
+      change_24h: priceData?.change24h ?? null,
+      day_open: priceData?.day_open ?? null,
+      day_high: priceData?.day_high ?? null,
+      day_low: priceData?.day_low ?? null,
+      source: ["massive"],
+      cached: true,
+      as_of: priceData?.updated_at ?? null,
+      notes: "Forex data from Massive (Polygon.io) API",
     }), { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
   }
 
