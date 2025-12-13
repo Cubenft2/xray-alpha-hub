@@ -49,6 +49,14 @@ serve(async (req) => {
       });
     }
 
+    // Security: Limit input size to prevent resource exhaustion
+    if (messages.length > 100) {
+      return new Response(JSON.stringify({ error: 'Maximum 100 messages allowed per request' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // FIX #3: Use client-provided session_id (UUID from localStorage), fall back to hashed IP
     const clientIP = getClientIP(req);
     const ipHash = hashString(clientIP);
