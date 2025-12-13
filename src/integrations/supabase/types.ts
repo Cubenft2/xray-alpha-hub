@@ -151,28 +151,40 @@ export type Database = {
       }
       assets: {
         Row: {
+          active: boolean | null
           created_at: string | null
+          display_symbol: string | null
           id: string
           logo_url: string | null
+          market: string | null
           name: string
+          provider: string | null
           symbol: string
           type: string
           updated_at: string | null
         }
         Insert: {
+          active?: boolean | null
           created_at?: string | null
+          display_symbol?: string | null
           id?: string
           logo_url?: string | null
+          market?: string | null
           name: string
+          provider?: string | null
           symbol: string
           type: string
           updated_at?: string | null
         }
         Update: {
+          active?: boolean | null
           created_at?: string | null
+          display_symbol?: string | null
           id?: string
           logo_url?: string | null
+          market?: string | null
           name?: string
+          provider?: string | null
           symbol?: string
           type?: string
           updated_at?: string | null
@@ -792,29 +804,47 @@ export type Database = {
         Row: {
           asset_id: string | null
           change24h: number
+          day_high: number | null
+          day_low: number | null
+          day_open: number | null
           display: string
+          is_delayed: boolean | null
+          last_trade_ts: string | null
           price: number
           source: string | null
           ticker: string
           updated_at: string
+          volume: number | null
         }
         Insert: {
           asset_id?: string | null
           change24h: number
+          day_high?: number | null
+          day_low?: number | null
+          day_open?: number | null
           display: string
+          is_delayed?: boolean | null
+          last_trade_ts?: string | null
           price: number
           source?: string | null
           ticker: string
           updated_at?: string
+          volume?: number | null
         }
         Update: {
           asset_id?: string | null
           change24h?: number
+          day_high?: number | null
+          day_low?: number | null
+          day_open?: number | null
           display?: string
+          is_delayed?: boolean | null
+          last_trade_ts?: string | null
           price?: number
           source?: string | null
           ticker?: string
           updated_at?: string
+          volume?: number | null
         }
         Relationships: [
           {
