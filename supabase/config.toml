@@ -204,12 +204,12 @@ verify_jwt = false
 [functions.fix-coingecko-mappings]
 verify_jwt = false
 
-# LunarCrush sync - PRIMARY crypto data source (every minute)
+# LunarCrush sync - PRIMARY crypto data source (every 5 minutes)
 [functions.lunarcrush-sync]
 verify_jwt = false
 
 [[functions.lunarcrush-sync.cron]]
-schedule = "* * * * *"
+schedule = "*/5 * * * *"
 
 # Unified asset details endpoint (stocks + crypto fundamentals)
 [functions.asset-details]
