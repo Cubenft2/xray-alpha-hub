@@ -42,11 +42,21 @@ interface TickerSnapshot {
   updated?: number;
 }
 
+interface ReferenceTicker {
+  ticker: string;
+  name: string;
+  market: string;
+  locale: string;
+  active: boolean;
+  currency_symbol?: string;
+  base_currency_symbol?: string;
+  base_currency_name?: string;
+  currency_name?: string;
+}
+
 function parseQuoteCurrency(ticker: string): string {
-  // X:BTCUSD -> USD, X:BTCUSDT -> USDT, X:ETHBTC -> BTC
   const symbol = ticker.replace('X:', '');
   
-  // Check for known quote currencies at the end
   if (symbol.endsWith('USDT')) return 'USDT';
   if (symbol.endsWith('USDC')) return 'USDC';
   if (symbol.endsWith('USD')) return 'USD';
@@ -64,10 +74,8 @@ function parseQuoteCurrency(ticker: string): string {
 }
 
 function parseBaseSymbol(ticker: string): string {
-  // X:BTCUSD -> BTC, X:ETHUSDT -> ETH
   const symbol = ticker.replace('X:', '');
   
-  // Remove quote currency from end
   const quoteCurrencies = ['USDT', 'USDC', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'BTC', 'ETH', 'BNB'];
   for (const quote of quoteCurrencies) {
     if (symbol.endsWith(quote)) {
@@ -75,6 +83,29 @@ function parseBaseSymbol(ticker: string): string {
     }
   }
   return symbol;
+}
+
+async function fetchAllReferencePages(baseUrl: string): Promise<ReferenceTicker[]> {
+  const allResults: ReferenceTicker[] = [];
+  let nextUrl: string | null = `${baseUrl}&apiKey=${POLYGON_API_KEY}`;
+  let pageCount = 0;
+  
+  while (nextUrl) {
+    pageCount++;
+    const response = await fetch(nextUrl);
+    const data = await response.json();
+    
+    if (data.results) {
+      allResults.push(...data.results);
+    }
+    
+    // Polygon returns next_url for pagination
+    nextUrl = data.next_url ? `${data.next_url}&apiKey=${POLYGON_API_KEY}` : null;
+    
+    console.log(`📄 Page ${pageCount}: Fetched ${allResults.length} reference tickers so far...`);
+  }
+  
+  return allResults;
 }
 
 serve(async (req) => {
@@ -87,9 +118,9 @@ serve(async (req) => {
       throw new Error('POLYGON_API_KEY not configured');
     }
 
-    console.log('🔍 Fetching raw Polygon unified snapshots...');
+    console.log('🔍 Fetching raw Polygon unified snapshots and reference tickers...');
 
-    // Fetch all three endpoints in parallel
+    // Fetch all four endpoints in parallel (reference is paginated, so we handle it separately)
     const [cryptoRes, forexRes, stocksRes] = await Promise.all([
       fetch(`https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers?apiKey=${POLYGON_API_KEY}`),
       fetch(`https://api.polygon.io/v2/snapshot/locale/global/markets/forex/tickers?apiKey=${POLYGON_API_KEY}`),
@@ -102,60 +133,79 @@ serve(async (req) => {
       stocksRes.json()
     ]);
 
-    console.log(`📊 Crypto response status: ${cryptoData.status}, count: ${cryptoData.count}`);
-    console.log(`📊 Forex response status: ${forexData.status}, count: ${forexData.count}`);
-    console.log(`📊 Stocks response status: ${stocksData.status}, count: ${stocksData.count}`);
+    console.log(`📊 Crypto snapshot status: ${cryptoData.status}, count: ${cryptoData.count}`);
+    console.log(`📊 Forex snapshot status: ${forexData.status}, count: ${forexData.count}`);
+    console.log(`📊 Stocks snapshot status: ${stocksData.status}, count: ${stocksData.count}`);
 
-    // Analyze crypto tickers
+    // Fetch all reference tickers (paginated)
+    console.log('📄 Fetching all reference tickers (paginated)...');
+    const referenceTickers = await fetchAllReferencePages(
+      'https://api.polygon.io/v3/reference/tickers?market=crypto&active=true&limit=1000'
+    );
+    console.log(`📊 Reference tickers total: ${referenceTickers.length}`);
+
+    // Analyze crypto snapshot tickers
     const cryptoTickers: TickerSnapshot[] = cryptoData.tickers || [];
+    const snapshotTickerSet = new Set(cryptoTickers.map(t => t.ticker));
     
-    // Count by quote currency
-    const byQuoteCurrency: Record<string, number> = {
-      USD: 0,
-      USDT: 0,
-      USDC: 0,
-      EUR: 0,
-      GBP: 0,
-      BTC: 0,
-      ETH: 0,
-      OTHER: 0
-    };
-    
-    const quoteExamples: Record<string, string[]> = {
-      USD: [],
-      USDT: [],
-      USDC: [],
-      EUR: [],
-      GBP: [],
-      BTC: [],
-      ETH: [],
-      OTHER: []
-    };
-
-    // Group by base symbol
-    const byBaseSymbol: Record<string, TickerSnapshot[]> = {};
+    // Count snapshot by quote currency
+    const snapshotByQuoteCurrency: Record<string, number> = {};
+    const snapshotQuoteExamples: Record<string, string[]> = {};
+    const snapshotByBaseSymbol: Record<string, TickerSnapshot[]> = {};
 
     for (const ticker of cryptoTickers) {
       const quote = parseQuoteCurrency(ticker.ticker);
       const base = parseBaseSymbol(ticker.ticker);
       
-      byQuoteCurrency[quote] = (byQuoteCurrency[quote] || 0) + 1;
+      snapshotByQuoteCurrency[quote] = (snapshotByQuoteCurrency[quote] || 0) + 1;
       
-      // Store up to 5 examples per quote currency
-      if ((quoteExamples[quote]?.length || 0) < 5) {
-        quoteExamples[quote] = quoteExamples[quote] || [];
-        quoteExamples[quote].push(ticker.ticker);
+      if (!snapshotQuoteExamples[quote]) snapshotQuoteExamples[quote] = [];
+      if (snapshotQuoteExamples[quote].length < 5) {
+        snapshotQuoteExamples[quote].push(ticker.ticker);
       }
       
-      // Group by base symbol
-      if (!byBaseSymbol[base]) {
-        byBaseSymbol[base] = [];
-      }
-      byBaseSymbol[base].push(ticker);
+      if (!snapshotByBaseSymbol[base]) snapshotByBaseSymbol[base] = [];
+      snapshotByBaseSymbol[base].push(ticker);
     }
 
-    // Find assets with multiple pairs
-    const multiPairAssets = Object.entries(byBaseSymbol)
+    // Analyze reference tickers
+    const referenceTickerSet = new Set(referenceTickers.map(t => t.ticker));
+    const referenceByQuoteCurrency: Record<string, number> = {};
+    const referenceQuoteExamples: Record<string, string[]> = {};
+    const referenceByBaseSymbol: Record<string, ReferenceTicker[]> = {};
+
+    for (const ticker of referenceTickers) {
+      const quote = parseQuoteCurrency(ticker.ticker);
+      const base = parseBaseSymbol(ticker.ticker);
+      
+      referenceByQuoteCurrency[quote] = (referenceByQuoteCurrency[quote] || 0) + 1;
+      
+      if (!referenceQuoteExamples[quote]) referenceQuoteExamples[quote] = [];
+      if (referenceQuoteExamples[quote].length < 5) {
+        referenceQuoteExamples[quote].push(ticker.ticker);
+      }
+      
+      if (!referenceByBaseSymbol[base]) referenceByBaseSymbol[base] = [];
+      referenceByBaseSymbol[base].push(ticker);
+    }
+
+    // Compare reference vs snapshot
+    const inReferenceNotSnapshot = referenceTickers
+      .filter(t => !snapshotTickerSet.has(t.ticker))
+      .map(t => t.ticker)
+      .slice(0, 100); // Sample 100
+
+    const inSnapshotNotReference = cryptoTickers
+      .filter(t => !referenceTickerSet.has(t.ticker))
+      .map(t => t.ticker);
+
+    const gap = referenceTickers.length - cryptoTickers.length;
+    const gapPercentage = referenceTickers.length > 0 
+      ? ((gap / referenceTickers.length) * 100).toFixed(1)
+      : '0';
+
+    // Find assets with multiple pairs (snapshot)
+    const multiPairAssets = Object.entries(snapshotByBaseSymbol)
       .filter(([_, tickers]) => tickers.length > 1)
       .sort((a, b) => b[1].length - a[1].length)
       .slice(0, 20)
@@ -196,14 +246,29 @@ serve(async (req) => {
       timestamp: new Date().toISOString(),
       crypto: {
         total: cryptoTickers.length,
-        byQuoteCurrency,
-        quoteExamples,
-        uniqueBaseSymbols: Object.keys(byBaseSymbol).length,
+        byQuoteCurrency: snapshotByQuoteCurrency,
+        quoteExamples: snapshotQuoteExamples,
+        uniqueBaseSymbols: Object.keys(snapshotByBaseSymbol).length,
         multiPairAssets,
         btcPairs,
         ethPairs,
         sampleTickers: cryptoTickers.slice(0, 10),
         sampleRawTicker
+      },
+      reference: {
+        total: referenceTickers.length,
+        byQuoteCurrency: referenceByQuoteCurrency,
+        quoteExamples: referenceQuoteExamples,
+        uniqueBaseSymbols: Object.keys(referenceByBaseSymbol).length,
+        sampleTickers: referenceTickers.slice(0, 20)
+      },
+      comparison: {
+        referenceTotal: referenceTickers.length,
+        snapshotTotal: cryptoTickers.length,
+        gap: gap,
+        gapPercentage: parseFloat(gapPercentage),
+        inReferenceNotSnapshot,
+        inSnapshotNotReference
       },
       forex: {
         total: forexData.tickers?.length || 0,
@@ -216,7 +281,7 @@ serve(async (req) => {
       rawCryptoResponse: cryptoData
     };
 
-    console.log(`✅ Analysis complete: ${cryptoTickers.length} crypto, ${response.forex.total} forex, ${response.stocks.total} stocks`);
+    console.log(`✅ Analysis complete: ${cryptoTickers.length} snapshot, ${referenceTickers.length} reference, ${gap} gap (${gapPercentage}%)`);
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
