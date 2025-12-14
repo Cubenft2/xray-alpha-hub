@@ -3,9 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { RefreshCw, Copy, Eye, EyeOff, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { RefreshCw, Copy, Eye, EyeOff, AlertCircle, CheckCircle2, Globe, TrendingUp, TrendingDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+
+interface ForexPrice {
+  ticker: string;
+  display: string;
+  price: number;
+  change24h: number;
+  updated_at: string;
+}
 
 interface PolygonPreviewData {
   timestamp: string;
@@ -41,6 +50,12 @@ interface PolygonPreviewData {
   forex: {
     total: number;
     samplePairs: any[];
+    priceCount: number;
+    pairCount: number;
+    assetCount: number;
+    lastUpdate: string | null;
+    isFresh: boolean;
+    majorPairs: ForexPrice[];
   };
   stocks: {
     total: number;
@@ -54,6 +69,7 @@ export function PolygonRawPreview() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRawJson, setShowRawJson] = useState(false);
+  const [triggeringForex, setTriggeringForex] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -76,6 +92,22 @@ export function PolygonRawPreview() {
     }
   };
 
+  const triggerForexSnapshot = async () => {
+    setTriggeringForex(true);
+    try {
+      const { data: response, error } = await supabase.functions.invoke('massive-forex-snapshot');
+      if (error) throw error;
+      toast.success(`Forex snapshot updated: ${response.prices_updated} prices`);
+      // Refresh the preview data
+      await fetchData();
+    } catch (err: any) {
+      console.error('Error triggering forex snapshot:', err);
+      toast.error('Failed to trigger forex snapshot');
+    } finally {
+      setTriggeringForex(false);
+    }
+  };
+
   const copyToClipboard = (content: any, label: string) => {
     navigator.clipboard.writeText(JSON.stringify(content, null, 2));
     toast.success(`${label} copied to clipboard`);
@@ -83,6 +115,7 @@ export function PolygonRawPreview() {
 
   const formatNumber = (num: number) => num?.toLocaleString() ?? 'N/A';
   const formatPrice = (price?: number) => price ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}` : 'N/A';
+  const formatForexPrice = (price?: number) => price ? price.toFixed(5) : 'N/A';
   const formatVolume = (vol?: number) => vol ? `$${(vol / 1e6).toFixed(2)}M` : 'N/A';
 
   return (
@@ -136,6 +169,113 @@ export function PolygonRawPreview() {
 
       {data && (
         <>
+          {/* Forex Status Card - NEW */}
+          <Card className="border-2 border-primary/20">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                Forex Status
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={triggerForexSnapshot}
+                disabled={triggeringForex}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${triggeringForex ? 'animate-spin' : ''}`} />
+                {triggeringForex ? 'Updating...' : 'Trigger Snapshot'}
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Last Update</div>
+                  <div className="font-mono text-lg">
+                    {data.forex.lastUpdate 
+                      ? formatDistanceToNow(new Date(data.forex.lastUpdate), { addSuffix: true })
+                      : 'Never'}
+                  </div>
+                </div>
+                
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Forex Prices</div>
+                  <div className="font-mono text-lg">{formatNumber(data.forex.priceCount)}</div>
+                </div>
+                
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Forex Pairs</div>
+                  <div className="font-mono text-lg">{formatNumber(data.forex.pairCount)}</div>
+                </div>
+
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Forex Assets</div>
+                  <div className="font-mono text-lg">{formatNumber(data.forex.assetCount)}</div>
+                </div>
+                
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Status</div>
+                  <div className="flex items-center gap-2">
+                    {data.forex.isFresh ? (
+                      <>
+                        <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-green-600 font-medium">Fresh</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                        <span className="text-red-600 font-medium">Stale</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Major Pairs */}
+              {data.forex.majorPairs && data.forex.majorPairs.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Major Pairs</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {data.forex.majorPairs.map((pair) => (
+                      <div key={pair.ticker} className="p-3 bg-muted/50 rounded-lg">
+                        <div className="font-medium text-sm">{pair.display}</div>
+                        <div className="font-mono text-lg">{formatForexPrice(pair.price)}</div>
+                        <div className={`flex items-center gap-1 text-sm ${pair.change24h >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {pair.change24h >= 0 ? (
+                            <TrendingUp className="h-3 w-3" />
+                          ) : (
+                            <TrendingDown className="h-3 w-3" />
+                          )}
+                          {pair.change24h >= 0 ? '+' : ''}{pair.change24h?.toFixed(4)}%
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Coverage indicator */}
+              <div className="flex items-center gap-2 text-sm">
+                {data.forex.priceCount === data.forex.pairCount ? (
+                  <Badge variant="default" className="bg-green-600">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Full Coverage
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">
+                    {data.forex.priceCount} / {data.forex.pairCount} pairs have prices
+                  </Badge>
+                )}
+                {data.forex.assetCount < 100 && (
+                  <Badge variant="destructive">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Only {data.forex.assetCount} assets - run forex sync!
+                  </Badge>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Summary Cards */}
           <div className="grid gap-4 md:grid-cols-3">
             <Card>

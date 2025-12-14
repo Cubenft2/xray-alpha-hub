@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -118,6 +119,10 @@ serve(async (req) => {
       throw new Error('POLYGON_API_KEY not configured');
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     console.log('🔍 Fetching raw Polygon unified snapshots and reference tickers...');
 
     // Fetch all four endpoints in parallel (reference is paginated, so we handle it separately)
@@ -143,6 +148,39 @@ serve(async (req) => {
       'https://api.polygon.io/v3/reference/tickers?market=crypto&active=true&limit=1000'
     );
     console.log(`📊 Reference tickers total: ${referenceTickers.length}`);
+
+    // Fetch forex status from database
+    console.log('💱 Fetching forex status from database...');
+    
+    // Get forex prices from live_prices
+    const { data: forexPrices, count: forexPriceCount } = await supabase
+      .from('live_prices')
+      .select('ticker, display, price, change24h, updated_at', { count: 'exact' })
+      .like('ticker', 'C:%')
+      .order('ticker')
+      .limit(12);
+
+    // Get forex pair count from poly_fx_pairs
+    const { count: forexPairCount } = await supabase
+      .from('poly_fx_pairs')
+      .select('*', { count: 'exact', head: true });
+
+    // Get forex asset count from assets table
+    const { count: forexAssetCount } = await supabase
+      .from('assets')
+      .select('*', { count: 'exact', head: true })
+      .eq('type', 'forex');
+
+    // Check freshness (stale if > 5 minutes old)
+    const lastForexUpdate = forexPrices?.[0]?.updated_at;
+    const forexIsFresh = lastForexUpdate && (Date.now() - new Date(lastForexUpdate).getTime() < 5 * 60 * 1000);
+
+    // Get major forex pairs specifically
+    const majorPairs = ['C:EURUSD', 'C:GBPUSD', 'C:USDJPY', 'C:USDCHF', 'C:AUDUSD', 'C:USDCAD', 'C:XAUUSD', 'C:XAGUSD'];
+    const { data: majorForexPrices } = await supabase
+      .from('live_prices')
+      .select('ticker, display, price, change24h, updated_at')
+      .in('ticker', majorPairs);
 
     // Analyze crypto snapshot tickers
     const cryptoTickers: TickerSnapshot[] = cryptoData.tickers || [];
@@ -272,7 +310,14 @@ serve(async (req) => {
       },
       forex: {
         total: forexData.tickers?.length || 0,
-        samplePairs: (forexData.tickers || []).slice(0, 10)
+        samplePairs: (forexData.tickers || []).slice(0, 10),
+        // Database status
+        priceCount: forexPriceCount || 0,
+        pairCount: forexPairCount || 0,
+        assetCount: forexAssetCount || 0,
+        lastUpdate: lastForexUpdate,
+        isFresh: forexIsFresh,
+        majorPairs: majorForexPrices || [],
       },
       stocks: {
         total: stocksData.tickers?.length || 0,
@@ -282,6 +327,7 @@ serve(async (req) => {
     };
 
     console.log(`✅ Analysis complete: ${cryptoTickers.length} snapshot, ${referenceTickers.length} reference, ${gap} gap (${gapPercentage}%)`);
+    console.log(`💱 Forex status: ${forexPriceCount} prices, ${forexPairCount} pairs, ${forexAssetCount} assets, fresh: ${forexIsFresh}`);
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
