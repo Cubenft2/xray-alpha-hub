@@ -1,6 +1,8 @@
 // Intent Router: Detect user intent and determine which tools to fetch
+// Uses canonical market presets for deterministic queries
 
 import { SessionContext } from "./context.ts";
+import { matchQueryToPreset, MarketPreset } from "./presets.ts";
 
 export type Intent = 
   | 'price' 
@@ -13,6 +15,7 @@ export type Intent =
   | 'content' 
   | 'verification'
   | 'market_overview'
+  | 'market_preset'  // NEW: Canonical preset execution
   | 'general';
 
 export interface RouteConfig {
@@ -25,6 +28,7 @@ export interface RouteConfig {
   fetchCharts: boolean;
   fetchDetails: boolean; // Asset fundamentals (description, categories, etc.)
   isSimpleQuery: boolean; // For model routing
+  preset?: MarketPreset; // If intent is market_preset, this holds the matched preset
 }
 
 // Intent patterns
@@ -96,16 +100,40 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
     };
   }
   
-  // Market overview - including "top N" group queries
-  if ((MARKET_PATTERN.test(query) || TOP_N_PATTERN.test(query) || GROUP_QUERY_PATTERN.test(query)) && !hasExplicitTicker(query)) {
-    console.log('[Router] Market overview / group query detected');
+  // Market preset - check if query matches a canonical preset first
+  if ((TOP_N_PATTERN.test(query) || GROUP_QUERY_PATTERN.test(query)) && !hasExplicitTicker(query)) {
+    const matchedPreset = matchQueryToPreset(query);
+    
+    if (matchedPreset) {
+      console.log(`[Router] MARKET_PRESET_MATCHED preset=${matchedPreset.id} query="${query}"`);
+      return {
+        intent: 'market_preset',
+        fetchPrices: false, // Preset execution handles data fetching
+        fetchSocial: false,
+        fetchDerivs: false,
+        fetchSecurity: false,
+        fetchNews: false,
+        fetchCharts: false,
+        fetchDetails: false,
+        isSimpleQuery: false,
+        preset: matchedPreset,
+      };
+    }
+    
+    // No preset match but looks like market query - use general market_overview
+    console.log(`[Router] Market query detected but no preset match - using market_overview`);
+  }
+  
+  // Market overview - general market sentiment (no specific preset)
+  if (MARKET_PATTERN.test(query) && !hasExplicitTicker(query)) {
+    console.log('[Router] Market overview detected');
     return {
       intent: 'market_overview',
       fetchPrices: true,
       fetchSocial: true,
-      fetchDerivs: false, // Skip derivs for overview - focus on price/social
+      fetchDerivs: false,
       fetchSecurity: false,
-      fetchNews: false, // Skip news for overview - keep response fast
+      fetchNews: false,
       fetchCharts: false,
       fetchDetails: false,
       isSimpleQuery: false,

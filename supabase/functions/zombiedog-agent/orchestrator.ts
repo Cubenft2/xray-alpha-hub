@@ -1,8 +1,10 @@
 // Tool Orchestrator: Cache-first execution with TTL, budgets, and timeouts
 // Supports thousands of concurrent users without per-request API spam
+// Uses canonical market presets for deterministic market queries
 
 import { RouteConfig, Intent } from "./router.ts";
 import { ResolvedAsset } from "./resolver.ts";
+import { MarketPreset } from "./presets.ts";
 
 const TOOL_TIMEOUT_MS = 5000;
 
@@ -57,6 +59,13 @@ export interface MarketSummary {
   topSentiment?: { symbol: string; score: number }[];
 }
 
+export interface PresetExecutionResult {
+  data: any[];
+  preset: MarketPreset;
+  rowCount: number;
+  executionTime: number;
+}
+
 export interface ToolResults {
   prices?: PriceData[];
   social?: SocialData[];
@@ -66,6 +75,7 @@ export interface ToolResults {
   charts?: ChartData;
   details?: AssetDetails; // Asset fundamentals
   marketSummary?: MarketSummary; // Pre-computed for market_overview
+  presetResult?: PresetExecutionResult; // Canonical preset execution result
   timestamps: Record<string, string>;
   cacheStats: {
     hits: string[];
@@ -180,6 +190,53 @@ async function fetchWithTimeout<T>(
   }
 }
 
+/**
+ * Execute a canonical market preset via lunarcrush-universe edge function
+ * This is the ONLY way ZombieDog should query market lists - NO free-form queries
+ */
+async function executePreset(supabase: any, preset: MarketPreset): Promise<any[]> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/lunarcrush-universe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({
+        limit: preset.query.limit,
+        offset: 0,
+        sortBy: preset.query.sortBy,
+        sortDir: preset.query.sortDir,
+        changeFilter: preset.query.changeFilter,
+        category: preset.query.categoryFilter,
+        minVolume: preset.query.minVolume,
+        minGalaxyScore: preset.query.minGalaxyScore,
+        minMarketCap: preset.query.minMarketCap,
+      }),
+    });
+    
+    if (!res.ok) {
+      console.error(`[Preset] lunarcrush-universe error: ${res.status} ${res.statusText}`);
+      return [];
+    }
+    
+    const data = await res.json();
+    
+    if (!data.success) {
+      console.error(`[Preset] lunarcrush-universe failed: ${data.error}`);
+      return [];
+    }
+    
+    return data.data || [];
+  } catch (e) {
+    console.error(`[Preset] executePreset error:`, e);
+    return [];
+  }
+}
+
 export async function executeTools(
   supabase: any,
   config: RouteConfig,
@@ -201,6 +258,59 @@ export async function executeTools(
   const symbols = assets.map(a => a.symbol);
   
   console.log(`[Orchestrator] Intent: ${config.intent}, assets: [${symbols.join(', ')}], count: ${symbols.length}`);
+  
+  // CANONICAL PRESET EXECUTION - deterministic, no guessing
+  if (config.intent === 'market_preset' && config.preset) {
+    const preset = config.preset;
+    const startTime = Date.now();
+    
+    console.log(`MARKET_PRESET_EXECUTING preset=${preset.id}`);
+    
+    const presetData = await executePreset(supabase, preset);
+    
+    const executionTime = Date.now() - startTime;
+    
+    if (presetData.length === 0) {
+      console.log(`MARKET_PRESET_EMPTY preset=${preset.id} rows=0 latency_ms=${executionTime}`);
+      results.cacheStats.misses.push(`preset:${preset.id}:empty`);
+    } else {
+      console.log(`MARKET_PRESET_EXECUTED preset=${preset.id} rows=${presetData.length} latency_ms=${executionTime}`);
+      results.cacheStats.hits.push(`preset:${preset.id}`);
+    }
+    
+    results.presetResult = {
+      data: presetData,
+      preset,
+      rowCount: presetData.length,
+      executionTime,
+    };
+    results.timestamps.preset = new Date().toISOString();
+    
+    // Also populate prices/social for LLM context from preset data
+    if (presetData.length > 0) {
+      results.prices = presetData.map((c: any) => ({
+        symbol: c.symbol,
+        price: c.price,
+        change24h: c.percent_change_24h || c.change_percent || 0,
+        marketCap: c.market_cap,
+        volume24h: c.volume_24h,
+        source: 'preset:' + preset.id,
+        updatedAt: c.updated_at,
+      }));
+      results.social = presetData.map((c: any) => ({
+        symbol: c.symbol,
+        galaxyScore: c.galaxy_score,
+        altRank: c.alt_rank,
+        sentiment: c.sentiment,
+        socialVolume: c.social_volume,
+        updatedAt: c.updated_at,
+      }));
+      results.timestamps.prices = new Date().toISOString();
+      results.timestamps.social = new Date().toISOString();
+    }
+    
+    return results; // Early return - preset handles everything
+  }
   
   // For market_overview: fetch top 25 by market cap from crypto_snapshot
   if (config.intent === 'market_overview' && symbols.length === 0) {
