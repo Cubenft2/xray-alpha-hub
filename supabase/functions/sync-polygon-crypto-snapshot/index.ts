@@ -158,7 +158,18 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Batch upsert active records
+    // Step 1: Mark all currently-active records as inactive FIRST
+    console.log('[sync-polygon-crypto-snapshot] Resetting active flags...');
+    const { error: resetError } = await supabase
+      .from('polygon_crypto_cards')
+      .update({ in_snapshot: false, is_active: false, updated_at: now })
+      .eq('in_snapshot', true);
+
+    if (resetError) {
+      console.warn('[sync-polygon-crypto-snapshot] Reset error:', resetError);
+    }
+
+    // Step 2: Batch upsert active records (will set is_active=true, in_snapshot=true)
     const batchSize = 500;
     let upsertedCount = 0;
     
@@ -182,24 +193,13 @@ Deno.serve(async (req) => {
 
     console.log(`[sync-polygon-crypto-snapshot] Upserted ${upsertedCount} active records`);
 
-    // Mark records not in snapshot as inactive
-    const { data: markedInactive, error: markError } = await supabase
+    // Count how many remain inactive (reference-only tickers not in snapshot)
+    const { count: inactiveCount } = await supabase
       .from('polygon_crypto_cards')
-      .update({ 
-        in_snapshot: false, 
-        is_active: false,
-        updated_at: now 
-      })
-      .eq('in_snapshot', true)
-      .not('canonical_symbol', 'in', `(${activeSymbols.map(s => `'${s}'`).join(',')})`)
-      .select('canonical_symbol');
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', false);
 
-    const inactiveCount = markedInactive?.length || 0;
-    if (markError) {
-      console.warn('[sync-polygon-crypto-snapshot] Mark inactive error:', markError);
-    } else {
-      console.log(`[sync-polygon-crypto-snapshot] Marked ${inactiveCount} records as inactive`);
-    }
+    console.log(`[sync-polygon-crypto-snapshot] ${inactiveCount || 0} records remain inactive (reference-only)`);
 
     const duration = Date.now() - startTime;
     const result = {
