@@ -19,6 +19,25 @@ interface IndicatorResponse {
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+async function fetchWithRetry(url: string): Promise<Response | null> {
+  try {
+    const response = await fetch(url);
+    if (response.ok) return response;
+    
+    // Retry once after 1 second on non-ok response
+    await delay(1000);
+    return await fetch(url);
+  } catch (error) {
+    // Retry once on connection error
+    await delay(1000);
+    try {
+      return await fetch(url);
+    } catch {
+      return null;
+    }
+  }
+}
+
 async function fetchIndicator(
   ticker: string, 
   indicatorType: string, 
@@ -27,10 +46,10 @@ async function fetchIndicator(
 ): Promise<number | { value: number; signal: number; histogram: number } | null> {
   try {
     const url = `https://api.polygon.io/v1/indicators/${indicatorType}/${encodeURIComponent(ticker)}?timespan=day&limit=1${params}&apiKey=${apiKey}`;
-    const response = await fetch(url);
+    const response = await fetchWithRetry(url);
     
-    if (!response.ok) {
-      console.warn(`[technicals] ${indicatorType} failed for ${ticker}: ${response.status}`);
+    if (!response || !response.ok) {
+      console.warn(`[technicals] ${indicatorType} failed for ${ticker}`);
       return null;
     }
     
@@ -103,7 +122,7 @@ serve(async (req) => {
 
     console.log(`[sync-polygon-crypto-technicals] Processing ${tokens.length} active tokens`);
 
-    const batchSize = 15;
+    const batchSize = 10;
     const now = new Date().toISOString();
     let processedCount = 0;
     let updatedCount = 0;
@@ -122,12 +141,19 @@ serve(async (req) => {
         if (!ticker) return null;
 
         try {
-          // Fetch all 7 indicators in parallel for this token
-          const [rsi, macd, sma20, sma50, sma200, ema12, ema26] = await Promise.all([
+          // Group 1: RSI, MACD, SMA-20, SMA-50 (4 parallel calls)
+          const [rsi, macd, sma20, sma50] = await Promise.all([
             fetchIndicator(ticker, 'rsi', polygonApiKey, '&window=14'),
             fetchIndicator(ticker, 'macd', polygonApiKey, '&short_window=12&long_window=26&signal_window=9'),
             fetchIndicator(ticker, 'sma', polygonApiKey, '&window=20'),
             fetchIndicator(ticker, 'sma', polygonApiKey, '&window=50'),
+          ]);
+
+          // Small pause between groups to reduce connection resets
+          await delay(200);
+
+          // Group 2: SMA-200, EMA-12, EMA-26 (3 parallel calls)
+          const [sma200, ema12, ema26] = await Promise.all([
             fetchIndicator(ticker, 'sma', polygonApiKey, '&window=200'),
             fetchIndicator(ticker, 'ema', polygonApiKey, '&window=12'),
             fetchIndicator(ticker, 'ema', polygonApiKey, '&window=26'),
@@ -179,9 +205,9 @@ serve(async (req) => {
         }
       }
 
-      // Delay between batches to avoid rate limiting
+      // Delay between batches to avoid rate limiting (increased to 500ms)
       if (i + batchSize < tokens.length) {
-        await delay(300);
+        await delay(500);
       }
     }
 
