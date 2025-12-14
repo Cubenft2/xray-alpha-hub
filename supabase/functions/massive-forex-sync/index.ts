@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       // Extract raw symbol from C:EURUSD -> EURUSD
       const rawSymbol = ticker.ticker.replace('C:', '');
       
-      // Create display symbol (EUR/USD)
+      // Create display symbol (EUR/USD) for human readability
       const displaySymbol = rawSymbol.length === 6 
         ? `${rawSymbol.slice(0, 3)}/${rawSymbol.slice(3)}` 
         : rawSymbol;
@@ -91,10 +91,15 @@ Deno.serve(async (req) => {
       const baseCurrency = rawSymbol.length >= 3 ? rawSymbol.slice(0, 3) : null;
       const quoteCurrency = rawSymbol.length >= 6 ? rawSymbol.slice(3, 6) : null;
 
+      // Use raw symbol (EURUSD) for assets table to avoid special character issues
       assetInserts.push({
-        symbol: displaySymbol,
+        symbol: rawSymbol,              // EURUSD (no slash - this is the unique key)
+        display_symbol: displaySymbol,  // EUR/USD (human readable)
         name: ticker.name || displaySymbol,
         type: 'forex',
+        market: 'fx',
+        provider: 'massive',
+        active: ticker.active ?? true,
         logo_url: null,
         created_at: now,
         updated_at: now,
@@ -112,27 +117,33 @@ Deno.serve(async (req) => {
 
     console.log(`💱 Prepared ${assetInserts.length} forex assets for insert`);
 
-    // Upsert to assets table
+    // Upsert to assets table with detailed error logging
     let assetsUpserted = 0;
+    let assetsErrors = 0;
     if (assetInserts.length > 0) {
-      const batchSize = 500;
+      const batchSize = 100;
       for (let i = 0; i < assetInserts.length; i += batchSize) {
         const batch = assetInserts.slice(i, i + batchSize);
+        const batchNum = Math.floor(i / batchSize) + 1;
         
-        const { error } = await supabase
+        const { error, count } = await supabase
           .from('assets')
           .upsert(batch, { 
             onConflict: 'symbol',
             ignoreDuplicates: false 
-          });
+          })
+          .select('id', { count: 'exact' });
 
         if (error) {
-          console.error(`❌ Assets upsert batch error:`, error);
+          console.error(`❌ Assets batch ${batchNum} error:`, JSON.stringify(error));
+          console.error(`❌ First 2 items in failed batch:`, JSON.stringify(batch.slice(0, 2)));
+          assetsErrors++;
         } else {
-          assetsUpserted += batch.length;
+          assetsUpserted += count || batch.length;
+          console.log(`✅ Batch ${batchNum}: upserted ${count || batch.length} forex assets`);
         }
       }
-      console.log(`✅ Upserted ${assetsUpserted} forex assets`);
+      console.log(`✅ Upserted ${assetsUpserted} forex assets (${assetsErrors} batch errors)`);
     }
 
     // Upsert to poly_fx_pairs table
@@ -167,6 +178,7 @@ Deno.serve(async (req) => {
         status: 'success',
         tickers_fetched: allTickers.length,
         assets_upserted: assetsUpserted,
+        assets_errors: assetsErrors,
         pairs_upserted: pairsUpserted,
         duration_ms: duration,
       }),

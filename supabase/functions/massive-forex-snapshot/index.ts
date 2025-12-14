@@ -85,18 +85,23 @@ Deno.serve(async (req) => {
     
     console.log(`💱 Found ${validPairs.length} valid forex pairs`);
 
-    // Get existing forex assets for matching
+    // Get existing forex assets for matching - use raw symbol (EURUSD)
     const { data: assets } = await supabase
       .from('assets')
-      .select('id, symbol, name')
+      .select('id, symbol, display_symbol, name')
       .eq('type', 'forex');
 
     const assetMap = new Map<string, any>();
     (assets || []).forEach(asset => {
-      // Map both display symbol (EUR/USD) and raw symbol (EURUSD)
+      // Map by raw symbol (EURUSD) - primary key
       assetMap.set(asset.symbol.toUpperCase(), asset);
-      assetMap.set(asset.symbol.replace('/', '').toUpperCase(), asset);
+      // Also map without slash if display_symbol exists
+      if (asset.display_symbol) {
+        assetMap.set(asset.display_symbol.replace('/', '').toUpperCase(), asset);
+      }
     });
+
+    console.log(`📋 Found ${assetMap.size} forex assets in database for matching`);
 
     // Build price updates
     const priceUpdates: any[] = [];
@@ -112,7 +117,8 @@ Deno.serve(async (req) => {
         ? `${rawSymbol.slice(0, 3)}/${rawSymbol.slice(3)}` 
         : rawSymbol;
       
-      const asset = assetMap.get(rawSymbol) || assetMap.get(displaySymbol.replace('/', ''));
+      // Look up by raw symbol (EURUSD)
+      const asset = assetMap.get(rawSymbol.toUpperCase());
 
       // Calculate mid price from bid/ask, or use close
       let price = 0;
