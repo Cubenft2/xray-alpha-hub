@@ -16,6 +16,17 @@ interface ForexPrice {
   updated_at: string;
 }
 
+interface CryptoCard {
+  canonical_symbol: string;
+  name: string | null;
+  price_usd: number | null;
+  change_24h_pct: number | null;
+  volume_24h: number | null;
+  is_active: boolean;
+  primary_ticker: string | null;
+  price_updated_at: string | null;
+}
+
 interface PolygonPreviewData {
   timestamp: string;
   crypto: {
@@ -47,6 +58,14 @@ interface PolygonPreviewData {
     }>;
     sampleRawTicker: any;
   };
+  cryptoCards: {
+    totalCards: number;
+    activeCards: number;
+    referenceOnlyCards: number;
+    lastUpdate: string | null;
+    isFresh: boolean;
+    sampleCards: CryptoCard[];
+  };
   forex: {
     total: number;
     samplePairs: any[];
@@ -70,6 +89,8 @@ export function PolygonRawPreview() {
   const [error, setError] = useState<string | null>(null);
   const [showRawJson, setShowRawJson] = useState(false);
   const [triggeringForex, setTriggeringForex] = useState(false);
+  const [triggeringReference, setTriggeringReference] = useState(false);
+  const [triggeringSnapshot, setTriggeringSnapshot] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -89,6 +110,36 @@ export function PolygonRawPreview() {
       toast.error('Failed to fetch data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const triggerReferenceSync = async () => {
+    setTriggeringReference(true);
+    try {
+      const { data: response, error } = await supabase.functions.invoke('sync-polygon-crypto-reference');
+      if (error) throw error;
+      toast.success(`Reference sync complete: ${response.canonicalSymbols} symbols from ${response.referenceTickers} tickers`);
+      await fetchData();
+    } catch (err: any) {
+      console.error('Error triggering reference sync:', err);
+      toast.error('Failed to trigger reference sync');
+    } finally {
+      setTriggeringReference(false);
+    }
+  };
+
+  const triggerSnapshotSync = async () => {
+    setTriggeringSnapshot(true);
+    try {
+      const { data: response, error } = await supabase.functions.invoke('sync-polygon-crypto-snapshot');
+      if (error) throw error;
+      toast.success(`Snapshot sync complete: ${response.upsertedRecords} active, ${response.markedInactive} inactive`);
+      await fetchData();
+    } catch (err: any) {
+      console.error('Error triggering snapshot sync:', err);
+      toast.error('Failed to trigger snapshot sync');
+    } finally {
+      setTriggeringSnapshot(false);
     }
   };
 
@@ -273,6 +324,122 @@ export function PolygonRawPreview() {
                   </Badge>
                 )}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Crypto Cards Status */}
+          <Card className="border-2 border-primary/20">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                🎴 Polygon Crypto Cards
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={triggerReferenceSync}
+                  disabled={triggeringReference}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${triggeringReference ? 'animate-spin' : ''}`} />
+                  {triggeringReference ? 'Syncing...' : 'Sync Reference'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={triggerSnapshotSync}
+                  disabled={triggeringSnapshot}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${triggeringSnapshot ? 'animate-spin' : ''}`} />
+                  {triggeringSnapshot ? 'Syncing...' : 'Sync Prices'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Total Cards</div>
+                  <div className="font-mono text-lg">{formatNumber(data.cryptoCards?.totalCards || 0)}</div>
+                </div>
+                
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Active (in_snapshot)</div>
+                  <div className="font-mono text-lg text-green-600">{formatNumber(data.cryptoCards?.activeCards || 0)}</div>
+                </div>
+                
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Reference Only</div>
+                  <div className="font-mono text-lg text-muted-foreground">{formatNumber(data.cryptoCards?.referenceOnlyCards || 0)}</div>
+                </div>
+                
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Last Price Update</div>
+                  <div className="font-mono text-sm">
+                    {data.cryptoCards?.lastUpdate 
+                      ? formatDistanceToNow(new Date(data.cryptoCards.lastUpdate), { addSuffix: true })
+                      : 'Never'}
+                  </div>
+                </div>
+                
+                <div className="p-3 bg-muted rounded-lg">
+                  <div className="text-sm text-muted-foreground">Status</div>
+                  <div className="flex items-center gap-2">
+                    {data.cryptoCards?.isFresh ? (
+                      <>
+                        <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-green-600 font-medium">Fresh</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-3 h-3 rounded-full bg-red-500" />
+                        <span className="text-red-600 font-medium">Stale</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Sample Active Cards */}
+              {data.cryptoCards?.sampleCards && data.cryptoCards.sampleCards.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Top 10 Active Cards (by Volume)</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 px-3">Symbol</th>
+                          <th className="text-left py-2 px-3">Name</th>
+                          <th className="text-right py-2 px-3">Price (USD)</th>
+                          <th className="text-right py-2 px-3">24h Change</th>
+                          <th className="text-right py-2 px-3">Volume 24h</th>
+                          <th className="text-left py-2 px-3">Primary Ticker</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.cryptoCards.sampleCards.map((card) => (
+                          <tr key={card.canonical_symbol} className="border-b">
+                            <td className="py-2 px-3 font-bold">{card.canonical_symbol}</td>
+                            <td className="py-2 px-3 text-muted-foreground text-xs">{card.name || '—'}</td>
+                            <td className="text-right py-2 px-3 font-mono">{formatPrice(card.price_usd ?? undefined)}</td>
+                            <td className={`text-right py-2 px-3 ${(card.change_24h_pct ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {card.change_24h_pct != null ? `${card.change_24h_pct >= 0 ? '+' : ''}${card.change_24h_pct.toFixed(2)}%` : '—'}
+                            </td>
+                            <td className="text-right py-2 px-3">{formatVolume(card.volume_24h ?? undefined)}</td>
+                            <td className="py-2 px-3 font-mono text-xs">{card.primary_ticker || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty State */}
+              {(!data.cryptoCards?.sampleCards || data.cryptoCards.sampleCards.length === 0) && (
+                <div className="text-center py-4 text-muted-foreground">
+                  <p>No crypto cards yet. Click "Sync Reference" then "Sync Prices" to populate.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
