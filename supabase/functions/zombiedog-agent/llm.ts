@@ -109,6 +109,20 @@ export function buildSystemPrompt(
     parts.push(`- Include Galaxy Score and Sentiment for top coins if available.`);
   }
   
+  // For market_preset: CANONICAL PRESET EXECUTION - no guessing allowed
+  if (config.intent === 'market_preset' && config.preset) {
+    parts.push('');
+    parts.push(`## MARKET PRESET EXECUTION (CANONICAL - NO GUESSING):`);
+    parts.push(`- You executed the preset: "${config.preset.name}" (ID: ${config.preset.id})`);
+    parts.push(`- Description: ${config.preset.description}`);
+    parts.push(`- This data is the SINGLE SOURCE OF TRUTH for this query.`);
+    parts.push(`- Present the data in a clear, ranked format.`);
+    parts.push(`- Include: rank, symbol/name, price, 24h change %, and relevant metrics.`);
+    parts.push(`- Add a brief summary at the top (e.g., "Here are the top 25 gainers from the last 24 hours...")`);
+    parts.push(`- If zero rows returned, say: "I don't have verified data for that market view right now."`);
+    parts.push(`- NEVER invent or hallucinate additional tokens not in the data.`);
+  }
+  
   // FIX #4: Tool Data Contract — explicit timestamps and missing data handling
   parts.push('');
   parts.push('## Tool Data (JSON format for accuracy):');
