@@ -282,3 +282,10 @@ verify_jwt = false
 
 [[functions.sync-polygon-crypto-snapshot.cron]]
 schedule = "* * * * *"
+
+# Technical indicators sync - every 15 minutes
+[functions.sync-polygon-crypto-technicals]
+verify_jwt = false
+
+[[functions.sync-polygon-crypto-technicals.cron]]
+schedule = "*/15 * * * *"
