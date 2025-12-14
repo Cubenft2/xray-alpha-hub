@@ -260,3 +260,7 @@ schedule = "0 3 * * *"
 # Single source of truth for all market data queries
 [functions.market-data]
 verify_jwt = false
+
+# Polygon Raw Preview - temporary diagnostic tool
+[functions.polygon-raw-preview]
+verify_jwt = false
