@@ -1307,6 +1307,120 @@ export type Database = {
           },
         ]
       }
+      polygon_crypto_cards: {
+        Row: {
+          ask_price: number | null
+          bid_price: number | null
+          canonical_symbol: string
+          change_24h_pct: number | null
+          close_24h: number | null
+          created_at: string | null
+          ema_12: number | null
+          ema_26: number | null
+          high_24h: number | null
+          id: string
+          in_reference: boolean | null
+          in_snapshot: boolean | null
+          is_active: boolean | null
+          last_trade_at: string | null
+          low_24h: number | null
+          macd: number | null
+          macd_histogram: number | null
+          macd_signal: number | null
+          name: string | null
+          open_24h: number | null
+          polygon_tickers: string[] | null
+          price_source_ticker: string | null
+          price_updated_at: string | null
+          price_usd: number | null
+          primary_ticker: string | null
+          reference_synced_at: string | null
+          rsi_14: number | null
+          sma_20: number | null
+          sma_200: number | null
+          sma_50: number | null
+          spread_pct: number | null
+          technicals_updated_at: string | null
+          updated_at: string | null
+          volume_24h: number | null
+          vwap_24h: number | null
+        }
+        Insert: {
+          ask_price?: number | null
+          bid_price?: number | null
+          canonical_symbol: string
+          change_24h_pct?: number | null
+          close_24h?: number | null
+          created_at?: string | null
+          ema_12?: number | null
+          ema_26?: number | null
+          high_24h?: number | null
+          id?: string
+          in_reference?: boolean | null
+          in_snapshot?: boolean | null
+          is_active?: boolean | null
+          last_trade_at?: string | null
+          low_24h?: number | null
+          macd?: number | null
+          macd_histogram?: number | null
+          macd_signal?: number | null
+          name?: string | null
+          open_24h?: number | null
+          polygon_tickers?: string[] | null
+          price_source_ticker?: string | null
+          price_updated_at?: string | null
+          price_usd?: number | null
+          primary_ticker?: string | null
+          reference_synced_at?: string | null
+          rsi_14?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          spread_pct?: number | null
+          technicals_updated_at?: string | null
+          updated_at?: string | null
+          volume_24h?: number | null
+          vwap_24h?: number | null
+        }
+        Update: {
+          ask_price?: number | null
+          bid_price?: number | null
+          canonical_symbol?: string
+          change_24h_pct?: number | null
+          close_24h?: number | null
+          created_at?: string | null
+          ema_12?: number | null
+          ema_26?: number | null
+          high_24h?: number | null
+          id?: string
+          in_reference?: boolean | null
+          in_snapshot?: boolean | null
+          is_active?: boolean | null
+          last_trade_at?: string | null
+          low_24h?: number | null
+          macd?: number | null
+          macd_histogram?: number | null
+          macd_signal?: number | null
+          name?: string | null
+          open_24h?: number | null
+          polygon_tickers?: string[] | null
+          price_source_ticker?: string | null
+          price_updated_at?: string | null
+          price_usd?: number | null
+          primary_ticker?: string | null
+          reference_synced_at?: string | null
+          rsi_14?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          spread_pct?: number | null
+          technicals_updated_at?: string | null
+          updated_at?: string | null
+          volume_24h?: number | null
+          vwap_24h?: number | null
+        }
+        Relationships: []
+      }
       price_cache: {
         Row: {
           cached_at: string

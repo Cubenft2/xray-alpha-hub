@@ -280,6 +280,43 @@ serve(async (req) => {
     // Sample raw ticker for inspection
     const sampleRawTicker = cryptoTickers.find(t => t.ticker === 'X:BTCUSD') || cryptoTickers[0];
 
+    // Fetch polygon_crypto_cards status
+    console.log('🎴 Fetching polygon_crypto_cards status...');
+    
+    const { count: totalCards } = await supabase
+      .from('polygon_crypto_cards')
+      .select('*', { count: 'exact', head: true });
+    
+    const { count: activeCards } = await supabase
+      .from('polygon_crypto_cards')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true);
+    
+    const { count: referenceOnlyCards } = await supabase
+      .from('polygon_crypto_cards')
+      .select('*', { count: 'exact', head: true })
+      .eq('in_reference', true)
+      .eq('in_snapshot', false);
+    
+    const { data: lastCardUpdate } = await supabase
+      .from('polygon_crypto_cards')
+      .select('price_updated_at')
+      .not('price_updated_at', 'is', null)
+      .order('price_updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    const { data: sampleCards } = await supabase
+      .from('polygon_crypto_cards')
+      .select('canonical_symbol, name, price_usd, change_24h_pct, volume_24h, is_active, primary_ticker, price_updated_at')
+      .eq('is_active', true)
+      .not('price_usd', 'is', null)
+      .order('volume_24h', { ascending: false, nullsFirst: false })
+      .limit(10);
+
+    const cardsLastUpdate = lastCardUpdate?.price_updated_at;
+    const cardsIsFresh = cardsLastUpdate && (Date.now() - new Date(cardsLastUpdate).getTime() < 2 * 60 * 1000);
+
     const response = {
       timestamp: new Date().toISOString(),
       crypto: {
@@ -292,6 +329,14 @@ serve(async (req) => {
         ethPairs,
         sampleTickers: cryptoTickers.slice(0, 10),
         sampleRawTicker
+      },
+      cryptoCards: {
+        totalCards: totalCards || 0,
+        activeCards: activeCards || 0,
+        referenceOnlyCards: referenceOnlyCards || 0,
+        lastUpdate: cardsLastUpdate,
+        isFresh: cardsIsFresh,
+        sampleCards: sampleCards || []
       },
       reference: {
         total: referenceTickers.length,
@@ -328,6 +373,7 @@ serve(async (req) => {
 
     console.log(`✅ Analysis complete: ${cryptoTickers.length} snapshot, ${referenceTickers.length} reference, ${gap} gap (${gapPercentage}%)`);
     console.log(`💱 Forex status: ${forexPriceCount} prices, ${forexPairCount} pairs, ${forexAssetCount} assets, fresh: ${forexIsFresh}`);
+    console.log(`🎴 Crypto Cards: ${totalCards} total, ${activeCards} active, ${referenceOnlyCards} reference-only, fresh: ${cardsIsFresh}`);
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

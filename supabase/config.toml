@@ -264,3 +264,21 @@ verify_jwt = false
 # Polygon Raw Preview - temporary diagnostic tool
 [functions.polygon-raw-preview]
 verify_jwt = false
+
+# ============================================
+# POLYGON CRYPTO CARDS SYNC
+# ============================================
+
+# Reference sync - daily at 4 AM (catch new listings)
+[functions.sync-polygon-crypto-reference]
+verify_jwt = false
+
+[[functions.sync-polygon-crypto-reference.cron]]
+schedule = "0 4 * * *"
+
+# Snapshot sync - every 1 minute (live prices)
+[functions.sync-polygon-crypto-snapshot]
+verify_jwt = false
+
+[[functions.sync-polygon-crypto-snapshot.cron]]
+schedule = "* * * * *"
