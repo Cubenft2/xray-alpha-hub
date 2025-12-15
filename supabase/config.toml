@@ -202,11 +202,17 @@ verify_jwt = false
 [[functions.warm-derivs-cache.cron]]
 schedule = "*/5 * * * *"
 
+# DISABLED: warm-news-cache uses expensive Tavily API
+# Replaced by sync-token-news-polygon which is FREE (unlimited)
 [functions.warm-news-cache]
 verify_jwt = false
 
-[[functions.warm-news-cache.cron]]
-schedule = "*/30 * * * *"
+# Sync Polygon news to token_cards (FREE - unlimited)
+[functions.sync-token-news-polygon]
+verify_jwt = false
+
+[[functions.sync-token-news-polygon.cron]]
+schedule = "*/15 * * * *"
 
 [functions.massive-crypto-snapshot]
 verify_jwt = false
