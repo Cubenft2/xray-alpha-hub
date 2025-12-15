@@ -6,10 +6,70 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Chain mappings between token_cards format and cg_master.platforms format
 // Manual mappings for high-tier tokens that can't be matched by contract address
 // These are native tokens or have address mismatches between LunarCrush and CoinGecko
+// CRITICAL: These take priority and will OVERWRITE wrong coingecko_id values
 const MANUAL_MAPPINGS: Record<string, string> = {
+  // ========== CRITICAL: Top coins that get wrong contract matches ==========
+  // These MUST be listed first and will overwrite any wrong values
+  'BTC': 'bitcoin',
+  'ETH': 'ethereum',
+  'SOL': 'solana',
+  'BNB': 'binancecoin',
+  'XRP': 'ripple',
+  'USDT': 'tether',
+  'USDC': 'usd-coin',
+  'ADA': 'cardano',
+  'DOGE': 'dogecoin',
+  'TRX': 'tron',
+  'TON': 'the-open-network',
+  'AVAX': 'avalanche-2',
+  'LINK': 'chainlink',
+  'DOT': 'polkadot',
+  'MATIC': 'matic-network',
+  'POL': 'polygon-ecosystem-token',
+  'LTC': 'litecoin',
+  'BCH': 'bitcoin-cash',
+  'XLM': 'stellar',
+  'ATOM': 'cosmos',
+  'NEAR': 'near',
+  'FIL': 'filecoin',
+  'ICP': 'internet-computer',
+  'ETC': 'ethereum-classic',
+  'XMR': 'monero',
+  'ALGO': 'algorand',
+  'HBAR': 'hedera-hashgraph',
+  'EOS': 'eos',
+  'STX': 'blockstack',
+  'AR': 'arweave',
+  'FTM': 'fantom',
+  'SAND': 'the-sandbox',
+  'MANA': 'decentraland',
+  'AXS': 'axie-infinity',
+  'THETA': 'theta-token',
+  'FLOW': 'flow',
+  'GRT': 'the-graph',
+  'AAVE': 'aave',
+  'UNI': 'uniswap',
+  'MKR': 'maker',
+  'SNX': 'havven',
+  'COMP': 'compound-governance-token',
+  'CRV': 'curve-dao-token',
+  'LDO': 'lido-dao',
+  'RPL': 'rocket-pool',
+  'APE': 'apecoin',
+  'IMX': 'immutable-x',
+  'OP': 'optimism',
+  'ARB': 'arbitrum',
+  'BLUR': 'blur',
+  'WBTC': 'wrapped-bitcoin',
+  'WETH': 'weth',
+  'WBNB': 'wbnb',
+  'ZEC': 'zcash',
+  'XTZ': 'tezos',
+  'LUNC': 'terra-luna',
+  'LUNA': 'terra-luna-2',
+  
   // Native L1 tokens (no contract addresses)
   'SUI': 'sui',
   'APT': 'aptos',
@@ -34,7 +94,6 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'ONT': 'ontology',
   'QTUM': 'qtum',
   'RVN': 'ravencoin',
-  'ZEC': 'zcash',
   'DCR': 'decred',
   'XEM': 'nem',
   'WAVES': 'waves',
@@ -53,13 +112,12 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'CRO': 'crypto-com-chain',
   'NEXO': 'nexo',
   
-  // Special cases
+  // Popular meme/DeFi tokens
   'WIF': 'dogwifcoin',
   'BONK': 'bonk',
   'FLOKI': 'floki',
   'PEPE': 'pepe',
   'SHIB': 'shiba-inu',
-  'DOGE': 'dogecoin',
   'ORDI': 'ordinals',
   'SATS': '1000sats-ordinals',
   'RATS': 'rats-ordinals',
@@ -123,7 +181,7 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'AERO': 'aerodrome-finance',
   'VELO': 'velodrome-finance',
   
-  // Additional Tier 1/2 tokens found missing
+  // Additional Tier 1/2 tokens
   'SUN': 'sun-token',
   'JST': 'just',
   'KLAY': 'klay-token',
@@ -182,40 +240,53 @@ serve(async (req) => {
     console.log('[sync-token-cards-coingecko] Starting CoinGecko ID matching...');
 
     // Step 0: Apply manual mappings FIRST for high-tier tokens
-    console.log('[sync-token-cards-coingecko] Applying manual mappings...');
+    // This will OVERWRITE any wrong coingecko_id values (not just NULL)
+    console.log('[sync-token-cards-coingecko] Applying manual mappings (overwrite mode)...');
     
+    // Fetch ALL tokens that have manual mappings, regardless of current coingecko_id
     const { data: manualTargets, error: manualFetchError } = await supabase
       .from('token_cards')
-      .select('id, canonical_symbol, tier')
-      .is('coingecko_id', null)
+      .select('id, canonical_symbol, tier, coingecko_id')
       .in('canonical_symbol', Object.keys(MANUAL_MAPPINGS));
 
     let manualMapped = 0;
+    let manualCorrected = 0;
     const manualErrors: string[] = [];
 
     if (!manualFetchError && manualTargets && manualTargets.length > 0) {
-      console.log(`[sync-token-cards-coingecko] Found ${manualTargets.length} tokens for manual mapping`);
+      console.log(`[sync-token-cards-coingecko] Found ${manualTargets.length} tokens for manual mapping check`);
       
       for (const token of manualTargets) {
-        const cgId = MANUAL_MAPPINGS[token.canonical_symbol];
-        if (cgId) {
-          const { error: updateError } = await supabase
-            .from('token_cards')
-            .update({
-              coingecko_id: cgId,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', token.id);
+        const correctCgId = MANUAL_MAPPINGS[token.canonical_symbol];
+        
+        // Skip if already has correct coingecko_id
+        if (token.coingecko_id === correctCgId) {
+          continue;
+        }
+        
+        const wasWrong = token.coingecko_id !== null && token.coingecko_id !== correctCgId;
+        
+        const { error: updateError } = await supabase
+          .from('token_cards')
+          .update({
+            coingecko_id: correctCgId,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', token.id);
 
-          if (updateError) {
-            manualErrors.push(`${token.canonical_symbol}: ${updateError.message}`);
+        if (updateError) {
+          manualErrors.push(`${token.canonical_symbol}: ${updateError.message}`);
+        } else {
+          if (wasWrong) {
+            manualCorrected++;
+            console.log(`[sync-token-cards-coingecko] CORRECTED: ${token.canonical_symbol} ${token.coingecko_id} -> ${correctCgId}`);
           } else {
             manualMapped++;
-            console.log(`[sync-token-cards-coingecko] Manual: ${token.canonical_symbol} -> ${cgId}`);
+            console.log(`[sync-token-cards-coingecko] Manual: ${token.canonical_symbol} -> ${correctCgId}`);
           }
         }
       }
-      console.log(`[sync-token-cards-coingecko] Manual mapping complete: ${manualMapped} updated`);
+      console.log(`[sync-token-cards-coingecko] Manual mapping complete: ${manualMapped} new, ${manualCorrected} corrected`);
     }
 
     // Step 1: Fetch token_cards missing coingecko_id that have contracts
@@ -443,15 +514,16 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[sync-token-cards-coingecko] Complete: ${manualMapped} manual, ${updated} contract, ${symbolMatched} symbol matches`);
+    console.log(`[sync-token-cards-coingecko] Complete: ${manualMapped} manual, ${manualCorrected} corrected, ${updated} contract, ${symbolMatched} symbol matches`);
 
     return new Response(JSON.stringify({
       success: true,
       processed: tokenCards.length,
       manualMapped,
+      manualCorrected,
       contractMatched: updated,
       symbolMatched,
-      totalMatched: manualMapped + updated + symbolMatched,
+      totalMatched: manualMapped + manualCorrected + updated + symbolMatched,
       noMatch: noMatch - symbolMatched,
       errors: [...manualErrors, ...errors, ...symbolErrors].slice(0, 10)
     }), {
