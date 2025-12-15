@@ -149,7 +149,7 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
   }
 
   return (
-    <ScrollArea className="h-[calc(100vh-280px)] min-h-[500px] w-full rounded-md border">
+    <ScrollArea className="h-[60vh] min-h-[400px] w-full rounded-md border">
       <div className="overflow-x-auto">
         <Table className="min-w-[1200px]">
           <TableHeader className="sticky top-0 bg-background z-10">
