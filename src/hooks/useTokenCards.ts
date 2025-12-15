@@ -7,7 +7,9 @@ export interface TokenCard {
   name: string | null;
   logo_url: string | null;
   price_usd: number | null;
+  change_1h_pct: number | null;
   change_24h_pct: number | null;
+  change_7d_pct: number | null;
   market_cap: number | null;
   volume_24h_usd: number | null;
   galaxy_score: number | null;
@@ -20,7 +22,7 @@ export interface TokenCard {
   market_cap_rank: number | null;
 }
 
-export type SortKey = 'market_cap_rank' | 'price_usd' | 'change_24h_pct' | 'market_cap' | 'volume_24h_usd' | 'galaxy_score' | 'alt_rank' | 'sentiment' | 'social_volume_24h';
+export type SortKey = 'market_cap_rank' | 'price_usd' | 'change_1h_pct' | 'change_24h_pct' | 'change_7d_pct' | 'market_cap' | 'volume_24h_usd' | 'galaxy_score' | 'alt_rank' | 'sentiment' | 'social_volume_24h';
 export type SortDirection = 'asc' | 'desc';
 
 interface Filters {
@@ -28,9 +30,13 @@ interface Filters {
   category: string;
   chain: string;
   tier: string;
+  minVolume: string;
+  minGalaxyScore: string;
+  minMarketCap: string;
+  changeFilter: 'all' | 'gainers' | 'losers';
 }
 
-const PAGE_SIZE = 250;
+const PAGE_SIZE = 100;
 
 export function useTokenCards() {
   const [sortKey, setSortKey] = useState<SortKey>('market_cap_rank');
@@ -41,6 +47,10 @@ export function useTokenCards() {
     category: '',
     chain: '',
     tier: '',
+    minVolume: '',
+    minGalaxyScore: '',
+    minMarketCap: '',
+    changeFilter: 'all',
   });
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -56,12 +66,12 @@ export function useTokenCards() {
   // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.category, filters.chain, filters.tier, sortKey, sortDirection]);
+  }, [filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, sortKey, sortDirection]);
 
   const fetchTokens = useCallback(async () => {
     let query = supabase
       .from('token_cards')
-      .select('canonical_symbol, name, logo_url, price_usd, change_24h_pct, market_cap, volume_24h_usd, galaxy_score, alt_rank, sentiment, social_volume_24h, tier, categories, primary_chain, market_cap_rank', { count: 'exact' });
+      .select('canonical_symbol, name, logo_url, price_usd, change_1h_pct, change_24h_pct, change_7d_pct, market_cap, volume_24h_usd, galaxy_score, alt_rank, sentiment, social_volume_24h, tier, categories, primary_chain, market_cap_rank', { count: 'exact' });
 
     // Apply filters
     if (debouncedSearch) {
@@ -78,6 +88,24 @@ export function useTokenCards() {
 
     if (filters.tier) {
       query = query.eq('tier', parseInt(filters.tier));
+    }
+
+    if (filters.minVolume) {
+      query = query.gte('volume_24h_usd', parseFloat(filters.minVolume));
+    }
+
+    if (filters.minGalaxyScore) {
+      query = query.gte('galaxy_score', parseFloat(filters.minGalaxyScore));
+    }
+
+    if (filters.minMarketCap) {
+      query = query.gte('market_cap', parseFloat(filters.minMarketCap));
+    }
+
+    if (filters.changeFilter === 'gainers') {
+      query = query.gt('change_24h_pct', 0);
+    } else if (filters.changeFilter === 'losers') {
+      query = query.lt('change_24h_pct', 0);
     }
 
     // Apply sorting
@@ -98,12 +126,12 @@ export function useTokenCards() {
       totalCount: count || 0,
       totalPages: Math.ceil((count || 0) / PAGE_SIZE),
     };
-  }, [debouncedSearch, filters.category, filters.chain, filters.tier, sortKey, sortDirection, currentPage]);
+  }, [debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, sortKey, sortDirection, currentPage]);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['token-cards', debouncedSearch, filters.category, filters.chain, filters.tier, sortKey, sortDirection, currentPage],
+    queryKey: ['token-cards', debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, sortKey, sortDirection, currentPage],
     queryFn: fetchTokens,
-    refetchInterval: 30000, // Refresh every 30 seconds
+    refetchInterval: 30000,
     staleTime: 15000,
   });
 
