@@ -36,12 +36,12 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Parse request body for optional parameters
-    let batchSize = 30; // Default batch size (respect CoinGecko rate limits)
+    let batchSize = 500; // Increased for bulk sync (Pro API: 500 calls/min)
     let forceRefresh = false;
     
     try {
       const body = await req.json();
-      if (body.batchSize) batchSize = Math.min(body.batchSize, 50);
+      if (body.batchSize) batchSize = Math.min(body.batchSize, 500);
       if (body.forceRefresh) forceRefresh = body.forceRefresh;
     } catch {
       // No body or invalid JSON, use defaults
@@ -88,9 +88,9 @@ serve(async (req) => {
 
     for (const token of tokens) {
       try {
-        // Rate limit: 150ms delay between requests (safe for CoinGecko)
+        // Rate limit: 100ms delay between requests (Pro API allows 500/min)
         if (processed > 0) {
-          await new Promise(resolve => setTimeout(resolve, 150));
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         const cgId = token.coingecko_id;
