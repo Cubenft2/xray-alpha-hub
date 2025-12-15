@@ -59,11 +59,15 @@ function useTopGainers(limit = 5) {
   return useQuery({
     queryKey: ['token-top-gainers', limit],
     queryFn: async (): Promise<TopMover[]> => {
+      // Only show tokens updated in last 30 minutes to avoid stale data
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      
       const { data, error } = await supabase
         .from('token_cards')
         .select('canonical_symbol, name, logo_url, change_24h_pct')
         .not('change_24h_pct', 'is', null)
         .gt('change_24h_pct', 0)
+        .gte('updated_at', thirtyMinutesAgo)
         .order('change_24h_pct', { ascending: false })
         .limit(limit);
 
@@ -78,11 +82,15 @@ function useTopLosers(limit = 5) {
   return useQuery({
     queryKey: ['token-top-losers', limit],
     queryFn: async (): Promise<TopMover[]> => {
+      // Only show tokens updated in last 30 minutes to avoid stale data
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      
       const { data, error } = await supabase
         .from('token_cards')
         .select('canonical_symbol, name, logo_url, change_24h_pct')
         .not('change_24h_pct', 'is', null)
         .lt('change_24h_pct', 0)
+        .gte('updated_at', thirtyMinutesAgo)
         .order('change_24h_pct', { ascending: true })
         .limit(limit);
 

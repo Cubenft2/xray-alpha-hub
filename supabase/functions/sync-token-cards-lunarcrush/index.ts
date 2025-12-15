@@ -63,6 +63,25 @@ function getPrimaryChain(contracts: Record<string, any>): string | null {
   return chains[0];
 }
 
+// Fetch with exponential backoff retry for rate limiting
+async function fetchWithRetry(url: string, headers: Record<string, string>, maxRetries = 3): Promise<Response | null> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const response = await fetch(url, { headers });
+    
+    if (response.status === 429) {
+      const waitTime = Math.pow(2, attempt) * 5000; // 5s, 10s, 20s
+      console.log(`[sync-token-cards-lunarcrush] Rate limited (429), waiting ${waitTime/1000}s before retry ${attempt + 1}/${maxRetries}`);
+      await new Promise(r => setTimeout(r, waitTime));
+      continue;
+    }
+    
+    return response;
+  }
+  
+  console.error(`[sync-token-cards-lunarcrush] Max retries exceeded for rate limiting`);
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -87,9 +106,9 @@ serve(async (req) => {
       const headers: Record<string, string> = { 'Accept': 'application/json' };
       if (lunarcrushKey) headers['Authorization'] = `Bearer ${lunarcrushKey}`;
 
-      const response = await fetch(url, { headers });
-      if (!response.ok) {
-        console.error(`[sync-token-cards-lunarcrush] LunarCrush API error at offset ${offset}: ${response.status}`);
+      const response = await fetchWithRetry(url, headers);
+      if (!response || !response.ok) {
+        console.error(`[sync-token-cards-lunarcrush] LunarCrush API error at offset ${offset}: ${response?.status || 'no response'}`);
         break;
       }
 
@@ -100,7 +119,7 @@ serve(async (req) => {
       console.log(`[sync-token-cards-lunarcrush] Fetched ${coins.length} coins at offset ${offset}`);
       
       if (coins.length < LIMIT) break;
-      await new Promise(r => setTimeout(r, 300)); // Rate limit delay
+      await new Promise(r => setTimeout(r, 2000)); // Increased rate limit delay from 300ms to 2000ms
     }
 
     console.log(`[sync-token-cards-lunarcrush] Total coins fetched: ${allCoins.length}`);
