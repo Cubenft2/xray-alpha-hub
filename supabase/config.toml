@@ -273,3 +273,18 @@ verify_jwt = false
 
 [[functions.sync-token-cards-polygon.cron]]
 schedule = "* * * * *"
+
+# ============================================
+# FOREX CARDS SYNC FUNCTIONS
+# ============================================
+
+# Bootstrap forex_cards from poly_fx_pairs (run once manually)
+[functions.bootstrap-forex-cards]
+verify_jwt = false
+
+# Sync forex_cards prices from Polygon.io
+[functions.sync-forex-cards-polygon]
+verify_jwt = false
+
+[[functions.sync-forex-cards-polygon.cron]]
+schedule = "* * * * *"
