@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   const startTime = Date.now();
-  console.log('[bootstrap-polygon-to-token-cards] Starting bootstrap...');
+  console.log('[bootstrap-polygon-to-token-cards] Starting...');
 
   try {
     const supabase = createClient(
@@ -22,158 +22,46 @@ Deno.serve(async (req) => {
     // Fetch all active Polygon crypto cards
     const { data: polygonCards, error: polygonError } = await supabase
       .from('polygon_crypto_cards')
-      .select('canonical_symbol, name, primary_ticker, price_usd, change_24h_pct, volume_24h, high_24h, low_24h, open_24h, rsi_14, macd, macd_signal, sma_20, sma_50, sma_200, ema_12, ema_26, price_updated_at, technicals_updated_at')
+      .select('canonical_symbol, name, primary_ticker, price_usd, change_24h_pct')
       .eq('is_active', true)
       .not('price_usd', 'is', null);
 
-    if (polygonError) {
-      throw new Error(`Failed to fetch polygon_crypto_cards: ${polygonError.message}`);
-    }
+    if (polygonError) throw new Error(`Polygon fetch error: ${polygonError.message}`);
+    
+    console.log(`[bootstrap] Found ${polygonCards?.length || 0} active Polygon tokens`);
 
-    console.log(`[bootstrap-polygon-to-token-cards] Found ${polygonCards?.length || 0} active Polygon tokens`);
-
-    if (!polygonCards || polygonCards.length === 0) {
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'No active Polygon tokens found',
-        stats: { inserted: 0, updated: 0, skipped: 0 }
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    // Fetch existing token_cards to check what exists
-    const { data: existingCards, error: existingError } = await supabase
-      .from('token_cards')
-      .select('canonical_symbol, polygon_ticker, polygon_supported');
-
-    if (existingError) {
-      throw new Error(`Failed to fetch token_cards: ${existingError.message}`);
-    }
-
-    // Create lookup maps
-    const existingBySymbol = new Map<string, { polygon_ticker: string | null; polygon_supported: boolean | null }>();
-    for (const card of existingCards || []) {
-      existingBySymbol.set(card.canonical_symbol, { 
-        polygon_ticker: card.polygon_ticker,
-        polygon_supported: card.polygon_supported
-      });
-    }
-
-    const toInsert: any[] = [];
-    const toUpdate: any[] = [];
-    let skipped = 0;
-
-    for (const polygon of polygonCards) {
-      const symbol = polygon.canonical_symbol;
-      const existing = existingBySymbol.get(symbol);
-
-      if (!existing) {
-        // Token doesn't exist in token_cards - INSERT (minimal fields)
-        toInsert.push({
-          canonical_symbol: symbol,
-          name: polygon.name || symbol,
-          polygon_ticker: polygon.primary_ticker,
-          polygon_supported: true,
-          is_active: true,
-          tier: 4,
-          tier_reason: 'polygon_only',
-          price_usd: polygon.price_usd,
-          change_24h_pct: polygon.change_24h_pct,
-          updated_at: new Date().toISOString()
-        });
-      } else if (!existing.polygon_ticker || existing.polygon_supported !== true) {
-        // Token exists but needs polygon_supported flag - UPDATE
-        toUpdate.push({
-          canonical_symbol: symbol,
-          polygon_ticker: polygon.primary_ticker,
-          polygon_supported: true,
-          updated_at: new Date().toISOString()
-        });
-      } else {
-        skipped++;
-      }
-    }
-
-    console.log(`[bootstrap-polygon-to-token-cards] To insert: ${toInsert.length}, To update: ${toUpdate.length}, Skipped: ${skipped}`);
-
-    // Batch insert new tokens
-    let insertedCount = 0;
-    if (toInsert.length > 0) {
-      console.log(`[bootstrap-polygon-to-token-cards] First token to insert:`, JSON.stringify(toInsert[0]));
-      const batchSize = 50;
-      for (let i = 0; i < toInsert.length; i += batchSize) {
-        const batch = toInsert.slice(i, i + batchSize);
-        console.log(`[bootstrap-polygon-to-token-cards] Inserting batch ${i / batchSize + 1} with ${batch.length} tokens`);
-        const { data, error: insertError } = await supabase
-          .from('token_cards')
-          .insert(batch)
-          .select('canonical_symbol');
-
-        if (insertError) {
-          console.error(`[bootstrap-polygon-to-token-cards] Insert batch error:`, JSON.stringify(insertError));
-          // Try inserting one by one to find the issue
-          for (const token of batch) {
-            const { error: singleError } = await supabase
-              .from('token_cards')
-              .insert(token);
-            if (singleError) {
-              console.error(`[bootstrap-polygon-to-token-cards] Single insert error for ${token.canonical_symbol}:`, JSON.stringify(singleError));
-            } else {
-              insertedCount++;
-            }
-          }
-        } else {
-          insertedCount += data?.length || batch.length;
-          console.log(`[bootstrap-polygon-to-token-cards] Batch inserted successfully: ${data?.length} tokens`);
-        }
-      }
-      console.log(`[bootstrap-polygon-to-token-cards] Inserted ${insertedCount} new tokens`);
-    }
-
-    // Batch update existing tokens
+    // Update all tokens with polygon_supported = true using batch updates
     let updatedCount = 0;
-    if (toUpdate.length > 0) {
-      for (const update of toUpdate) {
-        const { canonical_symbol, ...updateData } = update;
-        const { error: updateError } = await supabase
-          .from('token_cards')
-          .update(updateData)
-          .eq('canonical_symbol', canonical_symbol);
+    
+    for (const token of polygonCards || []) {
+      const { error } = await supabase
+        .from('token_cards')
+        .update({
+          polygon_ticker: token.primary_ticker,
+          polygon_supported: true,
+          price_usd: token.price_usd,
+          change_24h_pct: token.change_24h_pct,
+          updated_at: new Date().toISOString()
+        })
+        .eq('canonical_symbol', token.canonical_symbol);
 
-        if (updateError) {
-          console.error(`[bootstrap-polygon-to-token-cards] Update error for ${canonical_symbol}:`, updateError);
-        } else {
-          updatedCount++;
-        }
-      }
-      console.log(`[bootstrap-polygon-to-token-cards] Updated ${updatedCount} existing tokens`);
+      if (!error) updatedCount++;
     }
 
     const duration = Date.now() - startTime;
     const result = {
       success: true,
-      stats: {
-        polygonTokens: polygonCards.length,
-        inserted: insertedCount,
-        updated: updatedCount,
-        skipped,
-        durationMs: duration
-      }
+      stats: { polygonTokens: polygonCards?.length || 0, updated: updatedCount, durationMs: duration }
     };
 
-    console.log(`[bootstrap-polygon-to-token-cards] Complete:`, result);
-
+    console.log('[bootstrap] Complete:', result);
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } catch (error) {
-    console.error('[bootstrap-polygon-to-token-cards] Error:', error);
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message 
-    }), {
+    console.error('[bootstrap] Error:', error);
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
