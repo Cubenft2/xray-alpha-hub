@@ -100,17 +100,32 @@ Deno.serve(async (req) => {
     // Batch insert new tokens
     let insertedCount = 0;
     if (toInsert.length > 0) {
-      const batchSize = 100;
+      console.log(`[bootstrap-polygon-to-token-cards] First token to insert:`, JSON.stringify(toInsert[0]));
+      const batchSize = 50;
       for (let i = 0; i < toInsert.length; i += batchSize) {
         const batch = toInsert.slice(i, i + batchSize);
-        const { error: insertError } = await supabase
+        console.log(`[bootstrap-polygon-to-token-cards] Inserting batch ${i / batchSize + 1} with ${batch.length} tokens`);
+        const { data, error: insertError } = await supabase
           .from('token_cards')
-          .insert(batch);
+          .insert(batch)
+          .select('canonical_symbol');
 
         if (insertError) {
-          console.error(`[bootstrap-polygon-to-token-cards] Insert batch error:`, insertError);
+          console.error(`[bootstrap-polygon-to-token-cards] Insert batch error:`, JSON.stringify(insertError));
+          // Try inserting one by one to find the issue
+          for (const token of batch) {
+            const { error: singleError } = await supabase
+              .from('token_cards')
+              .insert(token);
+            if (singleError) {
+              console.error(`[bootstrap-polygon-to-token-cards] Single insert error for ${token.canonical_symbol}:`, JSON.stringify(singleError));
+            } else {
+              insertedCount++;
+            }
+          }
         } else {
-          insertedCount += batch.length;
+          insertedCount += data?.length || batch.length;
+          console.log(`[bootstrap-polygon-to-token-cards] Batch inserted successfully: ${data?.length} tokens`);
         }
       }
       console.log(`[bootstrap-polygon-to-token-cards] Inserted ${insertedCount} new tokens`);
