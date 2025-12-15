@@ -224,7 +224,7 @@ serve(async (req) => {
           change_7d_pct: coin.percent_change_7d,
           
           // Social data
-          galaxy_score: coin.galaxy_score,
+          galaxy_score: coin.galaxy_score != null ? Math.round(coin.galaxy_score) : null,
           alt_rank: coin.alt_rank,
           sentiment: coin.sentiment,
           social_volume_24h: coin.social_volume,
