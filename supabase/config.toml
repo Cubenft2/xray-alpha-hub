@@ -266,3 +266,10 @@ verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush.cron]]
 schedule = "*/5 * * * *"
+
+# Sync token_cards prices from Polygon.io (tiered refresh)
+[functions.sync-token-cards-polygon]
+verify_jwt = false
+
+[[functions.sync-token-cards-polygon.cron]]
+schedule = "* * * * *"
