@@ -295,3 +295,10 @@ verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush-enhanced.cron]]
 schedule = "* * * * *"
+
+# Sync CoinGecko IDs and contract addresses to token_cards
+[functions.sync-token-cards-coingecko]
+verify_jwt = false
+
+[[functions.sync-token-cards-coingecko.cron]]
+schedule = "0 2 * * *"
