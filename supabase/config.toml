@@ -261,12 +261,12 @@ schedule = "*/15 * * * *"
 [functions.bootstrap-token-cards]
 verify_jwt = false
 
-# Sync token_cards from LunarCrush with smart matching
+# Sync token_cards from LunarCrush with smart matching (every 15 min to avoid rate limits)
 [functions.sync-token-cards-lunarcrush]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush.cron]]
-schedule = "*/5 * * * *"
+schedule = "*/15 * * * *"
 
 # Sync token_cards prices from Polygon.io (tiered refresh)
 [functions.sync-token-cards-polygon]
