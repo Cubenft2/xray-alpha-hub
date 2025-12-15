@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { DataFreshnessSummary } from '@/components/admin/DataFreshnessSummary';
+import { APIRateLimitMonitor } from '@/components/admin/APIRateLimitMonitor';
 
 interface HealthStatus {
   name: string;
@@ -409,7 +410,10 @@ export function SystemHealth() {
 
   return (
     <div className="space-y-6">
-      {/* Data Freshness Summary - Top Priority Widget */}
+      {/* API Rate Limit Monitor - Top Priority */}
+      <APIRateLimitMonitor />
+
+      {/* Data Freshness Summary */}
       <DataFreshnessSummary />
 
       <Card>

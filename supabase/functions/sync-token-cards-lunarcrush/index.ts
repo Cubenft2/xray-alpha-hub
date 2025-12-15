@@ -82,6 +82,27 @@ async function fetchWithRetry(url: string, headers: Record<string, string>, maxR
   return null;
 }
 
+// Helper to log API call to external_api_calls table
+async function logApiCall(
+  supabase: any, 
+  apiName: string, 
+  functionName: string, 
+  success: boolean, 
+  errorMessage?: string
+) {
+  try {
+    await supabase.from('external_api_calls').insert({
+      api_name: apiName,
+      function_name: functionName,
+      call_count: 1,
+      success,
+      error_message: errorMessage || null,
+    });
+  } catch (e) {
+    console.error('[sync-token-cards-lunarcrush] Failed to log API call:', e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -100,6 +121,7 @@ serve(async (req) => {
     // Fetch LunarCrush universe data (3000 tokens across 3 pages)
     const allCoins: any[] = [];
     const LIMIT = 1000;
+    let apiCallsLogged = 0;
     
     for (let offset = 0; offset < 3000; offset += LIMIT) {
       const url = `https://lunarcrush.com/api4/public/coins/list/v1?limit=${LIMIT}&offset=${offset}&sort=market_cap_rank&order=asc`;
@@ -107,6 +129,13 @@ serve(async (req) => {
       if (lunarcrushKey) headers['Authorization'] = `Bearer ${lunarcrushKey}`;
 
       const response = await fetchWithRetry(url, headers);
+      
+      // Log API call
+      const success = response?.ok ?? false;
+      await logApiCall(supabase, 'lunarcrush', 'sync-token-cards-lunarcrush', success, 
+        success ? undefined : `HTTP ${response?.status || 'no response'}`);
+      apiCallsLogged++;
+      
       if (!response || !response.ok) {
         console.error(`[sync-token-cards-lunarcrush] LunarCrush API error at offset ${offset}: ${response?.status || 'no response'}`);
         break;

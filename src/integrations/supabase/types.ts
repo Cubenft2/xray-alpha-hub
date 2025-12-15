@@ -92,6 +92,39 @@ export type Database = {
         }
         Relationships: []
       }
+      api_rate_limits: {
+        Row: {
+          api_name: string
+          created_at: string | null
+          critical_threshold: number | null
+          daily_limit: number
+          description: string | null
+          reset_hour: number | null
+          updated_at: string | null
+          warning_threshold: number | null
+        }
+        Insert: {
+          api_name: string
+          created_at?: string | null
+          critical_threshold?: number | null
+          daily_limit: number
+          description?: string | null
+          reset_hour?: number | null
+          updated_at?: string | null
+          warning_threshold?: number | null
+        }
+        Update: {
+          api_name?: string
+          created_at?: string | null
+          critical_threshold?: number | null
+          daily_limit?: number
+          description?: string | null
+          reset_hour?: number | null
+          updated_at?: string | null
+          warning_threshold?: number | null
+        }
+        Relationships: []
+      }
       asset_sentiment_snapshots: {
         Row: {
           asset_name: string
@@ -797,6 +830,36 @@ export type Database = {
           timestamp?: string
           updated_at?: string | null
           volume_24h?: number
+        }
+        Relationships: []
+      }
+      external_api_calls: {
+        Row: {
+          api_name: string
+          call_count: number | null
+          created_at: string | null
+          error_message: string | null
+          function_name: string
+          id: string
+          success: boolean | null
+        }
+        Insert: {
+          api_name: string
+          call_count?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          function_name: string
+          id?: string
+          success?: boolean | null
+        }
+        Update: {
+          api_name?: string
+          call_count?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          function_name?: string
+          id?: string
+          success?: boolean | null
         }
         Relationships: []
       }
