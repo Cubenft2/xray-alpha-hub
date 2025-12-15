@@ -307,3 +307,10 @@ verify_jwt = false
 
 [[functions.sync-token-cards-coingecko.cron]]
 schedule = "0 2 * * *"
+
+# Sync token metadata (descriptions, websites, socials) from CoinGecko
+[functions.sync-token-cards-metadata]
+verify_jwt = false
+
+[[functions.sync-token-cards-metadata.cron]]
+schedule = "0 6 * * *"
