@@ -74,9 +74,11 @@ function SentimentBar({ sentiment }: { sentiment: number | null }) {
   
   const isBullish = sentiment >= 50;
   const width = Math.min(100, Math.max(0, sentiment));
+  const emoji = sentiment >= 60 ? '😊' : sentiment >= 40 ? '😐' : '😞';
   
   return (
-    <div className="flex items-center gap-2 min-w-[80px]">
+    <div className="flex items-center gap-2 min-w-[100px]">
+      <span className="text-sm">{emoji}</span>
       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
         <div 
           className={cn(
@@ -279,8 +281,8 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                 <TableCell className="text-right">
                   <SentimentBar sentiment={token.sentiment} />
                 </TableCell>
-                <TableCell className="text-right font-mono text-sm">
-                  {formatSocialVolume(token.social_volume_24h)}
+              <TableCell className="text-right font-mono text-sm">
+                  💬 {formatSocialVolume(token.social_volume_24h)}
                 </TableCell>
               </TableRow>
             ))}
