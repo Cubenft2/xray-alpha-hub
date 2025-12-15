@@ -288,3 +288,10 @@ verify_jwt = false
 
 [[functions.sync-forex-cards-polygon.cron]]
 schedule = "* * * * *"
+
+# Sync enhanced LunarCrush data (AI summaries, posts, news, creators) for top 500 tokens
+[functions.sync-token-cards-lunarcrush-enhanced]
+verify_jwt = false
+
+[[functions.sync-token-cards-lunarcrush-enhanced.cron]]
+schedule = "* * * * *"
