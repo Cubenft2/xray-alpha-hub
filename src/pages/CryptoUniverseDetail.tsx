@@ -1,238 +1,85 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, TrendingUp, TrendingDown, AlertTriangle, Copy, ExternalLink } from 'lucide-react';
+import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PageTransition } from '@/components/PageTransition';
 import { TradingViewChart } from '@/components/TradingViewChart';
 import { ExchangePriceComparison } from '@/components/ExchangePriceComparison';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { useTickerMappings } from '@/hooks/useTickerMappings';
-
-interface CoinDetail {
-  id: number;
-  name: string;
-  symbol: string;
-  price: number | null;
-  price_btc: number | null;
-  market_cap: number | null;
-  percent_change_24h: number | null;
-  percent_change_7d: number | null;
-  percent_change_30d: number | null;
-  volume_24h: number | null;
-  max_supply: number | null;
-  circulating_supply: number | null;
-  galaxy_score: number | null;
-  alt_rank: number | null;
-  volatility: number | null;
-  market_cap_rank: number | null;
-}
-
-interface CoinAnalysis {
-  risk_level: string;
-  trends: {
-    short_term: string;
-    medium_term: string;
-    long_term: string;
-  };
-  volume_to_mcap_ratio: number;
-  galaxy_score_interpretation: string;
-}
+import { useNavigate } from 'react-router-dom';
+import {
+  TokenHeader,
+  TokenPriceMarket,
+  TokenTechnicals,
+  TokenSocialPulse,
+  TokenContracts,
+  TokenSecurity,
+  TokenNews,
+  TokenAISummary,
+  TokenDataSources,
+} from '@/components/token-detail';
 
 export default function CryptoUniverseDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
-  const { getMapping, isLoading: mappingsLoading } = useTickerMappings();
-  const [cgPlatforms, setCgPlatforms] = useState<Record<string, string> | null>(null);
 
-  // Fetch coin detail with React Query caching
-  const { data: coinDetailData, isLoading: loading } = useQuery({
-    queryKey: ['lunarcrush-coin-detail', symbol],
+  // Single query to token_cards - the master source of truth
+  const { data: tokenCard, isLoading, error } = useQuery({
+    queryKey: ['token-card', symbol],
     queryFn: async () => {
       if (!symbol) throw new Error('No symbol provided');
-      
-      const { data, error } = await supabase.functions.invoke(
-        `lunarcrush-coin-detail?coin=${symbol}`
-      );
+
+      const { data, error } = await supabase
+        .from('token_cards')
+        .select('*')
+        .eq('canonical_symbol', symbol.toUpperCase())
+        .maybeSingle();
 
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Failed to fetch coin detail');
-
       return data;
     },
-    staleTime: 2 * 60 * 1000, // 2 minutes - data is fresh
-    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache
+    staleTime: 30 * 1000, // 30 seconds fresh
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchInterval: 2 * 60 * 1000, // Auto-refresh every 2 minutes if viewing
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     enabled: !!symbol,
   });
 
-  const coin = coinDetailData?.data || null;
-  const analysis = coinDetailData?.analysis || null;
-
-  // Fetch CoinGecko platform data
-  useEffect(() => {
-    const fetchCgPlatforms = async () => {
-      if (!symbol || !coinDetailData) return;
-
-      try {
-        const { data: cgDataArray } = await supabase
-          .from('cg_master')
-          .select('cg_id, platforms')
-          .eq('symbol', symbol.toUpperCase())
-          .not('platforms', 'is', null);
-
-        let bestMatch = null;
-        if (cgDataArray && cgDataArray.length > 0) {
-          if (cgDataArray.length === 1) {
-            bestMatch = cgDataArray[0];
-          } else {
-            console.warn(`⚠️ Multiple CoinGecko entries found for ${symbol}:`, 
-              cgDataArray.map(row => ({
-                cg_id: row.cg_id,
-                platforms: Object.keys(row.platforms || {}).length
-              }))
-            );
-            
-            if (coinDetailData?.data?.id) {
-              bestMatch = cgDataArray.find(row => row.cg_id === coinDetailData.data.id);
-            }
-            
-            if (!bestMatch) {
-              bestMatch = cgDataArray.reduce((best, current) => {
-                const bestCount = Object.keys(best.platforms || {}).length;
-                const currentCount = Object.keys(current.platforms || {}).length;
-                return currentCount > bestCount ? current : best;
-              });
-            }
-          }
-          
-          if (bestMatch?.platforms && 
-              typeof bestMatch.platforms === 'object' && 
-              Object.keys(bestMatch.platforms).length > 0) {
-            console.log(`✅ Using CoinGecko data for ${symbol} (${bestMatch.cg_id}) with ${Object.keys(bestMatch.platforms).length} chains`);
-            setCgPlatforms(bestMatch.platforms as Record<string, string>);
-          }
-        }
-      } catch (err: any) {
-        console.error('Error fetching CoinGecko platforms:', err);
-      }
-    };
-
-    fetchCgPlatforms();
-  }, [symbol, coinDetailData]);
-
-  const formatCurrency = (value: number | null | undefined) => {
-    if (value === null || value === undefined || isNaN(value)) return 'N/A';
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    return `$${value.toFixed(2)}`;
-  };
-
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'LOW': return 'text-green-500';
-      case 'MEDIUM': return 'text-yellow-500';
-      case 'ELEVATED': return 'text-orange-500';
-      case 'HIGH': return 'text-red-500';
-      default: return 'text-muted-foreground';
-    }
-  };
-
-  const getTrendIcon = (trend: string) => {
-    return trend === 'BULLISH' ? (
-      <TrendingUp className="h-4 w-4 text-green-500" />
-    ) : (
-      <TrendingDown className="h-4 w-4 text-red-500" />
-    );
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Token address copied to clipboard');
-  };
-
-  const formatChainName = (cgChainId: string): string => {
-    const chainNames: Record<string, string> = {
-      'ethereum': 'Ethereum',
-      'binance-smart-chain': 'BNB Chain',
-      'polygon-pos': 'Polygon',
-      'solana': 'Solana',
-      'avalanche': 'Avalanche',
-      'arbitrum-one': 'Arbitrum',
-      'optimistic-ethereum': 'Optimism',
-      'base': 'Base',
-      'fantom': 'Fantom',
-      'xrp': 'XRP Ledger',
-      'cardano': 'Cardano',
-      'polkadot': 'Polkadot',
-      'tron': 'Tron',
-      'near-protocol': 'NEAR Protocol',
-      'cosmos': 'Cosmos',
-      'algorand': 'Algorand',
-      'harmony-shard-0': 'Harmony',
-      'moonbeam': 'Moonbeam',
-      'cronos': 'Cronos',
-      'klay-token': 'Klaytn',
-    };
-    
-    return chainNames[cgChainId] || cgChainId.split('-').map(
-      word => word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
-  };
-
-  const getExplorerUrl = (address: string, chain: string) => {
-    const explorers: Record<string, string> = {
-      // CoinGecko chain IDs
-      'ethereum': `https://etherscan.io/token/${address}`,
-      'binance-smart-chain': `https://bscscan.com/token/${address}`,
-      'polygon-pos': `https://polygonscan.com/token/${address}`,
-      'solana': `https://solscan.io/token/${address}`,
-      'avalanche': `https://snowtrace.io/token/${address}`,
-      'arbitrum-one': `https://arbiscan.io/token/${address}`,
-      'optimistic-ethereum': `https://optimistic.etherscan.io/token/${address}`,
-      'base': `https://basescan.org/token/${address}`,
-      'fantom': `https://ftmscan.com/token/${address}`,
-      'moonbeam': `https://moonscan.io/token/${address}`,
-      'cronos': `https://cronoscan.com/token/${address}`,
-      'harmony-shard-0': `https://explorer.harmony.one/address/${address}`,
-      'near-protocol': `https://nearblocks.io/token/${address}`,
-      // Legacy chain names from ticker_mappings
-      'bsc': `https://bscscan.com/token/${address}`,
-      'polygon': `https://polygonscan.com/token/${address}`,
-      'arbitrum': `https://arbiscan.io/token/${address}`,
-      'optimism': `https://optimistic.etherscan.io/token/${address}`,
-    };
-    return explorers[chain.toLowerCase()] || null;
-  };
-
-  if (loading) {
+  // Loading state
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 space-y-6">
-        <Skeleton className="h-12 w-64" />
-        <Skeleton className="h-96 w-full" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
-          <Skeleton className="h-40" />
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <Skeleton className="h-[400px] w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
         </div>
       </div>
     );
   }
 
-  if (!coin) {
+  // Not found state
+  if (!tokenCard) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center space-y-4">
           <AlertTriangle className="h-12 w-12 mx-auto text-destructive" />
-          <h2 className="text-2xl font-bold">Coin Not Found</h2>
+          <h2 className="text-2xl font-bold">Token Not Found</h2>
+          <p className="text-muted-foreground">
+            No data available for "{symbol?.toUpperCase()}" in token_cards.
+          </p>
           <Button onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Go Back
@@ -242,232 +89,190 @@ export default function CryptoUniverseDetail() {
     );
   }
 
+  // Parse contracts JSON if present
+  const contracts = tokenCard.contracts as Record<string, string> | null;
+
+  // Parse top_news JSON if present
+  const topNews = tokenCard.top_news as Array<{
+    title: string;
+    url?: string;
+    source?: string;
+    published_at?: string;
+    sentiment?: number;
+  }> | null;
+
+  // Determine data availability
+  const hasPolygonData = tokenCard.polygon_supported === true || tokenCard.rsi_14 !== null;
+  const hasLunarCrushData = tokenCard.galaxy_score !== null || tokenCard.alt_rank !== null;
+  const hasCoingeckoData = tokenCard.coingecko_id !== null;
+  const hasSecurityData = tokenCard.security_score !== null || tokenCard.is_honeypot !== null;
+
+  // Build TradingView symbol
+  const getTradingViewSymbol = () => {
+    if (tokenCard.polygon_ticker) {
+      return `CRYPTO:${tokenCard.canonical_symbol}USD`;
+    }
+    return `CRYPTO:${tokenCard.canonical_symbol}USD`;
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-4xl font-bold">{coin.symbol}</h1>
-            <span className="text-2xl text-muted-foreground">{coin.name}</span>
-          </div>
-          <div className="flex items-center gap-4 mt-2">
-            <span className="text-3xl font-bold">{formatCurrency(coin.price)}</span>
-            <Badge
-              variant={(coin.percent_change_24h ?? 0) > 0 ? 'default' : 'destructive'}
-              className="text-base"
-            >
-              {(coin.percent_change_24h ?? 0) > 0 ? '+' : ''}
-              {coin.percent_change_24h?.toFixed(2) ?? 'N/A'}% (24h)
-            </Badge>
-          </div>
-        </div>
-      </div>
+      <TokenHeader
+        symbol={tokenCard.canonical_symbol}
+        name={tokenCard.name}
+        logoUrl={tokenCard.logo_url}
+        tier={tokenCard.tier}
+        marketCapRank={tokenCard.market_cap_rank}
+        categories={tokenCard.categories}
+      />
 
       {/* TradingView Chart */}
       <Card>
         <CardContent className="p-0">
-          <TradingViewChart 
-            symbol={getMapping(coin.symbol)?.tradingview_symbol || `CRYPTO:${coin.symbol}USD`} 
-            height="500px" 
-          />
+          <TradingViewChart symbol={getTradingViewSymbol()} height="500px" />
         </CardContent>
       </Card>
 
-      {/* Contract Address Section - Show multi-chain addresses from CoinGecko or fallback to ticker_mappings */}
-      {!mappingsLoading && (cgPlatforms || getMapping(coin.symbol)?.dex_address) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Contract Addresses</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Token addresses across different blockchains
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* CoinGecko Platform Data (if available) */}
-            {cgPlatforms && Object.entries(cgPlatforms).map(([chain, address]) => (
-              <div key={chain} className="space-y-2 pb-4 border-b last:border-0 last:pb-0">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Blockchain</span>
-                  <Badge variant="outline" className="capitalize text-base">
-                    {formatChainName(chain)}
-                  </Badge>
-                </div>
-                
-                <div>
-                  <span className="text-sm text-muted-foreground block mb-2">Token Address</span>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 px-4 py-3 bg-muted rounded-lg text-sm font-mono break-all">
-                      {address}
-                    </code>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(address)}
-                      title="Copy address"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    {getExplorerUrl(address, chain) && (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => window.open(getExplorerUrl(address, chain)!, '_blank')}
-                        title="View on explorer"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            
-            {/* Fallback to ticker_mappings if no CoinGecko data */}
-            {!cgPlatforms && getMapping(coin.symbol)?.dex_address && (
-              <div className="space-y-2">
-                <div>
-                  <span className="text-sm text-muted-foreground">Blockchain</span>
-                  <div className="mt-2">
-                    <Badge variant="outline" className="capitalize text-base">
-                      {getMapping(coin.symbol)?.dex_chain || 'Unknown'}
-                    </Badge>
-                  </div>
-                </div>
-                
-                <div>
-                  <span className="text-sm text-muted-foreground">Token Address</span>
-                  <div className="flex items-center gap-2 mt-2">
-                    <code className="flex-1 px-4 py-3 bg-muted rounded-lg text-sm font-mono break-all">
-                      {getMapping(coin.symbol)?.dex_address}
-                    </code>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => copyToClipboard(getMapping(coin.symbol)?.dex_address || '')}
-                      title="Copy address"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    {getMapping(coin.symbol)?.dex_chain && 
-                     getExplorerUrl(getMapping(coin.symbol)?.dex_address || '', getMapping(coin.symbol)?.dex_chain || '') && (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => {
-                          const url = getExplorerUrl(
-                            getMapping(coin.symbol)?.dex_address || '', 
-                            getMapping(coin.symbol)?.dex_chain || ''
-                          );
-                          if (url) window.open(url, '_blank');
-                        }}
-                        title="View on explorer"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {/* Price & Market */}
+      <TokenPriceMarket
+        priceUsd={tokenCard.price_usd}
+        change1hPct={tokenCard.change_1h_pct}
+        change24hPct={tokenCard.change_24h_pct}
+        change7dPct={tokenCard.change_7d_pct}
+        change30dPct={tokenCard.change_30d_pct}
+        high24h={tokenCard.high_24h}
+        low24h={tokenCard.low_24h}
+        athPrice={tokenCard.ath_price}
+        atlPrice={tokenCard.atl_price}
+        marketCap={tokenCard.market_cap}
+        volume24h={tokenCard.volume_24h_usd}
+        marketDominance={tokenCard.market_dominance}
+        circulatingSupply={tokenCard.circulating_supply}
+        totalSupply={tokenCard.total_supply}
+        fullyDilutedValuation={tokenCard.fully_diluted_valuation}
+      />
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Market Data</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Market Cap</span>
-              <span className="font-semibold">{formatCurrency(coin.market_cap)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Volume 24h</span>
-              <span className="font-semibold">{formatCurrency(coin.volume_24h)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Market Cap Rank</span>
-              <span className="font-semibold">#{coin.market_cap_rank}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Circulating Supply</span>
-              <span className="font-semibold">
-                {coin.circulating_supply?.toLocaleString() ?? 'N/A'}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column */}
+        <div className="space-y-6">
+          {/* Technical Indicators */}
+          <TokenTechnicals
+            rsi14={tokenCard.rsi_14}
+            rsiSignal={tokenCard.rsi_signal}
+            macdLine={tokenCard.macd_line}
+            macdSignal={tokenCard.macd_signal}
+            macdHistogram={tokenCard.macd_histogram}
+            macdTrend={tokenCard.macd_trend}
+            sma20={tokenCard.sma_20}
+            sma50={tokenCard.sma_50}
+            sma200={tokenCard.sma_200}
+            ema12={tokenCard.ema_12}
+            ema26={tokenCard.ema_26}
+            priceUsd={tokenCard.price_usd}
+            technicalSignal={tokenCard.technical_signal}
+            technicalScore={tokenCard.technical_score}
+            priceVsSma20={tokenCard.price_vs_sma_20}
+            priceVsSma50={tokenCard.price_vs_sma_50}
+            priceVsSma200={tokenCard.price_vs_sma_200}
+            technicalsUpdatedAt={tokenCard.technicals_updated_at}
+          />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">LunarCrush Metrics</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Galaxy Score</span>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg">{coin.galaxy_score ?? 'N/A'}</span>
-                <Badge variant="outline">{analysis?.galaxy_score_interpretation ?? 'N/A'}</Badge>
-              </div>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">AltRank</span>
-              <span className="font-semibold">#{coin.alt_rank ?? 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Volatility</span>
-              <span className="font-semibold">{coin.volatility ? (coin.volatility * 100).toFixed(2) + '%' : 'N/A'}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Risk Level</span>
-              <span className={`font-bold ${getRiskColor(analysis?.risk_level || 'MEDIUM')}`}>
-                {analysis?.risk_level || 'N/A'}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Security Analysis */}
+          <TokenSecurity
+            securityScore={tokenCard.security_score}
+            securityGrade={tokenCard.security_grade}
+            isHoneypot={tokenCard.is_honeypot}
+            honeypotReason={tokenCard.honeypot_reason}
+            buyTax={tokenCard.buy_tax}
+            sellTax={tokenCard.sell_tax}
+            isOwnershipRenounced={tokenCard.is_ownership_renounced}
+            hiddenOwner={tokenCard.hidden_owner}
+            canTakeBackOwnership={tokenCard.can_take_back_ownership}
+            isMintable={tokenCard.is_mintable}
+            isOpenSource={tokenCard.is_open_source}
+            isProxy={tokenCard.is_proxy}
+            holderCount={tokenCard.holder_count}
+            top10HolderPercent={tokenCard.top10_holder_percent}
+            isLpLocked={tokenCard.is_lp_locked}
+            lpLockUntil={tokenCard.lp_lock_until}
+            securityFlags={tokenCard.security_flags}
+            securityUpdatedAt={tokenCard.security_updated_at}
+          />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Trend Analysis</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Short-term (24h)</span>
-              <div className="flex items-center gap-2">
-                {getTrendIcon(analysis?.trends.short_term || 'BEARISH')}
-                <span className="font-semibold">{coin.percent_change_24h?.toFixed(2) ?? 'N/A'}%</span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Medium-term (7d)</span>
-              <div className="flex items-center gap-2">
-                {getTrendIcon(analysis?.trends.medium_term || 'BEARISH')}
-                <span className="font-semibold">{coin.percent_change_7d?.toFixed(2) ?? 'N/A'}%</span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Long-term (30d)</span>
-              <div className="flex items-center gap-2">
-                {getTrendIcon(analysis?.trends.long_term || 'BEARISH')}
-                <span className="font-semibold">{coin.percent_change_30d?.toFixed(2) ?? 'N/A'}%</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Contracts & Links */}
+          <TokenContracts
+            contracts={contracts}
+            primaryChain={tokenCard.primary_chain}
+            website={tokenCard.website}
+            twitter={tokenCard.twitter}
+            discord={tokenCard.discord}
+            telegram={tokenCard.telegram}
+            github={tokenCard.github}
+            coingeckoId={tokenCard.coingecko_id}
+          />
+        </div>
 
-        {/* Exchange Price Comparison - Full Width */}
-        <div className="lg:col-span-3">
-          <ExchangePriceComparison symbol={coin.symbol} />
+        {/* Right Column */}
+        <div className="space-y-6">
+          {/* Social Pulse */}
+          <TokenSocialPulse
+            galaxyScore={tokenCard.galaxy_score}
+            altRank={tokenCard.alt_rank}
+            sentiment={tokenCard.sentiment}
+            sentimentLabel={tokenCard.sentiment_label}
+            socialVolume24h={tokenCard.social_volume_24h}
+            interactions24h={tokenCard.interactions_24h}
+            contributorsActive={tokenCard.contributors_active}
+            socialDominance={tokenCard.social_dominance}
+            twitterVolume={tokenCard.twitter_volume_24h}
+            twitterSentiment={tokenCard.twitter_sentiment}
+            redditVolume={tokenCard.reddit_volume_24h}
+            redditSentiment={tokenCard.reddit_sentiment}
+            youtubeVolume={tokenCard.youtube_volume_24h}
+            youtubeSentiment={tokenCard.youtube_sentiment}
+            tiktokVolume={tokenCard.tiktok_volume_24h}
+            tiktokSentiment={tokenCard.tiktok_sentiment}
+            telegramVolume={tokenCard.telegram_volume_24h}
+            telegramSentiment={tokenCard.telegram_sentiment}
+            socialUpdatedAt={tokenCard.social_updated_at}
+          />
+
+          {/* AI Summary */}
+          <TokenAISummary
+            aiSummary={tokenCard.ai_summary}
+            aiSummaryShort={tokenCard.ai_summary_short}
+            keyThemes={tokenCard.key_themes}
+            notableEvents={tokenCard.notable_events}
+            aiUpdatedAt={tokenCard.ai_updated_at}
+            tier={tokenCard.tier}
+          />
+
+          {/* News */}
+          <TokenNews
+            topNews={topNews}
+            newsUpdatedAt={tokenCard.news_updated_at}
+          />
         </div>
       </div>
+
+      {/* Exchange Price Comparison */}
+      <ExchangePriceComparison symbol={tokenCard.canonical_symbol} />
+
+      {/* Data Sources Footer */}
+      <TokenDataSources
+        tier={tokenCard.tier}
+        priceUpdatedAt={tokenCard.price_updated_at}
+        socialUpdatedAt={tokenCard.social_updated_at}
+        technicalsUpdatedAt={tokenCard.technicals_updated_at}
+        securityUpdatedAt={tokenCard.security_updated_at}
+        newsUpdatedAt={tokenCard.news_updated_at}
+        hasPolygonData={hasPolygonData}
+        hasLunarCrushData={hasLunarCrushData}
+        hasCoingeckoData={hasCoingeckoData}
+        hasSecurityData={hasSecurityData}
+      />
     </div>
   );
 }
