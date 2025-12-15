@@ -6,6 +6,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Chain mappings between token_cards format and cg_master.platforms format
+const CHAIN_MAPPINGS = [
+  { tc: 'ethereum', cg: 'ethereum' },
+  { tc: 'solana', cg: 'solana' },
+  { tc: 'polygon', cg: 'polygon-pos' },
+  { tc: 'bnbchain', cg: 'binance-smart-chain' },
+  { tc: 'bsc', cg: 'binance-smart-chain' },
+  { tc: 'arbitrum', cg: 'arbitrum-one' },
+  { tc: 'base', cg: 'base' },
+  { tc: 'avalanche', cg: 'avalanche' },
+  { tc: 'optimism', cg: 'optimistic-ethereum' },
+  { tc: 'fantom', cg: 'fantom' },
+  { tc: 'tron', cg: 'tron' },
+  { tc: 'near', cg: 'near-protocol' },
+  { tc: 'sui', cg: 'sui' },
+  { tc: 'aptos', cg: 'aptos' },
+];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -16,16 +34,17 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('[sync-token-cards-coingecko] Starting CoinGecko enrichment...');
+    console.log('[sync-token-cards-coingecko] Starting contract-based CoinGecko ID matching...');
 
-    // Step 1: Fetch token_cards missing coingecko_id (prioritize Tier 1-2)
+    // Step 1: Fetch token_cards missing coingecko_id that have contracts
     const { data: tokenCards, error: fetchError } = await supabase
       .from('token_cards')
-      .select('id, canonical_symbol, coingecko_id, contracts, tier')
+      .select('id, canonical_symbol, contracts, tier')
       .is('coingecko_id', null)
+      .not('contracts', 'is', null)
       .order('tier', { ascending: true })
       .order('market_cap_rank', { ascending: true, nullsFirst: false })
-      .limit(500);
+      .limit(1000);
 
     if (fetchError) {
       console.error('[sync-token-cards-coingecko] Error fetching token_cards:', fetchError);
@@ -33,127 +52,127 @@ serve(async (req) => {
     }
 
     if (!tokenCards || tokenCards.length === 0) {
-      console.log('[sync-token-cards-coingecko] No token_cards missing coingecko_id');
+      console.log('[sync-token-cards-coingecko] No token_cards with contracts missing coingecko_id');
       return new Response(JSON.stringify({ 
         success: true, 
-        message: 'All token_cards already have coingecko_id',
+        message: 'No token_cards need CoinGecko ID matching',
         updated: 0 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`[sync-token-cards-coingecko] Found ${tokenCards.length} token_cards missing coingecko_id`);
+    console.log(`[sync-token-cards-coingecko] Found ${tokenCards.length} token_cards with contracts missing coingecko_id`);
 
-    // Step 2: Fetch all cg_master entries for matching
-    const symbols = tokenCards.map(tc => tc.canonical_symbol.toUpperCase());
+    // Step 2: Fetch all cg_master entries with platforms
     const { data: cgEntries, error: cgError } = await supabase
       .from('cg_master')
       .select('cg_id, symbol, name, platforms')
-      .in('symbol', symbols);
+      .not('platforms', 'is', null);
 
     if (cgError) {
       console.error('[sync-token-cards-coingecko] Error fetching cg_master:', cgError);
       throw cgError;
     }
 
-    console.log(`[sync-token-cards-coingecko] Found ${cgEntries?.length || 0} matching cg_master entries`);
+    console.log(`[sync-token-cards-coingecko] Loaded ${cgEntries?.length || 0} cg_master entries with platforms`);
 
-    // Step 3: Build symbol -> cg_master map (handle duplicates)
-    const symbolToCg: Record<string, typeof cgEntries[0][]> = {};
-    for (const cg of cgEntries || []) {
-      const sym = cg.symbol.toUpperCase();
-      if (!symbolToCg[sym]) {
-        symbolToCg[sym] = [];
-      }
-      symbolToCg[sym].push(cg);
+    // Step 3: Build address -> cg_id lookup maps for each chain
+    const addressMaps: Record<string, Map<string, string>> = {};
+    
+    for (const mapping of CHAIN_MAPPINGS) {
+      addressMaps[mapping.tc] = new Map();
     }
 
-    // Step 4: Process each token_card and find best match
+    for (const cg of cgEntries || []) {
+      if (!cg.platforms || typeof cg.platforms !== 'object') continue;
+      
+      for (const mapping of CHAIN_MAPPINGS) {
+        const address = cg.platforms[mapping.cg];
+        if (address && typeof address === 'string' && address.length > 0) {
+          // Store lowercase address for case-insensitive matching
+          addressMaps[mapping.tc].set(address.toLowerCase(), cg.cg_id);
+        }
+      }
+    }
+
+    // Log map sizes
+    for (const mapping of CHAIN_MAPPINGS) {
+      const size = addressMaps[mapping.tc].size;
+      if (size > 0) {
+        console.log(`[sync-token-cards-coingecko] ${mapping.tc}: ${size} addresses indexed`);
+      }
+    }
+
+    // Step 4: Match each token_card by contract address
     let updated = 0;
-    let skipped = 0;
+    let noMatch = 0;
     const errors: string[] = [];
 
     for (const token of tokenCards) {
-      const sym = token.canonical_symbol.toUpperCase();
-      const candidates = symbolToCg[sym];
-
-      if (!candidates || candidates.length === 0) {
-        skipped++;
+      if (!token.contracts || typeof token.contracts !== 'object') {
+        noMatch++;
         continue;
       }
 
-      // Resolve best match from candidates
-      let bestMatch = candidates[0];
-      
-      if (candidates.length > 1) {
-        // Prefer cg_id that matches lowercase symbol (e.g., "bitcoin" for BTC)
-        const exactIdMatch = candidates.find(c => 
-          c.cg_id.toLowerCase() === sym.toLowerCase()
-        );
-        if (exactIdMatch) {
-          bestMatch = exactIdMatch;
-        } else {
-          // Prefer non-wrapped, non-bridged versions
-          const nonWrapped = candidates.find(c => 
-            !c.name.toLowerCase().includes('wrapped') && 
-            !c.name.toLowerCase().includes('bridged') &&
-            !c.name.toLowerCase().includes('wormhole')
-          );
-          if (nonWrapped) {
-            bestMatch = nonWrapped;
-          }
+      let matchedCgId: string | null = null;
+
+      // Try each chain in priority order
+      for (const mapping of CHAIN_MAPPINGS) {
+        const contractData = token.contracts[mapping.tc];
+        if (!contractData) continue;
+
+        // Handle both formats: string or { address: string }
+        let address: string | null = null;
+        if (typeof contractData === 'string') {
+          address = contractData;
+        } else if (contractData.address) {
+          address = contractData.address;
+        }
+
+        if (!address) continue;
+
+        const cgId = addressMaps[mapping.tc].get(address.toLowerCase());
+        if (cgId) {
+          matchedCgId = cgId;
+          break; // Found a match, stop searching
         }
       }
 
-      // Merge platforms into contracts format
-      // cg_master.platforms: {"ethereum": "0x...", "polygon-pos": "0x..."}
-      // token_cards.contracts: {"ethereum": {"address": "0x..."}, ...}
-      const existingContracts = token.contracts || {};
-      const newContracts = { ...existingContracts };
-      
-      if (bestMatch.platforms && typeof bestMatch.platforms === 'object') {
-        for (const [chain, address] of Object.entries(bestMatch.platforms)) {
-          if (address && typeof address === 'string' && address.length > 0) {
-            // Normalize chain names
-            const normalizedChain = normalizeChainName(chain);
-            if (!newContracts[normalizedChain]) {
-              newContracts[normalizedChain] = { address: address };
-            }
-          }
-        }
+      if (!matchedCgId) {
+        noMatch++;
+        continue;
       }
 
-      // Update token_card
+      // Update token_card with matched coingecko_id
       const { error: updateError } = await supabase
         .from('token_cards')
         .update({
-          coingecko_id: bestMatch.cg_id,
-          contracts: Object.keys(newContracts).length > 0 ? newContracts : null,
+          coingecko_id: matchedCgId,
           updated_at: new Date().toISOString()
         })
         .eq('id', token.id);
 
       if (updateError) {
-        errors.push(`${sym}: ${updateError.message}`);
+        errors.push(`${token.canonical_symbol}: ${updateError.message}`);
       } else {
         updated++;
       }
 
-      // Small delay to avoid overwhelming the database
+      // Small delay every 50 updates
       if (updated % 50 === 0) {
         await new Promise(r => setTimeout(r, 100));
       }
     }
 
-    console.log(`[sync-token-cards-coingecko] Complete: ${updated} updated, ${skipped} skipped (no match), ${errors.length} errors`);
+    console.log(`[sync-token-cards-coingecko] Complete: ${updated} matched, ${noMatch} no match, ${errors.length} errors`);
 
     return new Response(JSON.stringify({
       success: true,
       processed: tokenCards.length,
       updated,
-      skipped,
-      errors: errors.slice(0, 10) // Limit error output
+      noMatch,
+      errors: errors.slice(0, 10)
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -169,30 +188,3 @@ serve(async (req) => {
     });
   }
 });
-
-// Normalize CoinGecko chain names to standard format
-function normalizeChainName(chain: string): string {
-  const chainMap: Record<string, string> = {
-    'ethereum': 'ethereum',
-    'polygon-pos': 'polygon',
-    'arbitrum-one': 'arbitrum',
-    'optimistic-ethereum': 'optimism',
-    'binance-smart-chain': 'bsc',
-    'avalanche': 'avalanche',
-    'base': 'base',
-    'solana': 'solana',
-    'fantom': 'fantom',
-    'cronos': 'cronos',
-    'near-protocol': 'near',
-    'tron': 'tron',
-    'sui': 'sui',
-    'aptos': 'aptos',
-    'stellar': 'stellar',
-    'hedera-hashgraph': 'hedera',
-    'cosmos': 'cosmos',
-    'polkadot': 'polkadot',
-    'cardano': 'cardano',
-  };
-  
-  return chainMap[chain.toLowerCase()] || chain.toLowerCase();
-}
