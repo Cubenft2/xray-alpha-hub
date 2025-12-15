@@ -66,7 +66,7 @@ export default function Screener() {
         description="Screen 7,500+ cryptocurrencies with real-time prices, market cap, volume, Galaxy Score, and social sentiment data."
       />
 
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="w-full px-4 py-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
