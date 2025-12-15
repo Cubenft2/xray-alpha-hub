@@ -1,9 +1,11 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TradingViewChart } from '@/components/TradingViewChart';
 import { ExchangePriceComparison } from '@/components/ExchangePriceComparison';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,11 +20,16 @@ import {
   TokenNews,
   TokenAISummary,
   TokenDataSources,
+  TokenMetricsGrid,
+  TokenCreators,
+  TokenPosts,
+  TokenThemes,
 } from '@/components/token-detail';
 
 export default function CryptoUniverseDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('summary');
 
   // Single query to token_cards - the master source of truth
   const { data: tokenCard, isLoading, error } = useQuery({
@@ -39,8 +46,8 @@ export default function CryptoUniverseDetail() {
       if (error) throw error;
       return data;
     },
-    staleTime: 30 * 1000, // 30 seconds fresh
-    gcTime: 5 * 60 * 1000, // 5 minutes cache
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     enabled: !!symbol,
   });
@@ -56,15 +63,12 @@ export default function CryptoUniverseDetail() {
             <Skeleton className="h-4 w-32" />
           </div>
         </div>
+        <Skeleton className="h-12 w-full max-w-md" />
         <Skeleton className="h-[400px] w-full" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Skeleton className="h-64" />
-          <Skeleton className="h-64" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Skeleton className="h-48" />
-          <Skeleton className="h-48" />
-          <Skeleton className="h-48" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
         </div>
       </div>
     );
@@ -89,16 +93,35 @@ export default function CryptoUniverseDetail() {
     );
   }
 
-  // Parse contracts JSON if present
+  // Parse JSON fields
   const contracts = tokenCard.contracts as Record<string, string> | null;
-
-  // Parse top_news JSON if present
   const topNews = tokenCard.top_news as Array<{
     title: string;
     url?: string;
     source?: string;
     published_at?: string;
     sentiment?: number;
+  }> | null;
+  const topCreators = tokenCard.top_creators as Array<{
+    name?: string;
+    handle?: string;
+    avatar_url?: string;
+    platform?: string;
+    followers?: number;
+    engagement?: number;
+    profile_url?: string;
+  }> | null;
+  const topPosts = tokenCard.top_posts as Array<{
+    text?: string;
+    body?: string;
+    author?: string;
+    handle?: string;
+    platform?: string;
+    interactions?: number;
+    likes?: number;
+    created_at?: string;
+    post_url?: string;
+    url?: string;
   }> | null;
 
   // Determine data availability
@@ -109,15 +132,12 @@ export default function CryptoUniverseDetail() {
 
   // Build TradingView symbol
   const getTradingViewSymbol = () => {
-    if (tokenCard.polygon_ticker) {
-      return `CRYPTO:${tokenCard.canonical_symbol}USD`;
-    }
     return `CRYPTO:${tokenCard.canonical_symbol}USD`;
   };
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
-      {/* Header */}
+      {/* Header with Price */}
       <TokenHeader
         symbol={tokenCard.canonical_symbol}
         name={tokenCard.name}
@@ -125,38 +145,107 @@ export default function CryptoUniverseDetail() {
         tier={tokenCard.tier}
         marketCapRank={tokenCard.market_cap_rank}
         categories={tokenCard.categories}
-      />
-
-      {/* TradingView Chart */}
-      <Card>
-        <CardContent className="p-0">
-          <TradingViewChart symbol={getTradingViewSymbol()} height="500px" />
-        </CardContent>
-      </Card>
-
-      {/* Price & Market */}
-      <TokenPriceMarket
         priceUsd={tokenCard.price_usd}
-        change1hPct={tokenCard.change_1h_pct}
         change24hPct={tokenCard.change_24h_pct}
-        change7dPct={tokenCard.change_7d_pct}
-        change30dPct={tokenCard.change_30d_pct}
-        high24h={tokenCard.high_24h}
-        low24h={tokenCard.low_24h}
-        athPrice={tokenCard.ath_price}
-        atlPrice={tokenCard.atl_price}
-        marketCap={tokenCard.market_cap}
-        volume24h={tokenCard.volume_24h_usd}
-        marketDominance={tokenCard.market_dominance}
-        circulatingSupply={tokenCard.circulating_supply}
-        totalSupply={tokenCard.total_supply}
-        fullyDilutedValuation={tokenCard.fully_diluted_valuation}
       />
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column */}
-        <div className="space-y-6">
+      {/* Tab Navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="w-full max-w-lg grid grid-cols-5">
+          <TabsTrigger value="summary">Summary</TabsTrigger>
+          <TabsTrigger value="metrics">Metrics</TabsTrigger>
+          <TabsTrigger value="creators">Creators</TabsTrigger>
+          <TabsTrigger value="news">News</TabsTrigger>
+          <TabsTrigger value="posts">Posts</TabsTrigger>
+        </TabsList>
+
+        {/* Summary Tab */}
+        <TabsContent value="summary" className="space-y-6 mt-6">
+          {/* AI Summary - "What's Up" */}
+          <TokenAISummary
+            aiSummary={tokenCard.ai_summary}
+            aiSummaryShort={tokenCard.ai_summary_short}
+            keyThemes={tokenCard.key_themes}
+            notableEvents={tokenCard.notable_events}
+            aiUpdatedAt={tokenCard.ai_updated_at}
+            tier={tokenCard.tier}
+          />
+
+          {/* Key Themes / Mindshare */}
+          <TokenThemes keyThemes={tokenCard.key_themes} />
+
+          {/* Metrics Grid */}
+          <TokenMetricsGrid
+            priceUsd={tokenCard.price_usd}
+            change24hPct={tokenCard.change_24h_pct}
+            altRank={tokenCard.alt_rank}
+            galaxyScore={tokenCard.galaxy_score}
+            interactions24h={tokenCard.interactions_24h}
+            socialVolume24h={tokenCard.social_volume_24h}
+            contributorsActive={tokenCard.contributors_active}
+            sentiment={tokenCard.sentiment}
+            socialDominance={tokenCard.social_dominance}
+          />
+
+          {/* TradingView Chart */}
+          <Card>
+            <CardContent className="p-0">
+              <TradingViewChart symbol={getTradingViewSymbol()} height="400px" />
+            </CardContent>
+          </Card>
+
+          {/* Social Pulse */}
+          <TokenSocialPulse
+            galaxyScore={tokenCard.galaxy_score}
+            altRank={tokenCard.alt_rank}
+            sentiment={tokenCard.sentiment}
+            sentimentLabel={tokenCard.sentiment_label}
+            socialVolume24h={tokenCard.social_volume_24h}
+            interactions24h={tokenCard.interactions_24h}
+            contributorsActive={tokenCard.contributors_active}
+            socialDominance={tokenCard.social_dominance}
+            twitterVolume={tokenCard.twitter_volume_24h}
+            twitterSentiment={tokenCard.twitter_sentiment}
+            redditVolume={tokenCard.reddit_volume_24h}
+            redditSentiment={tokenCard.reddit_sentiment}
+            youtubeVolume={tokenCard.youtube_volume_24h}
+            youtubeSentiment={tokenCard.youtube_sentiment}
+            tiktokVolume={tokenCard.tiktok_volume_24h}
+            tiktokSentiment={tokenCard.tiktok_sentiment}
+            telegramVolume={tokenCard.telegram_volume_24h}
+            telegramSentiment={tokenCard.telegram_sentiment}
+            socialUpdatedAt={tokenCard.social_updated_at}
+          />
+        </TabsContent>
+
+        {/* Metrics Tab */}
+        <TabsContent value="metrics" className="space-y-6 mt-6">
+          {/* Price & Market */}
+          <TokenPriceMarket
+            priceUsd={tokenCard.price_usd}
+            change1hPct={tokenCard.change_1h_pct}
+            change24hPct={tokenCard.change_24h_pct}
+            change7dPct={tokenCard.change_7d_pct}
+            change30dPct={tokenCard.change_30d_pct}
+            high24h={tokenCard.high_24h}
+            low24h={tokenCard.low_24h}
+            athPrice={tokenCard.ath_price}
+            atlPrice={tokenCard.atl_price}
+            marketCap={tokenCard.market_cap}
+            volume24h={tokenCard.volume_24h_usd}
+            marketDominance={tokenCard.market_dominance}
+            circulatingSupply={tokenCard.circulating_supply}
+            totalSupply={tokenCard.total_supply}
+            fullyDilutedValuation={tokenCard.fully_diluted_valuation}
+          />
+
+          {/* TradingView Chart */}
+          <Card>
+            <CardContent className="p-0">
+              <TradingViewChart symbol={getTradingViewSymbol()} height="500px" />
+            </CardContent>
+          </Card>
+
           {/* Technical Indicators */}
           <TokenTechnicals
             rsi14={tokenCard.rsi_14}
@@ -212,55 +301,31 @@ export default function CryptoUniverseDetail() {
             github={tokenCard.github}
             coingeckoId={tokenCard.coingecko_id}
           />
-        </div>
 
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Social Pulse */}
-          <TokenSocialPulse
-            galaxyScore={tokenCard.galaxy_score}
-            altRank={tokenCard.alt_rank}
-            sentiment={tokenCard.sentiment}
-            sentimentLabel={tokenCard.sentiment_label}
-            socialVolume24h={tokenCard.social_volume_24h}
-            interactions24h={tokenCard.interactions_24h}
-            contributorsActive={tokenCard.contributors_active}
-            socialDominance={tokenCard.social_dominance}
-            twitterVolume={tokenCard.twitter_volume_24h}
-            twitterSentiment={tokenCard.twitter_sentiment}
-            redditVolume={tokenCard.reddit_volume_24h}
-            redditSentiment={tokenCard.reddit_sentiment}
-            youtubeVolume={tokenCard.youtube_volume_24h}
-            youtubeSentiment={tokenCard.youtube_sentiment}
-            tiktokVolume={tokenCard.tiktok_volume_24h}
-            tiktokSentiment={tokenCard.tiktok_sentiment}
-            telegramVolume={tokenCard.telegram_volume_24h}
-            telegramSentiment={tokenCard.telegram_sentiment}
-            socialUpdatedAt={tokenCard.social_updated_at}
-          />
+          {/* Exchange Price Comparison */}
+          <ExchangePriceComparison symbol={tokenCard.canonical_symbol} />
+        </TabsContent>
 
-          {/* AI Summary */}
-          <TokenAISummary
-            aiSummary={tokenCard.ai_summary}
-            aiSummaryShort={tokenCard.ai_summary_short}
-            keyThemes={tokenCard.key_themes}
-            notableEvents={tokenCard.notable_events}
-            aiUpdatedAt={tokenCard.ai_updated_at}
-            tier={tokenCard.tier}
-          />
+        {/* Creators Tab */}
+        <TabsContent value="creators" className="space-y-6 mt-6">
+          <TokenCreators topCreators={topCreators} />
+        </TabsContent>
 
-          {/* News */}
+        {/* News Tab */}
+        <TabsContent value="news" className="space-y-6 mt-6">
           <TokenNews
             topNews={topNews}
             newsUpdatedAt={tokenCard.news_updated_at}
           />
-        </div>
-      </div>
+        </TabsContent>
 
-      {/* Exchange Price Comparison */}
-      <ExchangePriceComparison symbol={tokenCard.canonical_symbol} />
+        {/* Posts Tab */}
+        <TabsContent value="posts" className="space-y-6 mt-6">
+          <TokenPosts topPosts={topPosts} />
+        </TabsContent>
+      </Tabs>
 
-      {/* Data Sources Footer */}
+      {/* Data Sources Footer - Always visible */}
       <TokenDataSources
         tier={tokenCard.tier}
         priceUpdatedAt={tokenCard.price_updated_at}
