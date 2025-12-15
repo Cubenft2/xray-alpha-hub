@@ -7,6 +7,151 @@ const corsHeaders = {
 };
 
 // Chain mappings between token_cards format and cg_master.platforms format
+// Manual mappings for high-tier tokens that can't be matched by contract address
+// These are native tokens or have address mismatches between LunarCrush and CoinGecko
+const MANUAL_MAPPINGS: Record<string, string> = {
+  // Native L1 tokens (no contract addresses)
+  'SUI': 'sui',
+  'APT': 'aptos',
+  'TIA': 'celestia',
+  'SEI': 'sei-network',
+  'INJ': 'injective-protocol',
+  'KAIA': 'kaia',
+  'IOTA': 'iota',
+  'EGLD': 'elrond-erd-2',
+  'XDC': 'xdce-crowd-sale',
+  'ZEN': 'zencash',
+  'CELO': 'celo',
+  'ROSE': 'oasis-network',
+  'MINA': 'mina-protocol',
+  'KDA': 'kadena',
+  'CSPR': 'casper-network',
+  'CFX': 'conflux-token',
+  'AUDIO': 'audius',
+  'SC': 'siacoin',
+  'ZIL': 'zilliqa',
+  'ICX': 'icon',
+  'ONT': 'ontology',
+  'QTUM': 'qtum',
+  'RVN': 'ravencoin',
+  'ZEC': 'zcash',
+  'DCR': 'decred',
+  'XEM': 'nem',
+  'WAVES': 'waves',
+  'DASH': 'dash',
+  'BTG': 'bitcoin-gold',
+  'DGB': 'digibyte',
+  
+  // Address mismatches (LunarCrush tracks bridged versions)
+  'VET': 'vechain',
+  'BGB': 'bitget-token',
+  'GT': 'gatechain-token',
+  'OKB': 'okb',
+  'KCS': 'kucoin-shares',
+  'HT': 'huobi-token',
+  'LEO': 'leo-token',
+  'CRO': 'crypto-com-chain',
+  'NEXO': 'nexo',
+  
+  // Special cases
+  'WIF': 'dogwifcoin',
+  'BONK': 'bonk',
+  'FLOKI': 'floki',
+  'PEPE': 'pepe',
+  'SHIB': 'shiba-inu',
+  'DOGE': 'dogecoin',
+  'ORDI': 'ordinals',
+  'SATS': '1000sats-ordinals',
+  'RATS': 'rats-ordinals',
+  'RUNE': 'thorchain',
+  'JUP': 'jupiter-exchange-solana',
+  'RAY': 'raydium',
+  'PYTH': 'pyth-network',
+  'JTO': 'jito-governance-token',
+  'ONDO': 'ondo-finance',
+  'ENA': 'ethena',
+  'W': 'wormhole',
+  'STRK': 'starknet',
+  'ZK': 'zksync',
+  'ZRO': 'layerzero',
+  'BLAST': 'blast',
+  'MODE': 'mode',
+  'METIS': 'metis-token',
+  'MANTA': 'manta-network',
+  'DYM': 'dymension',
+  'ALT': 'altlayer',
+  'PIXEL': 'pixels',
+  'PORTAL': 'portal-2',
+  'ETHFI': 'ether-fi',
+  'AEVO': 'aevo-exchange',
+  'ACE': 'fusionist',
+  'AI': 'sleepless-ai',
+  'XAI': 'xai-blockchain',
+  'MYRO': 'myro',
+  'MEW': 'cat-in-a-dogs-world',
+  'BOME': 'book-of-meme',
+  'SLERF': 'slerf',
+  'POPCAT': 'popcat',
+  'BRETT': 'brett',
+  'PONKE': 'ponke',
+  'GIGA': 'gigachad-2',
+  'MOG': 'mog-coin',
+  'SPX': 'spx6900',
+  'TURBO': 'turbo',
+  'NEIRO': 'neiro-on-eth',
+  'GOAT': 'goatseus-maximus',
+  'PNUT': 'peanut-the-squirrel',
+  'CHILLGUY': 'just-a-chill-guy',
+  'FARTCOIN': 'fartcoin',
+  'AI16Z': 'ai16z',
+  'VIRTUAL': 'virtual-protocol',
+  'AIXBT': 'aixbt',
+  'ZEREBRO': 'zerebro',
+  'GRIFFAIN': 'griffain',
+  'ARC': 'arc-2',
+  'SWARMS': 'swarms',
+  'PENGU': 'pudgy-penguins',
+  'MOVE': 'movement',
+  'ME': 'magic-eden',
+  'USUAL': 'usual',
+  'HYPE': 'hyperliquid',
+  'GRASS': 'grass',
+  'EIGEN': 'eigenlayer',
+  'SAFE': 'safe',
+  'COW': 'cow-protocol',
+  'MORPHO': 'morpho',
+  'AERO': 'aerodrome-finance',
+  'VELO': 'velodrome-finance',
+  
+  // Additional Tier 1/2 tokens found missing
+  'SUN': 'sun-token',
+  'JST': 'just',
+  'KLAY': 'klay-token',
+  'WAL': 'walrus-2',
+  'DEEP': 'deepbook-protocol',
+  'ZANO': 'zano',
+  'BDX': 'beldex',
+  'FRXETH': 'frax-ether',
+  'BWB': 'bitget-wallet-token',
+  'BTSE': 'btse-token',
+  'CORE': 'coredaoorg',
+  'S': 'sonic-3',
+  'FDUSD': 'first-digital-usd',
+  'USDS': 'usds',
+  'BERA': 'berachain-bera',
+  'IP': 'story-2',
+  'TRUMP': 'official-trump',
+  'MELANIA': 'melania-meme',
+  'ANIME': 'anime',
+  'TST': 'the-sparks-token',
+  'NIL': 'nil',
+  'LAYER': 'layer',
+  'PUFFER': 'puffer-finance',
+  'KMNO': 'kamino',
+  'JELLY': 'jelly-ai',
+  'PARTI': 'particle-network',
+};
+
 const CHAIN_MAPPINGS = [
   { tc: 'ethereum', cg: 'ethereum' },
   { tc: 'solana', cg: 'solana' },
@@ -34,7 +179,44 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('[sync-token-cards-coingecko] Starting contract-based CoinGecko ID matching...');
+    console.log('[sync-token-cards-coingecko] Starting CoinGecko ID matching...');
+
+    // Step 0: Apply manual mappings FIRST for high-tier tokens
+    console.log('[sync-token-cards-coingecko] Applying manual mappings...');
+    
+    const { data: manualTargets, error: manualFetchError } = await supabase
+      .from('token_cards')
+      .select('id, canonical_symbol, tier')
+      .is('coingecko_id', null)
+      .in('canonical_symbol', Object.keys(MANUAL_MAPPINGS));
+
+    let manualMapped = 0;
+    const manualErrors: string[] = [];
+
+    if (!manualFetchError && manualTargets && manualTargets.length > 0) {
+      console.log(`[sync-token-cards-coingecko] Found ${manualTargets.length} tokens for manual mapping`);
+      
+      for (const token of manualTargets) {
+        const cgId = MANUAL_MAPPINGS[token.canonical_symbol];
+        if (cgId) {
+          const { error: updateError } = await supabase
+            .from('token_cards')
+            .update({
+              coingecko_id: cgId,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', token.id);
+
+          if (updateError) {
+            manualErrors.push(`${token.canonical_symbol}: ${updateError.message}`);
+          } else {
+            manualMapped++;
+            console.log(`[sync-token-cards-coingecko] Manual: ${token.canonical_symbol} -> ${cgId}`);
+          }
+        }
+      }
+      console.log(`[sync-token-cards-coingecko] Manual mapping complete: ${manualMapped} updated`);
+    }
 
     // Step 1: Fetch token_cards missing coingecko_id that have contracts
     const { data: tokenCards, error: fetchError } = await supabase
@@ -55,8 +237,9 @@ serve(async (req) => {
       console.log('[sync-token-cards-coingecko] No token_cards with contracts missing coingecko_id');
       return new Response(JSON.stringify({ 
         success: true, 
-        message: 'No token_cards need CoinGecko ID matching',
-        updated: 0 
+        message: 'Manual mappings applied, no contract matching needed',
+        manualMapped,
+        updated: manualMapped 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -260,16 +443,17 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[sync-token-cards-coingecko] Complete: ${updated} contract matches, ${symbolMatched} symbol matches, ${errors.length + symbolErrors.length} errors`);
+    console.log(`[sync-token-cards-coingecko] Complete: ${manualMapped} manual, ${updated} contract, ${symbolMatched} symbol matches`);
 
     return new Response(JSON.stringify({
       success: true,
       processed: tokenCards.length,
+      manualMapped,
       contractMatched: updated,
       symbolMatched,
-      totalMatched: updated + symbolMatched,
+      totalMatched: manualMapped + updated + symbolMatched,
       noMatch: noMatch - symbolMatched,
-      errors: [...errors, ...symbolErrors].slice(0, 10)
+      errors: [...manualErrors, ...errors, ...symbolErrors].slice(0, 10)
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
