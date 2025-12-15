@@ -261,6 +261,10 @@ schedule = "*/15 * * * *"
 [functions.bootstrap-token-cards]
 verify_jwt = false
 
+# Bootstrap Polygon tokens into token_cards (run once manually)
+[functions.bootstrap-polygon-to-token-cards]
+verify_jwt = false
+
 # Sync token_cards from LunarCrush with smart matching (every 15 min to avoid rate limits)
 [functions.sync-token-cards-lunarcrush]
 verify_jwt = false
