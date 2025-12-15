@@ -2156,6 +2156,690 @@ export type Database = {
         }
         Relationships: []
       }
+      token_cards: {
+        Row: {
+          adx: number | null
+          adx_signal: string | null
+          ai_summary: string | null
+          ai_summary_short: string | null
+          ai_updated_at: string | null
+          alt_rank: number | null
+          alt_rank_change_24h: number | null
+          ask_price: number | null
+          ask_size: number | null
+          ath_change_pct: number | null
+          ath_date: string | null
+          ath_price: number | null
+          atl_change_pct: number | null
+          atl_date: string | null
+          atl_price: number | null
+          bid_price: number | null
+          bid_size: number | null
+          bollinger_lower: number | null
+          bollinger_middle: number | null
+          bollinger_position: string | null
+          bollinger_upper: number | null
+          buy_sell_label: string | null
+          buy_sell_ratio: number | null
+          buy_tax: number | null
+          buy_tax_label: string | null
+          can_take_back_ownership: boolean | null
+          cannot_buy: boolean | null
+          cannot_sell_all: boolean | null
+          canonical_symbol: string
+          categories: string[] | null
+          change_1h_pct: number | null
+          change_1h_usd: number | null
+          change_24h_pct: number | null
+          change_24h_usd: number | null
+          change_30d_pct: number | null
+          change_30d_usd: number | null
+          change_7d_pct: number | null
+          change_7d_usd: number | null
+          circulating_supply: number | null
+          close_24h: number | null
+          coingecko_id: string | null
+          contracts: Json | null
+          contributors_active: number | null
+          contributors_change_24h_pct: number | null
+          correlation_rank: number | null
+          created_at: string | null
+          creator_address: string | null
+          creators_updated_at: string | null
+          description: string | null
+          dex_buyers_24h: number | null
+          dex_buys_24h: number | null
+          dex_pairs: Json | null
+          dex_pairs_count: number | null
+          dex_sellers_24h: number | null
+          dex_sells_24h: number | null
+          dex_volume_1h: number | null
+          dex_volume_24h: number | null
+          dex_volume_6h: number | null
+          discord: string | null
+          discord_url: string | null
+          ema_12: number | null
+          ema_200: number | null
+          ema_26: number | null
+          ema_50: number | null
+          explorers: Json | null
+          external_call: boolean | null
+          first_seen_at: string | null
+          fully_diluted_valuation: number | null
+          galaxy_score: number | null
+          galaxy_score_change_24h: number | null
+          github: string | null
+          github_url: string | null
+          hidden_owner: boolean | null
+          high_24h: number | null
+          holder_count: number | null
+          honeypot_reason: string | null
+          honeypot_with_same_creator: boolean | null
+          id: string
+          identity_updated_at: string | null
+          interactions_24h: number | null
+          interactions_change_24h_pct: number | null
+          is_active: boolean | null
+          is_anti_whale: boolean | null
+          is_blacklisted: boolean | null
+          is_honeypot: boolean | null
+          is_lp_locked: boolean | null
+          is_mintable: boolean | null
+          is_open_source: boolean | null
+          is_ownership_renounced: boolean | null
+          is_proxy: boolean | null
+          is_scam: boolean | null
+          is_trending: boolean | null
+          is_verified: boolean | null
+          is_whitelisted: boolean | null
+          key_themes: string[] | null
+          large_trades_24h: Json | null
+          large_trades_count: number | null
+          liquidity_change_24h_pct: number | null
+          liquidity_updated_at: string | null
+          logo_url: string | null
+          low_24h: number | null
+          lp_holder_count: number | null
+          lp_holders: Json | null
+          lp_lock_until: string | null
+          lp_total_supply: number | null
+          lunarcrush_id: number | null
+          macd_histogram: number | null
+          macd_line: number | null
+          macd_signal: number | null
+          macd_trend: string | null
+          manual_flags: string[] | null
+          manual_notes: string | null
+          market_cap: number | null
+          market_cap_rank: number | null
+          market_dominance: number | null
+          max_supply: number | null
+          name: string | null
+          news_sentiment: number | null
+          news_updated_at: string | null
+          news_volume_24h: number | null
+          notable_events: string[] | null
+          oldest_pair_created_at: string | null
+          open_24h: number | null
+          owner_address: string | null
+          owner_can_change_balance: boolean | null
+          pair_age_days: number | null
+          polygon_ticker: string | null
+          posts_updated_at: string | null
+          price_btc: number | null
+          price_eth: number | null
+          price_source: string | null
+          price_updated_at: string | null
+          price_usd: number | null
+          price_vs_sma_20: string | null
+          price_vs_sma_200: string | null
+          price_vs_sma_50: string | null
+          primary_chain: string | null
+          primary_dex: string | null
+          primary_dex_pair: string | null
+          recent_trades: Json | null
+          reddit: string | null
+          reddit_contributors: number | null
+          reddit_interactions: number | null
+          reddit_sentiment: number | null
+          reddit_url: string | null
+          reddit_volume_24h: number | null
+          rsi_14: number | null
+          rsi_signal: string | null
+          security_chain: string | null
+          security_flags: string[] | null
+          security_grade: string | null
+          security_risks_critical: number | null
+          security_risks_high: number | null
+          security_risks_low: number | null
+          security_risks_medium: number | null
+          security_score: number | null
+          security_updated_at: string | null
+          self_destruct: boolean | null
+          sell_tax: number | null
+          sell_tax_label: string | null
+          sentiment: number | null
+          sentiment_label: string | null
+          slippage_modifiable: boolean | null
+          slug: string | null
+          sma_100: number | null
+          sma_20: number | null
+          sma_200: number | null
+          sma_50: number | null
+          social_dominance: number | null
+          social_updated_at: string | null
+          social_volume_24h: number | null
+          social_volume_change_24h_pct: number | null
+          spam_score: number | null
+          spread_pct: number | null
+          spread_usd: number | null
+          stoch_d: number | null
+          stoch_k: number | null
+          stoch_signal: string | null
+          tags: string[] | null
+          technical_score: number | null
+          technical_signal: string | null
+          technicals_updated_at: string | null
+          telegram: string | null
+          telegram_sentiment: number | null
+          telegram_url: string | null
+          telegram_volume_24h: number | null
+          tier: number | null
+          tier_reason: string | null
+          tiktok_contributors: number | null
+          tiktok_interactions: number | null
+          tiktok_sentiment: number | null
+          tiktok_volume_24h: number | null
+          top_creators: Json | null
+          top_creators_count: number | null
+          top_news: Json | null
+          top_news_count: number | null
+          top_posts: Json | null
+          top_posts_count: number | null
+          top10_holder_percent: number | null
+          top10_holders: Json | null
+          total_liquidity_usd: number | null
+          total_supply: number | null
+          trade_count_24h: number | null
+          trades_updated_at: string | null
+          trading_cooldown: boolean | null
+          transfer_pausable: boolean | null
+          twitter: string | null
+          twitter_contributors: number | null
+          twitter_interactions: number | null
+          twitter_sentiment: number | null
+          twitter_url: string | null
+          twitter_volume_24h: number | null
+          updated_at: string | null
+          volume_24h_native: number | null
+          volume_24h_usd: number | null
+          vwap_24h: number | null
+          website: string | null
+          whitepaper_url: string | null
+          youtube_contributors: number | null
+          youtube_interactions: number | null
+          youtube_sentiment: number | null
+          youtube_volume_24h: number | null
+          zombiedog_analysis: string | null
+          zombiedog_signal: string | null
+          zombiedog_updated_at: string | null
+        }
+        Insert: {
+          adx?: number | null
+          adx_signal?: string | null
+          ai_summary?: string | null
+          ai_summary_short?: string | null
+          ai_updated_at?: string | null
+          alt_rank?: number | null
+          alt_rank_change_24h?: number | null
+          ask_price?: number | null
+          ask_size?: number | null
+          ath_change_pct?: number | null
+          ath_date?: string | null
+          ath_price?: number | null
+          atl_change_pct?: number | null
+          atl_date?: string | null
+          atl_price?: number | null
+          bid_price?: number | null
+          bid_size?: number | null
+          bollinger_lower?: number | null
+          bollinger_middle?: number | null
+          bollinger_position?: string | null
+          bollinger_upper?: number | null
+          buy_sell_label?: string | null
+          buy_sell_ratio?: number | null
+          buy_tax?: number | null
+          buy_tax_label?: string | null
+          can_take_back_ownership?: boolean | null
+          cannot_buy?: boolean | null
+          cannot_sell_all?: boolean | null
+          canonical_symbol: string
+          categories?: string[] | null
+          change_1h_pct?: number | null
+          change_1h_usd?: number | null
+          change_24h_pct?: number | null
+          change_24h_usd?: number | null
+          change_30d_pct?: number | null
+          change_30d_usd?: number | null
+          change_7d_pct?: number | null
+          change_7d_usd?: number | null
+          circulating_supply?: number | null
+          close_24h?: number | null
+          coingecko_id?: string | null
+          contracts?: Json | null
+          contributors_active?: number | null
+          contributors_change_24h_pct?: number | null
+          correlation_rank?: number | null
+          created_at?: string | null
+          creator_address?: string | null
+          creators_updated_at?: string | null
+          description?: string | null
+          dex_buyers_24h?: number | null
+          dex_buys_24h?: number | null
+          dex_pairs?: Json | null
+          dex_pairs_count?: number | null
+          dex_sellers_24h?: number | null
+          dex_sells_24h?: number | null
+          dex_volume_1h?: number | null
+          dex_volume_24h?: number | null
+          dex_volume_6h?: number | null
+          discord?: string | null
+          discord_url?: string | null
+          ema_12?: number | null
+          ema_200?: number | null
+          ema_26?: number | null
+          ema_50?: number | null
+          explorers?: Json | null
+          external_call?: boolean | null
+          first_seen_at?: string | null
+          fully_diluted_valuation?: number | null
+          galaxy_score?: number | null
+          galaxy_score_change_24h?: number | null
+          github?: string | null
+          github_url?: string | null
+          hidden_owner?: boolean | null
+          high_24h?: number | null
+          holder_count?: number | null
+          honeypot_reason?: string | null
+          honeypot_with_same_creator?: boolean | null
+          id?: string
+          identity_updated_at?: string | null
+          interactions_24h?: number | null
+          interactions_change_24h_pct?: number | null
+          is_active?: boolean | null
+          is_anti_whale?: boolean | null
+          is_blacklisted?: boolean | null
+          is_honeypot?: boolean | null
+          is_lp_locked?: boolean | null
+          is_mintable?: boolean | null
+          is_open_source?: boolean | null
+          is_ownership_renounced?: boolean | null
+          is_proxy?: boolean | null
+          is_scam?: boolean | null
+          is_trending?: boolean | null
+          is_verified?: boolean | null
+          is_whitelisted?: boolean | null
+          key_themes?: string[] | null
+          large_trades_24h?: Json | null
+          large_trades_count?: number | null
+          liquidity_change_24h_pct?: number | null
+          liquidity_updated_at?: string | null
+          logo_url?: string | null
+          low_24h?: number | null
+          lp_holder_count?: number | null
+          lp_holders?: Json | null
+          lp_lock_until?: string | null
+          lp_total_supply?: number | null
+          lunarcrush_id?: number | null
+          macd_histogram?: number | null
+          macd_line?: number | null
+          macd_signal?: number | null
+          macd_trend?: string | null
+          manual_flags?: string[] | null
+          manual_notes?: string | null
+          market_cap?: number | null
+          market_cap_rank?: number | null
+          market_dominance?: number | null
+          max_supply?: number | null
+          name?: string | null
+          news_sentiment?: number | null
+          news_updated_at?: string | null
+          news_volume_24h?: number | null
+          notable_events?: string[] | null
+          oldest_pair_created_at?: string | null
+          open_24h?: number | null
+          owner_address?: string | null
+          owner_can_change_balance?: boolean | null
+          pair_age_days?: number | null
+          polygon_ticker?: string | null
+          posts_updated_at?: string | null
+          price_btc?: number | null
+          price_eth?: number | null
+          price_source?: string | null
+          price_updated_at?: string | null
+          price_usd?: number | null
+          price_vs_sma_20?: string | null
+          price_vs_sma_200?: string | null
+          price_vs_sma_50?: string | null
+          primary_chain?: string | null
+          primary_dex?: string | null
+          primary_dex_pair?: string | null
+          recent_trades?: Json | null
+          reddit?: string | null
+          reddit_contributors?: number | null
+          reddit_interactions?: number | null
+          reddit_sentiment?: number | null
+          reddit_url?: string | null
+          reddit_volume_24h?: number | null
+          rsi_14?: number | null
+          rsi_signal?: string | null
+          security_chain?: string | null
+          security_flags?: string[] | null
+          security_grade?: string | null
+          security_risks_critical?: number | null
+          security_risks_high?: number | null
+          security_risks_low?: number | null
+          security_risks_medium?: number | null
+          security_score?: number | null
+          security_updated_at?: string | null
+          self_destruct?: boolean | null
+          sell_tax?: number | null
+          sell_tax_label?: string | null
+          sentiment?: number | null
+          sentiment_label?: string | null
+          slippage_modifiable?: boolean | null
+          slug?: string | null
+          sma_100?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          social_dominance?: number | null
+          social_updated_at?: string | null
+          social_volume_24h?: number | null
+          social_volume_change_24h_pct?: number | null
+          spam_score?: number | null
+          spread_pct?: number | null
+          spread_usd?: number | null
+          stoch_d?: number | null
+          stoch_k?: number | null
+          stoch_signal?: string | null
+          tags?: string[] | null
+          technical_score?: number | null
+          technical_signal?: string | null
+          technicals_updated_at?: string | null
+          telegram?: string | null
+          telegram_sentiment?: number | null
+          telegram_url?: string | null
+          telegram_volume_24h?: number | null
+          tier?: number | null
+          tier_reason?: string | null
+          tiktok_contributors?: number | null
+          tiktok_interactions?: number | null
+          tiktok_sentiment?: number | null
+          tiktok_volume_24h?: number | null
+          top_creators?: Json | null
+          top_creators_count?: number | null
+          top_news?: Json | null
+          top_news_count?: number | null
+          top_posts?: Json | null
+          top_posts_count?: number | null
+          top10_holder_percent?: number | null
+          top10_holders?: Json | null
+          total_liquidity_usd?: number | null
+          total_supply?: number | null
+          trade_count_24h?: number | null
+          trades_updated_at?: string | null
+          trading_cooldown?: boolean | null
+          transfer_pausable?: boolean | null
+          twitter?: string | null
+          twitter_contributors?: number | null
+          twitter_interactions?: number | null
+          twitter_sentiment?: number | null
+          twitter_url?: string | null
+          twitter_volume_24h?: number | null
+          updated_at?: string | null
+          volume_24h_native?: number | null
+          volume_24h_usd?: number | null
+          vwap_24h?: number | null
+          website?: string | null
+          whitepaper_url?: string | null
+          youtube_contributors?: number | null
+          youtube_interactions?: number | null
+          youtube_sentiment?: number | null
+          youtube_volume_24h?: number | null
+          zombiedog_analysis?: string | null
+          zombiedog_signal?: string | null
+          zombiedog_updated_at?: string | null
+        }
+        Update: {
+          adx?: number | null
+          adx_signal?: string | null
+          ai_summary?: string | null
+          ai_summary_short?: string | null
+          ai_updated_at?: string | null
+          alt_rank?: number | null
+          alt_rank_change_24h?: number | null
+          ask_price?: number | null
+          ask_size?: number | null
+          ath_change_pct?: number | null
+          ath_date?: string | null
+          ath_price?: number | null
+          atl_change_pct?: number | null
+          atl_date?: string | null
+          atl_price?: number | null
+          bid_price?: number | null
+          bid_size?: number | null
+          bollinger_lower?: number | null
+          bollinger_middle?: number | null
+          bollinger_position?: string | null
+          bollinger_upper?: number | null
+          buy_sell_label?: string | null
+          buy_sell_ratio?: number | null
+          buy_tax?: number | null
+          buy_tax_label?: string | null
+          can_take_back_ownership?: boolean | null
+          cannot_buy?: boolean | null
+          cannot_sell_all?: boolean | null
+          canonical_symbol?: string
+          categories?: string[] | null
+          change_1h_pct?: number | null
+          change_1h_usd?: number | null
+          change_24h_pct?: number | null
+          change_24h_usd?: number | null
+          change_30d_pct?: number | null
+          change_30d_usd?: number | null
+          change_7d_pct?: number | null
+          change_7d_usd?: number | null
+          circulating_supply?: number | null
+          close_24h?: number | null
+          coingecko_id?: string | null
+          contracts?: Json | null
+          contributors_active?: number | null
+          contributors_change_24h_pct?: number | null
+          correlation_rank?: number | null
+          created_at?: string | null
+          creator_address?: string | null
+          creators_updated_at?: string | null
+          description?: string | null
+          dex_buyers_24h?: number | null
+          dex_buys_24h?: number | null
+          dex_pairs?: Json | null
+          dex_pairs_count?: number | null
+          dex_sellers_24h?: number | null
+          dex_sells_24h?: number | null
+          dex_volume_1h?: number | null
+          dex_volume_24h?: number | null
+          dex_volume_6h?: number | null
+          discord?: string | null
+          discord_url?: string | null
+          ema_12?: number | null
+          ema_200?: number | null
+          ema_26?: number | null
+          ema_50?: number | null
+          explorers?: Json | null
+          external_call?: boolean | null
+          first_seen_at?: string | null
+          fully_diluted_valuation?: number | null
+          galaxy_score?: number | null
+          galaxy_score_change_24h?: number | null
+          github?: string | null
+          github_url?: string | null
+          hidden_owner?: boolean | null
+          high_24h?: number | null
+          holder_count?: number | null
+          honeypot_reason?: string | null
+          honeypot_with_same_creator?: boolean | null
+          id?: string
+          identity_updated_at?: string | null
+          interactions_24h?: number | null
+          interactions_change_24h_pct?: number | null
+          is_active?: boolean | null
+          is_anti_whale?: boolean | null
+          is_blacklisted?: boolean | null
+          is_honeypot?: boolean | null
+          is_lp_locked?: boolean | null
+          is_mintable?: boolean | null
+          is_open_source?: boolean | null
+          is_ownership_renounced?: boolean | null
+          is_proxy?: boolean | null
+          is_scam?: boolean | null
+          is_trending?: boolean | null
+          is_verified?: boolean | null
+          is_whitelisted?: boolean | null
+          key_themes?: string[] | null
+          large_trades_24h?: Json | null
+          large_trades_count?: number | null
+          liquidity_change_24h_pct?: number | null
+          liquidity_updated_at?: string | null
+          logo_url?: string | null
+          low_24h?: number | null
+          lp_holder_count?: number | null
+          lp_holders?: Json | null
+          lp_lock_until?: string | null
+          lp_total_supply?: number | null
+          lunarcrush_id?: number | null
+          macd_histogram?: number | null
+          macd_line?: number | null
+          macd_signal?: number | null
+          macd_trend?: string | null
+          manual_flags?: string[] | null
+          manual_notes?: string | null
+          market_cap?: number | null
+          market_cap_rank?: number | null
+          market_dominance?: number | null
+          max_supply?: number | null
+          name?: string | null
+          news_sentiment?: number | null
+          news_updated_at?: string | null
+          news_volume_24h?: number | null
+          notable_events?: string[] | null
+          oldest_pair_created_at?: string | null
+          open_24h?: number | null
+          owner_address?: string | null
+          owner_can_change_balance?: boolean | null
+          pair_age_days?: number | null
+          polygon_ticker?: string | null
+          posts_updated_at?: string | null
+          price_btc?: number | null
+          price_eth?: number | null
+          price_source?: string | null
+          price_updated_at?: string | null
+          price_usd?: number | null
+          price_vs_sma_20?: string | null
+          price_vs_sma_200?: string | null
+          price_vs_sma_50?: string | null
+          primary_chain?: string | null
+          primary_dex?: string | null
+          primary_dex_pair?: string | null
+          recent_trades?: Json | null
+          reddit?: string | null
+          reddit_contributors?: number | null
+          reddit_interactions?: number | null
+          reddit_sentiment?: number | null
+          reddit_url?: string | null
+          reddit_volume_24h?: number | null
+          rsi_14?: number | null
+          rsi_signal?: string | null
+          security_chain?: string | null
+          security_flags?: string[] | null
+          security_grade?: string | null
+          security_risks_critical?: number | null
+          security_risks_high?: number | null
+          security_risks_low?: number | null
+          security_risks_medium?: number | null
+          security_score?: number | null
+          security_updated_at?: string | null
+          self_destruct?: boolean | null
+          sell_tax?: number | null
+          sell_tax_label?: string | null
+          sentiment?: number | null
+          sentiment_label?: string | null
+          slippage_modifiable?: boolean | null
+          slug?: string | null
+          sma_100?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          social_dominance?: number | null
+          social_updated_at?: string | null
+          social_volume_24h?: number | null
+          social_volume_change_24h_pct?: number | null
+          spam_score?: number | null
+          spread_pct?: number | null
+          spread_usd?: number | null
+          stoch_d?: number | null
+          stoch_k?: number | null
+          stoch_signal?: string | null
+          tags?: string[] | null
+          technical_score?: number | null
+          technical_signal?: string | null
+          technicals_updated_at?: string | null
+          telegram?: string | null
+          telegram_sentiment?: number | null
+          telegram_url?: string | null
+          telegram_volume_24h?: number | null
+          tier?: number | null
+          tier_reason?: string | null
+          tiktok_contributors?: number | null
+          tiktok_interactions?: number | null
+          tiktok_sentiment?: number | null
+          tiktok_volume_24h?: number | null
+          top_creators?: Json | null
+          top_creators_count?: number | null
+          top_news?: Json | null
+          top_news_count?: number | null
+          top_posts?: Json | null
+          top_posts_count?: number | null
+          top10_holder_percent?: number | null
+          top10_holders?: Json | null
+          total_liquidity_usd?: number | null
+          total_supply?: number | null
+          trade_count_24h?: number | null
+          trades_updated_at?: string | null
+          trading_cooldown?: boolean | null
+          transfer_pausable?: boolean | null
+          twitter?: string | null
+          twitter_contributors?: number | null
+          twitter_interactions?: number | null
+          twitter_sentiment?: number | null
+          twitter_url?: string | null
+          twitter_volume_24h?: number | null
+          updated_at?: string | null
+          volume_24h_native?: number | null
+          volume_24h_usd?: number | null
+          vwap_24h?: number | null
+          website?: string | null
+          whitepaper_url?: string | null
+          youtube_contributors?: number | null
+          youtube_interactions?: number | null
+          youtube_sentiment?: number | null
+          youtube_volume_24h?: number | null
+          zombiedog_analysis?: string | null
+          zombiedog_signal?: string | null
+          zombiedog_updated_at?: string | null
+        }
+        Relationships: []
+      }
       token_contracts: {
         Row: {
           asset_id: string
@@ -2200,6 +2884,96 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      token_price_history: {
+        Row: {
+          close: number
+          created_at: string | null
+          high: number
+          id: number
+          low: number
+          open: number
+          timeframe: string
+          timestamp: string
+          token_symbol: string
+          trade_count: number | null
+          volume: number | null
+          vwap: number | null
+        }
+        Insert: {
+          close: number
+          created_at?: string | null
+          high: number
+          id?: number
+          low: number
+          open: number
+          timeframe: string
+          timestamp: string
+          token_symbol: string
+          trade_count?: number | null
+          volume?: number | null
+          vwap?: number | null
+        }
+        Update: {
+          close?: number
+          created_at?: string | null
+          high?: number
+          id?: number
+          low?: number
+          open?: number
+          timeframe?: string
+          timestamp?: string
+          token_symbol?: string
+          trade_count?: number | null
+          volume?: number | null
+          vwap?: number | null
+        }
+        Relationships: []
+      }
+      token_social_history: {
+        Row: {
+          alt_rank: number | null
+          contributors: number | null
+          created_at: string | null
+          galaxy_score: number | null
+          id: number
+          interactions: number | null
+          price_usd: number | null
+          sentiment: number | null
+          social_volume: number | null
+          timeframe: string
+          timestamp: string
+          token_symbol: string
+        }
+        Insert: {
+          alt_rank?: number | null
+          contributors?: number | null
+          created_at?: string | null
+          galaxy_score?: number | null
+          id?: number
+          interactions?: number | null
+          price_usd?: number | null
+          sentiment?: number | null
+          social_volume?: number | null
+          timeframe: string
+          timestamp: string
+          token_symbol: string
+        }
+        Update: {
+          alt_rank?: number | null
+          contributors?: number | null
+          created_at?: string | null
+          galaxy_score?: number | null
+          id?: number
+          interactions?: number | null
+          price_usd?: number | null
+          sentiment?: number | null
+          social_volume?: number | null
+          timeframe?: string
+          timestamp?: string
+          token_symbol?: string
+        }
+        Relationships: []
       }
       tradingview_assets: {
         Row: {
