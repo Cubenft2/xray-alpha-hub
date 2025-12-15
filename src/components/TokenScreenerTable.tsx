@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-import { TokenCard, SortKey, SortDirection } from '@/hooks/useTokenCards';
+import { TokenCard, SortKey, SortDirection, isSuspiciousToken, isLowLiquidity } from '@/hooks/useTokenCards';
 import { cn } from '@/lib/utils';
 
 interface TokenScreenerTableProps {
@@ -161,6 +162,48 @@ function DataSourceBadge({ polygonSupported }: { polygonSupported: boolean | nul
   );
 }
 
+function LiquidityWarningBadge({ marketCap, volume }: { marketCap: number | null; volume: number | null }) {
+  const suspicious = isSuspiciousToken(marketCap, volume);
+  const lowLiquidity = isLowLiquidity(volume);
+  
+  if (suspicious) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger>
+            <Badge variant="outline" className="text-[10px] px-1 py-0 bg-red-500/10 text-red-500 border-red-500/30 gap-0.5">
+              <AlertTriangle className="h-3 w-3" />
+              ⚠️
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-xs">Suspicious: High market cap with very low volume</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  
+  if (lowLiquidity) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger>
+            <Badge variant="outline" className="text-[10px] px-1 py-0 bg-amber-500/10 text-amber-500 border-amber-500/30">
+              Low Vol
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-xs">Low liquidity: 24h volume under $10K</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  
+  return null;
+}
+
 export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isLoading }: TokenScreenerTableProps) {
   const navigate = useNavigate();
 
@@ -247,6 +290,7 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                       <div className="flex items-center gap-1">
                         <span className="font-semibold">{token.canonical_symbol}</span>
                         <DataSourceBadge polygonSupported={token.polygon_supported} />
+                        <LiquidityWarningBadge marketCap={token.market_cap} volume={token.volume_24h_usd} />
                       </div>
                       <span className="text-muted-foreground text-xs truncate max-w-[100px]">
                         {token.name}
