@@ -189,11 +189,10 @@ verify_jwt = false
 [functions.fix-coingecko-mappings]
 verify_jwt = false
 
+# DISABLED: lunarcrush-sync writes to wrong table (crypto_snapshot instead of token_cards)
+# Use sync-token-cards-lunarcrush instead which writes to token_cards
 [functions.lunarcrush-sync]
 verify_jwt = false
-
-[[functions.lunarcrush-sync.cron]]
-schedule = "*/5 * * * *"
 
 [functions.asset-details]
 verify_jwt = false
@@ -265,12 +264,12 @@ verify_jwt = false
 [functions.bootstrap-polygon-to-token-cards]
 verify_jwt = false
 
-# Sync token_cards from LunarCrush with smart matching (every 15 min to avoid rate limits)
+# Sync token_cards from LunarCrush with smart matching (every 2 min for maximum freshness)
 [functions.sync-token-cards-lunarcrush]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush.cron]]
-schedule = "*/15 * * * *"
+schedule = "*/2 * * * *"
 
 # Sync token_cards prices from Polygon.io (tiered refresh)
 [functions.sync-token-cards-polygon]
@@ -295,11 +294,12 @@ verify_jwt = false
 schedule = "* * * * *"
 
 # Sync enhanced LunarCrush data (AI summaries, posts, news, creators) for top 500 tokens
+# Running every 10 min to conserve API calls (4 endpoints per token)
 [functions.sync-token-cards-lunarcrush-enhanced]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush-enhanced.cron]]
-schedule = "* * * * *"
+schedule = "*/10 * * * *"
 
 # Sync CoinGecko IDs and contract addresses to token_cards
 [functions.sync-token-cards-coingecko]

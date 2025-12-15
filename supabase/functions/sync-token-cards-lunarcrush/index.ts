@@ -119,7 +119,7 @@ serve(async (req) => {
       console.log(`[sync-token-cards-lunarcrush] Fetched ${coins.length} coins at offset ${offset}`);
       
       if (coins.length < LIMIT) break;
-      await new Promise(r => setTimeout(r, 2000)); // Increased rate limit delay from 300ms to 2000ms
+      await new Promise(r => setTimeout(r, 1500)); // Reduced delay for 2-min sync frequency
     }
 
     console.log(`[sync-token-cards-lunarcrush] Total coins fetched: ${allCoins.length}`);
