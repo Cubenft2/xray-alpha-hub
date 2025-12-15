@@ -43,18 +43,31 @@ interface CronJob {
   jobname: string | null;
 }
 
-// Expected cron jobs based on config.toml
+// Expected cron jobs - aligned with centralized token_cards architecture
 const EXPECTED_CRON_JOBS = [
-  { name: 'polygon-rest-poller', schedule: '*/2 * * * *', description: 'Crypto prices every 2 min' },
-  { name: 'polygon-stock-poller', schedule: '*/5 * * * *', description: 'Stock prices every 5 min' },
-  { name: 'polygon-indicators-refresh', schedule: '0 * * * *', description: 'Technical indicators hourly' },
-  { name: 'exchange-sync', schedule: '0 2 * * *', description: 'Exchange pairs daily 2 AM' },
-  { name: 'exchange-data-aggregator', schedule: '*/15 * * * *', description: 'Exchange prices every 15 min' },
-  { name: 'coingecko-sync', schedule: '0 3 * * *', description: 'CoinGecko sync daily 3 AM' },
-  { name: 'lunarcrush-sync', schedule: '*/5 * * * *', description: 'LunarCrush crypto sync (3000)' },
-  { name: 'lunarcrush-universe', schedule: '*/5 * * * *', description: 'LunarCrush cache for UI' },
-  { name: 'massive-crypto-snapshot', schedule: '*/2 * * * *', description: 'Unified crypto snapshot' },
-  { name: 'manual-price-sync', schedule: '*/5 * * * *', description: 'CoinGecko prices (3000)' },
+  // Master token_cards syncs (CRITICAL)
+  { name: 'sync-token-cards-polygon', schedule: '* * * * *', description: 'Token prices from Polygon (1min)' },
+  { name: 'sync-token-cards-lunarcrush', schedule: '*/3 * * * *', description: 'LunarCrush social metrics (3min)' },
+  { name: 'sync-token-cards-coingecko', schedule: '0 2 * * *', description: 'CoinGecko IDs (daily 2 AM)' },
+  { name: 'sync-token-cards-lunarcrush-enhanced', schedule: '*/10 * * * *', description: 'Enhanced data (10min)' },
+  { name: 'sync-token-cards-metadata', schedule: '0 6 * * *', description: 'Token metadata (daily 6 AM)' },
+  
+  // Stocks & Forex
+  { name: 'polygon-stock-snapshot', schedule: '*/5 * * * *', description: 'Stock prices (5min)' },
+  { name: 'sync-forex-cards-polygon', schedule: '* * * * *', description: 'Forex prices (1min)' },
+  { name: 'massive-forex-snapshot', schedule: '*/5 * * * *', description: 'Forex snapshot (5min)' },
+  
+  // Supporting syncs
+  { name: 'exchange-data-aggregator', schedule: '*/15 * * * *', description: 'Exchange prices (15min)' },
+  { name: 'exchange-sync', schedule: '0 2 * * *', description: 'Exchange pairs (daily 2 AM)' },
+  
+  // Cache warming
+  { name: 'warm-derivs-cache', schedule: '*/5 * * * *', description: 'Derivatives cache (5min)' },
+  { name: 'warm-news-cache', schedule: '*/30 * * * *', description: 'News cache (30min)' },
+  
+  // Market briefs
+  { name: 'generate-brief-morning', schedule: '0 6 * * *', description: 'Morning brief (daily)' },
+  { name: 'generate-brief-evening', schedule: '0 22 * * *', description: 'Evening brief (daily)' },
 ];
 
 export function SystemHealth() {
@@ -119,127 +132,194 @@ export function SystemHealth() {
     const statuses: HealthStatus[] = [];
 
     try {
-      // Check live_prices freshness
-      const { data: livePrices } = await supabase
-        .from('live_prices')
+      // Check token_cards freshness (ALL tokens)
+      const { data: tokenCards } = await supabase
+        .from('token_cards')
         .select('updated_at')
+        .not('price', 'is', null)
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (livePrices) {
-        const lastUpdate = new Date(livePrices.updated_at);
-        const ageMs = Date.now() - lastUpdate.getTime();
-        const ageMinutes = ageMs / 60000;
+      if (tokenCards) {
+        const lastUpdate = new Date(tokenCards.updated_at);
+        const ageMinutes = (Date.now() - lastUpdate.getTime()) / 60000;
 
         statuses.push({
-          name: 'Live Prices',
-          status: ageMinutes < 2 ? 'healthy' : ageMinutes < 10 ? 'warning' : 'error',
-          lastUpdate: livePrices.updated_at,
-          details: `${Math.round(ageMinutes)} minutes old`,
+          name: 'Token Cards (All)',
+          status: ageMinutes < 5 ? 'healthy' : ageMinutes < 15 ? 'warning' : 'error',
+          lastUpdate: tokenCards.updated_at,
+          details: `${Math.round(ageMinutes)} min old`,
         });
       } else {
         statuses.push({
-          name: 'Live Prices',
+          name: 'Token Cards (All)',
           status: 'error',
           lastUpdate: null,
           details: 'No data found',
         });
       }
 
-      // Check exchange_ticker_data freshness per exchange (Title Case to match database)
-      const exchanges = ['Binance', 'Bybit', 'OKX', 'KuCoin', 'Coinbase', 'Kraken', 'HTX', 'MEXC', 'Bitget'];
-      for (const exchange of exchanges) {
-        const { data: exchangeData } = await supabase
-          .from('exchange_ticker_data')
-          .select('updated_at')
-          .eq('exchange', exchange)
-          .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (exchangeData) {
-          const lastUpdate = new Date(exchangeData.updated_at);
-          const ageHours = (Date.now() - lastUpdate.getTime()) / 3600000;
-
-          statuses.push({
-            name: `Exchange: ${exchange}`,
-            status: ageHours < 1 ? 'healthy' : ageHours < 24 ? 'warning' : 'error',
-            lastUpdate: exchangeData.updated_at,
-            details: ageHours < 1 ? `${Math.round(ageHours * 60)} min ago` : `${Math.round(ageHours)} hours old`,
-          });
-        } else {
-          statuses.push({
-            name: `Exchange: ${exchange}`,
-            status: 'unknown',
-            lastUpdate: null,
-            details: 'No data',
-          });
-        }
-      }
-
-      // Check assets count
-      const { count: assetCount } = await supabase
-        .from('assets')
-        .select('*', { count: 'exact', head: true });
-
-      statuses.push({
-        name: 'Assets',
-        status: (assetCount || 0) > 100 ? 'healthy' : 'warning',
-        lastUpdate: null,
-        details: `${assetCount || 0} total assets`,
-      });
-
-      // Check technical_indicators freshness
-      const { data: indicators } = await supabase
-        .from('technical_indicators')
-        .select('created_at')
-        .order('created_at', { ascending: false })
+      // Check token_cards Polygon-supported freshness
+      const { data: polygonTokens } = await supabase
+        .from('token_cards')
+        .select('updated_at')
+        .eq('polygon_supported', true)
+        .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (indicators) {
-        const lastUpdate = new Date(indicators.created_at);
-        const ageHours = (Date.now() - lastUpdate.getTime()) / 3600000;
+      if (polygonTokens) {
+        const lastUpdate = new Date(polygonTokens.updated_at);
+        const ageMinutes = (Date.now() - lastUpdate.getTime()) / 60000;
 
         statuses.push({
-          name: 'Technical Indicators',
-          status: ageHours < 2 ? 'healthy' : ageHours < 24 ? 'warning' : 'error',
-          lastUpdate: indicators.created_at,
-          details: `${Math.round(ageHours)} hours old`,
+          name: 'Token Cards (LIVE)',
+          status: ageMinutes < 2 ? 'healthy' : ageMinutes < 5 ? 'warning' : 'error',
+          lastUpdate: polygonTokens.updated_at,
+          details: `${Math.round(ageMinutes)} min old`,
         });
       } else {
         statuses.push({
-          name: 'Technical Indicators',
+          name: 'Token Cards (LIVE)',
+          status: 'unknown',
+          lastUpdate: null,
+          details: 'No Polygon tokens',
+        });
+      }
+
+      // Check stock_cards freshness
+      const { data: stockCards } = await supabase
+        .from('stock_cards')
+        .select('updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (stockCards) {
+        const lastUpdate = new Date(stockCards.updated_at);
+        const ageMinutes = (Date.now() - lastUpdate.getTime()) / 60000;
+
+        statuses.push({
+          name: 'Stock Cards',
+          status: ageMinutes < 10 ? 'healthy' : ageMinutes < 30 ? 'warning' : 'error',
+          lastUpdate: stockCards.updated_at,
+          details: `${Math.round(ageMinutes)} min old`,
+        });
+      } else {
+        statuses.push({
+          name: 'Stock Cards',
           status: 'unknown',
           lastUpdate: null,
           details: 'No data',
         });
       }
 
-      // Check price_sync_leader (WebSocket relay)
-      const { data: leader } = await supabase
-        .from('price_sync_leader')
-        .select('heartbeat_at, instance_id')
-        .eq('id', 'singleton')
+      // Check forex_cards freshness
+      const { data: forexCards } = await supabase
+        .from('forex_cards')
+        .select('updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (leader) {
-        const lastHeartbeat = new Date(leader.heartbeat_at);
-        const ageSeconds = (Date.now() - lastHeartbeat.getTime()) / 1000;
+      if (forexCards) {
+        const lastUpdate = new Date(forexCards.updated_at);
+        const ageMinutes = (Date.now() - lastUpdate.getTime()) / 60000;
 
         statuses.push({
-          name: 'Price Relay (Legacy WS)',
-          status: ageSeconds < 60 ? 'healthy' : ageSeconds < 300 ? 'warning' : 'error',
-          lastUpdate: leader.heartbeat_at,
-          details: ageSeconds < 60 ? 'Active' : `Stale (${Math.round(ageSeconds)}s)`,
+          name: 'Forex Cards',
+          status: ageMinutes < 5 ? 'healthy' : ageMinutes < 15 ? 'warning' : 'error',
+          lastUpdate: forexCards.updated_at,
+          details: `${Math.round(ageMinutes)} min old`,
         });
       } else {
         statuses.push({
-          name: 'Price Relay (Legacy WS)',
+          name: 'Forex Cards',
           status: 'unknown',
           lastUpdate: null,
-          details: 'No leader registered',
+          details: 'No data',
+        });
+      }
+
+      // Check exchange_ticker_data freshness (summary)
+      const { data: exchangeData } = await supabase
+        .from('exchange_ticker_data')
+        .select('updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (exchangeData) {
+        const lastUpdate = new Date(exchangeData.updated_at);
+        const ageMinutes = (Date.now() - lastUpdate.getTime()) / 60000;
+
+        statuses.push({
+          name: 'Exchange Data',
+          status: ageMinutes < 30 ? 'healthy' : ageMinutes < 60 ? 'warning' : 'error',
+          lastUpdate: exchangeData.updated_at,
+          details: `${Math.round(ageMinutes)} min old`,
+        });
+      } else {
+        statuses.push({
+          name: 'Exchange Data',
+          status: 'unknown',
+          lastUpdate: null,
+          details: 'No data',
+        });
+      }
+
+      // Check derivatives_cache freshness
+      const { data: derivsCache } = await supabase
+        .from('derivatives_cache')
+        .select('updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (derivsCache) {
+        const lastUpdate = new Date(derivsCache.updated_at);
+        const ageMinutes = (Date.now() - lastUpdate.getTime()) / 60000;
+
+        statuses.push({
+          name: 'Derivatives Cache',
+          status: ageMinutes < 10 ? 'healthy' : ageMinutes < 30 ? 'warning' : 'error',
+          lastUpdate: derivsCache.updated_at,
+          details: `${Math.round(ageMinutes)} min old`,
+        });
+      } else {
+        statuses.push({
+          name: 'Derivatives Cache',
+          status: 'unknown',
+          lastUpdate: null,
+          details: 'No data',
+        });
+      }
+
+      // Check news_cache freshness
+      const { data: newsCache } = await supabase
+        .from('news_cache')
+        .select('created_at')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (newsCache) {
+        const lastUpdate = new Date(newsCache.created_at);
+        const ageMinutes = (Date.now() - lastUpdate.getTime()) / 60000;
+
+        statuses.push({
+          name: 'News Cache',
+          status: ageMinutes < 60 ? 'healthy' : ageMinutes < 120 ? 'warning' : 'error',
+          lastUpdate: newsCache.created_at,
+          details: `${Math.round(ageMinutes)} min old`,
+        });
+      } else {
+        statuses.push({
+          name: 'News Cache',
+          status: 'unknown',
+          lastUpdate: null,
+          details: 'No data',
         });
       }
 
@@ -690,48 +770,48 @@ $$;`}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {/* PRIMARY: LunarCrush Sync - 3000 tokens */}
+            {/* PRIMARY: Token Cards Syncs */}
             <Button 
-              onClick={() => triggerFunction('lunarcrush-sync', 'LunarCrush Sync')} 
+              onClick={() => triggerFunction('sync-token-cards-polygon', 'Token Cards Polygon')} 
               variant="outline" 
               className="w-full justify-start border-primary/50"
-              disabled={triggeringJob === 'lunarcrush-sync'}
+              disabled={triggeringJob === 'sync-token-cards-polygon'}
             >
-              {triggeringJob === 'lunarcrush-sync' ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Activity className="mr-2 h-4 w-4 text-primary" />
-              )}
-              LunarCrush Sync (3000)
-            </Button>
-            {/* CoinGecko Prices - 3000 tokens */}
-            <Button 
-              onClick={() => triggerFunction('manual-price-sync', 'CoinGecko Prices')} 
-              variant="outline" 
-              className="w-full justify-start border-primary/50"
-              disabled={triggeringJob === 'manual-price-sync'}
-            >
-              {triggeringJob === 'manual-price-sync' ? (
+              {triggeringJob === 'sync-token-cards-polygon' ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Database className="mr-2 h-4 w-4 text-primary" />
               )}
-              CoinGecko Prices (3000)
+              Token Cards (Polygon)
             </Button>
-            {/* Massive Crypto Snapshot */}
             <Button 
-              onClick={() => triggerFunction('massive-crypto-snapshot', 'Crypto Snapshot')} 
+              onClick={() => triggerFunction('sync-token-cards-lunarcrush', 'Token Cards LunarCrush')} 
               variant="outline" 
-              className="w-full justify-start"
-              disabled={triggeringJob === 'massive-crypto-snapshot'}
+              className="w-full justify-start border-primary/50"
+              disabled={triggeringJob === 'sync-token-cards-lunarcrush'}
             >
-              {triggeringJob === 'massive-crypto-snapshot' ? (
+              {triggeringJob === 'sync-token-cards-lunarcrush' ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Database className="mr-2 h-4 w-4" />
+                <Activity className="mr-2 h-4 w-4 text-primary" />
               )}
-              Crypto Snapshot
+              Token Cards (LunarCrush)
             </Button>
+            <Button 
+              onClick={() => triggerFunction('sync-token-cards-coingecko', 'Token Cards CoinGecko')} 
+              variant="outline" 
+              className="w-full justify-start border-primary/50"
+              disabled={triggeringJob === 'sync-token-cards-coingecko'}
+            >
+              {triggeringJob === 'sync-token-cards-coingecko' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Database className="mr-2 h-4 w-4 text-primary" />
+              )}
+              Token Cards (CoinGecko)
+            </Button>
+            
+            {/* Stocks & Forex */}
             <Button 
               onClick={() => triggerFunction('polygon-stock-snapshot', 'Stock Snapshot')} 
               variant="outline" 
@@ -746,31 +826,20 @@ $$;`}
               Stock Snapshot
             </Button>
             <Button 
-              onClick={() => triggerFunction('polygon-indicators-refresh', 'Technical Indicators')} 
+              onClick={() => triggerFunction('sync-forex-cards-polygon', 'Forex Cards')} 
               variant="outline" 
               className="w-full justify-start"
-              disabled={triggeringJob === 'polygon-indicators-refresh'}
+              disabled={triggeringJob === 'sync-forex-cards-polygon'}
             >
-              {triggeringJob === 'polygon-indicators-refresh' ? (
+              {triggeringJob === 'sync-forex-cards-polygon' ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Activity className="mr-2 h-4 w-4" />
+                <Database className="mr-2 h-4 w-4" />
               )}
-              Tech Indicators
+              Forex Cards
             </Button>
-            <Button 
-              onClick={() => triggerFunction('exchange-sync', 'Exchange Sync')} 
-              variant="outline" 
-              className="w-full justify-start"
-              disabled={triggeringJob === 'exchange-sync'}
-            >
-              {triggeringJob === 'exchange-sync' ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
-              )}
-              Exchange Sync
-            </Button>
+            
+            {/* Exchange & Cache */}
             <Button 
               onClick={() => triggerFunction('exchange-data-aggregator', 'Exchange Aggregator')} 
               variant="outline" 
@@ -785,30 +854,30 @@ $$;`}
               Exchange Aggregator
             </Button>
             <Button 
-              onClick={() => triggerFunction('coingecko-sync', 'CoinGecko Metadata')} 
+              onClick={() => triggerFunction('warm-derivs-cache', 'Derivatives Cache')} 
               variant="outline" 
               className="w-full justify-start"
-              disabled={triggeringJob === 'coingecko-sync'}
+              disabled={triggeringJob === 'warm-derivs-cache'}
             >
-              {triggeringJob === 'coingecko-sync' ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Database className="mr-2 h-4 w-4" />
-              )}
-              CoinGecko Metadata
-            </Button>
-            <Button 
-              onClick={() => triggerFunction('lunarcrush-universe', 'LunarCrush Cache')} 
-              variant="outline" 
-              className="w-full justify-start"
-              disabled={triggeringJob === 'lunarcrush-universe'}
-            >
-              {triggeringJob === 'lunarcrush-universe' ? (
+              {triggeringJob === 'warm-derivs-cache' ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <Activity className="mr-2 h-4 w-4" />
               )}
-              LunarCrush Cache
+              Derivatives Cache
+            </Button>
+            <Button 
+              onClick={() => triggerFunction('warm-news-cache', 'News Cache')} 
+              variant="outline" 
+              className="w-full justify-start"
+              disabled={triggeringJob === 'warm-news-cache'}
+            >
+              {triggeringJob === 'warm-news-cache' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Activity className="mr-2 h-4 w-4" />
+              )}
+              News Cache
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
