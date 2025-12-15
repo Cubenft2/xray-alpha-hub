@@ -83,7 +83,7 @@ serve(async (req) => {
     const LIMIT = 1000;
     
     for (let offset = 0; offset < 3000; offset += LIMIT) {
-      const url = `https://lunarcrush.com/api4/public/coins?sort=market_cap&limit=${LIMIT}&offset=${offset}`;
+      const url = `https://lunarcrush.com/api4/public/coins/list/v1?limit=${LIMIT}&offset=${offset}&sort=market_cap_rank&order=asc`;
       const headers: Record<string, string> = { 'Accept': 'application/json' };
       if (lunarcrushKey) headers['Authorization'] = `Bearer ${lunarcrushKey}`;
 

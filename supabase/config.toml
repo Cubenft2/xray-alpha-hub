@@ -246,6 +246,7 @@ verify_jwt = false
 [[functions.sync-polygon-crypto-snapshot.cron]]
 schedule = "* * * * *"
 
+# Sync technical indicators to token_cards every 15 minutes
 [functions.sync-polygon-crypto-technicals]
 verify_jwt = false
 

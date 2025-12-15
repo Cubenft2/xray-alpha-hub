@@ -98,12 +98,13 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get active tokens from polygon_crypto_cards
+    // Get active tokens from token_cards that have polygon support
     const { data: tokens, error: fetchError } = await supabase
-      .from('polygon_crypto_cards')
-      .select('canonical_symbol, primary_ticker')
+      .from('token_cards')
+      .select('canonical_symbol, polygon_ticker')
       .eq('is_active', true)
-      .not('primary_ticker', 'is', null);
+      .eq('polygon_supported', true)
+      .not('polygon_ticker', 'is', null);
 
     if (fetchError) {
       throw new Error(`Failed to fetch tokens: ${fetchError.message}`);
@@ -137,7 +138,7 @@ serve(async (req) => {
       console.log(`[sync-polygon-crypto-technicals] Processing batch ${batchNum}/${totalBatches}`);
 
       const batchPromises = batch.map(async (token) => {
-        const ticker = token.primary_ticker;
+        const ticker = token.polygon_ticker;
         if (!ticker) return null;
 
         try {
@@ -168,7 +169,7 @@ serve(async (req) => {
           if (typeof rsi === 'number') update.rsi_14 = rsi;
           
           if (macd && typeof macd === 'object') {
-            update.macd = macd.value;
+            update.macd_line = macd.value;
             update.macd_signal = macd.signal;
             update.macd_histogram = macd.histogram;
           }
@@ -194,7 +195,7 @@ serve(async (req) => {
       // Upsert batch results
       if (validUpdates.length > 0) {
         const { error: upsertError } = await supabase
-          .from('polygon_crypto_cards')
+          .from('token_cards')
           .upsert(validUpdates, { onConflict: 'canonical_symbol' });
 
         if (upsertError) {
