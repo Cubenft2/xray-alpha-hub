@@ -6,6 +6,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fetch technical indicator from Polygon
+async function fetchIndicator(
+  ticker: string, 
+  indicatorType: string, 
+  apiKey: string, 
+  params: string = ''
+): Promise<number | null> {
+  try {
+    const url = `https://api.polygon.io/v1/indicators/${indicatorType}/${ticker}?timespan=day&adjusted=true&limit=1${params}&apiKey=${apiKey}`;
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    const values = data.results?.values;
+    if (!values || values.length === 0) return null;
+    
+    const latest = values[0];
+    // Handle different return formats
+    if (typeof latest.value === 'number') return latest.value;
+    if (typeof latest.histogram === 'number') return latest.histogram;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -23,7 +49,7 @@ serve(async (req) => {
       throw new Error('POLYGON_API_KEY not configured');
     }
 
-    console.log('[sync-token-cards-polygon] Starting price sync...');
+    console.log('[sync-token-cards-polygon] Starting price + technicals sync...');
 
     // Get and increment call counter for tiered refresh
     const COUNTER_KEY = 'sync-token-cards-polygon:call_count';
@@ -139,6 +165,7 @@ serve(async (req) => {
 
       updates.push({
         id: token.id,
+        polygon_ticker: polygonTicker,
         price_usd: currentPrice,
         open_24h: day.o || null,
         high_24h: day.h || null,
@@ -151,13 +178,13 @@ serve(async (req) => {
         ask_price: lastQuote.P || null,
         spread_pct: spreadPct,
         price_updated_at: now,
-        polygon_supported: true  // Mark as actively receiving Polygon prices
+        polygon_supported: true
       });
     }
 
-    console.log(`[sync-token-cards-polygon] Prepared ${updates.length} updates, ${notFound} not found in Polygon`);
+    console.log(`[sync-token-cards-polygon] Prepared ${updates.length} price updates, ${notFound} not found in Polygon`);
 
-    // Batch update token_cards
+    // Batch update token_cards with prices
     const BATCH_SIZE = 100;
     for (let i = 0; i < updates.length; i += BATCH_SIZE) {
       const batch = updates.slice(i, i + BATCH_SIZE);
@@ -177,8 +204,63 @@ serve(async (req) => {
       }
     }
 
+    // Fetch technical indicators for Tier 1-2 tokens only (every 5th call to reduce API load)
+    let technicalsUpdated = 0;
+    const shouldFetchTechnicals = callCount % 5 === 0;
+    
+    if (shouldFetchTechnicals) {
+      console.log('[sync-token-cards-polygon] Fetching technicals for Tier 1-2 tokens...');
+      
+      const tier12Tokens = updates.filter(u => {
+        const token = tokens.find(t => t.id === u.id);
+        return token && (token.tier === 1 || token.tier === 2);
+      }).slice(0, 50); // Limit to top 50 to avoid timeout
+      
+      for (const update of tier12Tokens) {
+        const ticker = update.polygon_ticker;
+        if (!ticker) continue;
+        
+        try {
+          // Fetch indicators in parallel
+          const [rsi, macd, sma20, sma50, sma200, ema12, ema26] = await Promise.all([
+            fetchIndicator(ticker, 'rsi', polygonKey, '&window=14'),
+            fetchIndicator(ticker, 'macd', polygonKey, '&short_window=12&long_window=26&signal_window=9'),
+            fetchIndicator(ticker, 'sma', polygonKey, '&window=20'),
+            fetchIndicator(ticker, 'sma', polygonKey, '&window=50'),
+            fetchIndicator(ticker, 'sma', polygonKey, '&window=200'),
+            fetchIndicator(ticker, 'ema', polygonKey, '&window=12'),
+            fetchIndicator(ticker, 'ema', polygonKey, '&window=26'),
+          ]);
+          
+          // Update token_cards with technicals
+          const { error } = await supabase
+            .from('token_cards')
+            .update({
+              rsi_14: rsi,
+              macd: macd,
+              sma_20: sma20,
+              sma_50: sma50,
+              sma_200: sma200,
+              ema_12: ema12,
+              ema_26: ema26,
+              technicals_updated_at: now
+            })
+            .eq('id', update.id);
+          
+          if (!error) technicalsUpdated++;
+          
+          // Small delay between tokens to avoid rate limiting
+          await new Promise(r => setTimeout(r, 100));
+        } catch (err) {
+          console.error(`[sync-token-cards-polygon] Technicals error for ${ticker}:`, err);
+        }
+      }
+      
+      console.log(`[sync-token-cards-polygon] Updated technicals for ${technicalsUpdated} tokens`);
+    }
+
     const duration = Date.now() - startTime;
-    console.log(`[sync-token-cards-polygon] Sync complete in ${duration}ms: ${updated} updated, ${notFound} not found`);
+    console.log(`[sync-token-cards-polygon] Sync complete in ${duration}ms: ${updated} prices, ${technicalsUpdated} technicals`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -187,7 +269,9 @@ serve(async (req) => {
         tiers_fetched: tiers,
         tokens_queried: tokens.length,
         polygon_tickers: tickers.length,
-        updated,
+        prices_updated: updated,
+        technicals_updated: technicalsUpdated,
+        technicals_fetched: shouldFetchTechnicals,
         not_found: notFound,
         duration_ms: duration
       }
