@@ -21,6 +21,7 @@ import {
   Radio
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { DataFreshnessSummary } from '@/components/admin/DataFreshnessSummary';
 
 interface HealthStatus {
   name: string;
@@ -408,6 +409,9 @@ export function SystemHealth() {
 
   return (
     <div className="space-y-6">
+      {/* Data Freshness Summary - Top Priority Widget */}
+      <DataFreshnessSummary />
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
