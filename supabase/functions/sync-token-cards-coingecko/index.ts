@@ -181,14 +181,95 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[sync-token-cards-coingecko] Complete: ${updated} matched, ${noMatch} no match, ${errors.length} errors`);
+    console.log(`[sync-token-cards-coingecko] Contract matching complete: ${updated} matched, ${noMatch} no match`);
+
+    // Step 5: Symbol-based fallback for native tokens (empty platforms in CoinGecko)
+    console.log('[sync-token-cards-coingecko] Starting symbol-based fallback for native tokens...');
+
+    // Fetch tokens still missing coingecko_id
+    const { data: stillMissing, error: stillMissingError } = await supabase
+      .from('token_cards')
+      .select('id, canonical_symbol, name, tier')
+      .is('coingecko_id', null)
+      .order('tier', { ascending: true })
+      .order('market_cap_rank', { ascending: true, nullsFirst: false })
+      .limit(500);
+
+    if (stillMissingError) {
+      console.error('[sync-token-cards-coingecko] Error fetching still missing:', stillMissingError);
+    }
+
+    let symbolMatched = 0;
+    const symbolErrors: string[] = [];
+
+    if (stillMissing && stillMissing.length > 0) {
+      console.log(`[sync-token-cards-coingecko] Found ${stillMissing.length} tokens still missing coingecko_id`);
+
+      // Build symbol -> cg_id map for native tokens (empty platforms)
+      const nativeTokenMap = new Map<string, { cg_id: string; name: string }>();
+      
+      // Filter for entries with empty platforms (native tokens like BTC, ETH, SOL)
+      for (const cg of allCgEntries) {
+        // Check if platforms is empty object or has no entries
+        const hasNoPlatforms = !cg.platforms || 
+          (typeof cg.platforms === 'object' && Object.keys(cg.platforms).length === 0);
+        
+        if (hasNoPlatforms) {
+          const upperSymbol = cg.symbol.toUpperCase();
+          const existing = nativeTokenMap.get(upperSymbol);
+          
+          // Priority: prefer if cg_id matches lowercase symbol (e.g., bitcoin for BTC)
+          // and name doesn't contain bridged/wrapped variants
+          const isBridgedOrWrapped = /bridged|wrapped|wormhole|peg|bsc|bnb|polygon|arbitrum/i.test(cg.name);
+          const isPrimaryToken = cg.cg_id === cg.symbol.toLowerCase() || 
+                                  cg.cg_id === cg.name.toLowerCase().replace(/\s+/g, '-');
+          
+          if (!existing || (isPrimaryToken && !isBridgedOrWrapped)) {
+            nativeTokenMap.set(upperSymbol, { cg_id: cg.cg_id, name: cg.name });
+          }
+        }
+      }
+
+      console.log(`[sync-token-cards-coingecko] Built native token map with ${nativeTokenMap.size} entries`);
+
+      // Match still-missing tokens by symbol
+      for (const token of stillMissing) {
+        const match = nativeTokenMap.get(token.canonical_symbol);
+        
+        if (match) {
+          const { error: updateError } = await supabase
+            .from('token_cards')
+            .update({
+              coingecko_id: match.cg_id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', token.id);
+
+          if (updateError) {
+            symbolErrors.push(`${token.canonical_symbol}: ${updateError.message}`);
+          } else {
+            symbolMatched++;
+            console.log(`[sync-token-cards-coingecko] Symbol matched: ${token.canonical_symbol} -> ${match.cg_id}`);
+          }
+        }
+
+        // Small delay every 25 updates
+        if (symbolMatched % 25 === 0 && symbolMatched > 0) {
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+    }
+
+    console.log(`[sync-token-cards-coingecko] Complete: ${updated} contract matches, ${symbolMatched} symbol matches, ${errors.length + symbolErrors.length} errors`);
 
     return new Response(JSON.stringify({
       success: true,
       processed: tokenCards.length,
-      updated,
-      noMatch,
-      errors: errors.slice(0, 10)
+      contractMatched: updated,
+      symbolMatched,
+      totalMatched: updated + symbolMatched,
+      noMatch: noMatch - symbolMatched,
+      errors: [...errors, ...symbolErrors].slice(0, 10)
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
