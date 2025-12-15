@@ -90,11 +90,10 @@ verify_jwt = false
 [[functions.polygon-stock-poller.cron]]
 schedule = "*/5 * * * *"
 
+# DISABLED: polygon-indicators-refresh writes to wrong table (technical_indicators instead of token_cards)
+# Technicals now synced via sync-token-cards-polygon directly to token_cards
 [functions.polygon-indicators-refresh]
 verify_jwt = false
-
-[[functions.polygon-indicators-refresh.cron]]
-schedule = "0 * * * *"
 
 [functions.polygon-company-prefetch]
 verify_jwt = false
@@ -233,24 +232,20 @@ verify_jwt = false
 [functions.polygon-raw-preview]
 verify_jwt = false
 
+# DISABLED: sync-polygon-crypto-reference writes to polygon_crypto_cards, not token_cards
+# Token data now flows through sync-token-cards-polygon
 [functions.sync-polygon-crypto-reference]
 verify_jwt = false
 
-[[functions.sync-polygon-crypto-reference.cron]]
-schedule = "0 4 * * *"
-
+# DISABLED: sync-polygon-crypto-snapshot writes to polygon_crypto_cards, not token_cards
+# Token data now flows through sync-token-cards-polygon
 [functions.sync-polygon-crypto-snapshot]
 verify_jwt = false
 
-[[functions.sync-polygon-crypto-snapshot.cron]]
-schedule = "* * * * *"
-
-# Sync technical indicators to token_cards every 15 minutes
+# DISABLED: sync-polygon-crypto-technicals writes to polygon_crypto_cards, not token_cards
+# Technicals now synced directly in sync-token-cards-polygon to token_cards
 [functions.sync-polygon-crypto-technicals]
 verify_jwt = false
-
-[[functions.sync-polygon-crypto-technicals.cron]]
-schedule = "*/15 * * * *"
 
 # ============================================
 # TOKEN CARDS SYNC FUNCTIONS
