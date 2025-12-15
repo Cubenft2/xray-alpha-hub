@@ -800,6 +800,102 @@ export type Database = {
         }
         Relationships: []
       }
+      forex_cards: {
+        Row: {
+          ask: number | null
+          base_currency: string
+          base_flag: string | null
+          bid: number | null
+          change_24h: number | null
+          change_24h_pct: number | null
+          created_at: string | null
+          display_name: string | null
+          high_24h: number | null
+          id: string
+          is_active: boolean | null
+          is_major: boolean | null
+          low_24h: number | null
+          macd_line: number | null
+          macd_signal: number | null
+          open_24h: number | null
+          pair: string
+          price_updated_at: string | null
+          quote_currency: string
+          quote_flag: string | null
+          rate: number | null
+          rsi_14: number | null
+          sma_20: number | null
+          sma_200: number | null
+          sma_50: number | null
+          spread_pips: number | null
+          technical_signal: string | null
+          technicals_updated_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ask?: number | null
+          base_currency: string
+          base_flag?: string | null
+          bid?: number | null
+          change_24h?: number | null
+          change_24h_pct?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          high_24h?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_major?: boolean | null
+          low_24h?: number | null
+          macd_line?: number | null
+          macd_signal?: number | null
+          open_24h?: number | null
+          pair: string
+          price_updated_at?: string | null
+          quote_currency: string
+          quote_flag?: string | null
+          rate?: number | null
+          rsi_14?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          spread_pips?: number | null
+          technical_signal?: string | null
+          technicals_updated_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ask?: number | null
+          base_currency?: string
+          base_flag?: string | null
+          bid?: number | null
+          change_24h?: number | null
+          change_24h_pct?: number | null
+          created_at?: string | null
+          display_name?: string | null
+          high_24h?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_major?: boolean | null
+          low_24h?: number | null
+          macd_line?: number | null
+          macd_signal?: number | null
+          open_24h?: number | null
+          pair?: string
+          price_updated_at?: string | null
+          quote_currency?: string
+          quote_flag?: string | null
+          rate?: number | null
+          rsi_14?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          spread_pips?: number | null
+          technical_signal?: string | null
+          technicals_updated_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       live_prices: {
         Row: {
           asset_id: string | null
@@ -1712,6 +1808,171 @@ export type Database = {
           id?: string
           is_active?: boolean
           received_at?: string
+        }
+        Relationships: []
+      }
+      stock_cards: {
+        Row: {
+          ai_summary: string | null
+          ai_updated_at: string | null
+          avg_volume: number | null
+          change_pct: number | null
+          change_usd: number | null
+          close_price: number | null
+          contributors_active: number | null
+          country: string | null
+          created_at: string | null
+          dividend_yield: number | null
+          eps: number | null
+          exchange: string | null
+          fifty_two_week_high: number | null
+          fifty_two_week_low: number | null
+          galaxy_score: number | null
+          high_price: number | null
+          id: string
+          industry: string | null
+          interactions_24h: number | null
+          is_active: boolean | null
+          is_delayed: boolean | null
+          logo_url: string | null
+          low_price: number | null
+          macd_line: number | null
+          macd_signal: number | null
+          market_cap: number | null
+          name: string | null
+          news_volume: number | null
+          open_price: number | null
+          pe_ratio: number | null
+          previous_close: number | null
+          price_updated_at: string | null
+          price_usd: number | null
+          reddit_volume: number | null
+          rsi_14: number | null
+          sector: string | null
+          sentiment: number | null
+          sma_20: number | null
+          sma_200: number | null
+          sma_50: number | null
+          social_dominance: number | null
+          social_updated_at: string | null
+          social_volume_24h: number | null
+          symbol: string
+          technical_signal: string | null
+          technicals_updated_at: string | null
+          tier: number | null
+          top_news: Json | null
+          top_posts: Json | null
+          twitter_volume: number | null
+          updated_at: string | null
+          volume: number | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          ai_updated_at?: string | null
+          avg_volume?: number | null
+          change_pct?: number | null
+          change_usd?: number | null
+          close_price?: number | null
+          contributors_active?: number | null
+          country?: string | null
+          created_at?: string | null
+          dividend_yield?: number | null
+          eps?: number | null
+          exchange?: string | null
+          fifty_two_week_high?: number | null
+          fifty_two_week_low?: number | null
+          galaxy_score?: number | null
+          high_price?: number | null
+          id?: string
+          industry?: string | null
+          interactions_24h?: number | null
+          is_active?: boolean | null
+          is_delayed?: boolean | null
+          logo_url?: string | null
+          low_price?: number | null
+          macd_line?: number | null
+          macd_signal?: number | null
+          market_cap?: number | null
+          name?: string | null
+          news_volume?: number | null
+          open_price?: number | null
+          pe_ratio?: number | null
+          previous_close?: number | null
+          price_updated_at?: string | null
+          price_usd?: number | null
+          reddit_volume?: number | null
+          rsi_14?: number | null
+          sector?: string | null
+          sentiment?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          social_dominance?: number | null
+          social_updated_at?: string | null
+          social_volume_24h?: number | null
+          symbol: string
+          technical_signal?: string | null
+          technicals_updated_at?: string | null
+          tier?: number | null
+          top_news?: Json | null
+          top_posts?: Json | null
+          twitter_volume?: number | null
+          updated_at?: string | null
+          volume?: number | null
+        }
+        Update: {
+          ai_summary?: string | null
+          ai_updated_at?: string | null
+          avg_volume?: number | null
+          change_pct?: number | null
+          change_usd?: number | null
+          close_price?: number | null
+          contributors_active?: number | null
+          country?: string | null
+          created_at?: string | null
+          dividend_yield?: number | null
+          eps?: number | null
+          exchange?: string | null
+          fifty_two_week_high?: number | null
+          fifty_two_week_low?: number | null
+          galaxy_score?: number | null
+          high_price?: number | null
+          id?: string
+          industry?: string | null
+          interactions_24h?: number | null
+          is_active?: boolean | null
+          is_delayed?: boolean | null
+          logo_url?: string | null
+          low_price?: number | null
+          macd_line?: number | null
+          macd_signal?: number | null
+          market_cap?: number | null
+          name?: string | null
+          news_volume?: number | null
+          open_price?: number | null
+          pe_ratio?: number | null
+          previous_close?: number | null
+          price_updated_at?: string | null
+          price_usd?: number | null
+          reddit_volume?: number | null
+          rsi_14?: number | null
+          sector?: string | null
+          sentiment?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          social_dominance?: number | null
+          social_updated_at?: string | null
+          social_volume_24h?: number | null
+          symbol?: string
+          technical_signal?: string | null
+          technicals_updated_at?: string | null
+          tier?: number | null
+          top_news?: Json | null
+          top_posts?: Json | null
+          twitter_volume?: number | null
+          updated_at?: string | null
+          volume?: number | null
         }
         Relationships: []
       }
