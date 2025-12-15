@@ -2284,6 +2284,7 @@ export type Database = {
           owner_address: string | null
           owner_can_change_balance: boolean | null
           pair_age_days: number | null
+          polygon_supported: boolean | null
           polygon_ticker: string | null
           posts_updated_at: string | null
           price_btc: number | null
@@ -2511,6 +2512,7 @@ export type Database = {
           owner_address?: string | null
           owner_can_change_balance?: boolean | null
           pair_age_days?: number | null
+          polygon_supported?: boolean | null
           polygon_ticker?: string | null
           posts_updated_at?: string | null
           price_btc?: number | null
@@ -2738,6 +2740,7 @@ export type Database = {
           owner_address?: string | null
           owner_can_change_balance?: boolean | null
           pair_age_days?: number | null
+          polygon_supported?: boolean | null
           polygon_ticker?: string | null
           posts_updated_at?: string | null
           price_btc?: number | null

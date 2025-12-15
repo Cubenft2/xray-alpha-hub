@@ -150,7 +150,8 @@ serve(async (req) => {
         bid_price: lastQuote.p || null,
         ask_price: lastQuote.P || null,
         spread_pct: spreadPct,
-        price_updated_at: now
+        price_updated_at: now,
+        polygon_supported: true  // Mark as actively receiving Polygon prices
       });
     }
 

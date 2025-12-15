@@ -20,6 +20,7 @@ export interface TokenCard {
   categories: string[] | null;
   primary_chain: string | null;
   market_cap_rank: number | null;
+  polygon_supported: boolean | null;
 }
 
 export type SortKey = 'market_cap_rank' | 'price_usd' | 'change_1h_pct' | 'change_24h_pct' | 'change_7d_pct' | 'market_cap' | 'volume_24h_usd' | 'galaxy_score' | 'alt_rank' | 'sentiment' | 'social_volume_24h';
@@ -71,7 +72,7 @@ export function useTokenCards() {
   const fetchTokens = useCallback(async () => {
     let query = supabase
       .from('token_cards')
-      .select('canonical_symbol, name, logo_url, price_usd, change_1h_pct, change_24h_pct, change_7d_pct, market_cap, volume_24h_usd, galaxy_score, alt_rank, sentiment, social_volume_24h, tier, categories, primary_chain, market_cap_rank', { count: 'exact' });
+      .select('canonical_symbol, name, logo_url, price_usd, change_1h_pct, change_24h_pct, change_7d_pct, market_cap, volume_24h_usd, galaxy_score, alt_rank, sentiment, social_volume_24h, tier, categories, primary_chain, market_cap_rank, polygon_supported', { count: 'exact' });
 
     // Apply filters
     if (debouncedSearch) {
