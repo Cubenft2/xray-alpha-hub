@@ -4,8 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
+interface ContractData {
+  address: string;
+  decimals?: number | null;
+}
+
 interface TokenContractsProps {
-  contracts: Record<string, string> | null;
+  contracts: Record<string, ContractData | string> | null;
   primaryChain: string | null;
   website: string | null;
   twitter: string | null;
@@ -93,41 +98,50 @@ export function TokenContracts({
         {hasContracts && (
           <div className="space-y-3">
             <div className="text-sm text-muted-foreground">Contract Addresses</div>
-            {Object.entries(contracts).map(([chain, address]) => (
-              <div key={chain} className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="capitalize">
-                    {formatChainName(chain)}
-                    {primaryChain === chain && (
-                      <span className="ml-1 text-primary">•</span>
-                    )}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 px-3 py-2 bg-muted rounded text-xs font-mono truncate">
-                    {address}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => copyToClipboard(address)}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                  {getExplorerUrl(address, chain) && (
+            {Object.entries(contracts).map(([chain, contractData]) => {
+              // Handle both nested object and flat string formats
+              const address = typeof contractData === 'string' 
+                ? contractData 
+                : contractData?.address;
+              
+              if (!address) return null;
+
+              return (
+                <div key={chain} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline" className="capitalize">
+                      {formatChainName(chain)}
+                      {primaryChain === chain && (
+                        <span className="ml-1 text-primary">•</span>
+                      )}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 bg-muted rounded text-xs font-mono truncate">
+                      {address}
+                    </code>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => window.open(getExplorerUrl(address, chain)!, '_blank')}
+                      onClick={() => copyToClipboard(address)}
                     >
-                      <ExternalLink className="h-3 w-3" />
+                      <Copy className="h-3 w-3" />
                     </Button>
-                  )}
+                    {getExplorerUrl(address, chain) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => window.open(getExplorerUrl(address, chain)!, '_blank')}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
