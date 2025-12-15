@@ -66,9 +66,9 @@ export default function Screener() {
         description="Screen 7,500+ cryptocurrencies with real-time prices, market cap, volume, Galaxy Score, and social sentiment data."
       />
 
-      <div className="w-full px-4 py-6 space-y-6">
+      <div className="w-full px-4 py-4 flex flex-col h-[calc(100vh-80px)]">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div>
             <h1 className="text-3xl font-bold">Crypto Screener</h1>
             <p className="text-muted-foreground">
@@ -88,25 +88,29 @@ export default function Screener() {
         </div>
 
         {/* Filters */}
-        <TokenScreenerFilters
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          categories={categories}
-          chains={chains}
-        />
+        <div className="flex-shrink-0 mb-4">
+          <TokenScreenerFilters
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            categories={categories}
+            chains={chains}
+          />
+        </div>
 
-        {/* Table */}
-        <TokenScreenerTable
-          tokens={tokens}
-          sortKey={sortKey}
-          sortDirection={sortDirection}
-          onSort={handleSort}
-          isLoading={isLoading}
-        />
+        {/* Table - expands to fill remaining space */}
+        <div className="flex-grow min-h-0">
+          <TokenScreenerTable
+            tokens={tokens}
+            sortKey={sortKey}
+            sortDirection={sortDirection}
+            onSort={handleSort}
+            isLoading={isLoading}
+          />
+        </div>
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4 mt-4 pt-4 border-t">
             <p className="text-sm text-muted-foreground">
               Showing {startIndex.toLocaleString()} - {endIndex.toLocaleString()} of {totalCount.toLocaleString()}
             </p>
