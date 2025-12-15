@@ -2274,6 +2274,7 @@ export type Database = {
           market_cap_rank: number | null
           market_dominance: number | null
           max_supply: number | null
+          metadata_updated_at: string | null
           name: string | null
           news_sentiment: number | null
           news_updated_at: string | null
@@ -2502,6 +2503,7 @@ export type Database = {
           market_cap_rank?: number | null
           market_dominance?: number | null
           max_supply?: number | null
+          metadata_updated_at?: string | null
           name?: string | null
           news_sentiment?: number | null
           news_updated_at?: string | null
@@ -2730,6 +2732,7 @@ export type Database = {
           market_cap_rank?: number | null
           market_dominance?: number | null
           max_supply?: number | null
+          metadata_updated_at?: string | null
           name?: string | null
           news_sentiment?: number | null
           news_updated_at?: string | null
