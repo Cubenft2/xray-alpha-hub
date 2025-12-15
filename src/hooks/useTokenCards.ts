@@ -1,0 +1,180 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+export interface TokenCard {
+  canonical_symbol: string;
+  name: string | null;
+  logo_url: string | null;
+  price_usd: number | null;
+  change_24h_pct: number | null;
+  market_cap: number | null;
+  volume_24h_usd: number | null;
+  galaxy_score: number | null;
+  alt_rank: number | null;
+  sentiment: number | null;
+  social_volume_24h: number | null;
+  tier: number | null;
+  categories: string[] | null;
+  primary_chain: string | null;
+  market_cap_rank: number | null;
+}
+
+export type SortKey = 'market_cap_rank' | 'price_usd' | 'change_24h_pct' | 'market_cap' | 'volume_24h_usd' | 'galaxy_score' | 'alt_rank' | 'sentiment' | 'social_volume_24h';
+export type SortDirection = 'asc' | 'desc';
+
+interface Filters {
+  search: string;
+  category: string;
+  chain: string;
+  tier: string;
+}
+
+const PAGE_SIZE = 250;
+
+export function useTokenCards() {
+  const [sortKey, setSortKey] = useState<SortKey>('market_cap_rank');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [filters, setFilters] = useState<Filters>({
+    search: '',
+    category: '',
+    chain: '',
+    tier: '',
+  });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filters.search);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
+
+  // Reset page on filter change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.category, filters.chain, filters.tier, sortKey, sortDirection]);
+
+  const fetchTokens = useCallback(async () => {
+    let query = supabase
+      .from('token_cards')
+      .select('canonical_symbol, name, logo_url, price_usd, change_24h_pct, market_cap, volume_24h_usd, galaxy_score, alt_rank, sentiment, social_volume_24h, tier, categories, primary_chain, market_cap_rank', { count: 'exact' });
+
+    // Apply filters
+    if (debouncedSearch) {
+      query = query.or(`canonical_symbol.ilike.%${debouncedSearch}%,name.ilike.%${debouncedSearch}%`);
+    }
+
+    if (filters.category) {
+      query = query.contains('categories', [filters.category]);
+    }
+
+    if (filters.chain) {
+      query = query.eq('primary_chain', filters.chain);
+    }
+
+    if (filters.tier) {
+      query = query.eq('tier', parseInt(filters.tier));
+    }
+
+    // Apply sorting
+    const ascending = sortDirection === 'asc';
+    query = query.order(sortKey, { ascending, nullsFirst: false });
+
+    // Apply pagination
+    const from = (currentPage - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    query = query.range(from, to);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    return {
+      tokens: data as TokenCard[],
+      totalCount: count || 0,
+      totalPages: Math.ceil((count || 0) / PAGE_SIZE),
+    };
+  }, [debouncedSearch, filters.category, filters.chain, filters.tier, sortKey, sortDirection, currentPage]);
+
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ['token-cards', debouncedSearch, filters.category, filters.chain, filters.tier, sortKey, sortDirection, currentPage],
+    queryFn: fetchTokens,
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 15000,
+  });
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection(key === 'market_cap_rank' || key === 'alt_rank' ? 'asc' : 'desc');
+    }
+  };
+
+  const updateFilter = (key: keyof Filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  return {
+    tokens: data?.tokens || [],
+    totalCount: data?.totalCount || 0,
+    totalPages: data?.totalPages || 0,
+    currentPage,
+    setCurrentPage,
+    sortKey,
+    sortDirection,
+    handleSort,
+    filters,
+    updateFilter,
+    isLoading,
+    isFetching,
+    error,
+    refetch,
+  };
+}
+
+// Fetch unique categories and chains for filters
+export function useTokenFilters() {
+  const { data: categories } = useQuery({
+    queryKey: ['token-categories'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('token_cards')
+        .select('categories')
+        .not('categories', 'is', null)
+        .limit(1000);
+      
+      const allCategories = new Set<string>();
+      data?.forEach(row => {
+        (row.categories as string[])?.forEach(cat => allCategories.add(cat));
+      });
+      return Array.from(allCategories).sort();
+    },
+    staleTime: 300000, // Cache for 5 minutes
+  });
+
+  const { data: chains } = useQuery({
+    queryKey: ['token-chains'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('token_cards')
+        .select('primary_chain')
+        .not('primary_chain', 'is', null)
+        .limit(5000);
+      
+      const allChains = new Set<string>();
+      data?.forEach(row => {
+        if (row.primary_chain) allChains.add(row.primary_chain);
+      });
+      return Array.from(allChains).sort();
+    },
+    staleTime: 300000,
+  });
+
+  return { categories: categories || [], chains: chains || [] };
+}
