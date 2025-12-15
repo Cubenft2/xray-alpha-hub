@@ -103,15 +103,23 @@ serve(async (req) => {
         const headers: Record<string, string> = {
           'Accept': 'application/json',
         };
-        if (coingeckoApiKey) {
-          headers['x-cg-demo-api-key'] = coingeckoApiKey;
-        }
-
-        const cgUrl = `https://api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`;
         
+        // Use pro API if key available, otherwise demo API
+        let cgUrl: string;
+        if (coingeckoApiKey) {
+          headers['x-cg-pro-api-key'] = coingeckoApiKey;
+          cgUrl = `https://pro-api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`;
+        } else {
+          cgUrl = `https://api.coingecko.com/api/v3/coins/${cgId}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`;
+        }
+        
+        console.log(`[sync-token-cards-metadata] Fetching ${token.canonical_symbol} from ${cgUrl.substring(0, 60)}...`);
         const response = await fetch(cgUrl, { headers });
 
         if (!response.ok) {
+          const errorBody = await response.text();
+          console.error(`[sync-token-cards-metadata] CoinGecko error for ${cgId}: ${response.status} - ${errorBody.substring(0, 200)}`);
+          
           if (response.status === 404) {
             console.warn(`[sync-token-cards-metadata] CoinGecko ID not found: ${cgId}`);
             skipped++;
@@ -140,7 +148,7 @@ serve(async (req) => {
           .from('token_cards')
           .update({
             description,
-            website_url: website,
+            website: website,
             twitter_url: twitter ? `https://twitter.com/${twitter}` : null,
             telegram_url: telegram ? `https://t.me/${telegram}` : null,
             discord_url: discord,
