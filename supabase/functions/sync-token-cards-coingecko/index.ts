@@ -64,18 +64,34 @@ serve(async (req) => {
 
     console.log(`[sync-token-cards-coingecko] Found ${tokenCards.length} token_cards with contracts missing coingecko_id`);
 
-    // Step 2: Fetch all cg_master entries with platforms
-    const { data: cgEntries, error: cgError } = await supabase
-      .from('cg_master')
-      .select('cg_id, symbol, name, platforms')
-      .not('platforms', 'is', null);
+    // Step 2: Fetch ALL cg_master entries with platforms (paginated to handle >1000 rows)
+    let allCgEntries: any[] = [];
+    let offset = 0;
+    const batchSize = 1000;
 
-    if (cgError) {
-      console.error('[sync-token-cards-coingecko] Error fetching cg_master:', cgError);
-      throw cgError;
+    while (true) {
+      const { data, error: cgError } = await supabase
+        .from('cg_master')
+        .select('cg_id, symbol, name, platforms')
+        .not('platforms', 'is', null)
+        .range(offset, offset + batchSize - 1);
+
+      if (cgError) {
+        console.error('[sync-token-cards-coingecko] Error fetching cg_master:', cgError);
+        throw cgError;
+      }
+
+      if (!data || data.length === 0) break;
+      
+      allCgEntries = allCgEntries.concat(data);
+      offset += batchSize;
+      
+      console.log(`[sync-token-cards-coingecko] Fetched ${allCgEntries.length} cg_master entries so far...`);
+      
+      if (data.length < batchSize) break;
     }
 
-    console.log(`[sync-token-cards-coingecko] Loaded ${cgEntries?.length || 0} cg_master entries with platforms`);
+    console.log(`[sync-token-cards-coingecko] Loaded ${allCgEntries.length} total cg_master entries with platforms`);
 
     // Step 3: Build address -> cg_id lookup maps for each chain
     const addressMaps: Record<string, Map<string, string>> = {};
@@ -84,7 +100,7 @@ serve(async (req) => {
       addressMaps[mapping.tc] = new Map();
     }
 
-    for (const cg of cgEntries || []) {
+    for (const cg of allCgEntries) {
       if (!cg.platforms || typeof cg.platforms !== 'object') continue;
       
       for (const mapping of CHAIN_MAPPINGS) {
