@@ -3,7 +3,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown } from 'lucid
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+
 import { TokenCard, SortKey, SortDirection } from '@/hooks/useTokenCards';
 import { cn } from '@/lib/utils';
 
@@ -149,7 +149,7 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
   }
 
   return (
-    <ScrollArea className="h-[60vh] min-h-[400px] w-full rounded-md border">
+    <div className="w-full rounded-md border overflow-x-auto">
       <div className="overflow-x-auto">
         <Table className="min-w-[1200px]">
           <TableHeader className="sticky top-0 bg-background z-10">
@@ -244,8 +244,6 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
           </TableBody>
         </Table>
       </div>
-      <ScrollBar orientation="horizontal" />
-      <ScrollBar orientation="vertical" />
-    </ScrollArea>
+    </div>
   );
 }
