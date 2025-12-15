@@ -6,7 +6,25 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { MarketPreset, PRESET_MAP } from '@/config/marketPresets';
-import { CoinData } from './useLunarCrushUniverse';
+
+// CoinData interface for market preset responses
+export interface CoinData {
+  symbol: string;
+  name: string;
+  price: number;
+  market_cap: number;
+  market_cap_rank: number;
+  volume_24h: number;
+  percent_change_24h: number;
+  percent_change_1h?: number;
+  percent_change_7d?: number;
+  galaxy_score?: number;
+  alt_rank?: number;
+  sentiment?: number;
+  social_volume_24h?: number;
+  categories?: string[];
+  logo_url?: string;
+}
 
 export interface PresetExecutionResult {
   data: CoinData[];

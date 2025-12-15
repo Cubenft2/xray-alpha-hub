@@ -233,9 +233,9 @@ export default function CryptoUniverseDetail() {
         <div className="text-center space-y-4">
           <AlertTriangle className="h-12 w-12 mx-auto text-destructive" />
           <h2 className="text-2xl font-bold">Coin Not Found</h2>
-          <Button onClick={() => navigate('/crypto-universe')}>
+          <Button onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Universe
+            Go Back
           </Button>
         </div>
       </div>
@@ -246,7 +246,7 @@ export default function CryptoUniverseDetail() {
     <div className="container mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/crypto-universe')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">

@@ -64,17 +64,17 @@ export default function Screener() {
   return (
     <>
       <SEOHead
-        title="Crypto Screener"
-        description="Screen 7,500+ cryptocurrencies with real-time prices, market cap, volume, Galaxy Score, and social sentiment data."
+        title="Crypto Universe | XRayCrypto™"
+        description="Explore 7,500+ cryptocurrencies with real-time prices, market cap, volume, Galaxy Score, and social sentiment data."
       />
 
       <div className="w-full px-4 py-4 space-y-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Crypto Screener</h1>
+            <h1 className="text-3xl font-bold">🌙 Crypto Universe</h1>
             <p className="text-muted-foreground">
-              {totalCount.toLocaleString()} tokens • Auto-refreshes every 30s
+              {totalCount.toLocaleString()} tokens • Real-time Polygon & LunarCrush data
             </p>
           </div>
           <Button

@@ -26,9 +26,9 @@ import AuthorXRay from "./pages/AuthorXRay";
 import NotFound from "./pages/NotFound";
 import AdminIndex from "./pages/Admin/Index";
 import Auth from "./pages/Auth";
-import CryptoUniverse from "./pages/CryptoUniverse";
 import CryptoUniverseDetail from "./pages/CryptoUniverseDetail";
 import Screener from "./pages/Screener";
+import { Navigate } from "react-router-dom";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -62,9 +62,9 @@ const App = () => (
                   <Route path="/privacy" element={<Privacy />} />
                   <Route path="/author/xray" element={<AuthorXRay />} />
                   <Route path="/auth" element={<Auth />} />
-                  <Route path="/crypto-universe" element={<CryptoUniverse />} />
+                  <Route path="/crypto-universe" element={<Screener />} />
                   <Route path="/crypto-universe/:symbol" element={<CryptoUniverseDetail />} />
-                  <Route path="/screener" element={<Screener />} />
+                  <Route path="/screener" element={<Navigate to="/crypto-universe" replace />} />
                   <Route path="/token/:symbol" element={<CryptoUniverseDetail />} />
                   <Route path="/admin" element={
                     <ProtectedRoute requireAdmin={true}>
