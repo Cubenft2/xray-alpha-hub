@@ -1,4 +1,4 @@
-import { Search, X, TrendingUp, TrendingDown } from 'lucide-react';
+import { Search, X, TrendingUp, TrendingDown, Zap, Radio } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ interface TokenScreenerFiltersProps {
     minGalaxyScore: string;
     minMarketCap: string;
     changeFilter: 'all' | 'gainers' | 'losers';
+    dataSource: 'all' | 'polygon' | 'lunarcrush';
   };
   onFilterChange: (key: string, value: string) => void;
   categories: string[];
@@ -46,7 +47,7 @@ const MARKET_CAP_THRESHOLDS = [
 
 export function TokenScreenerFilters({ filters, onFilterChange, categories, chains }: TokenScreenerFiltersProps) {
   const hasActiveFilters = filters.search || filters.category || filters.chain || filters.tier || 
-    filters.minVolume || filters.minGalaxyScore || filters.minMarketCap || filters.changeFilter !== 'all';
+    filters.minVolume || filters.minGalaxyScore || filters.minMarketCap || filters.changeFilter !== 'all' || filters.dataSource !== 'all';
 
   const clearFilters = () => {
     onFilterChange('search', '');
@@ -57,6 +58,7 @@ export function TokenScreenerFilters({ filters, onFilterChange, categories, chai
     onFilterChange('minGalaxyScore', '');
     onFilterChange('minMarketCap', '');
     onFilterChange('changeFilter', 'all');
+    onFilterChange('dataSource', 'all');
   };
 
   return (
@@ -72,6 +74,34 @@ export function TokenScreenerFilters({ filters, onFilterChange, categories, chai
             onChange={(e) => onFilterChange('search', e.target.value)}
             className="pl-9"
           />
+        </div>
+
+        {/* Data Source Toggle */}
+        <div className="flex gap-1">
+          <Button
+            variant={filters.dataSource === 'polygon' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => onFilterChange('dataSource', filters.dataSource === 'polygon' ? 'all' : 'polygon')}
+            className={cn(
+              "gap-1",
+              filters.dataSource === 'polygon' && "bg-green-600 hover:bg-green-700"
+            )}
+          >
+            <Zap className="h-4 w-4" />
+            LIVE
+          </Button>
+          <Button
+            variant={filters.dataSource === 'lunarcrush' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => onFilterChange('dataSource', filters.dataSource === 'lunarcrush' ? 'all' : 'lunarcrush')}
+            className={cn(
+              "gap-1",
+              filters.dataSource === 'lunarcrush' && "bg-blue-600 hover:bg-blue-700"
+            )}
+          >
+            <Radio className="h-4 w-4" />
+            LC
+          </Button>
         </div>
 
         {/* Gainers/Losers Toggle */}
