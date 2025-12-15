@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { 
   Sidebar, 
   SidebarContent, 
-  SidebarGroup, 
-  SidebarGroupLabel, 
   SidebarMenu, 
   SidebarMenuItem, 
   SidebarMenuButton, 
@@ -18,9 +16,7 @@ import {
   Dog,
   Activity,
   Database,
-  Wrench,
-  Download,
-  Eye
+  Wrench
 } from 'lucide-react';
 import { GenerateBrief } from './GenerateBrief';
 import QuoteLibraryAdmin from './QuoteLibraryAdmin';
@@ -28,8 +24,6 @@ import { ZombieDogAnalytics } from './ZombieDogAnalytics';
 import { SystemHealth } from './SystemHealth';
 import { DataSources } from './DataSources';
 import { Diagnostics } from './Diagnostics';
-import { DataExport } from './DataExport';
-import { PolygonRawPreview } from './PolygonRawPreview';
 
 function AdminContent() {
   const [activeView, setActiveView] = useState('dashboard');
@@ -102,24 +96,6 @@ function AdminContent() {
                 <span>Diagnostics</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton 
-                onClick={() => handleViewChange('data-export')}
-                isActive={activeView === 'data-export'}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                <span>Data Export</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton 
-                onClick={() => handleViewChange('polygon-raw-preview')}
-                isActive={activeView === 'polygon-raw-preview'}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                <span>Polygon Raw Preview</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>
@@ -139,8 +115,6 @@ function AdminContent() {
           {activeView === 'data-sources' && <DataSources />}
           {activeView === 'zombiedog-analytics' && <ZombieDogAnalytics />}
           {activeView === 'diagnostics' && <Diagnostics />}
-          {activeView === 'data-export' && <DataExport />}
-          {activeView === 'polygon-raw-preview' && <PolygonRawPreview />}
         </main>
       </div>
     </>
