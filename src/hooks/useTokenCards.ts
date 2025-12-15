@@ -26,7 +26,7 @@ export interface TokenCard {
 export type SortKey = 'market_cap_rank' | 'price_usd' | 'change_1h_pct' | 'change_24h_pct' | 'change_7d_pct' | 'market_cap' | 'volume_24h_usd' | 'galaxy_score' | 'alt_rank' | 'sentiment' | 'social_volume_24h';
 export type SortDirection = 'asc' | 'desc';
 
-interface Filters {
+export interface Filters {
   search: string;
   category: string;
   chain: string;
@@ -35,6 +35,7 @@ interface Filters {
   minGalaxyScore: string;
   minMarketCap: string;
   changeFilter: 'all' | 'gainers' | 'losers';
+  dataSource: 'all' | 'polygon' | 'lunarcrush';
 }
 
 const PAGE_SIZE = 100;
@@ -52,6 +53,7 @@ export function useTokenCards() {
     minGalaxyScore: '',
     minMarketCap: '',
     changeFilter: 'all',
+    dataSource: 'all',
   });
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -67,7 +69,7 @@ export function useTokenCards() {
   // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, sortKey, sortDirection]);
+  }, [filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, sortKey, sortDirection]);
 
   const fetchTokens = useCallback(async () => {
     let query = supabase
@@ -109,6 +111,12 @@ export function useTokenCards() {
       query = query.lt('change_24h_pct', 0);
     }
 
+    if (filters.dataSource === 'polygon') {
+      query = query.eq('polygon_supported', true);
+    } else if (filters.dataSource === 'lunarcrush') {
+      query = query.or('polygon_supported.is.null,polygon_supported.eq.false');
+    }
+
     // Apply sorting
     const ascending = sortDirection === 'asc';
     query = query.order(sortKey, { ascending, nullsFirst: false });
@@ -127,10 +135,10 @@ export function useTokenCards() {
       totalCount: count || 0,
       totalPages: Math.ceil((count || 0) / PAGE_SIZE),
     };
-  }, [debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, sortKey, sortDirection, currentPage]);
+  }, [debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, sortKey, sortDirection, currentPage]);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['token-cards', debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, sortKey, sortDirection, currentPage],
+    queryKey: ['token-cards', debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, sortKey, sortDirection, currentPage],
     queryFn: fetchTokens,
     refetchInterval: 30000,
     staleTime: 15000,
