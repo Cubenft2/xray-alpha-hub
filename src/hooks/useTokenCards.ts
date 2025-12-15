@@ -36,6 +36,21 @@ export interface Filters {
   minMarketCap: string;
   changeFilter: 'all' | 'gainers' | 'losers';
   dataSource: 'all' | 'polygon' | 'lunarcrush';
+  hideSuspicious: boolean;
+}
+
+// Data quality check - returns true if token appears suspicious
+export function isSuspiciousToken(marketCap: number | null, volume: number | null): boolean {
+  if (marketCap === null || volume === null) return false;
+  // Suspicious if market cap > $1B but volume < $100K (0.01% ratio)
+  if (marketCap > 1_000_000_000 && volume < 100_000) return true;
+  // Suspicious if market cap > $100M but volume < $1K
+  if (marketCap > 100_000_000 && volume < 1_000) return true;
+  return false;
+}
+
+export function isLowLiquidity(volume: number | null): boolean {
+  return volume !== null && volume < 10_000;
 }
 
 const PAGE_SIZE = 100;
@@ -54,6 +69,7 @@ export function useTokenCards() {
     minMarketCap: '',
     changeFilter: 'all',
     dataSource: 'all',
+    hideSuspicious: true, // ON by default
   });
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -69,7 +85,7 @@ export function useTokenCards() {
   // Reset page on filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, sortKey, sortDirection]);
+  }, [filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, filters.hideSuspicious, sortKey, sortDirection]);
 
   const fetchTokens = useCallback(async () => {
     let query = supabase
@@ -117,6 +133,12 @@ export function useTokenCards() {
       query = query.or('polygon_supported.is.null,polygon_supported.eq.false');
     }
 
+    // Hide suspicious tokens (market cap > $1B with volume < $100K)
+    if (filters.hideSuspicious) {
+      // Filter: volume > $1000 OR market_cap < $100M (allow small caps with low volume)
+      query = query.or('volume_24h_usd.gt.1000,market_cap.lt.100000000,volume_24h_usd.is.null');
+    }
+
     // Apply sorting
     const ascending = sortDirection === 'asc';
     query = query.order(sortKey, { ascending, nullsFirst: false });
@@ -135,10 +157,10 @@ export function useTokenCards() {
       totalCount: count || 0,
       totalPages: Math.ceil((count || 0) / PAGE_SIZE),
     };
-  }, [debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, sortKey, sortDirection, currentPage]);
+  }, [debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, filters.hideSuspicious, sortKey, sortDirection, currentPage]);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['token-cards', debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, sortKey, sortDirection, currentPage],
+    queryKey: ['token-cards', debouncedSearch, filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, filters.hideSuspicious, sortKey, sortDirection, currentPage],
     queryFn: fetchTokens,
     refetchInterval: 30000,
     staleTime: 15000,
@@ -153,7 +175,7 @@ export function useTokenCards() {
     }
   };
 
-  const updateFilter = (key: keyof Filters, value: string) => {
+  const updateFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 

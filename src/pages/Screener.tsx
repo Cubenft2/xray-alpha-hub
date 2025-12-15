@@ -28,9 +28,13 @@ export default function Screener() {
   const { categories, chains } = useTokenFilters();
 
   // Handle filter changes - clear 'all' and 'any' values
-  const handleFilterChange = (key: string, value: string) => {
-    const cleanValue = value === 'all' || value === 'any' ? '' : value;
-    updateFilter(key as any, cleanValue);
+  const handleFilterChange = (key: string, value: string | boolean) => {
+    if (typeof value === 'boolean') {
+      updateFilter(key as any, value as any);
+    } else {
+      const cleanValue = value === 'all' || value === 'any' ? '' : value;
+      updateFilter(key as any, cleanValue);
+    }
   };
 
   // Generate page numbers for pagination

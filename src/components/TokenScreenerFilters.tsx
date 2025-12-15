@@ -1,4 +1,4 @@
-import { Search, X, TrendingUp, TrendingDown, Zap, Radio } from 'lucide-react';
+import { Search, X, TrendingUp, TrendingDown, Zap, Radio, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,9 @@ interface TokenScreenerFiltersProps {
     minMarketCap: string;
     changeFilter: 'all' | 'gainers' | 'losers';
     dataSource: 'all' | 'polygon' | 'lunarcrush';
+    hideSuspicious: boolean;
   };
-  onFilterChange: (key: string, value: string) => void;
+  onFilterChange: (key: string, value: string | boolean) => void;
   categories: string[];
   chains: string[];
 }
@@ -47,7 +48,8 @@ const MARKET_CAP_THRESHOLDS = [
 
 export function TokenScreenerFilters({ filters, onFilterChange, categories, chains }: TokenScreenerFiltersProps) {
   const hasActiveFilters = filters.search || filters.category || filters.chain || filters.tier || 
-    filters.minVolume || filters.minGalaxyScore || filters.minMarketCap || filters.changeFilter !== 'all' || filters.dataSource !== 'all';
+    filters.minVolume || filters.minGalaxyScore || filters.minMarketCap || filters.changeFilter !== 'all' || 
+    filters.dataSource !== 'all' || !filters.hideSuspicious;
 
   const clearFilters = () => {
     onFilterChange('search', '');
@@ -59,6 +61,7 @@ export function TokenScreenerFilters({ filters, onFilterChange, categories, chai
     onFilterChange('minMarketCap', '');
     onFilterChange('changeFilter', 'all');
     onFilterChange('dataSource', 'all');
+    onFilterChange('hideSuspicious', true);
   };
 
   return (
@@ -131,6 +134,21 @@ export function TokenScreenerFilters({ filters, onFilterChange, categories, chai
             Losers
           </Button>
         </div>
+
+        {/* Hide Suspicious Toggle */}
+        <Button
+          variant={filters.hideSuspicious ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => onFilterChange('hideSuspicious', !filters.hideSuspicious)}
+          className={cn(
+            "gap-1",
+            filters.hideSuspicious && "bg-amber-600 hover:bg-amber-700"
+          )}
+          title="Hide tokens with suspicious market cap/volume ratios"
+        >
+          {filters.hideSuspicious ? <ShieldCheck className="h-4 w-4" /> : <ShieldAlert className="h-4 w-4" />}
+          {filters.hideSuspicious ? 'Protected' : 'Show All'}
+        </Button>
 
         {/* Clear Filters */}
         {hasActiveFilters && (
