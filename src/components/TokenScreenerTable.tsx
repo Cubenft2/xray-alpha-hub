@@ -3,7 +3,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown } from 'lucid
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { TokenCard, SortKey, SortDirection } from '@/hooks/useTokenCards';
 import { cn } from '@/lib/utils';
 
@@ -149,99 +149,103 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
   }
 
   return (
-    <ScrollArea className="h-[calc(100vh-320px)]">
-      <Table>
-        <TableHeader className="sticky top-0 bg-background z-10">
-          <TableRow>
-            <TableHead className="w-[60px]">
-              <button
-                onClick={() => onSort('market_cap_rank')}
-                className="flex items-center gap-1 hover:text-foreground transition-colors"
-              >
-                #
-                <SortIcon column="market_cap_rank" sortKey={sortKey} sortDirection={sortDirection} />
-              </button>
-            </TableHead>
-            <TableHead className="min-w-[180px]">Token</TableHead>
-            {sortableColumns.slice(1).map(col => (
-              <TableHead key={col.key} className="text-right">
+    <ScrollArea className="h-[70vh] min-h-[400px] max-h-[800px] w-full rounded-md border">
+      <div className="overflow-x-auto">
+        <Table className="min-w-[1200px]">
+          <TableHeader className="sticky top-0 bg-background z-10">
+            <TableRow>
+              <TableHead className="w-[60px]">
                 <button
-                  onClick={() => onSort(col.key)}
-                  className="flex items-center gap-1 ml-auto hover:text-foreground transition-colors"
+                  onClick={() => onSort('market_cap_rank')}
+                  className="flex items-center gap-1 hover:text-foreground transition-colors"
                 >
-                  {col.label}
-                  <SortIcon column={col.key} sortKey={sortKey} sortDirection={sortDirection} />
+                  #
+                  <SortIcon column="market_cap_rank" sortKey={sortKey} sortDirection={sortDirection} />
                 </button>
               </TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tokens.map((token) => (
-            <TableRow
-              key={token.canonical_symbol}
-              className="cursor-pointer hover:bg-muted/50 transition-colors"
-              onClick={() => navigate(`/token/${token.canonical_symbol}`)}
-            >
-              <TableCell className="font-medium text-muted-foreground">
-                {token.market_cap_rank || '-'}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  {token.logo_url ? (
-                    <img
-                      src={token.logo_url}
-                      alt={token.canonical_symbol}
-                      className="w-6 h-6 rounded-full"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">
-                      {token.canonical_symbol?.charAt(0)}
-                    </div>
-                  )}
-                  <div>
-                    <span className="font-semibold">{token.canonical_symbol}</span>
-                    <span className="text-muted-foreground text-sm ml-2 hidden sm:inline">
-                      {token.name?.slice(0, 20)}
-                      {(token.name?.length || 0) > 20 ? '...' : ''}
-                    </span>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {formatPrice(token.price_usd)}
-              </TableCell>
-              <TableCell className={cn(
-                "text-right font-mono",
-                token.change_24h_pct && token.change_24h_pct >= 0 ? "text-green-500" : "text-red-500"
-              )}>
-                {formatPercent(token.change_24h_pct)}
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {formatLargeNumber(token.market_cap)}
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {formatLargeNumber(token.volume_24h_usd)}
-              </TableCell>
-              <TableCell className="text-right">
-                <GalaxyScoreBar score={token.galaxy_score} />
-              </TableCell>
-              <TableCell className="text-right">
-                <AltRankBadge rank={token.alt_rank} />
-              </TableCell>
-              <TableCell className="text-right">
-                <SentimentIndicator sentiment={token.sentiment} />
-              </TableCell>
-              <TableCell className="text-right font-mono">
-                {formatSocialVolume(token.social_volume_24h)}
-              </TableCell>
+              <TableHead className="min-w-[180px]">Token</TableHead>
+              {sortableColumns.slice(1).map(col => (
+                <TableHead key={col.key} className="text-right">
+                  <button
+                    onClick={() => onSort(col.key)}
+                    className="flex items-center gap-1 ml-auto hover:text-foreground transition-colors"
+                  >
+                    {col.label}
+                    <SortIcon column={col.key} sortKey={sortKey} sortDirection={sortDirection} />
+                  </button>
+                </TableHead>
+              ))}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+          </TableHeader>
+          <TableBody>
+            {tokens.map((token) => (
+              <TableRow
+                key={token.canonical_symbol}
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => navigate(`/token/${token.canonical_symbol}`)}
+              >
+                <TableCell className="font-medium text-muted-foreground">
+                  {token.market_cap_rank || '-'}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {token.logo_url ? (
+                      <img
+                        src={token.logo_url}
+                        alt={token.canonical_symbol}
+                        className="w-6 h-6 rounded-full"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">
+                        {token.canonical_symbol?.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <span className="font-semibold">{token.canonical_symbol}</span>
+                      <span className="text-muted-foreground text-sm ml-2 hidden sm:inline">
+                        {token.name?.slice(0, 20)}
+                        {(token.name?.length || 0) > 20 ? '...' : ''}
+                      </span>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatPrice(token.price_usd)}
+                </TableCell>
+                <TableCell className={cn(
+                  "text-right font-mono",
+                  token.change_24h_pct && token.change_24h_pct >= 0 ? "text-green-500" : "text-red-500"
+                )}>
+                  {formatPercent(token.change_24h_pct)}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatLargeNumber(token.market_cap)}
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatLargeNumber(token.volume_24h_usd)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <GalaxyScoreBar score={token.galaxy_score} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <AltRankBadge rank={token.alt_rank} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <SentimentIndicator sentiment={token.sentiment} />
+                </TableCell>
+                <TableCell className="text-right font-mono">
+                  {formatSocialVolume(token.social_volume_24h)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      <ScrollBar orientation="horizontal" />
+      <ScrollBar orientation="vertical" />
     </ScrollArea>
   );
 }
