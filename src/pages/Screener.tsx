@@ -3,6 +3,7 @@ import { SEOHead } from '@/components/SEOHead';
 import { Button } from '@/components/ui/button';
 import { TokenScreenerTable } from '@/components/TokenScreenerTable';
 import { TokenScreenerFilters } from '@/components/TokenScreenerFilters';
+import { TokenScreenerInsights } from '@/components/TokenScreenerInsights';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from '@/components/ui/pagination';
 import { useTokenCards, useTokenFilters } from '@/hooks/useTokenCards';
 import { cn } from '@/lib/utils';
@@ -26,9 +27,10 @@ export default function Screener() {
 
   const { categories, chains } = useTokenFilters();
 
-  // Handle filter changes - clear 'all' values
-  const handleFilterChange = (key: 'search' | 'category' | 'chain' | 'tier', value: string) => {
-    updateFilter(key, value === 'all' ? '' : value);
+  // Handle filter changes - clear 'all' and 'any' values
+  const handleFilterChange = (key: string, value: string) => {
+    const cleanValue = value === 'all' || value === 'any' ? '' : value;
+    updateFilter(key as any, cleanValue);
   };
 
   // Generate page numbers for pagination
@@ -56,8 +58,8 @@ export default function Screener() {
     return pages;
   };
 
-  const startIndex = (currentPage - 1) * 250 + 1;
-  const endIndex = Math.min(currentPage * 250, totalCount);
+  const startIndex = (currentPage - 1) * 100 + 1;
+  const endIndex = Math.min(currentPage * 100, totalCount);
 
   return (
     <>
@@ -87,13 +89,18 @@ export default function Screener() {
           </Button>
         </div>
 
+        {/* Insights Panel */}
+        <TokenScreenerInsights isLoading={isLoading} />
+
         {/* Filters */}
-        <TokenScreenerFilters
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          categories={categories}
-          chains={chains}
-        />
+        <div className="bg-muted/30 rounded-lg p-4 border border-border/50">
+          <TokenScreenerFilters
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            categories={categories}
+            chains={chains}
+          />
+        </div>
 
         {/* Table */}
         <TokenScreenerTable

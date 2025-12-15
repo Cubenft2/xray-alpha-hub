@@ -3,6 +3,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown } from 'lucid
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 
 import { TokenCard, SortKey, SortDirection } from '@/hooks/useTokenCards';
 import { cn } from '@/lib/utils';
@@ -68,20 +69,25 @@ function GalaxyScoreBar({ score }: { score: number | null }) {
   );
 }
 
-function SentimentIndicator({ sentiment }: { sentiment: number | null }) {
+function SentimentBar({ sentiment }: { sentiment: number | null }) {
   if (sentiment === null || sentiment === undefined) return <span className="text-muted-foreground">-</span>;
   
   const isBullish = sentiment >= 50;
+  const width = Math.min(100, Math.max(0, sentiment));
   
   return (
-    <div className="flex items-center gap-1">
-      {isBullish ? (
-        <TrendingUp className="h-4 w-4 text-green-500" />
-      ) : (
-        <TrendingDown className="h-4 w-4 text-red-500" />
-      )}
+    <div className="flex items-center gap-2 min-w-[80px]">
+      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+        <div 
+          className={cn(
+            "h-full rounded-full transition-all",
+            isBullish ? "bg-green-500" : "bg-red-500"
+          )}
+          style={{ width: `${width}%` }}
+        />
+      </div>
       <span className={cn(
-        "text-sm font-medium",
+        "text-xs font-medium min-w-[32px]",
         isBullish ? "text-green-500" : "text-red-500"
       )}>
         {sentiment.toFixed(0)}%
@@ -92,11 +98,11 @@ function SentimentIndicator({ sentiment }: { sentiment: number | null }) {
 
 function SortIcon({ column, sortKey, sortDirection }: { column: SortKey; sortKey: SortKey; sortDirection: SortDirection }) {
   if (sortKey !== column) {
-    return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />;
+    return <ArrowUpDown className="h-3 w-3 text-muted-foreground" />;
   }
   return sortDirection === 'asc' 
-    ? <ArrowUp className="h-4 w-4 text-primary" />
-    : <ArrowDown className="h-4 w-4 text-primary" />;
+    ? <ArrowUp className="h-3 w-3 text-primary" />
+    : <ArrowDown className="h-3 w-3 text-primary" />;
 }
 
 function AltRankBadge({ rank }: { rank: number | null }) {
@@ -117,25 +123,42 @@ function AltRankBadge({ rank }: { rank: number | null }) {
   }
   
   return (
-    <Badge variant={variant} className={className}>
+    <Badge variant={variant} className={cn("text-xs", className)}>
       #{rank}
     </Badge>
+  );
+}
+
+function PercentChange({ value, compact }: { value: number | null; compact?: boolean }) {
+  if (value === null || value === undefined) return <span className="text-muted-foreground">-</span>;
+  
+  const isPositive = value >= 0;
+  return (
+    <span className={cn(
+      "font-mono tabular-nums",
+      compact ? "text-xs" : "text-sm",
+      isPositive ? "text-green-500" : "text-red-500"
+    )}>
+      {isPositive ? '+' : ''}{value.toFixed(2)}%
+    </span>
   );
 }
 
 export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isLoading }: TokenScreenerTableProps) {
   const navigate = useNavigate();
 
-  const sortableColumns: { key: SortKey; label: string }[] = [
+  const columns: { key: SortKey; label: string; className?: string }[] = [
     { key: 'market_cap_rank', label: '#' },
     { key: 'price_usd', label: 'Price' },
+    { key: 'change_1h_pct', label: '1h %' },
     { key: 'change_24h_pct', label: '24h %' },
+    { key: 'change_7d_pct', label: '7d %' },
     { key: 'market_cap', label: 'Market Cap' },
     { key: 'volume_24h_usd', label: 'Volume 24h' },
-    { key: 'galaxy_score', label: 'Galaxy Score' },
+    { key: 'galaxy_score', label: 'Galaxy' },
     { key: 'alt_rank', label: 'AltRank' },
     { key: 'sentiment', label: 'Sentiment' },
-    { key: 'social_volume_24h', label: 'Social Vol' },
+    { key: 'social_volume_24h', label: 'Social' },
   ];
 
   if (isLoading) {
@@ -149,12 +172,12 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
   }
 
   return (
-    <div className="w-full rounded-md border overflow-x-auto">
-      <div className="overflow-x-auto">
-        <Table className="min-w-[1200px]">
-          <TableHeader className="sticky top-0 bg-background z-10">
+    <div className="w-full rounded-md border bg-card">
+      <ScrollArea className="w-full">
+        <Table className="min-w-[1400px]">
+          <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
-              <TableHead className="w-[60px]">
+              <TableHead className="w-[50px] sticky left-0 bg-card z-20">
                 <button
                   onClick={() => onSort('market_cap_rank')}
                   className="flex items-center gap-1 hover:text-foreground transition-colors"
@@ -163,9 +186,9 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                   <SortIcon column="market_cap_rank" sortKey={sortKey} sortDirection={sortDirection} />
                 </button>
               </TableHead>
-              <TableHead className="min-w-[180px]">Token</TableHead>
-              {sortableColumns.slice(1).map(col => (
-                <TableHead key={col.key} className="text-right">
+              <TableHead className="min-w-[160px] sticky left-[50px] bg-card z-20">Token</TableHead>
+              {columns.slice(1).map(col => (
+                <TableHead key={col.key} className="text-right whitespace-nowrap">
                   <button
                     onClick={() => onSort(col.key)}
                     className="flex items-center gap-1 ml-auto hover:text-foreground transition-colors"
@@ -184,30 +207,29 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => navigate(`/token/${token.canonical_symbol}`)}
               >
-                <TableCell className="font-medium text-muted-foreground">
+                <TableCell className="font-medium text-muted-foreground sticky left-0 bg-card">
                   {token.market_cap_rank || '-'}
                 </TableCell>
-                <TableCell>
+                <TableCell className="sticky left-[50px] bg-card">
                   <div className="flex items-center gap-2">
                     {token.logo_url ? (
                       <img
                         src={token.logo_url}
                         alt={token.canonical_symbol}
-                        className="w-6 h-6 rounded-full"
+                        className="w-8 h-8 rounded-full"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
                         }}
                       />
                     ) : (
-                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
                         {token.canonical_symbol?.charAt(0)}
                       </div>
                     )}
-                    <div>
+                    <div className="flex flex-col">
                       <span className="font-semibold">{token.canonical_symbol}</span>
-                      <span className="text-muted-foreground text-sm ml-2 hidden sm:inline">
-                        {token.name?.slice(0, 20)}
-                        {(token.name?.length || 0) > 20 ? '...' : ''}
+                      <span className="text-muted-foreground text-xs truncate max-w-[100px]">
+                        {token.name}
                       </span>
                     </div>
                   </div>
@@ -215,16 +237,19 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                 <TableCell className="text-right font-mono">
                   {formatPrice(token.price_usd)}
                 </TableCell>
-                <TableCell className={cn(
-                  "text-right font-mono",
-                  token.change_24h_pct && token.change_24h_pct >= 0 ? "text-green-500" : "text-red-500"
-                )}>
-                  {formatPercent(token.change_24h_pct)}
+                <TableCell className="text-right">
+                  <PercentChange value={token.change_1h_pct} compact />
                 </TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="text-right">
+                  <PercentChange value={token.change_24h_pct} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <PercentChange value={token.change_7d_pct} compact />
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">
                   {formatLargeNumber(token.market_cap)}
                 </TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="text-right font-mono text-sm">
                   {formatLargeNumber(token.volume_24h_usd)}
                 </TableCell>
                 <TableCell className="text-right">
@@ -234,16 +259,17 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                   <AltRankBadge rank={token.alt_rank} />
                 </TableCell>
                 <TableCell className="text-right">
-                  <SentimentIndicator sentiment={token.sentiment} />
+                  <SentimentBar sentiment={token.sentiment} />
                 </TableCell>
-                <TableCell className="text-right font-mono">
+                <TableCell className="text-right font-mono text-sm">
                   {formatSocialVolume(token.social_volume_24h)}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
-      </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
     </div>
   );
 }
