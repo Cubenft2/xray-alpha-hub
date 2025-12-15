@@ -81,36 +81,27 @@ verify_jwt = false
 [functions.map-polygon-tickers]
 verify_jwt = false
 
-# DEPRECATED - replaced by massive-crypto-snapshot
-# [functions.polygon-rest-poller]
-# verify_jwt = false
-# [[functions.polygon-rest-poller.cron]]
-# schedule = "*/2 * * * *"
 [functions.polygon-rest-poller]
 verify_jwt = false
 
-# Stock price polling - every 5 minutes (REST API - UNLIMITED calls, 15-min delayed)
 [functions.polygon-stock-poller]
 verify_jwt = false
 
 [[functions.polygon-stock-poller.cron]]
 schedule = "*/5 * * * *"
 
-# Technical indicators refresh - hourly
 [functions.polygon-indicators-refresh]
 verify_jwt = false
 
 [[functions.polygon-indicators-refresh.cron]]
 schedule = "0 * * * *"
 
-# Company details prefetch - every 4 hours
 [functions.polygon-company-prefetch]
 verify_jwt = false
 
 [[functions.polygon-company-prefetch.cron]]
 schedule = "0 */4 * * *"
 
-# Auto-map polygon tickers - daily at 2 AM
 [functions.auto-map-polygon-tickers]
 verify_jwt = false
 
@@ -183,15 +174,9 @@ verify_jwt = false
 [functions.migrate-ticker-data]
 verify_jwt = false
 
-# DEPRECATED - replaced by massive-crypto-snapshot
-# [functions.polygon-crypto-snapshot]
-# verify_jwt = false
-# [[functions.polygon-crypto-snapshot.cron]]
-# schedule = "* * * * *"
 [functions.polygon-crypto-snapshot]
 verify_jwt = false
 
-# Stock snapshot - every 5 minutes (mirrors stock-poller frequency)
 [functions.polygon-stock-snapshot]
 verify_jwt = false
 
@@ -204,18 +189,15 @@ verify_jwt = false
 [functions.fix-coingecko-mappings]
 verify_jwt = false
 
-# LunarCrush sync - PRIMARY crypto data source (every 5 minutes)
 [functions.lunarcrush-sync]
 verify_jwt = false
 
 [[functions.lunarcrush-sync.cron]]
 schedule = "*/5 * * * *"
 
-# Unified asset details endpoint (stocks + crypto fundamentals)
 [functions.asset-details]
 verify_jwt = false
 
-# Cache warmers - keep derivs/news caches warm for all users
 [functions.warm-derivs-cache]
 verify_jwt = false
 
@@ -228,64 +210,59 @@ verify_jwt = false
 [[functions.warm-news-cache.cron]]
 schedule = "*/30 * * * *"
 
-# ============================================
-# MASSIVE API FUNCTIONS (Polygon rebrand)
-# ============================================
-
-# Massive Crypto Unified Snapshot - every 2 minutes
-# Uses /v2/snapshot/locale/global/markets/crypto/tickers (ONE call = ALL crypto)
 [functions.massive-crypto-snapshot]
 verify_jwt = false
 
 [[functions.massive-crypto-snapshot.cron]]
 schedule = "*/2 * * * *"
 
-# Massive Forex Unified Snapshot - every 5 minutes
-# Uses /v2/snapshot/locale/global/markets/forex/tickers
 [functions.massive-forex-snapshot]
 verify_jwt = false
 
 [[functions.massive-forex-snapshot.cron]]
 schedule = "*/5 * * * *"
 
-# Massive Forex Sync - daily at 3 AM (registry builder)
-# Populates assets table with forex pairs
 [functions.massive-forex-sync]
 verify_jwt = false
 
 [[functions.massive-forex-sync.cron]]
 schedule = "0 3 * * *"
 
-# Unified market-data endpoint for UI + ZombieDog
-# Single source of truth for all market data queries
 [functions.market-data]
 verify_jwt = false
 
-# Polygon Raw Preview - temporary diagnostic tool
 [functions.polygon-raw-preview]
 verify_jwt = false
 
-# ============================================
-# POLYGON CRYPTO CARDS SYNC
-# ============================================
-
-# Reference sync - daily at 4 AM (catch new listings)
 [functions.sync-polygon-crypto-reference]
 verify_jwt = false
 
 [[functions.sync-polygon-crypto-reference.cron]]
 schedule = "0 4 * * *"
 
-# Snapshot sync - every 1 minute (live prices)
 [functions.sync-polygon-crypto-snapshot]
 verify_jwt = false
 
 [[functions.sync-polygon-crypto-snapshot.cron]]
 schedule = "* * * * *"
 
-# Technical indicators sync - every 15 minutes
 [functions.sync-polygon-crypto-technicals]
 verify_jwt = false
 
 [[functions.sync-polygon-crypto-technicals.cron]]
 schedule = "*/15 * * * *"
+
+# ============================================
+# TOKEN CARDS SYNC FUNCTIONS
+# ============================================
+
+# Bootstrap token_cards from crypto_snapshot (run once manually)
+[functions.bootstrap-token-cards]
+verify_jwt = false
+
+# Sync token_cards from LunarCrush with smart matching
+[functions.sync-token-cards-lunarcrush]
+verify_jwt = false
+
+[[functions.sync-token-cards-lunarcrush.cron]]
+schedule = "*/5 * * * *"
