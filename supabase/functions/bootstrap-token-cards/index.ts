@@ -67,19 +67,34 @@ serve(async (req) => {
     
     console.log(`[bootstrap-token-cards] Existing token_cards: ${existingCount || 0}`);
 
-    // Fetch all crypto_snapshot data
-    const { data: snapshots, error: fetchError } = await supabase
-      .from('crypto_snapshot')
-      .select('*')
-      .order('market_cap_rank', { ascending: true, nullsFirst: false });
+    // Fetch all crypto_snapshot data with pagination (Supabase has 1000 row limit)
+    const PAGE_SIZE = 1000;
+    let snapshots: any[] = [];
+    let offset = 0;
+    
+    while (true) {
+      const { data: page, error: fetchError } = await supabase
+        .from('crypto_snapshot')
+        .select('*')
+        .order('market_cap_rank', { ascending: true, nullsFirst: false })
+        .range(offset, offset + PAGE_SIZE - 1);
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch crypto_snapshot: ${fetchError.message}`);
+      if (fetchError) {
+        throw new Error(`Failed to fetch crypto_snapshot: ${fetchError.message}`);
+      }
+
+      if (!page || page.length === 0) break;
+      
+      snapshots.push(...page);
+      console.log(`[bootstrap-token-cards] Fetched page ${Math.floor(offset / PAGE_SIZE) + 1}: ${page.length} tokens`);
+      
+      if (page.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
     }
 
-    console.log(`[bootstrap-token-cards] Fetched ${snapshots?.length || 0} tokens from crypto_snapshot`);
+    console.log(`[bootstrap-token-cards] Total fetched: ${snapshots.length} tokens from crypto_snapshot`);
 
-    if (!snapshots || snapshots.length === 0) {
+    if (snapshots.length === 0) {
       return new Response(JSON.stringify({
         success: true,
         message: 'No tokens to migrate',
@@ -136,7 +151,7 @@ serve(async (req) => {
             vwap_24h: snap.vwap,
             
             // Social data from LunarCrush
-            galaxy_score: snap.galaxy_score,
+            galaxy_score: snap.galaxy_score != null ? Math.round(snap.galaxy_score) : null,
             alt_rank: snap.alt_rank,
             sentiment: snap.sentiment,
             social_volume_24h: snap.social_volume_24h,
