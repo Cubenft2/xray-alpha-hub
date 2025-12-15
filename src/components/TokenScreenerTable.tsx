@@ -144,6 +144,21 @@ function PercentChange({ value, compact }: { value: number | null; compact?: boo
   );
 }
 
+function DataSourceBadge({ polygonSupported }: { polygonSupported: boolean | null }) {
+  if (polygonSupported) {
+    return (
+      <Badge variant="outline" className="text-[10px] px-1 py-0 bg-green-500/10 text-green-500 border-green-500/30">
+        LIVE
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-500/10 text-blue-500 border-blue-500/30">
+      LC
+    </Badge>
+  );
+}
+
 export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isLoading }: TokenScreenerTableProps) {
   const navigate = useNavigate();
 
@@ -227,7 +242,10 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                       </div>
                     )}
                     <div className="flex flex-col">
-                      <span className="font-semibold">{token.canonical_symbol}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-semibold">{token.canonical_symbol}</span>
+                        <DataSourceBadge polygonSupported={token.polygon_supported} />
+                      </div>
                       <span className="text-muted-foreground text-xs truncate max-w-[100px]">
                         {token.name}
                       </span>

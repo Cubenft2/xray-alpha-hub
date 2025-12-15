@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
@@ -15,7 +16,9 @@ import {
   Database,
   Wifi,
   Clock,
-  Calendar
+  Calendar,
+  Zap,
+  Radio
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -56,6 +59,38 @@ export function SystemHealth() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [healthData, setHealthData] = useState<HealthStatus[]>([]);
+
+  // Query Polygon coverage stats
+  const { data: polygonCoverage, refetch: refetchCoverage } = useQuery({
+    queryKey: ['polygon-coverage'],
+    queryFn: async () => {
+      const { count: totalTokens } = await supabase
+        .from('token_cards')
+        .select('*', { count: 'exact', head: true });
+
+      const { count: polygonSupported } = await supabase
+        .from('token_cards')
+        .select('*', { count: 'exact', head: true })
+        .eq('polygon_supported', true);
+
+      // Get high-cap tokens missing Polygon coverage
+      const { data: missingHighCap } = await supabase
+        .from('token_cards')
+        .select('canonical_symbol, name, market_cap_rank')
+        .eq('polygon_supported', false)
+        .not('market_cap_rank', 'is', null)
+        .order('market_cap_rank', { ascending: true })
+        .limit(10);
+
+      return {
+        total: totalTokens || 0,
+        polygonSupported: polygonSupported || 0,
+        lunarcrushOnly: (totalTokens || 0) - (polygonSupported || 0),
+        missingHighCap: missingHighCap || []
+      };
+    },
+    refetchInterval: 60000
+  });
 
   // Query cron jobs - will return null if function doesn't exist
   const { data: cronJobs, isLoading: cronLoading, refetch: refetchCron } = useQuery({
@@ -418,6 +453,80 @@ export function SystemHealth() {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Polygon Price Coverage */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-5 w-5" />
+                Polygon Price Coverage
+              </CardTitle>
+              <CardDescription>
+                Real-time prices (LIVE) vs LunarCrush (LC) data source breakdown
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => refetchCoverage()}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="text-center p-4 rounded-lg bg-muted/50">
+              <p className="text-3xl font-bold">{polygonCoverage?.total.toLocaleString() || '-'}</p>
+              <p className="text-sm text-muted-foreground">Total Tokens</p>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+              <div className="flex items-center justify-center gap-1">
+                <Radio className="h-4 w-4 text-green-500" />
+                <p className="text-3xl font-bold text-green-500">{polygonCoverage?.polygonSupported.toLocaleString() || '-'}</p>
+              </div>
+              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-green-500/10 text-green-500 border-green-500/30 mt-1">
+                LIVE
+              </Badge>
+              <p className="text-sm text-muted-foreground mt-1">Polygon (1min)</p>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <p className="text-3xl font-bold text-blue-500">{polygonCoverage?.lunarcrushOnly.toLocaleString() || '-'}</p>
+              <Badge variant="outline" className="text-[10px] px-1 py-0 bg-blue-500/10 text-blue-500 border-blue-500/30 mt-1">
+                LC
+              </Badge>
+              <p className="text-sm text-muted-foreground mt-1">LunarCrush (5min)</p>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-muted/50">
+              <p className="text-3xl font-bold">
+                {polygonCoverage ? `${((polygonCoverage.polygonSupported / polygonCoverage.total) * 100).toFixed(1)}%` : '-'}
+              </p>
+              <p className="text-sm text-muted-foreground">LIVE Coverage</p>
+            </div>
+          </div>
+
+          {polygonCoverage?.missingHighCap && polygonCoverage.missingHighCap.length > 0 && (
+            <>
+              <Separator className="my-4" />
+              <div>
+                <p className="text-sm font-medium mb-2">High-Cap Tokens Missing Polygon Coverage:</p>
+                <div className="flex flex-wrap gap-2">
+                  {polygonCoverage.missingHighCap.map((token: any) => (
+                    <Badge 
+                      key={token.canonical_symbol} 
+                      variant="outline" 
+                      className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/30"
+                    >
+                      #{token.market_cap_rank} {token.canonical_symbol}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  These tokens use LunarCrush prices (5-minute updates) because Polygon.io doesn't support them.
+                </p>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
