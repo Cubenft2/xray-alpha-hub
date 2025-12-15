@@ -28,6 +28,7 @@ import AdminIndex from "./pages/Admin/Index";
 import Auth from "./pages/Auth";
 import CryptoUniverseDetail from "./pages/CryptoUniverseDetail";
 import Screener from "./pages/Screener";
+import Favorites from "./pages/Favorites";
 import { Navigate } from "react-router-dom";
 const queryClient = new QueryClient();
 
@@ -66,6 +67,7 @@ const App = () => (
                   <Route path="/crypto-universe/:symbol" element={<CryptoUniverseDetail />} />
                   <Route path="/screener" element={<Navigate to="/crypto-universe" replace />} />
                   <Route path="/token/:symbol" element={<CryptoUniverseDetail />} />
+                  <Route path="/favorites" element={<Favorites />} />
                   <Route path="/admin" element={
                     <ProtectedRoute requireAdmin={true}>
                       <AdminIndex />
