@@ -294,13 +294,11 @@ verify_jwt = false
 [[functions.sync-forex-cards-polygon.cron]]
 schedule = "* * * * *"
 
-# Sync enhanced LunarCrush data (AI summaries, posts, news, creators) for top 500 tokens
-# Running every 10 min to conserve API calls (4 endpoints per token)
+# DISABLED: sync-token-cards-lunarcrush-enhanced uses 4 API calls per token
+# News now handled by FREE sync-token-news-polygon (Polygon unlimited quota)
+# AI summaries/posts/creators too expensive at 4 calls/token
 [functions.sync-token-cards-lunarcrush-enhanced]
 verify_jwt = false
-
-[[functions.sync-token-cards-lunarcrush-enhanced.cron]]
-schedule = "*/10 * * * *"
 
 # Sync CoinGecko IDs and contract addresses to token_cards
 [functions.sync-token-cards-coingecko]

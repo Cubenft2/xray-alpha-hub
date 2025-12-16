@@ -253,6 +253,14 @@ serve(async (req) => {
         const categories = parseCategories(coin.categories);
         const primaryChain = getPrimaryChain(incomingContracts);
 
+        // Calculate rank/score changes from previous values
+        const altRankChange = (coin.alt_rank != null && coin.alt_rank_previous != null) 
+          ? coin.alt_rank_previous - coin.alt_rank  // Positive = improved rank
+          : null;
+        const galaxyScoreChange = (coin.galaxy_score != null && coin.galaxy_score_previous != null)
+          ? coin.galaxy_score - coin.galaxy_score_previous
+          : null;
+
         const cardData = {
           canonical_symbol: symbol,
           name: coin.name,
@@ -270,12 +278,23 @@ serve(async (req) => {
           change_1h_pct: coin.percent_change_1h,
           change_24h_pct: coin.percent_change_24h,
           change_7d_pct: coin.percent_change_7d,
+          change_30d_pct: coin.percent_change_30d,  // NEW: 30-day change
+          
+          // Market metrics (NEW)
+          volatility: coin.volatility,
+          market_dominance: coin.market_dominance,
+          circulating_supply: coin.circulating_supply,
+          max_supply: coin.max_supply,
           
           // Social data
           galaxy_score: coin.galaxy_score != null ? Math.round(coin.galaxy_score) : null,
+          galaxy_score_previous: coin.galaxy_score_previous != null ? Math.round(coin.galaxy_score_previous) : null,
+          galaxy_score_change: galaxyScoreChange != null ? Math.round(galaxyScoreChange) : null,
           alt_rank: coin.alt_rank,
+          alt_rank_previous: coin.alt_rank_previous,
+          alt_rank_change: altRankChange,
           sentiment: coin.sentiment,
-          social_volume_24h: coin.social_volume,
+          social_volume_24h: coin.social_volume_24h,  // FIXED: was using coin.social_volume
           social_dominance: coin.social_dominance,
           interactions_24h: coin.interactions_24h,
           
