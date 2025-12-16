@@ -221,11 +221,10 @@ verify_jwt = false
 [[functions.massive-crypto-snapshot.cron]]
 schedule = "*/2 * * * *"
 
+# DISABLED: massive-forex-snapshot writes to live_prices, not forex_cards
+# Redundant with sync-forex-cards-polygon which writes to master forex_cards table
 [functions.massive-forex-snapshot]
 verify_jwt = false
-
-[[functions.massive-forex-snapshot.cron]]
-schedule = "*/5 * * * *"
 
 [functions.massive-forex-sync]
 verify_jwt = false
@@ -290,12 +289,19 @@ schedule = "* * * * *"
 [functions.bootstrap-forex-cards]
 verify_jwt = false
 
-# Sync forex_cards prices from Polygon.io
+# Sync forex_cards prices from Polygon.io (every minute)
 [functions.sync-forex-cards-polygon]
 verify_jwt = false
 
 [[functions.sync-forex-cards-polygon.cron]]
 schedule = "* * * * *"
+
+# Sync forex_cards technicals from Polygon historical data (every 15 minutes)
+[functions.sync-forex-cards-technicals]
+verify_jwt = false
+
+[[functions.sync-forex-cards-technicals.cron]]
+schedule = "*/15 * * * *"
 
 # DISABLED: sync-token-cards-lunarcrush-enhanced uses 4 API calls per token
 # News now handled by FREE sync-token-news-polygon (Polygon unlimited quota)
