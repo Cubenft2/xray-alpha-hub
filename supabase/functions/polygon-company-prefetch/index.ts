@@ -23,25 +23,31 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    console.log('🚀 Polygon Company Details Prefetch starting...');
+    console.log('🚀 Polygon Company Details Prefetch starting (BULK MODE)...');
 
     // Get offset from request body
     const body = await req.json().catch(() => ({}));
     const offset = body.offset || 0;
-    const batchLimit = 100; // Process 100 companies per run
+    const batchLimit = 500; // Process 500 companies per run (aggressive)
 
-    // Get stocks that need company details refresh (expired or missing)
+    // Get stocks from polygon_assets joined with assets - the CORRECT source
     const { data: stocks, error: stockError } = await supabase
-      .from('ticker_mappings')
-      .select('symbol, polygon_ticker')
-      .not('polygon_ticker', 'is', null)
-      .eq('type', 'stock')
+      .from('polygon_assets')
+      .select(`
+        asset_id,
+        polygon_ticker,
+        assets!inner (
+          symbol,
+          name
+        )
+      `)
+      .eq('market', 'stocks')
       .eq('is_active', true)
-      .order('symbol')
+      .order('polygon_ticker')
       .range(offset, offset + batchLimit - 1);
 
     if (stockError) {
-      throw new Error(`Failed to fetch stocks: ${stockError.message}`);
+      throw new Error(`Failed to fetch stocks from polygon_assets: ${stockError.message}`);
     }
 
     if (!stocks || stocks.length === 0) {
@@ -52,8 +58,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Extract symbols from joined data
+    const stocksWithSymbols = stocks.map(s => ({
+      symbol: (s.assets as any)?.symbol || s.polygon_ticker,
+      polygon_ticker: s.polygon_ticker,
+    }));
+
     // Check which stocks don't have cached company details or are expired
-    const stockSymbols = stocks.map(s => s.symbol);
+    const stockSymbols = stocksWithSymbols.map(s => s.symbol);
     const { data: existingDetails } = await supabase
       .from('company_details')
       .select('ticker, expires_at')
@@ -65,7 +77,7 @@ Deno.serve(async (req) => {
         .map(d => d.ticker)
     );
 
-    const stocksToFetch = stocks.filter(s => !cachedTickers.has(s.symbol));
+    const stocksToFetch = stocksWithSymbols.filter(s => !cachedTickers.has(s.symbol));
 
     console.log(`📊 Fetching company details for ${stocksToFetch.length} stocks (offset: ${offset}, ${cachedTickers.size} cached)`);
 
@@ -83,15 +95,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    const batchSize = 20;
+    const fetchBatchSize = 50; // Parallel fetch batch size
     let successCount = 0;
     let errorCount = 0;
     const companyDetails: unknown[] = [];
 
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hour TTL
 
-    for (let i = 0; i < stocksToFetch.length; i += batchSize) {
-      const batch = stocksToFetch.slice(i, i + batchSize);
+    for (let i = 0; i < stocksToFetch.length; i += fetchBatchSize) {
+      const batch = stocksToFetch.slice(i, i + fetchBatchSize);
       
       const promises = batch.map(async (stock) => {
         try {
@@ -153,9 +165,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Delay between batches
-      if (i + batchSize < stocksToFetch.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      // Small delay between batches (unlimited API but be nice)
+      if (i + fetchBatchSize < stocksToFetch.length) {
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
 

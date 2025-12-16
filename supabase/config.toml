@@ -95,6 +95,7 @@ schedule = "*/5 * * * *"
 [functions.polygon-indicators-refresh]
 verify_jwt = false
 
+# Prefetch company details for all stocks (bulk mode, 500 per run)
 [functions.polygon-company-prefetch]
 verify_jwt = false
 
@@ -338,3 +339,28 @@ verify_jwt = false
 
 [[functions.sync-token-cards-coingecko-contracts.cron]]
 schedule = "0 6 * * *"
+
+# ============================================
+# STOCK CARDS SYNC FUNCTIONS
+# ============================================
+
+# Sync stock_cards from live_prices + company_details (every 2 minutes)
+[functions.sync-stock-cards]
+verify_jwt = false
+
+[[functions.sync-stock-cards.cron]]
+schedule = "*/2 * * * *"
+
+# Sync technical indicators for stocks (every 5 minutes)
+[functions.sync-stock-cards-technicals]
+verify_jwt = false
+
+[[functions.sync-stock-cards-technicals.cron]]
+schedule = "*/5 * * * *"
+
+# Sync stock news from Polygon (FREE - unlimited, every 15 minutes)
+[functions.sync-stock-news-polygon]
+verify_jwt = false
+
+[[functions.sync-stock-news-polygon.cron]]
+schedule = "*/15 * * * *"
