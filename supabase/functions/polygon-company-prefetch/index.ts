@@ -5,6 +5,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Priority stocks to ALWAYS fetch first (major tech + crypto-related equities)
+const PRIORITY_STOCKS = [
+  'AAPL', 'MSFT', 'GOOGL', 'GOOG', 'NVDA', 'META', 'TSLA', 'AMZN',
+  'COIN', 'HOOD', 'MSTR', 'MARA', 'RIOT', 'CLSK', 'HUT', 'HIVE', 'BITF',
+  'JPM', 'V', 'MA', 'BAC', 'GS', 'MS', 'BLK', 'SQ', 'PYPL'
+];
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -23,12 +30,71 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    console.log('🚀 Polygon Company Details Prefetch starting (BULK MODE)...');
+    console.log('🚀 Polygon Company Details Prefetch starting (BULK MODE with PRIORITY STOCKS)...');
 
     // AGGRESSIVE MODE: Process ALL companies in single run (unlimited Polygon API)
     const body = await req.json().catch(() => ({}));
     const offset = body.offset || 0;
     const batchLimit = 5000; // ALL stocks in one run
+    
+    // STEP 1: Fetch priority stocks FIRST (always, regardless of cache)
+    console.log(`📌 Fetching ${PRIORITY_STOCKS.length} priority stocks first...`);
+    
+    const priorityDetails: unknown[] = [];
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hour TTL
+    
+    for (const symbol of PRIORITY_STOCKS) {
+      try {
+        const url = `https://api.polygon.io/v3/reference/tickers/${symbol}?apiKey=${polygonKey}`;
+        const response = await fetch(url);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.results) {
+            const r = data.results;
+            priorityDetails.push({
+              ticker: symbol,
+              name: r.name,
+              description: r.description,
+              market_cap: r.market_cap ? Math.round(r.market_cap) : null,
+              employees: r.total_employees,
+              headquarters: r.address ? {
+                address1: r.address.address1,
+                city: r.address.city,
+                state: r.address.state,
+                postal_code: r.address.postal_code,
+              } : null,
+              list_date: r.list_date,
+              sector: r.sic_description?.split(' - ')?.[0] || null,
+              industry: r.sic_description,
+              sic_code: r.sic_code,
+              sic_description: r.sic_description,
+              website: r.homepage_url,
+              logo_url: r.branding?.logo_url,
+              icon_url: r.branding?.icon_url,
+              cik: r.cik,
+              fetched_at: new Date().toISOString(),
+              expires_at: expiresAt,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`❌ Priority stock ${symbol} error:`, error);
+      }
+    }
+    
+    // Upsert priority stocks immediately
+    if (priorityDetails.length > 0) {
+      const { error: priorityError } = await supabase
+        .from('company_details')
+        .upsert(priorityDetails, { onConflict: 'ticker', ignoreDuplicates: false });
+      
+      if (priorityError) {
+        console.error('❌ Priority upsert error:', priorityError);
+      } else {
+        console.log(`✅ Upserted ${priorityDetails.length} priority stock details`);
+      }
+    }
 
     // Get stocks from polygon_assets joined with assets - the CORRECT source
     const { data: stocks, error: stockError } = await supabase
@@ -100,7 +166,7 @@ Deno.serve(async (req) => {
     let errorCount = 0;
     const companyDetails: unknown[] = [];
 
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hour TTL
+    // expiresAt already declared above for priority stocks
 
     for (let i = 0; i < stocksToFetch.length; i += fetchBatchSize) {
       const batch = stocksToFetch.slice(i, i + fetchBatchSize);
