@@ -68,12 +68,13 @@ export function PolygonTicker() {
       // Fetch from token_cards with quality filters
       const { data: cryptos, error } = await supabase
         .from('token_cards')
-        .select('canonical_symbol, name, price_usd, change_24h_pct, logo_url, market_cap_rank, volume_24h_usd, coingecko_id, updated_at')
+        .select('canonical_symbol, name, price_usd, change_24h_pct, logo_url, market_cap_rank, volume_24h_usd, coingecko_id, updated_at, is_scam')
         .not('price_usd', 'is', null)
         .gt('price_usd', 0)
         .gt('market_cap_rank', 0)
         .lte('market_cap_rank', 200)
         .gt('volume_24h_usd', 1000) // Filter scam tokens with no volume
+        .or('is_scam.is.null,is_scam.eq.false') // ALWAYS exclude scam tokens
         .order('market_cap_rank', { ascending: true })
         .limit(150);
 
