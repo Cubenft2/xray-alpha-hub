@@ -111,10 +111,10 @@ Deno.serve(async (req) => {
         previous_close: null, // Could calculate from history
         change_usd: null,
         change_pct: price?.change24h || null,
-        volume: price?.volume || null,
+        volume: price?.volume ? Math.round(price.volume) : null, // Round for bigint
         
         // Fundamentals from company_details
-        market_cap: company?.market_cap || null,
+        market_cap: company?.market_cap ? Math.round(company.market_cap) : null, // Convert to integer for bigint column
         pe_ratio: null, // From financials
         eps: null, // From financials
         dividend_yield: null, // From dividends
@@ -168,12 +168,16 @@ Deno.serve(async (req) => {
     console.log(`✅ sync-stock-cards complete: ${totalUpserted} cards synced in ${duration}ms`);
 
     // Log API call
-    await supabase.from('external_api_calls').insert({
-      api_name: 'supabase',
-      function_name: 'sync-stock-cards',
-      call_count: 1,
-      success: errors === 0,
-    }).catch(() => {});
+    try {
+      await supabase.from('external_api_calls').insert({
+        api_name: 'supabase',
+        function_name: 'sync-stock-cards',
+        call_count: 1,
+        success: errors === 0,
+      });
+    } catch (e) {
+      // Ignore logging errors
+    }
 
     return new Response(JSON.stringify({
       success: true,

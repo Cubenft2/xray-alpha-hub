@@ -104,12 +104,16 @@ Deno.serve(async (req) => {
     console.log(`✅ sync-stock-news-polygon complete: ${updatedCount} stocks updated with news in ${duration}ms`);
 
     // Log API call
-    await supabase.from('external_api_calls').insert({
-      api_name: 'polygon',
-      function_name: 'sync-stock-news-polygon',
-      call_count: 1,
-      success: true,
-    }).catch(() => {});
+    try {
+      await supabase.from('external_api_calls').insert({
+        api_name: 'polygon',
+        function_name: 'sync-stock-news-polygon',
+        call_count: 1,
+        success: true,
+      });
+    } catch (e) {
+      // Ignore logging errors
+    }
 
     return new Response(JSON.stringify({
       success: true,
