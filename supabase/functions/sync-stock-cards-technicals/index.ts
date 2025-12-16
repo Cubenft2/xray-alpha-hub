@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const BATCH_SIZE = 100; // AGGRESSIVE: 100 parallel API calls (unlimited Polygon)
+    const BATCH_SIZE = 50; // 50 parallel requests (100 causes connection resets)
     let successCount = 0;
     let errorCount = 0;
     const updates: any[] = [];
@@ -238,9 +238,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Minimal delay between batches (unlimited API)
+      // Small delay between batches to avoid connection resets
       if (i + BATCH_SIZE < stocks.length) {
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
 

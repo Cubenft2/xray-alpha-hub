@@ -19,29 +19,45 @@ Deno.serve(async (req) => {
 
     console.log('🚀 sync-stock-cards: Starting stock master cards sync...');
 
-    // Step 1: Get all stock symbols from polygon_assets
-    const { data: stockAssets, error: assetsError } = await supabase
-      .from('polygon_assets')
-      .select(`
-        asset_id,
-        polygon_ticker,
-        assets!inner (
-          id,
-          symbol,
-          name
-        )
-      `)
-      .eq('market', 'stocks')
-      .eq('is_active', true)
-      .range(0, 5000); // Get ALL stocks (bypasses 1000 row default limit)
+    // Step 1: Get ALL stock symbols from polygon_assets using pagination
+    const PAGE_SIZE = 1000;
+    let allStockAssets: any[] = [];
+    let offset = 0;
+    let hasMore = true;
 
-    if (assetsError) {
-      throw new Error(`Failed to fetch stock assets: ${assetsError.message}`);
+    while (hasMore) {
+      const { data: pageData, error: pageError } = await supabase
+        .from('polygon_assets')
+        .select(`
+          asset_id,
+          polygon_ticker,
+          assets!inner (
+            id,
+            symbol,
+            name
+          )
+        `)
+        .eq('market', 'stocks')
+        .eq('is_active', true)
+        .range(offset, offset + PAGE_SIZE - 1);
+
+      if (pageError) {
+        throw new Error(`Failed to fetch stock assets (page ${offset}): ${pageError.message}`);
+      }
+
+      if (pageData && pageData.length > 0) {
+        allStockAssets = allStockAssets.concat(pageData);
+        offset += pageData.length;
+        hasMore = pageData.length === PAGE_SIZE;
+      } else {
+        hasMore = false;
+      }
     }
 
-    console.log(`📊 Found ${stockAssets?.length || 0} stocks in polygon_assets`);
+    const stockAssets = allStockAssets;
+    console.log(`📊 Found ${stockAssets.length} stocks in polygon_assets (paginated)`);
 
-    if (!stockAssets || stockAssets.length === 0) {
+    if (stockAssets.length === 0) {
       return new Response(JSON.stringify({ 
         success: true, 
         count: 0,
@@ -54,32 +70,41 @@ Deno.serve(async (req) => {
     // Extract symbols
     const stockSymbols = stockAssets.map(s => (s.assets as any)?.symbol || s.polygon_ticker).filter(Boolean);
 
-    // Step 2: Get live prices from live_prices table
-    const { data: livePrices, error: pricesError } = await supabase
-      .from('live_prices')
-      .select('*')
-      .in('ticker', stockSymbols);
-
-    if (pricesError) {
-      console.warn(`⚠️ Failed to fetch live_prices: ${pricesError.message}`);
-    }
-
+    // Step 2: Get live prices from live_prices table (chunked to avoid query limits)
     const priceMap = new Map<string, any>();
-    livePrices?.forEach(p => priceMap.set(p.ticker, p));
+    const CHUNK_SIZE = 500;
+    
+    for (let i = 0; i < stockSymbols.length; i += CHUNK_SIZE) {
+      const chunk = stockSymbols.slice(i, i + CHUNK_SIZE);
+      const { data: livePrices, error: pricesError } = await supabase
+        .from('live_prices')
+        .select('*')
+        .in('ticker', chunk);
+
+      if (pricesError) {
+        console.warn(`⚠️ Failed to fetch live_prices chunk ${i}: ${pricesError.message}`);
+      } else {
+        livePrices?.forEach(p => priceMap.set(p.ticker, p));
+      }
+    }
     console.log(`💰 Loaded ${priceMap.size} live prices`);
 
-    // Step 3: Get company details for enrichment
-    const { data: companyDetails, error: companyError } = await supabase
-      .from('company_details')
-      .select('*')
-      .in('ticker', stockSymbols);
-
-    if (companyError) {
-      console.warn(`⚠️ Failed to fetch company_details: ${companyError.message}`);
-    }
-
+    // Step 3: Get company details for enrichment (chunked)
     const companyMap = new Map<string, any>();
-    companyDetails?.forEach(c => companyMap.set(c.ticker, c));
+    
+    for (let i = 0; i < stockSymbols.length; i += CHUNK_SIZE) {
+      const chunk = stockSymbols.slice(i, i + CHUNK_SIZE);
+      const { data: companyDetails, error: companyError } = await supabase
+        .from('company_details')
+        .select('*')
+        .in('ticker', chunk);
+
+      if (companyError) {
+        console.warn(`⚠️ Failed to fetch company_details chunk ${i}: ${companyError.message}`);
+      } else {
+        companyDetails?.forEach(c => companyMap.set(c.ticker, c));
+      }
+    }
     console.log(`🏢 Loaded ${companyMap.size} company details`);
 
     // Step 4: Build stock_cards rows
