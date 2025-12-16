@@ -27,6 +27,11 @@ export const BLOCKED_TOKENS: BlockedToken[] = [
     reason: 'Fake market cap data - shows $1.69T market cap with only $43 volume, +6B% fake change',
     blockedAt: '2025-12-16',
   },
+  {
+    symbol: 'BZR',
+    reason: 'Suspicious $19B market cap with only $625K volume - likely manipulated LunarCrush data',
+    blockedAt: '2025-12-16',
+  },
   // Add more tokens as identified
 ];
 
