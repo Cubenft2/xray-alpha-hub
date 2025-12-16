@@ -25,10 +25,10 @@ Deno.serve(async (req) => {
     
     console.log('🚀 Polygon Company Details Prefetch starting (BULK MODE)...');
 
-    // Get offset from request body
+    // AGGRESSIVE MODE: Process ALL companies in single run (unlimited Polygon API)
     const body = await req.json().catch(() => ({}));
     const offset = body.offset || 0;
-    const batchLimit = 500; // Process 500 companies per run (aggressive)
+    const batchLimit = 5000; // ALL stocks in one run
 
     // Get stocks from polygon_assets joined with assets - the CORRECT source
     const { data: stocks, error: stockError } = await supabase
@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const fetchBatchSize = 50; // Parallel fetch batch size
+    const fetchBatchSize = 200; // AGGRESSIVE: 200 parallel API calls (unlimited Polygon)
     let successCount = 0;
     let errorCount = 0;
     const companyDetails: unknown[] = [];
@@ -165,9 +165,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Small delay between batches (unlimited API but be nice)
+      // Minimal delay between batches (unlimited API)
       if (i + fetchBatchSize < stocksToFetch.length) {
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
 

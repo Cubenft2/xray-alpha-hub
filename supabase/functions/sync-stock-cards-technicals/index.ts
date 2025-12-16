@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
       .eq('is_active', true)
       .or(`technicals_updated_at.is.null,technicals_updated_at.lt.${fifteenMinutesAgo}`)
       .not('price_usd', 'is', null)
-      .limit(200); // Process 200 stocks per run
+      .limit(1000); // AGGRESSIVE: Process 1000 stocks per run (unlimited Polygon API)
 
     if (stocksError) {
       throw new Error(`Failed to fetch stocks: ${stocksError.message}`);
@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const BATCH_SIZE = 20;
+    const BATCH_SIZE = 100; // AGGRESSIVE: 100 parallel API calls (unlimited Polygon)
     let successCount = 0;
     let errorCount = 0;
     const updates: any[] = [];
@@ -238,9 +238,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Small delay between batches
+      // Minimal delay between batches (unlimited API)
       if (i + BATCH_SIZE < stocks.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
 
