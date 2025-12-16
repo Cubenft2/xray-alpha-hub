@@ -2227,7 +2227,9 @@ export type Database = {
           ai_summary_short: string | null
           ai_updated_at: string | null
           alt_rank: number | null
+          alt_rank_change: number | null
           alt_rank_change_24h: number | null
+          alt_rank_previous: number | null
           ask_price: number | null
           ask_size: number | null
           ath_change_pct: number | null
@@ -2290,7 +2292,9 @@ export type Database = {
           first_seen_at: string | null
           fully_diluted_valuation: number | null
           galaxy_score: number | null
+          galaxy_score_change: number | null
           galaxy_score_change_24h: number | null
+          galaxy_score_previous: number | null
           github: string | null
           github_url: string | null
           hidden_owner: boolean | null
@@ -2436,6 +2440,7 @@ export type Database = {
           twitter_url: string | null
           twitter_volume_24h: number | null
           updated_at: string | null
+          volatility: number | null
           volume_24h_native: number | null
           volume_24h_usd: number | null
           vwap_24h: number | null
@@ -2456,7 +2461,9 @@ export type Database = {
           ai_summary_short?: string | null
           ai_updated_at?: string | null
           alt_rank?: number | null
+          alt_rank_change?: number | null
           alt_rank_change_24h?: number | null
+          alt_rank_previous?: number | null
           ask_price?: number | null
           ask_size?: number | null
           ath_change_pct?: number | null
@@ -2519,7 +2526,9 @@ export type Database = {
           first_seen_at?: string | null
           fully_diluted_valuation?: number | null
           galaxy_score?: number | null
+          galaxy_score_change?: number | null
           galaxy_score_change_24h?: number | null
+          galaxy_score_previous?: number | null
           github?: string | null
           github_url?: string | null
           hidden_owner?: boolean | null
@@ -2665,6 +2674,7 @@ export type Database = {
           twitter_url?: string | null
           twitter_volume_24h?: number | null
           updated_at?: string | null
+          volatility?: number | null
           volume_24h_native?: number | null
           volume_24h_usd?: number | null
           vwap_24h?: number | null
@@ -2685,7 +2695,9 @@ export type Database = {
           ai_summary_short?: string | null
           ai_updated_at?: string | null
           alt_rank?: number | null
+          alt_rank_change?: number | null
           alt_rank_change_24h?: number | null
+          alt_rank_previous?: number | null
           ask_price?: number | null
           ask_size?: number | null
           ath_change_pct?: number | null
@@ -2748,7 +2760,9 @@ export type Database = {
           first_seen_at?: string | null
           fully_diluted_valuation?: number | null
           galaxy_score?: number | null
+          galaxy_score_change?: number | null
           galaxy_score_change_24h?: number | null
+          galaxy_score_previous?: number | null
           github?: string | null
           github_url?: string | null
           hidden_owner?: boolean | null
@@ -2894,6 +2908,7 @@ export type Database = {
           twitter_url?: string | null
           twitter_volume_24h?: number | null
           updated_at?: string | null
+          volatility?: number | null
           volume_24h_native?: number | null
           volume_24h_usd?: number | null
           vwap_24h?: number | null
