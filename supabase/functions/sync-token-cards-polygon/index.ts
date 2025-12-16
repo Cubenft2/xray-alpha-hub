@@ -178,7 +178,8 @@ serve(async (req) => {
         ask_price: lastQuote.P || null,
         spread_pct: spreadPct,
         price_updated_at: now,
-        polygon_supported: true
+        polygon_supported: true,
+        price_source: 'polygon'  // Track data source
       });
     }
 
@@ -243,7 +244,8 @@ serve(async (req) => {
               sma_200: sma200,
               ema_12: ema12,
               ema_26: ema26,
-              technicals_updated_at: now
+              technicals_updated_at: now,
+              technicals_source: 'polygon'  // Track data source
             })
             .eq('id', update.id);
           

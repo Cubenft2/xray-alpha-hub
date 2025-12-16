@@ -2396,6 +2396,7 @@ export type Database = {
           sma_200: number | null
           sma_50: number | null
           social_dominance: number | null
+          social_source: string | null
           social_updated_at: string | null
           social_volume_24h: number | null
           social_volume_change_24h_pct: number | null
@@ -2408,6 +2409,7 @@ export type Database = {
           tags: string[] | null
           technical_score: number | null
           technical_signal: string | null
+          technicals_source: string | null
           technicals_updated_at: string | null
           telegram: string | null
           telegram_sentiment: number | null
@@ -2630,6 +2632,7 @@ export type Database = {
           sma_200?: number | null
           sma_50?: number | null
           social_dominance?: number | null
+          social_source?: string | null
           social_updated_at?: string | null
           social_volume_24h?: number | null
           social_volume_change_24h_pct?: number | null
@@ -2642,6 +2645,7 @@ export type Database = {
           tags?: string[] | null
           technical_score?: number | null
           technical_signal?: string | null
+          technicals_source?: string | null
           technicals_updated_at?: string | null
           telegram?: string | null
           telegram_sentiment?: number | null
@@ -2864,6 +2868,7 @@ export type Database = {
           sma_200?: number | null
           sma_50?: number | null
           social_dominance?: number | null
+          social_source?: string | null
           social_updated_at?: string | null
           social_volume_24h?: number | null
           social_volume_change_24h_pct?: number | null
@@ -2876,6 +2881,7 @@ export type Database = {
           tags?: string[] | null
           technical_score?: number | null
           technical_signal?: string | null
+          technicals_source?: string | null
           technicals_updated_at?: string | null
           telegram?: string | null
           telegram_sentiment?: number | null

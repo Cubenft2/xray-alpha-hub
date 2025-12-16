@@ -164,7 +164,7 @@ serve(async (req) => {
     // Build lookup maps for existing token_cards
     const { data: existingCards, error: fetchError } = await supabase
       .from('token_cards')
-      .select('id, canonical_symbol, lunarcrush_id, contracts');
+      .select('id, canonical_symbol, lunarcrush_id, contracts, polygon_supported');
 
     if (fetchError) {
       throw new Error(`Failed to fetch token_cards: ${fetchError.message}`);
@@ -261,7 +261,11 @@ serve(async (req) => {
           ? coin.galaxy_score - coin.galaxy_score_previous
           : null;
 
-        const cardData = {
+        // Check if this token has Polygon price support (smarter data routing)
+        const isPolygonSupported = matchedCard?.polygon_supported === true;
+
+        // Base card data (always written)
+        const cardData: Record<string, any> = {
           canonical_symbol: symbol,
           name: coin.name,
           logo_url: coin.logo || coin.image,
@@ -270,23 +274,18 @@ serve(async (req) => {
           categories: categories,
           primary_chain: primaryChain,
           
-          // Price data
-          price_usd: coin.price,
-          volume_24h_usd: coin.volume_24h,
+          // LunarCrush-unique data (always write - no other source provides these)
           market_cap: coin.market_cap,
           market_cap_rank: coin.market_cap_rank,
           change_1h_pct: coin.percent_change_1h,
-          change_24h_pct: coin.percent_change_24h,
           change_7d_pct: coin.percent_change_7d,
-          change_30d_pct: coin.percent_change_30d,  // NEW: 30-day change
-          
-          // Market metrics (NEW)
+          change_30d_pct: coin.percent_change_30d,
           volatility: coin.volatility,
           market_dominance: coin.market_dominance,
           circulating_supply: coin.circulating_supply,
           max_supply: coin.max_supply,
           
-          // Social data
+          // Social data (LunarCrush is THE source - always write)
           galaxy_score: coin.galaxy_score != null ? Math.round(coin.galaxy_score) : null,
           galaxy_score_previous: coin.galaxy_score_previous != null ? Math.round(coin.galaxy_score_previous) : null,
           galaxy_score_change: galaxyScoreChange != null ? Math.round(galaxyScoreChange) : null,
@@ -294,13 +293,13 @@ serve(async (req) => {
           alt_rank_previous: coin.alt_rank_previous,
           alt_rank_change: altRankChange,
           sentiment: coin.sentiment,
-          social_volume_24h: coin.social_volume_24h,  // FIXED: was using coin.social_volume
+          social_volume_24h: coin.social_volume_24h,
           social_dominance: coin.social_dominance,
           interactions_24h: coin.interactions_24h,
           
-          // Timestamps
-          price_updated_at: new Date().toISOString(),
+          // Timestamps and source tracking
           social_updated_at: new Date().toISOString(),
+          social_source: 'lunarcrush',
           
           // Tier
           tier: coin.market_cap_rank 
@@ -310,6 +309,16 @@ serve(async (req) => {
           
           is_active: true
         };
+
+        // SMART ROUTING: Only write price fields if NOT Polygon-supported
+        // Polygon provides fresher prices (1-min) vs LunarCrush (2-min)
+        if (!isPolygonSupported) {
+          cardData.price_usd = coin.price;
+          cardData.volume_24h_usd = coin.volume_24h;
+          cardData.change_24h_pct = coin.percent_change_24h;
+          cardData.price_updated_at = new Date().toISOString();
+          cardData.price_source = 'lunarcrush';
+        }
 
         if (matchedCard) {
           // UPDATE existing card
