@@ -2366,7 +2366,13 @@ export type Database = {
           lp_holders: Json | null
           lp_lock_until: string | null
           lp_total_supply: number | null
+          lunarcrush_change_24h_pct: number | null
+          lunarcrush_high_24h: number | null
           lunarcrush_id: number | null
+          lunarcrush_low_24h: number | null
+          lunarcrush_price_updated_at: string | null
+          lunarcrush_price_usd: number | null
+          lunarcrush_volume_24h: number | null
           macd_histogram: number | null
           macd_line: number | null
           macd_signal: number | null
@@ -2388,8 +2394,14 @@ export type Database = {
           owner_address: string | null
           owner_can_change_balance: boolean | null
           pair_age_days: number | null
+          polygon_change_24h_pct: number | null
+          polygon_high_24h: number | null
+          polygon_low_24h: number | null
+          polygon_price_updated_at: string | null
+          polygon_price_usd: number | null
           polygon_supported: boolean | null
           polygon_ticker: string | null
+          polygon_volume_24h: number | null
           posts_updated_at: string | null
           price_btc: number | null
           price_eth: number | null
@@ -2602,7 +2614,13 @@ export type Database = {
           lp_holders?: Json | null
           lp_lock_until?: string | null
           lp_total_supply?: number | null
+          lunarcrush_change_24h_pct?: number | null
+          lunarcrush_high_24h?: number | null
           lunarcrush_id?: number | null
+          lunarcrush_low_24h?: number | null
+          lunarcrush_price_updated_at?: string | null
+          lunarcrush_price_usd?: number | null
+          lunarcrush_volume_24h?: number | null
           macd_histogram?: number | null
           macd_line?: number | null
           macd_signal?: number | null
@@ -2624,8 +2642,14 @@ export type Database = {
           owner_address?: string | null
           owner_can_change_balance?: boolean | null
           pair_age_days?: number | null
+          polygon_change_24h_pct?: number | null
+          polygon_high_24h?: number | null
+          polygon_low_24h?: number | null
+          polygon_price_updated_at?: string | null
+          polygon_price_usd?: number | null
           polygon_supported?: boolean | null
           polygon_ticker?: string | null
+          polygon_volume_24h?: number | null
           posts_updated_at?: string | null
           price_btc?: number | null
           price_eth?: number | null
@@ -2838,7 +2862,13 @@ export type Database = {
           lp_holders?: Json | null
           lp_lock_until?: string | null
           lp_total_supply?: number | null
+          lunarcrush_change_24h_pct?: number | null
+          lunarcrush_high_24h?: number | null
           lunarcrush_id?: number | null
+          lunarcrush_low_24h?: number | null
+          lunarcrush_price_updated_at?: string | null
+          lunarcrush_price_usd?: number | null
+          lunarcrush_volume_24h?: number | null
           macd_histogram?: number | null
           macd_line?: number | null
           macd_signal?: number | null
@@ -2860,8 +2890,14 @@ export type Database = {
           owner_address?: string | null
           owner_can_change_balance?: boolean | null
           pair_age_days?: number | null
+          polygon_change_24h_pct?: number | null
+          polygon_high_24h?: number | null
+          polygon_low_24h?: number | null
+          polygon_price_updated_at?: string | null
+          polygon_price_usd?: number | null
           polygon_supported?: boolean | null
           polygon_ticker?: string | null
+          polygon_volume_24h?: number | null
           posts_updated_at?: string | null
           price_btc?: number | null
           price_eth?: number | null
