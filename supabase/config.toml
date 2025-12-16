@@ -248,10 +248,12 @@ verify_jwt = false
 [functions.sync-polygon-crypto-snapshot]
 verify_jwt = false
 
-# DISABLED: sync-polygon-crypto-technicals writes to polygon_crypto_cards, not token_cards
-# Technicals now synced directly in sync-token-cards-polygon to token_cards
+# Sync technical indicators to token_cards from Polygon OHLCV (local calculation)
 [functions.sync-polygon-crypto-technicals]
 verify_jwt = false
+
+[[functions.sync-polygon-crypto-technicals.cron]]
+schedule = "*/3 * * * *"
 
 # ============================================
 # TOKEN CARDS SYNC FUNCTIONS
