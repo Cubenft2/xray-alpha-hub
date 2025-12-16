@@ -149,19 +149,34 @@ Deno.serve(async (req) => {
       const company = companyMap.get(symbol);
       const fiftyTwoWeek = fiftyTwoWeekMap.get(symbol);
 
-      // Calculate EPS from latest financials
+      // Calculate TTM EPS (trailing twelve months - sum of last 4 quarters)
       let eps: number | null = null;
       let peRatio: number | null = null;
       let dividendYield: number | null = null;
       
       if (company?.last_financials && Array.isArray(company.last_financials) && company.last_financials.length > 0) {
-        const latestFinancials = company.last_financials[0];
-        // EPS from diluted EPS or basic EPS
-        eps = latestFinancials.eps_diluted || latestFinancials.eps_basic || latestFinancials.eps || null;
+        // Sum EPS from last 4 quarters for TTM (trailing twelve months)
+        const quarters = company.last_financials.slice(0, 4);
+        let ttmEps = 0;
+        let validQuarters = 0;
         
-        // Calculate PE ratio: price / EPS
-        if (eps && eps > 0 && price?.price) {
-          peRatio = parseFloat((price.price / eps).toFixed(2));
+        for (const q of quarters) {
+          const qEps = q.eps_diluted || q.eps_basic || q.eps || 0;
+          const epsValue = typeof qEps === 'number' ? qEps : parseFloat(qEps) || 0;
+          if (epsValue !== 0) {
+            ttmEps += epsValue;
+            validQuarters++;
+          }
+        }
+        
+        // Only use TTM if we have at least 2 quarters of data
+        if (validQuarters >= 2 && ttmEps > 0) {
+          eps = parseFloat(ttmEps.toFixed(2));
+          
+          // Calculate PE ratio: price / TTM EPS
+          if (price?.price) {
+            peRatio = parseFloat((price.price / eps).toFixed(2));
+          }
         }
       }
 
