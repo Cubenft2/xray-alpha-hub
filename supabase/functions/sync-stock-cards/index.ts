@@ -138,6 +138,23 @@ Deno.serve(async (req) => {
     }
     console.log(`📈 Loaded 52-week ranges for ${fiftyTwoWeekMap.size} stocks`);
 
+    // Step 4b: Get existing stock_cards for intraday 52-week detection
+    const existingCardsMap = new Map<string, any>();
+    for (let i = 0; i < stockSymbols.length; i += CHUNK_SIZE) {
+      const chunk = stockSymbols.slice(i, i + CHUNK_SIZE);
+      const { data: existingCards, error: cardsError } = await supabase
+        .from('stock_cards')
+        .select('symbol, high_52w, low_52w, high_52w_date, low_52w_date')
+        .in('symbol', chunk);
+
+      if (cardsError) {
+        console.warn(`⚠️ Failed to fetch existing stock_cards chunk ${i}: ${cardsError.message}`);
+      } else {
+        existingCards?.forEach(c => existingCardsMap.set(c.symbol, c));
+      }
+    }
+    console.log(`📋 Loaded ${existingCardsMap.size} existing stock cards for 52W comparison`);
+
     // Step 5: Build COMPLETE stock_cards rows
     const stockCards: any[] = [];
 
@@ -238,9 +255,13 @@ Deno.serve(async (req) => {
         eps: eps,
         dividend_yield: dividendYield,
         
-        // 52-week range from price_history
+        // 52-week range - use historical data as base
         fifty_two_week_high: fiftyTwoWeek?.high || null,
         fifty_two_week_low: fiftyTwoWeek?.low || null,
+        high_52w: fiftyTwoWeek?.high || null,
+        low_52w: fiftyTwoWeek?.low || null,
+        high_52w_date: null,
+        low_52w_date: null,
         
         // Timestamps
         price_updated_at: price?.updated_at || null,
@@ -256,6 +277,36 @@ Deno.serve(async (req) => {
       if (card.price_usd && card.change_pct) {
         const prevPrice = card.price_usd / (1 + card.change_pct / 100);
         card.change_usd = parseFloat((card.price_usd - prevPrice).toFixed(4));
+      }
+
+      // INTRADAY 52-WEEK DETECTION: Compare today's high/low against stored 52-week values
+      const existingCard = existingCardsMap.get(symbol);
+      const todayDate = new Date().toISOString().split('T')[0];
+      
+      // Use existing 52W data as baseline if we don't have price_history data
+      if (!card.high_52w && existingCard?.high_52w) {
+        card.high_52w = existingCard.high_52w;
+        card.high_52w_date = existingCard.high_52w_date;
+      }
+      if (!card.low_52w && existingCard?.low_52w) {
+        card.low_52w = existingCard.low_52w;
+        card.low_52w_date = existingCard.low_52w_date;
+      }
+      
+      // Check if today's high exceeds stored 52-week high
+      if (price?.day_high && card.high_52w && price.day_high > card.high_52w) {
+        console.log(`🚀 NEW 52W HIGH: ${symbol} $${price.day_high} (was $${card.high_52w})`);
+        card.high_52w = price.day_high;
+        card.high_52w_date = todayDate;
+        card.fifty_two_week_high = price.day_high;
+      }
+      
+      // Check if today's low is below stored 52-week low
+      if (price?.day_low && card.low_52w && price.day_low < card.low_52w) {
+        console.log(`📉 NEW 52W LOW: ${symbol} $${price.day_low} (was $${card.low_52w})`);
+        card.low_52w = price.day_low;
+        card.low_52w_date = todayDate;
+        card.fifty_two_week_low = price.day_low;
       }
 
       stockCards.push(card);

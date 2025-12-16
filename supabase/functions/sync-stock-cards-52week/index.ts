@@ -81,11 +81,13 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const body = await req.json().catch(() => ({}));
-    const batchSize = body.batch_size || 200; // TURBO: increased from 50
+    const batchSize = body.batch_size || 200;
     const forceRefresh = body.force_refresh || false;
-    const parallelChunkSize = body.parallel_size || 5; // Process 5 requests in parallel
+    const parallelChunkSize = body.parallel_size || 5;
+    const iteration = body.iteration || 1;
+    const maxIterations = body.max_iterations || 25; // Safety cap to prevent infinite loops
 
-    console.log(`🚀 sync-stock-cards-52week: Starting TURBO MODE (batch=${batchSize}, parallel=${parallelChunkSize})...`);
+    console.log(`🚀 sync-stock-cards-52week: TURBO MODE iteration ${iteration}/${maxIterations} (batch=${batchSize}, parallel=${parallelChunkSize})...`);
 
     // Step 1: Explicitly query priority stocks that need data
     let priorityQuery = supabase
@@ -136,11 +138,13 @@ Deno.serve(async (req) => {
     const symbolsToProcess = [...prioritySymbols, ...otherSymbols];
 
     if (symbolsToProcess.length === 0) {
-      console.log('✅ All stocks already have 52-week data');
+      console.log('✅ All stocks already have 52-week data - COMPLETE');
       return new Response(JSON.stringify({
         success: true,
+        status: 'complete',
         message: 'All stocks already have 52-week data',
         processed: 0,
+        iteration,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -225,16 +229,54 @@ Deno.serve(async (req) => {
       .eq('is_active', true)
       .is('high_52w', null);
 
-    console.log(`✅ sync-stock-cards-52week TURBO complete: ${updated} updated, ${errors} errors, ${remainingCount || 0} remaining in ${duration}ms`);
+    console.log(`✅ sync-stock-cards-52week iteration ${iteration}: ${updated} updated, ${errors} errors, ${remainingCount || 0} remaining in ${duration}ms`);
+
+    // AUTO-LOOP: If there are remaining stocks and we haven't hit max iterations, trigger next batch
+    const shouldContinue = (remainingCount || 0) > 0 && iteration < maxIterations;
+    
+    if (shouldContinue) {
+      console.log(`🔄 Auto-continuing: ${remainingCount} stocks remaining, triggering iteration ${iteration + 1}...`);
+      
+      // Use EdgeRuntime.waitUntil for background continuation
+      const nextBatchUrl = `${supabaseUrl}/functions/v1/sync-stock-cards-52week`;
+      const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || supabaseKey;
+      
+      EdgeRuntime.waitUntil(
+        fetch(nextBatchUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({
+            batch_size: batchSize,
+            parallel_size: parallelChunkSize,
+            iteration: iteration + 1,
+            max_iterations: maxIterations,
+          }),
+        }).then(res => {
+          console.log(`🔗 Next batch triggered: HTTP ${res.status}`);
+        }).catch(err => {
+          console.error(`❌ Failed to trigger next batch: ${err.message}`);
+        })
+      );
+    } else if ((remainingCount || 0) === 0) {
+      console.log(`🎉 ALL COMPLETE: 52-week data populated for all stocks after ${iteration} iterations`);
+    } else {
+      console.log(`⚠️ MAX ITERATIONS (${maxIterations}) reached with ${remainingCount} stocks remaining`);
+    }
 
     return new Response(JSON.stringify({
       success: true,
+      status: shouldContinue ? 'continuing' : ((remainingCount || 0) === 0 ? 'complete' : 'max_iterations_reached'),
       processed: symbolsToProcess.length,
       updated,
       errors,
       remaining: remainingCount || 0,
+      iteration,
+      max_iterations: maxIterations,
       duration_ms: duration,
-      turbo_mode: true,
+      auto_loop: shouldContinue,
       sample: updates.slice(0, 3).map(u => ({ symbol: u.symbol, high: u.high_52w, low: u.low_52w })),
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
