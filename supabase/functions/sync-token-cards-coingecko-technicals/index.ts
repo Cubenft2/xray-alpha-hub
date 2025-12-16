@@ -255,6 +255,7 @@ serve(async (req) => {
         updates.push({
           canonical_symbol: token.canonical_symbol,
           technicals_updated_at: now,
+          technicals_source: 'coingecko',  // Track data source
           rsi_14: rsi14 !== null ? Math.round(rsi14 * 100) / 100 : null,
           macd_line: macd?.value !== undefined ? Math.round(macd.value * 1e8) / 1e8 : null,
           macd_signal: macd?.signal !== undefined ? Math.round(macd.signal * 1e8) / 1e8 : null,
