@@ -189,11 +189,11 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Parse limit from request (default 500)
-    let limit = 500;
+    // Parse limit from request (default 2000 for 4x daily runs)
+    let limit = 2000;
     try {
       const body = await req.json();
-      if (body.limit) limit = Math.min(body.limit, 500);
+      if (body.limit) limit = Math.min(body.limit, 2000);
     } catch {
       // Use default limit
     }
