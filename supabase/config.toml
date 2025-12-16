@@ -330,3 +330,11 @@ verify_jwt = false
 
 [[functions.sync-token-cards-coingecko-prices.cron]]
 schedule = "*/10 * * * *"
+
+# Enrich contract addresses from CoinGecko cg_master.platforms (ZERO API cost - database only)
+# Runs daily at 6 AM UTC - contracts rarely change
+[functions.sync-token-cards-coingecko-contracts]
+verify_jwt = false
+
+[[functions.sync-token-cards-coingecko-contracts.cron]]
+schedule = "0 6 * * *"
