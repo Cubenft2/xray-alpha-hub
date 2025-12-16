@@ -180,10 +180,7 @@ Deno.serve(async (req) => {
       for (const update of batch) {
         const { error: updateError } = await supabase
           .from('token_cards')
-          .update({ 
-            contracts: update.contracts,
-            contracts_source: 'coingecko'
-          })
+          .update({ contracts: update.contracts })
           .eq('id', update.id);
 
         if (updateError) {
