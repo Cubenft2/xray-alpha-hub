@@ -87,30 +87,53 @@ Deno.serve(async (req) => {
 
     console.log(`🚀 sync-stock-cards-52week: Starting TURBO MODE (batch=${batchSize}, parallel=${parallelChunkSize})...`);
 
-    // Get stocks that need 52-week data
-    let query = supabase
+    // Step 1: Explicitly query priority stocks that need data
+    let priorityQuery = supabase
       .from('stock_cards')
       .select('symbol')
+      .in('symbol', PRIORITY_STOCKS)
       .eq('is_active', true);
-
+    
     if (!forceRefresh) {
-      query = query.is('high_52w', null);
+      priorityQuery = priorityQuery.is('high_52w', null);
     }
 
-    const { data: stocksNeedingData, error: fetchError } = await query.limit(batchSize + PRIORITY_STOCKS.length);
+    const { data: priorityStocks, error: priorityError } = await priorityQuery;
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch stocks: ${fetchError.message}`);
+    if (priorityError) {
+      console.error('Priority stocks query error:', priorityError.message);
     }
 
-    // Prioritize: priority stocks first, then others
-    const needingDataSymbols = new Set(stocksNeedingData?.map(s => s.symbol) || []);
-    const priorityNeedingData = PRIORITY_STOCKS.filter(s => needingDataSymbols.has(s) || forceRefresh);
-    const othersNeedingData = (stocksNeedingData || [])
-      .map(s => s.symbol)
-      .filter(s => !PRIORITY_STOCKS.includes(s));
+    const prioritySymbols = priorityStocks?.map(s => s.symbol) || [];
+    console.log(`📌 Priority stocks needing data: ${prioritySymbols.length} (${prioritySymbols.slice(0, 10).join(', ')}...)`);
 
-    const symbolsToProcess = [...priorityNeedingData, ...othersNeedingData].slice(0, batchSize);
+    // Step 2: Get remaining stocks to fill batch (excluding priority stocks)
+    const remainingBatchSize = Math.max(0, batchSize - prioritySymbols.length);
+    let otherSymbols: string[] = [];
+
+    if (remainingBatchSize > 0) {
+      let otherQuery = supabase
+        .from('stock_cards')
+        .select('symbol')
+        .eq('is_active', true)
+        .not('symbol', 'in', `(${PRIORITY_STOCKS.join(',')})`)
+        .limit(remainingBatchSize);
+
+      if (!forceRefresh) {
+        otherQuery = otherQuery.is('high_52w', null);
+      }
+
+      const { data: otherStocks, error: otherError } = await otherQuery;
+
+      if (otherError) {
+        console.error('Other stocks query error:', otherError.message);
+      }
+
+      otherSymbols = otherStocks?.map(s => s.symbol) || [];
+    }
+
+    // Step 3: Combine - priority first, then others
+    const symbolsToProcess = [...prioritySymbols, ...otherSymbols];
 
     if (symbolsToProcess.length === 0) {
       console.log('✅ All stocks already have 52-week data');
@@ -123,7 +146,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`📊 Processing ${symbolsToProcess.length} stocks (${priorityNeedingData.length} priority) in parallel chunks of ${parallelChunkSize}`);
+    console.log(`📊 Processing ${symbolsToProcess.length} stocks (${prioritySymbols.length} priority + ${otherSymbols.length} others) in parallel chunks of ${parallelChunkSize}`);
 
     // Calculate date range (1 year ago to today)
     const today = new Date();
