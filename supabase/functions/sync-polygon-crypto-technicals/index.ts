@@ -129,12 +129,13 @@ function calculateTechnicalScore(
 // OHLCV DATA FETCHING (single call per token)
 // ============================================
 
-async function fetchOHLCV(ticker: string, apiKey: string): Promise<number[] | null> {
+async function fetchOHLCV(ticker: string, apiKey: string, timeframe: 'hour' | 'day' = 'hour'): Promise<number[] | null> {
   try {
     const to = new Date().toISOString().split('T')[0];
-    const from = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const daysBack = timeframe === 'hour' ? 10 : 250; // 250 days for daily to get 200+ candles
+    const from = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
-    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/hour/${from}/${to}?adjusted=true&sort=asc&limit=200&apiKey=${apiKey}`;
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/${timeframe}/${from}/${to}?adjusted=true&sort=asc&limit=250&apiKey=${apiKey}`;
     
     const response = await fetch(url);
     if (!response.ok) return null;
@@ -198,8 +199,21 @@ serve(async (req) => {
             const ticker = token.polygon_ticker;
             if (!ticker) return null;
             
-            const closePrices = await fetchOHLCV(ticker, polygonApiKey);
-            if (!closePrices || closePrices.length < 26) return null;
+            // Try hourly first, fall back to daily if insufficient data
+            let closePrices = await fetchOHLCV(ticker, polygonApiKey, 'hour');
+            let timeframeUsed = 'hour';
+            
+            if (!closePrices || closePrices.length < 26) {
+              closePrices = await fetchOHLCV(ticker, polygonApiKey, 'day');
+              timeframeUsed = 'day';
+              
+              if (!closePrices || closePrices.length < 26) {
+                if (['BTC', 'ETH', 'SOL', 'XRP', 'DOGE'].includes(token.canonical_symbol)) {
+                  console.log(`[DEBUG] ${token.canonical_symbol}: hourly=${closePrices?.length || 0}, daily failed too`);
+                }
+                return null;
+              }
+            }
             
             const rsi14 = calculateRSI(closePrices, 14);
             const macd = calculateMACD(closePrices);
