@@ -50,13 +50,11 @@ serve(async (req) => {
       success: true
     });
 
-    // Fetch token_cards that have coingecko_id (we can fetch prices for these)
+    // Fetch token_cards that have coingecko_id (simple query to avoid timeout)
     const { data: tokenCards, error: fetchError } = await supabase
       .from('token_cards')
-      .select('id, canonical_symbol, coingecko_id, tier')
+      .select('id, canonical_symbol, coingecko_id')
       .not('coingecko_id', 'is', null)
-      .order('tier', { ascending: true })
-      .order('market_cap_rank', { ascending: true, nullsFirst: false })
       .limit(2000);
 
     if (fetchError) {
