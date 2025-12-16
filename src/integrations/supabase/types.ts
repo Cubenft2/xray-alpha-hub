@@ -1933,6 +1933,8 @@ export type Database = {
           financials: Json | null
           galaxy_score: number | null
           headquarters: Json | null
+          high_52w: number | null
+          high_52w_date: string | null
           high_price: number | null
           icon_url: string | null
           id: string
@@ -1942,6 +1944,8 @@ export type Database = {
           is_delayed: boolean | null
           list_date: string | null
           logo_url: string | null
+          low_52w: number | null
+          low_52w_date: string | null
           low_price: number | null
           macd_line: number | null
           macd_signal: number | null
@@ -2000,6 +2004,8 @@ export type Database = {
           financials?: Json | null
           galaxy_score?: number | null
           headquarters?: Json | null
+          high_52w?: number | null
+          high_52w_date?: string | null
           high_price?: number | null
           icon_url?: string | null
           id?: string
@@ -2009,6 +2015,8 @@ export type Database = {
           is_delayed?: boolean | null
           list_date?: string | null
           logo_url?: string | null
+          low_52w?: number | null
+          low_52w_date?: string | null
           low_price?: number | null
           macd_line?: number | null
           macd_signal?: number | null
@@ -2067,6 +2075,8 @@ export type Database = {
           financials?: Json | null
           galaxy_score?: number | null
           headquarters?: Json | null
+          high_52w?: number | null
+          high_52w_date?: string | null
           high_price?: number | null
           icon_url?: string | null
           id?: string
@@ -2076,6 +2086,8 @@ export type Database = {
           is_delayed?: boolean | null
           list_date?: string | null
           logo_url?: string | null
+          low_52w?: number | null
+          low_52w_date?: string | null
           low_price?: number | null
           macd_line?: number | null
           macd_signal?: number | null

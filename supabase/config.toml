@@ -357,6 +357,13 @@ verify_jwt = false
 [[functions.sync-stock-cards.cron]]
 schedule = "*/2 * * * *"
 
+# Sync 52-week high/low for stocks (daily at 7 AM UTC after market data settles)
+[functions.sync-stock-cards-52week]
+verify_jwt = false
+
+[[functions.sync-stock-cards-52week.cron]]
+schedule = "0 7 * * *"
+
 # Sync technical indicators for stocks (every 5 minutes)
 [functions.sync-stock-cards-technicals]
 verify_jwt = false
