@@ -22,6 +22,10 @@ interface PriceUpdate {
   ticker: string;
   price: number;
   change24h: number;
+  day_open: number | null;
+  day_high: number | null;
+  day_low: number | null;
+  volume: number | null;
   display: string;
   asset_id: string;
   source: string;
@@ -175,6 +179,10 @@ Deno.serve(async (req) => {
               ticker: asset.symbol,  // Use simple format (AAPL) not Polygon format
               price,
               change24h: Math.round(change24h * 100) / 100,
+              day_open: result.o || null,
+              day_high: result.h || null,
+              day_low: result.l || null,
+              volume: result.v || null,
               display: asset.name || asset.symbol,
               asset_id: ticker.asset_id,
               source: 'polygon',
@@ -205,7 +213,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Batch upsert to live_prices with asset_id and source
+    // Batch upsert to live_prices with asset_id, source, and OHLC data
     if (priceUpdates.length > 0) {
       const { error: upsertError } = await supabase
         .from('live_prices')
@@ -214,6 +222,10 @@ Deno.serve(async (req) => {
             ticker: update.ticker,
             price: update.price,
             change24h: update.change24h,
+            day_open: update.day_open,
+            day_high: update.day_high,
+            day_low: update.day_low,
+            volume: update.volume,
             display: update.display,
             asset_id: update.asset_id,
             source: update.source,
