@@ -153,7 +153,17 @@ serve(async (req) => {
 
     console.log(`[sync-token-cards-lunarcrush] Total coins fetched: ${allCoins.length}`);
 
-    if (allCoins.length === 0) {
+    // Deduplicate by symbol (keep first occurrence - highest market cap due to sort order)
+    const seenSymbols = new Set<string>();
+    const dedupedCoins = allCoins.filter(coin => {
+      const symbol = coin.symbol?.toUpperCase();
+      if (!symbol || seenSymbols.has(symbol)) return false;
+      seenSymbols.add(symbol);
+      return true;
+    });
+    console.log(`[sync-token-cards-lunarcrush] After dedup: ${dedupedCoins.length} unique coins (removed ${allCoins.length - dedupedCoins.length} duplicates)`);
+
+    if (dedupedCoins.length === 0) {
       return new Response(JSON.stringify({
         success: true,
         message: 'No coins from LunarCrush',
@@ -161,10 +171,12 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Build lookup maps for existing token_cards
+    // Build lookup maps for existing token_cards (override 1000 row default limit)
     const { data: existingCards, error: fetchError } = await supabase
       .from('token_cards')
-      .select('id, canonical_symbol, lunarcrush_id, contracts, polygon_supported');
+      .select('id, canonical_symbol, lunarcrush_id, contracts, polygon_supported')
+      .order('canonical_symbol')
+      .limit(10000);
 
     if (fetchError) {
       throw new Error(`Failed to fetch token_cards: ${fetchError.message}`);
@@ -202,12 +214,13 @@ serve(async (req) => {
     let created = 0;
     let updated = 0;
     let errors = 0;
+    let pricesSkippedForPolygon = 0;
 
     const BATCH_SIZE = 50;
     const updates: any[] = [];
     const inserts: any[] = [];
 
-    for (const coin of allCoins) {
+    for (const coin of dedupedCoins) {
       try {
         const lunarcrushId = coin.id ? parseInt(coin.id, 10) : null;
         const symbol = coin.symbol?.toUpperCase();
@@ -318,6 +331,8 @@ serve(async (req) => {
           cardData.change_24h_pct = coin.percent_change_24h;
           cardData.price_updated_at = new Date().toISOString();
           cardData.price_source = 'lunarcrush';
+        } else {
+          pricesSkippedForPolygon++;
         }
 
         if (matchedCard) {
@@ -377,6 +392,7 @@ serve(async (req) => {
     console.log(`[sync-token-cards-lunarcrush] Sync complete in ${duration}ms`);
     console.log(`[sync-token-cards-lunarcrush] Matches: ${matchedById} by ID, ${matchedByAddress} by address, ${matchedBySymbol} by symbol`);
     console.log(`[sync-token-cards-lunarcrush] Updated: ${updated}, Created: ${created}, Errors: ${errors}`);
+    console.log(`[sync-token-cards-lunarcrush] Smart routing: skipped prices for ${pricesSkippedForPolygon} Polygon-supported tokens`);
 
     return new Response(JSON.stringify({
       success: true,
