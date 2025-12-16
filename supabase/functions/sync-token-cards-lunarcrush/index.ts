@@ -229,7 +229,6 @@ serve(async (req) => {
     let created = 0;
     let updated = 0;
     let errors = 0;
-    let errors = 0;
 
     const BATCH_SIZE = 50;
     const updates: any[] = [];
@@ -401,7 +400,6 @@ serve(async (req) => {
     console.log(`[sync-token-cards-lunarcrush] Sync complete in ${duration}ms`);
     console.log(`[sync-token-cards-lunarcrush] Matches: ${matchedById} by ID, ${matchedByAddress} by address, ${matchedBySymbol} by symbol`);
     console.log(`[sync-token-cards-lunarcrush] Updated: ${updated}, Created: ${created}, Errors: ${errors}`);
-    console.log(`[sync-token-cards-lunarcrush] Smart routing: skipped prices for ${pricesSkippedForPolygon} Polygon-supported tokens`);
 
     return new Response(JSON.stringify({
       success: true,
