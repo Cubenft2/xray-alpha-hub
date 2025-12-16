@@ -143,6 +143,22 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const offset = body.offset || 0;
     const batchLimit = 5000;
+    const forceRefresh = body.force_refresh || false;
+
+    // If force_refresh, expire ALL cache to refetch with full financials
+    if (forceRefresh) {
+      console.log('🔄 Force refresh: Expiring ALL company_details cache...');
+      const { error: expireError } = await supabase
+        .from('company_details')
+        .update({ expires_at: new Date(Date.now() - 3600000).toISOString() })
+        .neq('ticker', ''); // Update all rows
+      
+      if (expireError) {
+        console.error('❌ Cache expire error:', expireError);
+      } else {
+        console.log(`✅ Expired ALL company_details cache`);
+      }
+    }
     
     // STEP 1: Fetch priority stocks FIRST with COMPLETE data
     console.log(`📌 Fetching ${PRIORITY_STOCKS.length} priority stocks with FULL financials...`);
