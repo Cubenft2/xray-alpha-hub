@@ -60,43 +60,26 @@ export function PolygonTicker() {
     return () => observer.disconnect();
   }, []);
 
-  // Load top 100 cryptos from crypto_snapshot (LunarCrush data) - ordered by market_cap_rank
+  // Load top 100 cryptos from token_cards (centralized master source) - ordered by market_cap_rank
   useEffect(() => {
     if (!isVisible) return;
 
-    const loadCryptoSnapshot = async () => {
-      // Fetch from crypto_snapshot ordered by market_cap_rank
+    const loadTokenCards = async () => {
+      // Fetch from token_cards with quality filters
       const { data: cryptos, error } = await supabase
-        .from('crypto_snapshot')
-        .select('*')
-        .not('price', 'is', null)
-        .gt('price', 0)
-        .order('market_cap_rank', { ascending: true, nullsFirst: false })
-        .limit(200);
+        .from('token_cards')
+        .select('canonical_symbol, name, price_usd, change_24h_pct, logo_url, market_cap_rank, volume_24h_usd, coingecko_id, updated_at')
+        .not('price_usd', 'is', null)
+        .gt('price_usd', 0)
+        .gt('market_cap_rank', 0)
+        .lte('market_cap_rank', 200)
+        .gt('volume_24h_usd', 1000) // Filter scam tokens with no volume
+        .order('market_cap_rank', { ascending: true })
+        .limit(150);
 
       if (error || !cryptos || cryptos.length === 0) {
-        console.warn('[PolygonTicker] crypto_snapshot empty or error, falling back to live_prices');
+        console.warn('[PolygonTicker] token_cards empty or error');
         setStatus('stale');
-        // Fallback to live_prices if crypto_snapshot is empty
-        const { data: fallbackData } = await supabase
-          .from('live_prices')
-          .select('ticker, display, price, change24h')
-          .like('ticker', 'X:%')
-          .gt('price', 0)
-          .limit(100);
-        
-        if (fallbackData && fallbackData.length > 0) {
-          const fallbackPrices = fallbackData.map(p => ({
-            symbol: p.ticker.replace('X:', '').replace('USD', ''),
-            displayName: p.display,
-            price: p.price,
-            change24h: p.change24h,
-            coingecko_id: null,
-            logo_url: null
-          }));
-          setDisplayPrices([...fallbackPrices, ...fallbackPrices]);
-          setSymbols(fallbackPrices.map(p => p.symbol));
-        }
         return;
       }
 
@@ -117,12 +100,12 @@ export function PolygonTicker() {
         }
       }
 
-      // Map to display format - crypto_snapshot already has logos from LunarCrush
+      // Map to display format
       const cryptoWithPrices = cryptos.map(c => ({
-        symbol: c.symbol,
-        displayName: c.name,
-        price: c.price,
-        change24h: c.change_percent || c.change_24h || 0,
+        symbol: c.canonical_symbol,
+        displayName: c.name || c.canonical_symbol,
+        price: c.price_usd,
+        change24h: Math.max(-999, Math.min(999, c.change_24h_pct || 0)), // Cap at ±999%
         coingecko_id: c.coingecko_id,
         logo_url: c.logo_url
       }));
@@ -135,7 +118,6 @@ export function PolygonTicker() {
         if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
         if (aIdx !== -1) return -1;
         if (bIdx !== -1) return 1;
-        // Maintain existing order (by market_cap_rank from query)
         return 0;
       });
 
@@ -151,16 +133,15 @@ export function PolygonTicker() {
       setDisplayPrices([...top100, ...top100]);
     };
 
-    loadCryptoSnapshot();
+    loadTokenCards();
     
-    // Subscribe to realtime updates on crypto_snapshot
+    // Subscribe to realtime updates on token_cards
     const channel = supabase
-      .channel('crypto_snapshot_ticker')
+      .channel('token_cards_ticker')
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'crypto_snapshot' },
+        { event: '*', schema: 'public', table: 'token_cards' },
         () => {
-          // Refresh on any change
-          loadCryptoSnapshot();
+          loadTokenCards();
         }
       )
       .subscribe();
@@ -284,7 +265,7 @@ export function PolygonTicker() {
                     : 'Waiting for prices...'}
                 </p>
                 <p className="text-[10px] text-muted-foreground/70">
-                  LunarCrush • {symbols.length} symbols
+                  Token Cards • {symbols.length} symbols
                 </p>
               </TooltipContent>
             </Tooltip>
