@@ -161,6 +161,7 @@ serve(async (req) => {
 
           updates.push({
             id: token.id,
+            canonical_symbol: token.symbol, // Required for INSERT attempt in upsert
             // Price data (dedicated CoinGecko columns)
             coingecko_price_usd: coin.current_price,
             coingecko_volume_24h: coin.total_volume,
