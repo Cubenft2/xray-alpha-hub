@@ -112,6 +112,24 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'CRO': 'crypto-com-chain',
   'NEXO': 'nexo',
   
+  // High-tier tokens with platforms that need explicit mapping
+  'RON': 'ronin',
+  'PLSX': 'pulsex',
+  'BTCB': 'bitcoin-bep2',
+  'VBNB': 'venus-bnb',
+  'STETH': 'staked-ether',
+  'WSTETH': 'wrapped-steth',
+  'CBBTC': 'coinbase-wrapped-btc',
+  'RETH': 'rocket-pool-eth',
+  'OSMO': 'osmosis',
+  'FXS': 'frax-share',
+  'FRAX': 'frax',
+  'TUSD': 'true-usd',
+  'SUSD': 'susd',
+  'LUSD': 'liquity-usd',
+  'GUSD': 'gemini-dollar',
+  'PAXG': 'pax-gold',
+  
   // Popular meme/DeFi tokens
   'WIF': 'dogwifcoin',
   'BONK': 'bonk',
@@ -495,8 +513,8 @@ serve(async (req) => {
 
     console.log(`[sync-token-cards-coingecko] Contract matching complete: ${updated} matched, ${noMatch} no match`);
 
-    // Step 5: Symbol-based fallback for native tokens (empty platforms in CoinGecko)
-    console.log('[sync-token-cards-coingecko] Starting symbol-based fallback for native tokens...');
+    // Step 5: Symbol-based fallback for ALL tokens (not just native/empty platforms)
+    console.log('[sync-token-cards-coingecko] Starting symbol-based fallback for ALL tokens...');
 
     // Fetch tokens still missing coingecko_id
     const { data: stillMissing, error: stillMissingError } = await supabase
@@ -517,36 +535,43 @@ serve(async (req) => {
     if (stillMissing && stillMissing.length > 0) {
       console.log(`[sync-token-cards-coingecko] Found ${stillMissing.length} tokens still missing coingecko_id`);
 
-      // Build symbol -> cg_id map for native tokens (empty platforms)
-      const nativeTokenMap = new Map<string, { cg_id: string; name: string }>();
+      // Build symbol -> cg_id map for ALL tokens (not just empty platforms)
+      // Use priority scoring to prefer native/non-bridged variants
+      const symbolTokenMap = new Map<string, { cg_id: string; name: string; score: number }>();
       
-      // Filter for entries with empty platforms (native tokens like BTC, ETH, SOL)
       for (const cg of allCgEntries) {
-        // Check if platforms is empty object or has no entries
+        const upperSymbol = cg.symbol.toUpperCase();
+        const existing = symbolTokenMap.get(upperSymbol);
+        
+        // Calculate priority score
+        let score = 0;
+        
+        // Native tokens (empty platforms) get highest priority
         const hasNoPlatforms = !cg.platforms || 
           (typeof cg.platforms === 'object' && Object.keys(cg.platforms).length === 0);
+        if (hasNoPlatforms) score += 100;
         
-        if (hasNoPlatforms) {
-          const upperSymbol = cg.symbol.toUpperCase();
-          const existing = nativeTokenMap.get(upperSymbol);
-          
-          // Priority: prefer if cg_id matches lowercase symbol (e.g., bitcoin for BTC)
-          // and name doesn't contain bridged/wrapped variants
-          const isBridgedOrWrapped = /bridged|wrapped|wormhole|peg|bsc|bnb|polygon|arbitrum/i.test(cg.name);
-          const isPrimaryToken = cg.cg_id === cg.symbol.toLowerCase() || 
-                                  cg.cg_id === cg.name.toLowerCase().replace(/\s+/g, '-');
-          
-          if (!existing || (isPrimaryToken && !isBridgedOrWrapped)) {
-            nativeTokenMap.set(upperSymbol, { cg_id: cg.cg_id, name: cg.name });
-          }
+        // Bridged/wrapped variants get penalty
+        const isBridgedOrWrapped = /bridged|wrapped|wormhole|peg|bsc|bnb\-|polygon\-|arbitrum\-/i.test(cg.name) ||
+                                    /bridged|wrapped|wormhole/i.test(cg.cg_id);
+        if (isBridgedOrWrapped) score -= 50;
+        
+        // Exact symbol/name match gets bonus
+        const isPrimaryToken = cg.cg_id === cg.symbol.toLowerCase() || 
+                                cg.cg_id === cg.name.toLowerCase().replace(/\s+/g, '-');
+        if (isPrimaryToken) score += 25;
+        
+        // Only update if this is better than existing match
+        if (!existing || score > existing.score) {
+          symbolTokenMap.set(upperSymbol, { cg_id: cg.cg_id, name: cg.name, score });
         }
       }
 
-      console.log(`[sync-token-cards-coingecko] Built native token map with ${nativeTokenMap.size} entries`);
+      console.log(`[sync-token-cards-coingecko] Built symbol map with ${symbolTokenMap.size} entries (all tokens)`);
 
       // Match still-missing tokens by symbol
       for (const token of stillMissing) {
-        const match = nativeTokenMap.get(token.canonical_symbol);
+        const match = symbolTokenMap.get(token.canonical_symbol);
         
         if (match) {
           const { error: updateError } = await supabase
@@ -561,7 +586,7 @@ serve(async (req) => {
             symbolErrors.push(`${token.canonical_symbol}: ${updateError.message}`);
           } else {
             symbolMatched++;
-            console.log(`[sync-token-cards-coingecko] Symbol matched: ${token.canonical_symbol} -> ${match.cg_id}`);
+            console.log(`[sync-token-cards-coingecko] Symbol matched: ${token.canonical_symbol} -> ${match.cg_id} (score: ${match.score})`);
           }
         }
 
