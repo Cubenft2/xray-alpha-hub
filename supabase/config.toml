@@ -322,3 +322,11 @@ verify_jwt = false
 
 [[functions.sync-token-cards-coingecko-technicals.cron]]
 schedule = "0 5 * * *"
+
+# Sync CoinGecko prices, market cap, supply, ATH/ATL to dedicated columns
+# Runs every 10 minutes (within 500/day CoinGecko budget: ~144 calls/day)
+[functions.sync-token-cards-coingecko-prices]
+verify_jwt = false
+
+[[functions.sync-token-cards-coingecko-prices.cron]]
+schedule = "*/10 * * * *"

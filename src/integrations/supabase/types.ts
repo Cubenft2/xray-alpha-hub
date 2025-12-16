@@ -2299,7 +2299,22 @@ export type Database = {
           change_7d_usd: number | null
           circulating_supply: number | null
           close_24h: number | null
+          coingecko_ath_date: string | null
+          coingecko_ath_price: number | null
+          coingecko_atl_date: string | null
+          coingecko_atl_price: number | null
+          coingecko_change_24h_pct: number | null
+          coingecko_circulating_supply: number | null
+          coingecko_high_24h: number | null
           coingecko_id: string | null
+          coingecko_low_24h: number | null
+          coingecko_market_cap: number | null
+          coingecko_market_cap_rank: number | null
+          coingecko_max_supply: number | null
+          coingecko_price_updated_at: string | null
+          coingecko_price_usd: number | null
+          coingecko_total_supply: number | null
+          coingecko_volume_24h: number | null
           contracts: Json | null
           contributors_active: number | null
           contributors_change_24h_pct: number | null
@@ -2547,7 +2562,22 @@ export type Database = {
           change_7d_usd?: number | null
           circulating_supply?: number | null
           close_24h?: number | null
+          coingecko_ath_date?: string | null
+          coingecko_ath_price?: number | null
+          coingecko_atl_date?: string | null
+          coingecko_atl_price?: number | null
+          coingecko_change_24h_pct?: number | null
+          coingecko_circulating_supply?: number | null
+          coingecko_high_24h?: number | null
           coingecko_id?: string | null
+          coingecko_low_24h?: number | null
+          coingecko_market_cap?: number | null
+          coingecko_market_cap_rank?: number | null
+          coingecko_max_supply?: number | null
+          coingecko_price_updated_at?: string | null
+          coingecko_price_usd?: number | null
+          coingecko_total_supply?: number | null
+          coingecko_volume_24h?: number | null
           contracts?: Json | null
           contributors_active?: number | null
           contributors_change_24h_pct?: number | null
@@ -2795,7 +2825,22 @@ export type Database = {
           change_7d_usd?: number | null
           circulating_supply?: number | null
           close_24h?: number | null
+          coingecko_ath_date?: string | null
+          coingecko_ath_price?: number | null
+          coingecko_atl_date?: string | null
+          coingecko_atl_price?: number | null
+          coingecko_change_24h_pct?: number | null
+          coingecko_circulating_supply?: number | null
+          coingecko_high_24h?: number | null
           coingecko_id?: string | null
+          coingecko_low_24h?: number | null
+          coingecko_market_cap?: number | null
+          coingecko_market_cap_rank?: number | null
+          coingecko_max_supply?: number | null
+          coingecko_price_updated_at?: string | null
+          coingecko_price_usd?: number | null
+          coingecko_total_supply?: number | null
+          coingecko_volume_24h?: number | null
           contracts?: Json | null
           contributors_active?: number | null
           contributors_change_24h_pct?: number | null
