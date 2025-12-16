@@ -686,6 +686,42 @@ export type Database = {
           },
         ]
       }
+      data_quality_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          details: Json | null
+          function_name: string | null
+          id: string
+          message: string
+          resolved: boolean | null
+          resolved_at: string | null
+          severity: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          details?: Json | null
+          function_name?: string | null
+          id?: string
+          message: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          details?: Json | null
+          function_name?: string | null
+          id?: string
+          message?: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          severity?: string
+        }
+        Relationships: []
+      }
       derivatives_cache: {
         Row: {
           funding_rate: number | null

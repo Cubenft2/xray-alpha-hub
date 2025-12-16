@@ -409,6 +409,66 @@ serve(async (req) => {
     console.log(`[sync-token-cards-lunarcrush] Updated: ${updated}, Created: ${created}, Errors: ${errors}`);
     console.log(`[sync-token-cards-lunarcrush] Smart routing: skipped prices for ${pricesSkippedForPolygon} Polygon-supported tokens`);
 
+    // ========== POST-SYNC VALIDATION & SELF-HEALING ==========
+    console.log('[sync-token-cards-lunarcrush] Running post-sync validation...');
+    
+    let smartRoutingViolations = 0;
+    let selfHealed = false;
+    
+    // Check 1: Smart routing violations - Polygon tokens should NOT have price_source='lunarcrush'
+    const { data: violations } = await supabase
+      .from('token_cards')
+      .select('canonical_symbol')
+      .eq('polygon_supported', true)
+      .eq('price_source', 'lunarcrush')
+      .limit(50);
+
+    if (violations && violations.length > 0) {
+      smartRoutingViolations = violations.length;
+      const violatingSymbols = violations.slice(0, 10).map(v => v.canonical_symbol);
+      console.error(`🚨 SMART ROUTING VIOLATION: ${violations.length} Polygon tokens have wrong price_source!`);
+      console.error(`Examples: ${violatingSymbols.join(', ')}`);
+      
+      // Log alert to data_quality_alerts table
+      await supabase.from('data_quality_alerts').insert({
+        alert_type: 'smart_routing_violation',
+        severity: 'critical',
+        message: `${violations.length} Polygon-supported tokens have price_source='lunarcrush' instead of 'polygon'`,
+        details: { violating_symbols: violatingSymbols, total_violations: violations.length },
+        function_name: 'sync-token-cards-lunarcrush'
+      });
+
+      // SELF-HEAL: Clear price_source so next Polygon sync fixes it
+      const { error: healError } = await supabase
+        .from('token_cards')
+        .update({ price_source: null })
+        .eq('polygon_supported', true)
+        .eq('price_source', 'lunarcrush');
+
+      if (!healError) {
+        selfHealed = true;
+        console.log(`🔧 AUTO-HEALED: Cleared price_source for ${violations.length} tokens - next Polygon sync will fix`);
+        
+        // Mark alert as resolved since we self-healed
+        await supabase.from('data_quality_alerts')
+          .update({ resolved: true, resolved_at: new Date().toISOString() })
+          .eq('alert_type', 'smart_routing_violation')
+          .eq('resolved', false);
+      } else {
+        console.error(`❌ Self-healing failed:`, healError.message);
+      }
+    } else {
+      console.log('✅ Smart routing validation passed - no violations');
+    }
+
+    // Check 2: Coverage validation
+    const { count: polygonCount } = await supabase
+      .from('token_cards')
+      .select('*', { count: 'exact', head: true })
+      .eq('polygon_supported', true);
+
+    console.log(`📊 Coverage: ${polygonCount} Polygon-supported tokens in database`);
+
     return new Response(JSON.stringify({
       success: true,
       stats: {
@@ -419,7 +479,13 @@ serve(async (req) => {
         updated,
         created,
         errors,
-        duration_ms: duration
+        prices_skipped_polygon: pricesSkippedForPolygon,
+        duration_ms: duration,
+        validation: {
+          smart_routing_violations: smartRoutingViolations,
+          self_healed: selfHealed,
+          polygon_coverage: polygonCount
+        }
       }
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
