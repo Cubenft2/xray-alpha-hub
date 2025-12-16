@@ -171,15 +171,30 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Build lookup maps for existing token_cards (override 1000 row default limit)
-    const { data: existingCards, error: fetchError } = await supabase
-      .from('token_cards')
-      .select('id, canonical_symbol, lunarcrush_id, contracts, polygon_supported')
-      .order('canonical_symbol')
-      .limit(10000);
+    // Build lookup maps for existing token_cards with pagination (load ALL cards)
+    // Order by market_cap_rank to ensure top tokens (BTC, ETH, SOL) are loaded first
+    const allExistingCards: any[] = [];
+    const PAGE_SIZE = 1000;
+    let offset = 0;
+    
+    while (true) {
+      const { data: pageCards, error: fetchError } = await supabase
+        .from('token_cards')
+        .select('id, canonical_symbol, lunarcrush_id, contracts, polygon_supported')
+        .order('market_cap_rank', { ascending: true, nullsFirst: false })
+        .range(offset, offset + PAGE_SIZE - 1);
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch token_cards: ${fetchError.message}`);
+      if (fetchError) {
+        throw new Error(`Failed to fetch token_cards page ${offset}: ${fetchError.message}`);
+      }
+      
+      if (!pageCards || pageCards.length === 0) break;
+      
+      allExistingCards.push(...pageCards);
+      console.log(`[sync-token-cards-lunarcrush] Loaded page ${Math.floor(offset / PAGE_SIZE) + 1}: ${pageCards.length} cards (total: ${allExistingCards.length})`);
+      
+      if (pageCards.length < PAGE_SIZE) break; // Last page
+      offset += PAGE_SIZE;
     }
 
     // Create lookup maps
@@ -187,7 +202,7 @@ serve(async (req) => {
     const bySymbol = new Map<string, any[]>();
     const addressToCard = new Map<string, any>();
 
-    for (const card of existingCards || []) {
+    for (const card of allExistingCards) {
       if (card.lunarcrush_id) {
         byLunarcrushId.set(card.lunarcrush_id, card);
       }
@@ -204,7 +219,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`[sync-token-cards-lunarcrush] Loaded ${existingCards?.length || 0} existing cards`);
+    console.log(`[sync-token-cards-lunarcrush] Loaded ${allExistingCards.length} existing cards (all pages)`);
     console.log(`[sync-token-cards-lunarcrush] byLunarcrushId: ${byLunarcrushId.size}, bySymbol: ${bySymbol.size}, addressToCard: ${addressToCard.size}`);
 
     // Process coins with matching logic
