@@ -315,3 +315,10 @@ verify_jwt = false
 
 [[functions.sync-token-cards-metadata.cron]]
 schedule = "0 6 * * *"
+
+# Sync technical indicators for non-Polygon tokens via CoinGecko historical data
+[functions.sync-token-cards-coingecko-technicals]
+verify_jwt = false
+
+[[functions.sync-token-cards-coingecko-technicals.cron]]
+schedule = "0 5 * * *"
