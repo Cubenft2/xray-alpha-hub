@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
               ticker: stock.symbol,
               name: r.name,
               description: r.description,
-              market_cap: r.market_cap,
+              market_cap: r.market_cap ? Math.round(r.market_cap) : null, // Convert to integer for bigint column
               employees: r.total_employees,
               headquarters: r.address ? {
                 address1: r.address.address1,
