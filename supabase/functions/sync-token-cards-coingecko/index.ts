@@ -69,6 +69,7 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'XTZ': 'tezos',
   'LUNC': 'terra-luna',
   'LUNA': 'terra-luna-2',
+  'JLP': 'jupiter-perpetuals-liquidity-provider-token', // Jupiter Perps LP (Solana), NOT jlaunchpad
   
   // Native L1 tokens (no contract addresses)
   'SUI': 'sui',
