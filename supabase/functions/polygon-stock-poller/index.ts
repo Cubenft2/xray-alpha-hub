@@ -13,7 +13,7 @@ const PRIORITY_STOCKS = [
   'PEP', 'TMO', 'ADBE', 'ACN', 'LIN', 'MCD', 'CSCO', 'WFC', 'ABT', 'QCOM',
   'DHR', 'INTC', 'INTU', 'TXN', 'DIS', 'GE', 'IBM', 'CAT', 'VZ', 'CMCSA',
   // Crypto-related stocks
-  'COIN', 'MSTR', 'MARA', 'RIOT', 'CLSK',
+  'COIN', 'MSTR', 'MARA', 'RIOT', 'CLSK', 'HOOD', 'HUT', 'HIVE', 'BITF',
   // Popular ETFs
   'SPY', 'QQQ', 'IWM', 'DIA', 'VOO'
 ];
