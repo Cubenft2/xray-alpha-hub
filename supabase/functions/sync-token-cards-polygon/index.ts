@@ -163,23 +163,27 @@ serve(async (req) => {
         spreadPct = ((lastQuote.P - lastQuote.p) / lastQuote.P) * 100;
       }
 
+      const volume24h = day.v ? day.v * (day.vw || currentPrice || 0) : null;
+      
       updates.push({
         id: token.id,
         polygon_ticker: polygonTicker,
-        price_usd: currentPrice,
+        // DEDICATED POLYGON PRICE COLUMNS - ALWAYS WRITE
+        // Trigger will compute display price_usd from freshest source
+        polygon_price_usd: currentPrice,
+        polygon_volume_24h: volume24h,
+        polygon_change_24h_pct: changePct,
+        polygon_high_24h: day.h || null,
+        polygon_low_24h: day.l || null,
+        polygon_price_updated_at: now,
+        // Additional Polygon-specific fields
         open_24h: day.o || null,
-        high_24h: day.h || null,
-        low_24h: day.l || null,
         close_24h: day.c || null,
         vwap_24h: day.vw || null,
-        volume_24h_usd: day.v ? day.v * (day.vw || currentPrice || 0) : null,
-        change_24h_pct: changePct,
         bid_price: lastQuote.p || null,
         ask_price: lastQuote.P || null,
         spread_pct: spreadPct,
-        price_updated_at: now,
-        polygon_supported: true,
-        price_source: 'polygon'  // Track data source
+        polygon_supported: true
       });
     }
 
