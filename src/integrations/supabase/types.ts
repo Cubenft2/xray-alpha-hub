@@ -1917,22 +1917,30 @@ export type Database = {
           avg_volume: number | null
           change_pct: number | null
           change_usd: number | null
+          cik: string | null
           close_price: number | null
           contributors_active: number | null
           country: string | null
           created_at: string | null
+          description: string | null
           dividend_yield: number | null
+          dividends: Json | null
+          employees: number | null
           eps: number | null
           exchange: string | null
           fifty_two_week_high: number | null
           fifty_two_week_low: number | null
+          financials: Json | null
           galaxy_score: number | null
+          headquarters: Json | null
           high_price: number | null
+          icon_url: string | null
           id: string
           industry: string | null
           interactions_24h: number | null
           is_active: boolean | null
           is_delayed: boolean | null
+          list_date: string | null
           logo_url: string | null
           low_price: number | null
           macd_line: number | null
@@ -1946,15 +1954,19 @@ export type Database = {
           price_updated_at: string | null
           price_usd: number | null
           reddit_volume: number | null
+          related_companies: Json | null
           rsi_14: number | null
           sector: string | null
           sentiment: number | null
+          sic_code: string | null
+          sic_description: string | null
           sma_20: number | null
           sma_200: number | null
           sma_50: number | null
           social_dominance: number | null
           social_updated_at: string | null
           social_volume_24h: number | null
+          splits: Json | null
           symbol: string
           technical_signal: string | null
           technicals_updated_at: string | null
@@ -1964,6 +1976,7 @@ export type Database = {
           twitter_volume: number | null
           updated_at: string | null
           volume: number | null
+          website: string | null
         }
         Insert: {
           ai_summary?: string | null
@@ -1971,22 +1984,30 @@ export type Database = {
           avg_volume?: number | null
           change_pct?: number | null
           change_usd?: number | null
+          cik?: string | null
           close_price?: number | null
           contributors_active?: number | null
           country?: string | null
           created_at?: string | null
+          description?: string | null
           dividend_yield?: number | null
+          dividends?: Json | null
+          employees?: number | null
           eps?: number | null
           exchange?: string | null
           fifty_two_week_high?: number | null
           fifty_two_week_low?: number | null
+          financials?: Json | null
           galaxy_score?: number | null
+          headquarters?: Json | null
           high_price?: number | null
+          icon_url?: string | null
           id?: string
           industry?: string | null
           interactions_24h?: number | null
           is_active?: boolean | null
           is_delayed?: boolean | null
+          list_date?: string | null
           logo_url?: string | null
           low_price?: number | null
           macd_line?: number | null
@@ -2000,15 +2021,19 @@ export type Database = {
           price_updated_at?: string | null
           price_usd?: number | null
           reddit_volume?: number | null
+          related_companies?: Json | null
           rsi_14?: number | null
           sector?: string | null
           sentiment?: number | null
+          sic_code?: string | null
+          sic_description?: string | null
           sma_20?: number | null
           sma_200?: number | null
           sma_50?: number | null
           social_dominance?: number | null
           social_updated_at?: string | null
           social_volume_24h?: number | null
+          splits?: Json | null
           symbol: string
           technical_signal?: string | null
           technicals_updated_at?: string | null
@@ -2018,6 +2043,7 @@ export type Database = {
           twitter_volume?: number | null
           updated_at?: string | null
           volume?: number | null
+          website?: string | null
         }
         Update: {
           ai_summary?: string | null
@@ -2025,22 +2051,30 @@ export type Database = {
           avg_volume?: number | null
           change_pct?: number | null
           change_usd?: number | null
+          cik?: string | null
           close_price?: number | null
           contributors_active?: number | null
           country?: string | null
           created_at?: string | null
+          description?: string | null
           dividend_yield?: number | null
+          dividends?: Json | null
+          employees?: number | null
           eps?: number | null
           exchange?: string | null
           fifty_two_week_high?: number | null
           fifty_two_week_low?: number | null
+          financials?: Json | null
           galaxy_score?: number | null
+          headquarters?: Json | null
           high_price?: number | null
+          icon_url?: string | null
           id?: string
           industry?: string | null
           interactions_24h?: number | null
           is_active?: boolean | null
           is_delayed?: boolean | null
+          list_date?: string | null
           logo_url?: string | null
           low_price?: number | null
           macd_line?: number | null
@@ -2054,15 +2088,19 @@ export type Database = {
           price_updated_at?: string | null
           price_usd?: number | null
           reddit_volume?: number | null
+          related_companies?: Json | null
           rsi_14?: number | null
           sector?: string | null
           sentiment?: number | null
+          sic_code?: string | null
+          sic_description?: string | null
           sma_20?: number | null
           sma_200?: number | null
           sma_50?: number | null
           social_dominance?: number | null
           social_updated_at?: string | null
           social_volume_24h?: number | null
+          splits?: Json | null
           symbol?: string
           technical_signal?: string | null
           technicals_updated_at?: string | null
@@ -2072,6 +2110,7 @@ export type Database = {
           twitter_volume?: number | null
           updated_at?: string | null
           volume?: number | null
+          website?: string | null
         }
         Relationships: []
       }
