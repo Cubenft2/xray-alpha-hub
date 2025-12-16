@@ -32,7 +32,8 @@ Deno.serve(async (req) => {
         )
       `)
       .eq('market', 'stocks')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .range(0, 5000); // Get ALL stocks (bypasses 1000 row default limit)
 
     if (assetsError) {
       throw new Error(`Failed to fetch stock assets: ${assetsError.message}`);
