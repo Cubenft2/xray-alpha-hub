@@ -210,7 +210,10 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'PARTI': 'particle-network',
 };
 
+// Chain mappings: token_cards chain name -> CoinGecko platform identifier
+// Expanded from 14 to 55 chains for comprehensive contract address matching
 const CHAIN_MAPPINGS = [
+  // Original 14 chains
   { tc: 'ethereum', cg: 'ethereum' },
   { tc: 'solana', cg: 'solana' },
   { tc: 'polygon', cg: 'polygon-pos' },
@@ -225,6 +228,61 @@ const CHAIN_MAPPINGS = [
   { tc: 'near', cg: 'near-protocol' },
   { tc: 'sui', cg: 'sui' },
   { tc: 'aptos', cg: 'aptos' },
+  
+  // NEW: High-impact chains (41 additional) sorted by token count
+  { tc: 'ton', cg: 'the-open-network' },           // 225 tokens
+  { tc: 'osmosis', cg: 'osmosis' },                // 159 tokens
+  { tc: 'blast', cg: 'blast' },                    // 149 tokens
+  { tc: 'chiliz', cg: 'chiliz' },                  // 135 tokens
+  { tc: 'cronos', cg: 'cronos' },                  // 127 tokens
+  { tc: 'sonic', cg: 'sonic' },                    // 124 tokens
+  { tc: 'pulsechain', cg: 'pulsechain' },          // 121 tokens
+  { tc: 'bittensor', cg: 'bittensor' },            // 118 tokens
+  { tc: 'hyperevm', cg: 'hyperevm' },              // 116 tokens
+  { tc: 'zksync', cg: 'zksync' },                  // 112 tokens
+  { tc: 'gnosis', cg: 'xdai' },                    // 112 tokens
+  { tc: 'xdai', cg: 'xdai' },                      // alias for gnosis
+  { tc: 'cardano', cg: 'cardano' },                // 109 tokens
+  { tc: 'berachain', cg: 'berachain' },            // 93 tokens
+  { tc: 'linea', cg: 'linea' },                    // 93 tokens
+  { tc: 'harmony', cg: 'harmony-shard-0' },        // 84 tokens
+  { tc: 'ordinals', cg: 'ordinals' },              // 80 tokens (BRC-20)
+  { tc: 'xrp', cg: 'xrp' },                        // 77 tokens
+  { tc: 'ripple', cg: 'xrp' },                     // alias for xrp
+  { tc: 'mantle', cg: 'mantle' },                  // 76 tokens
+  { tc: 'klaytn', cg: 'klay-token' },              // 70 tokens
+  { tc: 'celo', cg: 'celo' },                      // 58 tokens
+  { tc: 'hedera', cg: 'hedera-hashgraph' },        // 54 tokens
+  { tc: 'sei', cg: 'sei-v2' },                     // 51 tokens
+  { tc: 'scroll', cg: 'scroll' },                  // 49 tokens
+  { tc: 'hyperliquid', cg: 'hyperliquid' },        // 47 tokens
+  { tc: 'stellar', cg: 'stellar' },                // 46 tokens
+  { tc: 'ronin', cg: 'ronin' },                    // 44 tokens
+  { tc: 'multiversx', cg: 'elrond' },              // 43 tokens
+  { tc: 'elrond', cg: 'elrond' },                  // alias for multiversx
+  { tc: 'algorand', cg: 'algorand' },              // 41 tokens
+  { tc: 'mode', cg: 'mode' },                      // 39 tokens
+  { tc: 'core', cg: 'core' },                      // 39 tokens
+  { tc: 'starknet', cg: 'starknet' },              // 38 tokens
+  { tc: 'unichain', cg: 'unichain' },              // 37 tokens
+  { tc: 'icp', cg: 'internet-computer' },          // 36 tokens
+  { tc: 'internet-computer', cg: 'internet-computer' }, // alias
+  { tc: 'metis', cg: 'metis-andromeda' },          // 35 tokens
+  { tc: 'aurora', cg: 'aurora' },                  // 35 tokens
+  { tc: 'manta', cg: 'manta-pacific' },            // 34 tokens
+  { tc: 'kava', cg: 'kava' },                      // 32 tokens
+  { tc: 'moonbeam', cg: 'moonbeam' },              // 32 tokens
+  { tc: 'cosmos', cg: 'cosmos' },                  // 31 tokens
+  { tc: 'moonriver', cg: 'moonriver' },            // 28 tokens
+  { tc: 'iotex', cg: 'iotex' },                    // 26 tokens
+  { tc: 'thundercore', cg: 'thundercore' },        // 24 tokens
+  { tc: 'wemix', cg: 'wemix-network' },            // 22 tokens
+  { tc: 'oasis', cg: 'oasis' },                    // 21 tokens
+  { tc: 'astar', cg: 'astar' },                    // 20 tokens
+  { tc: 'zkfair', cg: 'zkfair' },                  // 19 tokens
+  { tc: 'boba', cg: 'boba' },                      // 18 tokens
+  { tc: 'fuse', cg: 'fuse' },                      // 17 tokens
+  { tc: 'taiko', cg: 'taiko' },                    // 16 tokens
 ];
 
 serve(async (req) => {
