@@ -55,7 +55,7 @@ serve(async (req) => {
       .from('token_cards')
       .select('id, canonical_symbol, coingecko_id')
       .not('coingecko_id', 'is', null)
-      .limit(2000);
+      .limit(5000);
 
     if (fetchError) {
       console.error('[sync-token-cards-coingecko-prices] Error fetching token_cards:', fetchError);
@@ -210,9 +210,9 @@ serve(async (req) => {
         totalErrors++;
       }
 
-      // Delay between batches to respect rate limits (1.5 seconds)
+      // Delay between batches to respect rate limits (500ms - fast with API key)
       if (batchIndex < batches.length - 1) {
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 500));
       }
     }
 
