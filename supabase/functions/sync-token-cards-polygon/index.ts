@@ -138,7 +138,7 @@ async function fetchOHLCV(ticker: string, apiKey: string, bars: number = 200): P
 // Calculate all technicals from OHLCV prices
 function calculateAllTechnicals(prices: number[]): {
   rsi_14: number | null;
-  macd: number | null;
+  macd_line: number | null;
   macd_signal: number | null;
   macd_histogram: number | null;
   sma_20: number | null;
@@ -152,7 +152,7 @@ function calculateAllTechnicals(prices: number[]): {
   
   return {
     rsi_14: rsi,
-    macd: macdResult?.macd ?? null,
+    macd_line: macdResult?.macd ?? null,
     macd_signal: macdResult?.signal ?? null,
     macd_histogram: macdResult?.histogram ?? null,
     sma_20: calculateSMA(prices, 20),
@@ -397,10 +397,12 @@ serve(async (req) => {
             .update(techData)
             .eq('id', id);
           
-          if (!error) {
+          if (error) {
+            console.error(`[Technicals] ❌ FAILED ${symbol}:`, error.message, error.details);
+          } else {
             technicalsUpdated++;
             if (techData.rsi_14) {
-              console.log(`[Technicals] ${symbol}: RSI=${techData.rsi_14?.toFixed(1)}, MACD=${techData.macd?.toFixed(4)}`);
+              console.log(`[Technicals] ✅ ${symbol}: RSI=${techData.rsi_14?.toFixed(1)}, MACD=${techData.macd_line?.toFixed(4)}`);
             }
           }
         }
