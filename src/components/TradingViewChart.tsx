@@ -66,14 +66,14 @@ export function TradingViewChart({
         symbol: symbol,
         theme: theme === 'dark' ? 'dark' : 'light',
         timezone: 'Etc/UTC',
+        backgroundColor: theme === 'dark' ? '#1a1a2e' : '#ffffff',
+        gridColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(46, 46, 46, 0.06)',
         watchlist: [],
         withdateranges: true,
+        range: 'YTD',
+        compareSymbols: [],
         studies: studies,
-        autosize: true,
-        enable_publishing: true,
-        show_popup_button: true,
-        popup_height: '650',
-        popup_width: '1000'
+        autosize: true
       } as const;
 
       script.innerHTML = JSON.stringify(config);
