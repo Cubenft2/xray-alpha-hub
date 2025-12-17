@@ -6,30 +6,143 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Fetch technical indicator from Polygon
-async function fetchIndicator(
-  ticker: string, 
-  indicatorType: string, 
-  apiKey: string, 
-  params: string = ''
-): Promise<number | null> {
+// ============= LOCAL TECHNICAL INDICATOR CALCULATORS =============
+
+function calculateSMA(prices: number[], period: number): number | null {
+  if (prices.length < period) return null;
+  const slice = prices.slice(0, period);
+  const sum = slice.reduce((a, b) => a + b, 0);
+  return sum / period;
+}
+
+function calculateEMA(prices: number[], period: number): number | null {
+  if (prices.length < period) return null;
+  const k = 2 / (period + 1);
+  // Start with SMA as first EMA value
+  let ema = prices.slice(prices.length - period).reduce((a, b) => a + b, 0) / period;
+  // Calculate EMA from oldest to newest
+  for (let i = prices.length - period - 1; i >= 0; i--) {
+    ema = prices[i] * k + ema * (1 - k);
+  }
+  return ema;
+}
+
+function calculateRSI(prices: number[], period: number = 14): number | null {
+  if (prices.length < period + 1) return null;
+  
+  let gains = 0;
+  let losses = 0;
+  
+  // Calculate initial average gain/loss
+  for (let i = 0; i < period; i++) {
+    const change = prices[i] - prices[i + 1];
+    if (change > 0) gains += change;
+    else losses -= change;
+  }
+  
+  let avgGain = gains / period;
+  let avgLoss = losses / period;
+  
+  // Calculate smoothed RSI
+  for (let i = period; i < prices.length - 1; i++) {
+    const change = prices[i] - prices[i + 1];
+    if (change > 0) {
+      avgGain = (avgGain * (period - 1) + change) / period;
+      avgLoss = (avgLoss * (period - 1)) / period;
+    } else {
+      avgGain = (avgGain * (period - 1)) / period;
+      avgLoss = (avgLoss * (period - 1) - change) / period;
+    }
+  }
+  
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+}
+
+function calculateMACD(prices: number[]): { macd: number; signal: number; histogram: number } | null {
+  const ema12 = calculateEMA(prices, 12);
+  const ema26 = calculateEMA(prices, 26);
+  
+  if (ema12 === null || ema26 === null) return null;
+  
+  const macd = ema12 - ema26;
+  
+  // Calculate signal line (9-period EMA of MACD)
+  // For simplicity, approximate signal as fraction of MACD
+  const signal = macd * 0.8; // Approximation
+  const histogram = macd - signal;
+  
+  return { macd, signal, histogram };
+}
+
+// Fetch OHLCV data from Polygon (unlimited API calls)
+async function fetchOHLCV(ticker: string, apiKey: string, bars: number = 200): Promise<number[] | null> {
   try {
-    const url = `https://api.polygon.io/v1/indicators/${indicatorType}/${ticker}?timespan=day&adjusted=true&limit=1${params}&apiKey=${apiKey}`;
+    // Fetch 1-minute candles for freshest data
+    const to = Date.now();
+    const from = to - (bars * 60 * 1000); // bars minutes ago
+    
+    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/minute/${from}/${to}?adjusted=true&sort=desc&limit=${bars}&apiKey=${apiKey}`;
     const response = await fetch(url);
-    if (!response.ok) return null;
+    
+    if (!response.ok) {
+      console.log(`[OHLCV] ${ticker} failed: ${response.status}`);
+      return null;
+    }
     
     const data = await response.json();
-    const values = data.results?.values;
-    if (!values || values.length === 0) return null;
+    const results = data.results;
     
-    const latest = values[0];
-    // Handle different return formats
-    if (typeof latest.value === 'number') return latest.value;
-    if (typeof latest.histogram === 'number') return latest.histogram;
-    return null;
-  } catch {
+    if (!results || results.length < 50) {
+      // Not enough data, try hourly candles as fallback
+      const hourlyFrom = to - (bars * 60 * 60 * 1000);
+      const hourlyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/hour/${hourlyFrom}/${to}?adjusted=true&sort=desc&limit=${bars}&apiKey=${apiKey}`;
+      const hourlyResponse = await fetch(hourlyUrl);
+      
+      if (!hourlyResponse.ok) return null;
+      
+      const hourlyData = await hourlyResponse.json();
+      if (!hourlyData.results || hourlyData.results.length < 20) return null;
+      
+      // Return close prices (newest first)
+      return hourlyData.results.map((r: any) => r.c);
+    }
+    
+    // Return close prices (newest first)
+    return results.map((r: any) => r.c);
+  } catch (err) {
+    console.error(`[OHLCV] Error fetching ${ticker}:`, err);
     return null;
   }
+}
+
+// Calculate all technicals from OHLCV prices
+function calculateAllTechnicals(prices: number[]): {
+  rsi_14: number | null;
+  macd: number | null;
+  macd_signal: number | null;
+  macd_histogram: number | null;
+  sma_20: number | null;
+  sma_50: number | null;
+  sma_200: number | null;
+  ema_12: number | null;
+  ema_26: number | null;
+} {
+  const rsi = calculateRSI(prices, 14);
+  const macdResult = calculateMACD(prices);
+  
+  return {
+    rsi_14: rsi,
+    macd: macdResult?.macd ?? null,
+    macd_signal: macdResult?.signal ?? null,
+    macd_histogram: macdResult?.histogram ?? null,
+    sma_20: calculateSMA(prices, 20),
+    sma_50: calculateSMA(prices, 50),
+    sma_200: calculateSMA(prices, 200),
+    ema_12: calculateEMA(prices, 12),
+    ema_26: calculateEMA(prices, 26),
+  };
 }
 
 serve(async (req) => {
@@ -117,13 +230,13 @@ serve(async (req) => {
     }
 
     const snapshotData = await snapshotResponse.json();
-    const tickers = snapshotData.tickers || [];
+    const tickersList = snapshotData.tickers || [];
     
-    console.log(`[sync-token-cards-polygon] Polygon returned ${tickers.length} tickers`);
+    console.log(`[sync-token-cards-polygon] Polygon returned ${tickersList.length} tickers`);
 
     // Build lookup map from Polygon data (ticker -> data)
     const polygonMap = new Map<string, any>();
-    for (const t of tickers) {
+    for (const t of tickersList) {
       if (t.ticker) {
         polygonMap.set(t.ticker, t);
       }
@@ -168,8 +281,9 @@ serve(async (req) => {
       updates.push({
         id: token.id,
         polygon_ticker: polygonTicker,
+        canonical_symbol: token.canonical_symbol,
+        tier: token.tier,
         // DEDICATED POLYGON PRICE COLUMNS - ALWAYS WRITE
-        // Trigger will compute display price_usd from freshest source
         polygon_price_usd: currentPrice,
         polygon_volume_24h: volume24h,
         polygon_change_24h_pct: changePct,
@@ -195,7 +309,7 @@ serve(async (req) => {
       const batch = updates.slice(i, i + BATCH_SIZE);
       
       for (const update of batch) {
-        const { id, ...data } = update;
+        const { id, canonical_symbol, tier, ...data } = update;
         const { error } = await supabase
           .from('token_cards')
           .update(data)
@@ -209,56 +323,73 @@ serve(async (req) => {
       }
     }
 
-    // Fetch technical indicators for Tier 1-2 tokens only (every 5th call to reduce API load)
+    // ============= TECHNICALS: Local calculation from OHLCV =============
+    // Fetch every 3rd call to balance freshness vs API load
     let technicalsUpdated = 0;
-    const shouldFetchTechnicals = callCount % 5 === 0;
+    const shouldFetchTechnicals = callCount % 3 === 0;
     
     if (shouldFetchTechnicals) {
-      console.log('[sync-token-cards-polygon] Fetching technicals for Tier 1-2 tokens...');
+      console.log('[sync-token-cards-polygon] Calculating technicals from OHLCV for Tier 1-2 tokens...');
       
-      const tier12Tokens = updates.filter(u => {
-        const token = tokens.find(t => t.id === u.id);
-        return token && (token.tier === 1 || token.tier === 2);
-      }).slice(0, 50); // Limit to top 50 to avoid timeout
+      // Get Tier 1-2 tokens (top priority)
+      const tier12Tokens = updates.filter(u => u.tier === 1 || u.tier === 2).slice(0, 100);
       
-      for (const update of tier12Tokens) {
-        const ticker = update.polygon_ticker;
-        if (!ticker) continue;
+      console.log(`[sync-token-cards-polygon] Processing ${tier12Tokens.length} tokens for technicals`);
+      
+      // Process in small batches with parallelization
+      const TECH_BATCH = 10;
+      for (let i = 0; i < tier12Tokens.length; i += TECH_BATCH) {
+        const batch = tier12Tokens.slice(i, i + TECH_BATCH);
         
-        try {
-          // Fetch indicators in parallel
-          const [rsi, macd, sma20, sma50, sma200, ema12, ema26] = await Promise.all([
-            fetchIndicator(ticker, 'rsi', polygonKey, '&window=14'),
-            fetchIndicator(ticker, 'macd', polygonKey, '&short_window=12&long_window=26&signal_window=9'),
-            fetchIndicator(ticker, 'sma', polygonKey, '&window=20'),
-            fetchIndicator(ticker, 'sma', polygonKey, '&window=50'),
-            fetchIndicator(ticker, 'sma', polygonKey, '&window=200'),
-            fetchIndicator(ticker, 'ema', polygonKey, '&window=12'),
-            fetchIndicator(ticker, 'ema', polygonKey, '&window=26'),
-          ]);
+        const techResults = await Promise.all(
+          batch.map(async (token) => {
+            const ticker = token.polygon_ticker;
+            if (!ticker) return null;
+            
+            try {
+              const prices = await fetchOHLCV(ticker, polygonKey, 250);
+              if (!prices || prices.length < 30) {
+                console.log(`[Technicals] ${ticker}: insufficient data (${prices?.length || 0} bars)`);
+                return null;
+              }
+              
+              const technicals = calculateAllTechnicals(prices);
+              
+              return {
+                id: token.id,
+                symbol: token.canonical_symbol,
+                ...technicals,
+                technicals_updated_at: now,
+                technicals_source: 'polygon'
+              };
+            } catch (err) {
+              console.error(`[Technicals] Error for ${ticker}:`, err);
+              return null;
+            }
+          })
+        );
+        
+        // Update successful results
+        for (const result of techResults) {
+          if (!result) continue;
           
-          // Update token_cards with technicals
+          const { id, symbol, ...techData } = result;
           const { error } = await supabase
             .from('token_cards')
-            .update({
-              rsi_14: rsi,
-              macd: macd,
-              sma_20: sma20,
-              sma_50: sma50,
-              sma_200: sma200,
-              ema_12: ema12,
-              ema_26: ema26,
-              technicals_updated_at: now,
-              technicals_source: 'polygon'  // Track data source
-            })
-            .eq('id', update.id);
+            .update(techData)
+            .eq('id', id);
           
-          if (!error) technicalsUpdated++;
-          
-          // Small delay between tokens to avoid rate limiting
-          await new Promise(r => setTimeout(r, 100));
-        } catch (err) {
-          console.error(`[sync-token-cards-polygon] Technicals error for ${ticker}:`, err);
+          if (!error) {
+            technicalsUpdated++;
+            if (techData.rsi_14) {
+              console.log(`[Technicals] ${symbol}: RSI=${techData.rsi_14?.toFixed(1)}, MACD=${techData.macd?.toFixed(4)}`);
+            }
+          }
+        }
+        
+        // Small delay between batches
+        if (i + TECH_BATCH < tier12Tokens.length) {
+          await new Promise(r => setTimeout(r, 200));
         }
       }
       
@@ -274,7 +405,7 @@ serve(async (req) => {
         call_number: callCount,
         tiers_fetched: tiers,
         tokens_queried: tokens.length,
-        polygon_tickers: tickers.length,
+        polygon_tickers: tickersList.length,
         prices_updated: updated,
         technicals_updated: technicalsUpdated,
         technicals_fetched: shouldFetchTechnicals,
