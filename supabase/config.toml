@@ -267,12 +267,12 @@ verify_jwt = false
 [functions.bootstrap-polygon-to-token-cards]
 verify_jwt = false
 
-# Sync token_cards from LunarCrush with smart matching (every 3 min to stay within 2000/day limit)
+# Sync token_cards from LunarCrush with smart matching (every 4 min, offset by 2 to avoid minute-0 collision)
 [functions.sync-token-cards-lunarcrush]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush.cron]]
-schedule = "*/3 * * * *"
+schedule = "2-58/4 * * * *"
 
 # Sync token_cards prices from Polygon.io (tiered refresh)
 [functions.sync-token-cards-polygon]
