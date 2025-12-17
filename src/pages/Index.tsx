@@ -118,10 +118,29 @@ const Index = () => {
     }
   }, [searchParams, getMapping, isLoading]);
 
+  // Listen for hash changes from TradingView widgets (heatmap clicks)
   useEffect(() => {
-    // Register search handler with layout
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#symbol=')) {
+        const rawSymbol = decodeURIComponent(hash.replace('#symbol=', ''));
+        if (rawSymbol && rawSymbol !== chartSymbol) {
+          setChartSymbol(rawSymbol);
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange();
+    
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [chartSymbol]);
+
+  useEffect(() => {
     setSearchHandler(handleSearch);
   }, [setSearchHandler]);
+
   return (
     <div className="py-6">
       <FinancialDisclaimer />

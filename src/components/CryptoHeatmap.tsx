@@ -20,7 +20,7 @@ export function CryptoHeatmap() {
       blockSize: 'market_cap_calc',
       blockColor: 'change',
       locale: 'en',
-      symbolUrl: '',
+      symbolUrl: '#symbol={tvsymbol}',
       colorTheme: theme === 'dark' ? 'dark' : 'light',
       hasTopBar: false,
       isDataSetEnabled: false,
