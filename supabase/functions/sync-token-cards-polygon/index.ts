@@ -336,8 +336,8 @@ serve(async (req) => {
       
       console.log(`[sync-token-cards-polygon] Processing ${tier12Tokens.length} tokens for technicals`);
       
-      // Process in small batches with parallelization
-      const TECH_BATCH = 10;
+      // Process in small batches - reduced parallelism to prevent HTTP2 connection overload
+      const TECH_BATCH = 5;
       for (let i = 0; i < tier12Tokens.length; i += TECH_BATCH) {
         const batch = tier12Tokens.slice(i, i + TECH_BATCH);
         
@@ -387,9 +387,9 @@ serve(async (req) => {
           }
         }
         
-        // Small delay between batches
+        // 500ms delay between batches to prevent HTTP2 connection overload
         if (i + TECH_BATCH < tier12Tokens.length) {
-          await new Promise(r => setTimeout(r, 200));
+          await new Promise(r => setTimeout(r, 500));
         }
       }
       
