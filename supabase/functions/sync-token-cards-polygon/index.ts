@@ -431,7 +431,7 @@ serve(async (req) => {
         polygon_tickers: tickersList.length,
         prices_updated: updated,
         technicals_updated: technicalsUpdated,
-        technicals_fetched: shouldFetchTechnicals,
+        technicals_tiers: techTiers,
         not_found: notFound,
         duration_ms: duration
       }
