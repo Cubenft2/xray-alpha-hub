@@ -66,8 +66,12 @@ export function TradingViewChart({
         symbol: symbol,
         theme: theme === 'dark' ? 'dark' : 'light',
         timezone: 'Etc/UTC',
+        backgroundColor: theme === 'dark' ? '#1a1a2e' : '#ffffff',
+        gridColor: theme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(46, 46, 46, 0.06)',
         watchlist: [],
         withdateranges: true,
+        range: 'YTD',
+        compareSymbols: [],
         studies: studies,
         autosize: true
       } as const;
