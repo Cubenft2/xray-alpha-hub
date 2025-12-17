@@ -1,6 +1,7 @@
 // Tool Orchestrator: Cache-first execution with TTL, budgets, and timeouts
 // Supports thousands of concurrent users without per-request API spam
 // Uses canonical market presets for deterministic market queries
+// REFACTORED: Queries centralized Mastercards (token_cards, stock_cards, forex_cards)
 
 import { RouteConfig, Intent } from "./router.ts";
 import { ResolvedAsset } from "./resolver.ts";
@@ -8,15 +9,15 @@ import { MarketPreset } from "./presets.ts";
 
 const TOOL_TIMEOUT_MS = 5000;
 
-// TTL Configuration (in seconds)
+// TTL Configuration (in seconds) - aligned with Mastercard sync schedules
 const TTL_SEC = {
-  live_prices: 180,      // 3 min (pollers run every 2-5 min)
-  crypto_snapshot: 300,  // 5 min (LunarCrush sync every 1 min)
-  stock_snapshot: 300,   // 5 min fallback
-  indicators: 3600,      // 1 hour
-  derivs: 300,           // 5 min
-  news: 1800,            // 30 min
-  security: 86400,       // 24h (mostly static)
+  token_cards: 180,     // 3 min (Polygon prices every 1 min, LunarCrush every 2 min)
+  stock_cards: 300,     // 5 min (stock snapshot every 5 min)
+  forex_cards: 180,     // 3 min (forex sync every 1 min)
+  technicals: 900,      // 15 min (technicals sync every 15 min)
+  derivs: 300,          // 5 min
+  news: 1800,           // 30 min
+  security: 86400,      // 24h (mostly static)
 };
 
 // Per-request API budget (limits external calls)
@@ -125,13 +126,20 @@ export interface NewsItem {
   source: string;
   date: string;
   summary?: string;
+  url?: string;
 }
 
+// Enhanced ChartData interface with all available technicals from Mastercards
 export interface ChartData {
   rsi?: number;
   macd?: { value: number; signal: number; histogram: number };
   sma20?: number;
   sma50?: number;
+  sma200?: number;
+  ema12?: number;
+  ema26?: number;
+  technicalScore?: number;
+  technicalSignal?: string;
   updatedAt?: string;
 }
 
@@ -312,36 +320,37 @@ export async function executeTools(
     return results; // Early return - preset handles everything
   }
   
-  // For market_overview: fetch top 25 by market cap from crypto_snapshot
+  // For market_overview: fetch top 25 by market cap from token_cards (MASTERCARD)
   if (config.intent === 'market_overview' && symbols.length === 0) {
-    console.log('[Orchestrator] Market overview: fetching top 25 cryptos');
+    console.log('[Orchestrator] Market overview: fetching top 25 cryptos from token_cards');
     
     const { data: topCoins } = await supabase
-      .from('crypto_snapshot')
-      .select('symbol, price, change_percent, market_cap, market_cap_rank, galaxy_score, sentiment, volume_24h, updated_at')
+      .from('token_cards')
+      .select('canonical_symbol, name, price_usd, change_24h_pct, market_cap, market_cap_rank, galaxy_score, sentiment, volume_24h_usd, price_updated_at, social_updated_at')
+      .gt('market_cap_rank', 0)
       .order('market_cap_rank', { ascending: true })
       .limit(25);
     
     if (topCoins && topCoins.length > 0) {
       // Populate prices directly
       results.prices = topCoins.map((c: any) => ({
-        symbol: c.symbol,
-        price: c.price,
-        change24h: c.change_percent || 0,
+        symbol: c.canonical_symbol,
+        price: c.price_usd,
+        change24h: c.change_24h_pct || 0,
         marketCap: c.market_cap,
-        volume24h: c.volume_24h,
-        source: 'crypto_snapshot',
-        updatedAt: c.updated_at,
+        volume24h: c.volume_24h_usd,
+        source: 'token_cards',
+        updatedAt: c.price_updated_at,
       }));
       results.timestamps.prices = new Date().toISOString();
-      results.cacheStats.hits.push('market_overview:top25');
+      results.cacheStats.hits.push('market_overview:top25:token_cards');
       
       // Populate social directly
       results.social = topCoins.map((c: any) => ({
-        symbol: c.symbol,
+        symbol: c.canonical_symbol,
         galaxyScore: c.galaxy_score,
         sentiment: c.sentiment,
-        updatedAt: c.updated_at,
+        updatedAt: c.social_updated_at,
       }));
       results.timestamps.social = new Date().toISOString();
       
@@ -388,13 +397,25 @@ export async function executeTools(
     }
   }
   
+  // Determine asset types for routing queries
+  const assetTypes = new Map<string, 'crypto' | 'stock' | 'forex'>();
+  for (const asset of assets) {
+    assetTypes.set(asset.symbol, asset.type as 'crypto' | 'stock' | 'forex' || 'crypto');
+  }
+  // Default untyped symbols to crypto
+  for (const sym of symbols) {
+    if (!assetTypes.has(sym)) {
+      assetTypes.set(sym, 'crypto');
+    }
+  }
+  
   const tasks: Promise<void>[] = [];
   
-  // Price fetching (cache-first: live_prices → crypto_snapshot → stock_snapshot)
+  // Price fetching from Mastercards (token_cards for crypto, stock_cards for stocks)
   if (config.fetchPrices) {
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchPrices(supabase, symbols, signal, results.cacheStats),
+        (signal) => fetchPrices(supabase, symbols, assetTypes, signal, results.cacheStats),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -405,7 +426,7 @@ export async function executeTools(
     );
   }
   
-  // Social data (cache-only from crypto_snapshot)
+  // Social data from token_cards (MASTERCARD)
   if (config.fetchSocial) {
     tasks.push(
       fetchWithTimeout(
@@ -451,11 +472,13 @@ export async function executeTools(
     );
   }
   
-  // News (cache-first with budget)
+  // News from Mastercards FIRST, then cache/API fallback
   if (config.fetchNews) {
+    const primarySymbol = symbols[0];
+    const primaryType = assetTypes.get(primarySymbol) || 'crypto';
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchNews(supabase, symbols[0], signal, budget, results.cacheStats),
+        (signal) => fetchNews(supabase, primarySymbol, primaryType, signal, budget, results.cacheStats),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -466,11 +489,13 @@ export async function executeTools(
     );
   }
   
-  // Charts/technical (cache-only)
+  // Charts/technicals from Mastercards (token_cards for crypto, stock_cards for stocks)
   if (config.fetchCharts) {
+    const primarySymbol = symbols[0];
+    const primaryType = assetTypes.get(primarySymbol) || 'crypto';
     tasks.push(
       fetchWithTimeout(
-        (signal) => fetchCharts(supabase, symbols[0], signal, results.cacheStats),
+        (signal) => fetchCharts(supabase, symbols, assetTypes, signal, results.cacheStats),
         TOOL_TIMEOUT_MS
       ).then(data => {
         if (data) {
@@ -584,13 +609,18 @@ async function detectChain(supabase: any, asset: ResolvedAsset): Promise<string>
   return 'unknown';
 }
 
-// --- TOOL IMPLEMENTATIONS ---
+// --- TOOL IMPLEMENTATIONS (REFACTORED TO USE MASTERCARDS) ---
 
-// CRITICAL: Cache-first price fetching with correct priority
-// Priority: live_prices (freshest) → crypto_snapshot → stock_snapshot
+/**
+ * REFACTORED: Fetch prices from Mastercards
+ * - Crypto: token_cards
+ * - Stocks: stock_cards
+ * - Forex: forex_cards
+ */
 async function fetchPrices(
   supabase: any, 
   symbols: string[], 
+  assetTypes: Map<string, 'crypto' | 'stock' | 'forex'>,
   signal: AbortSignal,
   cacheStats: ToolResults['cacheStats']
 ): Promise<PriceData[]> {
@@ -598,148 +628,93 @@ async function fetchPrices(
   
   const results: PriceData[] = [];
   const foundSymbols = new Set<string>();
-  const staleCandidates = new Map<string, { row: any; ageMin: number }>();
-  const needSnapshot = new Set<string>();
   let stalestAge = 0;
   let newestAge = Infinity;
   
-  // Build all possible ticker formats for live_prices lookup
-  const tickerVariants: string[] = [];
-  for (const sym of symbols) {
-    tickerVariants.push(sym);
-    tickerVariants.push(`X:${sym}USD`);  // Crypto format
-    tickerVariants.push(sym.toUpperCase());
-  }
+  // Split symbols by type
+  const cryptoSymbols = symbols.filter(s => assetTypes.get(s) === 'crypto');
+  const stockSymbols = symbols.filter(s => assetTypes.get(s) === 'stock');
+  const forexSymbols = symbols.filter(s => assetTypes.get(s) === 'forex');
   
-  // 1. Query live_prices FIRST (freshest data from pollers)
-  const { data: liveData } = await supabase
-    .from('live_prices')
-    .select('ticker, price, change24h, updated_at')
-    .in('ticker', tickerVariants);
-  
-  if (liveData) {
-    for (const l of liveData) {
-      // Normalize symbol from ticker format
-      let normalizedSymbol = l.ticker;
-      if (l.ticker.startsWith('X:') && l.ticker.endsWith('USD')) {
-        normalizedSymbol = l.ticker.slice(2, -3); // X:BTCUSD → BTC
-      }
-      
-      const age = ageSec(l.updated_at);
-      const ageMin = age / 60;
-      
-      // Only mark as "found" if FRESH - stale goes to fallback candidates
-      if (isFresh(l.updated_at, TTL_SEC.live_prices)) {
-        results.push({
-          symbol: normalizedSymbol,
-          price: l.price,
-          change24h: l.change24h || 0,
-          source: 'live_prices',
-          updatedAt: l.updated_at,
-        });
-        foundSymbols.add(normalizedSymbol);
-        cacheStats.hits.push(`price:${normalizedSymbol}`);
-        if (age > stalestAge) stalestAge = age;
-        if (age < newestAge) newestAge = age;
-      } else {
-        // STALE: hold as fallback, DON'T add to foundSymbols yet
-        staleCandidates.set(normalizedSymbol, { row: l, ageMin });
-        needSnapshot.add(normalizedSymbol);
-        cacheStats.hits.push(`price:${normalizedSymbol}:stale_candidate`);
-      }
-    }
-  }
-  
-  // 2. Check crypto_snapshot for missing OR stale symbols (freshest wins!)
-  const symbolsNeedingSnapshot = [
-    ...symbols.filter(s => !foundSymbols.has(s)),  // Never found in live_prices
-    ...needSnapshot,                                // Found but stale in live_prices
-  ];
-  const uniqueNeeded = [...new Set(symbolsNeedingSnapshot)];
-  
-  if (uniqueNeeded.length > 0) {
+  // 1. Query token_cards for crypto (MASTERCARD)
+  if (cryptoSymbols.length > 0) {
     const { data: cryptoData } = await supabase
-      .from('crypto_snapshot')
-      .select('symbol, price, change_percent, market_cap, volume_24h, updated_at')
-      .in('symbol', uniqueNeeded);
+      .from('token_cards')
+      .select('canonical_symbol, name, price_usd, change_24h_pct, market_cap, volume_24h_usd, price_updated_at, price_source')
+      .in('canonical_symbol', cryptoSymbols);
     
-    const snapshotMap = new Map((cryptoData || []).map((c: any) => [c.symbol, c]));
-    
-    for (const sym of uniqueNeeded) {
-      if (foundSymbols.has(sym)) continue; // Already have fresh live_prices
-      
-      const snapshot = snapshotMap.get(sym);
-      const staleCandidate = staleCandidates.get(sym);
-      
-      if (snapshot) {
-        const snapAgeMin = ageSec(snapshot.updated_at) / 60;
-        const staleAgeMin = staleCandidate?.ageMin ?? Infinity;
+    if (cryptoData) {
+      for (const c of cryptoData) {
+        const age = ageSec(c.price_updated_at);
+        const fresh = isFresh(c.price_updated_at, TTL_SEC.token_cards);
         
-        // Use snapshot if fresher OR if no stale candidate exists
-        if (snapAgeMin < staleAgeMin || !staleCandidate) {
-          const age = ageSec(snapshot.updated_at);
-          results.push({
-            symbol: snapshot.symbol,
-            price: snapshot.price,
-            change24h: snapshot.change_percent || 0,
-            marketCap: snapshot.market_cap,
-            volume24h: snapshot.volume_24h,
-            source: isFresh(snapshot.updated_at, TTL_SEC.crypto_snapshot) 
-              ? 'crypto_snapshot' 
-              : 'crypto_snapshot_stale',
-            updatedAt: snapshot.updated_at,
-          });
-          foundSymbols.add(snapshot.symbol);
-          cacheStats.hits.push(`price:${snapshot.symbol}:snapshot_preferred`);
-          if (age > stalestAge) stalestAge = age;
-          if (age < newestAge) newestAge = age;
-          console.log(`[Price] ${sym}: snapshot (${Math.round(snapAgeMin)}m) beats live_prices (${Math.round(staleAgeMin)}m)`);
-          continue;
-        }
-      }
-      
-      // Fall back to stale live_prices if snapshot missing or older
-      if (staleCandidate) {
-        const { row, ageMin } = staleCandidate;
-        const age = ageMin * 60;
         results.push({
-          symbol: sym,
-          price: row.price,
-          change24h: row.change24h || 0,
-          source: 'live_prices_stale',
-          updatedAt: row.updated_at,
+          symbol: c.canonical_symbol,
+          price: c.price_usd,
+          change24h: c.change_24h_pct || 0,
+          marketCap: c.market_cap,
+          volume24h: c.volume_24h_usd,
+          source: fresh ? `token_cards:${c.price_source || 'unknown'}` : `token_cards:stale`,
+          updatedAt: c.price_updated_at,
         });
-        foundSymbols.add(sym);
-        cacheStats.hits.push(`price:${sym}:stale_fallback`);
+        foundSymbols.add(c.canonical_symbol);
+        cacheStats.hits.push(`price:${c.canonical_symbol}:token_cards`);
         if (age > stalestAge) stalestAge = age;
         if (age < newestAge) newestAge = age;
-        console.log(`[Price] ${sym}: using stale live_prices (${Math.round(ageMin)}m) as last resort`);
       }
     }
   }
   
-  // 3. Check stock_snapshot for still-missing symbols (stocks only)
-  const missingAfterCrypto = symbols.filter(s => !foundSymbols.has(s));
-  if (missingAfterCrypto.length > 0) {
+  // 2. Query stock_cards for stocks (MASTERCARD)
+  if (stockSymbols.length > 0) {
     const { data: stockData } = await supabase
-      .from('stock_snapshot')
-      .select('symbol, price, change_percent, market_cap, volume_24h, updated_at')
-      .in('symbol', missingAfterCrypto);
+      .from('stock_cards')
+      .select('symbol, name, price_usd, change_pct, market_cap, volume, price_updated_at')
+      .in('symbol', stockSymbols);
     
     if (stockData) {
       for (const s of stockData) {
-        const age = ageSec(s.updated_at);
+        const age = ageSec(s.price_updated_at);
+        const fresh = isFresh(s.price_updated_at, TTL_SEC.stock_cards);
+        
         results.push({
           symbol: s.symbol,
-          price: s.price,
-          change24h: s.change_percent || 0,
+          price: s.price_usd,
+          change24h: s.change_pct || 0,
           marketCap: s.market_cap,
-          volume24h: s.volume_24h,
-          source: isFresh(s.updated_at, TTL_SEC.stock_snapshot) ? 'stock_snapshot' : 'stock_snapshot_stale',
-          updatedAt: s.updated_at,
+          volume24h: s.volume,
+          source: fresh ? 'stock_cards' : 'stock_cards:stale',
+          updatedAt: s.price_updated_at,
         });
         foundSymbols.add(s.symbol);
-        cacheStats.hits.push(`price:${s.symbol}:stock`);
+        cacheStats.hits.push(`price:${s.symbol}:stock_cards`);
+        if (age > stalestAge) stalestAge = age;
+        if (age < newestAge) newestAge = age;
+      }
+    }
+  }
+  
+  // 3. Query forex_cards for forex (MASTERCARD)
+  if (forexSymbols.length > 0) {
+    const { data: forexData } = await supabase
+      .from('forex_cards')
+      .select('pair, display_name, rate, change_24h_pct, price_updated_at')
+      .in('pair', forexSymbols);
+    
+    if (forexData) {
+      for (const f of forexData) {
+        const age = ageSec(f.price_updated_at);
+        const fresh = isFresh(f.price_updated_at, TTL_SEC.forex_cards);
+        
+        results.push({
+          symbol: f.pair,
+          price: f.rate,
+          change24h: f.change_24h_pct || 0,
+          source: fresh ? 'forex_cards' : 'forex_cards:stale',
+          updatedAt: f.price_updated_at,
+        });
+        foundSymbols.add(f.pair);
+        cacheStats.hits.push(`price:${f.pair}:forex_cards`);
         if (age > stalestAge) stalestAge = age;
         if (age < newestAge) newestAge = age;
       }
@@ -752,18 +727,20 @@ async function fetchPrices(
     cacheStats.misses.push(`price:${sym}`);
   }
   
-  // Record both stalest (worst-case) and freshest ages
+  // Record ages
   if (results.length > 0) {
-    cacheStats.ages.prices = Math.round(stalestAge);  // Show stalest for transparency
-    cacheStats.ages.prices_newest = Math.round(newestAge);  // Also track freshest
+    cacheStats.ages.prices = Math.round(stalestAge);
+    cacheStats.ages.prices_newest = Math.round(newestAge);
   }
   
-  console.log(`[Tool] Prices: ${results.length}/${symbols.length} found, stalest ${Math.round(stalestAge)}s, freshest ${Math.round(newestAge)}s`);
+  console.log(`[Tool] Prices: ${results.length}/${symbols.length} from Mastercards, stalest ${Math.round(stalestAge)}s, freshest ${Math.round(newestAge)}s`);
   
   return results;
 }
 
-// Social data - cache-only from crypto_snapshot (no API calls)
+/**
+ * REFACTORED: Social data from token_cards (MASTERCARD)
+ */
 async function fetchSocial(
   supabase: any, 
   symbols: string[], 
@@ -773,15 +750,15 @@ async function fetchSocial(
   if (signal.aborted) return [];
   
   const { data } = await supabase
-    .from('crypto_snapshot')
-    .select('symbol, galaxy_score, alt_rank, sentiment, social_volume_24h, updated_at')
-    .in('symbol', symbols);
+    .from('token_cards')
+    .select('canonical_symbol, galaxy_score, alt_rank, sentiment, social_volume_24h, social_updated_at')
+    .in('canonical_symbol', symbols);
   
   if (!data || data.length === 0) {
     for (const sym of symbols) {
       cacheStats.misses.push(`social:${sym}`);
     }
-    console.log('[Tool] Social: cache miss (no data in crypto_snapshot)');
+    console.log('[Tool] Social: no data in token_cards');
     return [];
   }
   
@@ -789,21 +766,21 @@ async function fetchSocial(
   const results: SocialData[] = [];
   
   for (const d of data) {
-    const age = ageSec(d.updated_at);
+    const age = ageSec(d.social_updated_at);
     results.push({
-      symbol: d.symbol,
+      symbol: d.canonical_symbol,
       galaxyScore: d.galaxy_score,
       altRank: d.alt_rank,
       sentiment: d.sentiment,
       socialVolume: d.social_volume_24h,
-      updatedAt: d.updated_at,
+      updatedAt: d.social_updated_at,
     });
-    cacheStats.hits.push(`social:${d.symbol}`);
+    cacheStats.hits.push(`social:${d.canonical_symbol}:token_cards`);
     if (age > oldestAge) oldestAge = age;
   }
   
   cacheStats.ages.social = Math.round(oldestAge);
-  console.log(`[Tool] Social: ${results.length}/${symbols.length} cache hits, oldest ${Math.round(oldestAge)}s`);
+  console.log(`[Tool] Social: ${results.length}/${symbols.length} from token_cards, oldest ${Math.round(oldestAge)}s`);
   
   return results;
 }
@@ -1134,17 +1111,62 @@ async function fetchSecurity(
   return result;
 }
 
-// News - cache-first with budget-limited API fallback
+/**
+ * REFACTORED: News from Mastercards FIRST, then cache/API fallback
+ * Priority: token_cards.top_news → stock_cards.top_news → news_cache → Tavily
+ */
 async function fetchNews(
   supabase: any,
-  symbol: string, 
+  symbol: string,
+  assetType: 'crypto' | 'stock' | 'forex',
   signal: AbortSignal,
   budget: BudgetState,
   cacheStats: ToolResults['cacheStats']
 ): Promise<NewsItem[]> {
   if (signal.aborted) return [];
   
-  // 1. Check cache first (last 30 minutes)
+  // 1. Check Mastercard FIRST for embedded news
+  if (assetType === 'crypto') {
+    const { data: tokenCard } = await supabase
+      .from('token_cards')
+      .select('top_news')
+      .eq('canonical_symbol', symbol)
+      .maybeSingle();
+    
+    if (tokenCard?.top_news && Array.isArray(tokenCard.top_news) && tokenCard.top_news.length > 0) {
+      cacheStats.hits.push(`news:${symbol}:token_cards`);
+      console.log(`[Tool] News: ${tokenCard.top_news.length} articles from token_cards for ${symbol}`);
+      
+      return tokenCard.top_news.slice(0, 5).map((n: any) => ({
+        title: n.title,
+        source: n.publisher || n.source || 'Unknown',
+        date: n.published_utc || n.date || new Date().toISOString(),
+        summary: n.description || n.summary,
+        url: n.article_url || n.url,
+      }));
+    }
+  } else if (assetType === 'stock') {
+    const { data: stockCard } = await supabase
+      .from('stock_cards')
+      .select('top_news')
+      .eq('symbol', symbol)
+      .maybeSingle();
+    
+    if (stockCard?.top_news && Array.isArray(stockCard.top_news) && stockCard.top_news.length > 0) {
+      cacheStats.hits.push(`news:${symbol}:stock_cards`);
+      console.log(`[Tool] News: ${stockCard.top_news.length} articles from stock_cards for ${symbol}`);
+      
+      return stockCard.top_news.slice(0, 5).map((n: any) => ({
+        title: n.title,
+        source: n.publisher || n.source || 'Unknown',
+        date: n.published_utc || n.date || new Date().toISOString(),
+        summary: n.description || n.summary,
+        url: n.article_url || n.url,
+      }));
+    }
+  }
+  
+  // 2. Fallback: Check news_cache (last 30 minutes)
   const cacheThreshold = new Date(Date.now() - TTL_SEC.news * 1000).toISOString();
   
   const { data: cached } = await supabase
@@ -1157,7 +1179,7 @@ async function fetchNews(
   
   if (cached && cached.length > 0) {
     const age = ageSec(cached[0].created_at);
-    cacheStats.hits.push(`news:${symbol}`);
+    cacheStats.hits.push(`news:${symbol}:cache`);
     cacheStats.ages.news = Math.round(age);
     
     console.log(`[Tool] News: cache hit for ${symbol}, age ${Math.round(age)}s`);
@@ -1170,7 +1192,7 @@ async function fetchNews(
     }));
   }
   
-  // 2. Cache miss - call Tavily if budget allows
+  // 3. Last resort: call Tavily if budget allows
   if (budget.tavily > 0) {
     const tavilyKey = Deno.env.get('TAVILY_API_KEY');
     
@@ -1179,12 +1201,16 @@ async function fetchNews(
       cacheStats.apiCalls.push('tavily');
       
       try {
+        const query = assetType === 'stock' 
+          ? `${symbol} stock news` 
+          : `${symbol} cryptocurrency news`;
+        
         const response = await fetch('https://api.tavily.com/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             api_key: tavilyKey,
-            query: `${symbol} cryptocurrency news`,
+            query,
             search_depth: 'basic',
             max_results: 5,
           }),
@@ -1213,7 +1239,7 @@ async function fetchNews(
               }))
             );
             
-            cacheStats.hits.push(`news:${symbol}:fresh`);
+            cacheStats.hits.push(`news:${symbol}:tavily`);
             cacheStats.ages.news = 0; // Just fetched
           }
           
@@ -1231,70 +1257,91 @@ async function fetchNews(
   }
   
   cacheStats.misses.push(`news:${symbol}`);
-  console.log(`[Tool] News: cache miss for ${symbol}, no budget for API call`);
+  console.log(`[Tool] News: no data for ${symbol}`);
   
   return [];
 }
 
-// Charts/technical - cache-only from technical_indicators
+/**
+ * REFACTORED: Charts/technicals from Mastercards
+ * - Crypto: token_cards (rsi_14, macd_line, macd_signal, macd_histogram, sma_20, sma_50, sma_200, ema_12, ema_26, technical_score, technical_signal)
+ * - Stocks: stock_cards (rsi_14, macd_line, macd_signal, sma_20, sma_50, sma_200, technical_signal)
+ */
 async function fetchCharts(
   supabase: any, 
-  symbol: string, 
+  symbols: string[],
+  assetTypes: Map<string, 'crypto' | 'stock' | 'forex'>,
   signal: AbortSignal,
   cacheStats: ToolResults['cacheStats']
 ): Promise<ChartData | null> {
   if (signal.aborted) return null;
   
-  const { data } = await supabase
-    .from('technical_indicators')
-    .select('indicator_type, value, created_at, expires_at')
-    .eq('ticker', symbol)
-    .gt('expires_at', new Date().toISOString());
+  const primarySymbol = symbols[0];
+  const primaryType = assetTypes.get(primarySymbol) || 'crypto';
   
-  if (!data || data.length === 0) {
-    // Also try X:BTCUSD format for crypto
-    const { data: cryptoData } = await supabase
-      .from('technical_indicators')
-      .select('indicator_type, value, created_at, expires_at')
-      .eq('ticker', `X:${symbol}USD`)
-      .gt('expires_at', new Date().toISOString());
+  // Query the appropriate Mastercard based on asset type
+  if (primaryType === 'crypto') {
+    const { data } = await supabase
+      .from('token_cards')
+      .select('canonical_symbol, rsi_14, macd_line, macd_signal, macd_histogram, sma_20, sma_50, sma_200, ema_12, ema_26, technical_score, technical_signal, technicals_updated_at')
+      .eq('canonical_symbol', primarySymbol)
+      .maybeSingle();
     
-    if (!cryptoData || cryptoData.length === 0) {
-      cacheStats.misses.push(`charts:${symbol}`);
-      console.log(`[Tool] Charts: cache miss for ${symbol}`);
-      return null;
+    if (data) {
+      const age = ageSec(data.technicals_updated_at);
+      cacheStats.hits.push(`charts:${primarySymbol}:token_cards`);
+      cacheStats.ages.charts = Math.round(age);
+      
+      console.log(`[Tool] Charts: token_cards hit for ${primarySymbol}, age ${Math.round(age)}s`);
+      
+      return {
+        rsi: data.rsi_14,
+        macd: data.macd_line ? {
+          value: data.macd_line,
+          signal: data.macd_signal || 0,
+          histogram: data.macd_histogram || 0,
+        } : undefined,
+        sma20: data.sma_20,
+        sma50: data.sma_50,
+        sma200: data.sma_200,
+        ema12: data.ema_12,
+        ema26: data.ema_26,
+        technicalScore: data.technical_score,
+        technicalSignal: data.technical_signal,
+        updatedAt: data.technicals_updated_at,
+      };
     }
+  } else if (primaryType === 'stock') {
+    const { data } = await supabase
+      .from('stock_cards')
+      .select('symbol, rsi_14, macd_line, macd_signal, sma_20, sma_50, sma_200, technical_signal, technicals_updated_at')
+      .eq('symbol', primarySymbol)
+      .maybeSingle();
     
-    return parseChartData(cryptoData, symbol, cacheStats);
+    if (data) {
+      const age = ageSec(data.technicals_updated_at);
+      cacheStats.hits.push(`charts:${primarySymbol}:stock_cards`);
+      cacheStats.ages.charts = Math.round(age);
+      
+      console.log(`[Tool] Charts: stock_cards hit for ${primarySymbol}, age ${Math.round(age)}s`);
+      
+      return {
+        rsi: data.rsi_14,
+        macd: data.macd_line ? {
+          value: data.macd_line,
+          signal: data.macd_signal || 0,
+          histogram: 0,
+        } : undefined,
+        sma20: data.sma_20,
+        sma50: data.sma_50,
+        sma200: data.sma_200,
+        technicalSignal: data.technical_signal,
+        updatedAt: data.technicals_updated_at,
+      };
+    }
   }
   
-  return parseChartData(data, symbol, cacheStats);
-}
-
-function parseChartData(
-  data: any[], 
-  symbol: string,
-  cacheStats: ToolResults['cacheStats']
-): ChartData {
-  const result: ChartData = {};
-  let oldestAge = 0;
-  
-  for (const d of data) {
-    const age = ageSec(d.created_at);
-    if (age > oldestAge) oldestAge = age;
-    
-    if (d.indicator_type === 'rsi') result.rsi = d.value?.rsi;
-    if (d.indicator_type === 'macd') result.macd = d.value;
-    if (d.indicator_type === 'sma') {
-      result.sma20 = d.value?.sma20;
-      result.sma50 = d.value?.sma50;
-    }
-  }
-  
-  cacheStats.hits.push(`charts:${symbol}`);
-  cacheStats.ages.charts = Math.round(oldestAge);
-  
-  console.log(`[Tool] Charts: cache hit for ${symbol}, age ${Math.round(oldestAge)}s`);
-  
-  return result;
+  cacheStats.misses.push(`charts:${primarySymbol}`);
+  console.log(`[Tool] Charts: no data in Mastercards for ${primarySymbol}`);
+  return null;
 }
