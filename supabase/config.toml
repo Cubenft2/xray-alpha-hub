@@ -9,11 +9,12 @@ verify_jwt = false
 [functions.populate-quotes-library]
 verify_jwt = false
 
+# Hourly job - offset to minute 30 to avoid collisions
 [functions.manual-price-sync]
 verify_jwt = false
 
 [[functions.manual-price-sync.cron]]
-schedule = "0 * * * *"
+schedule = "30 * * * *"
 
 [functions.generate-brief-claude]
 verify_jwt = false
@@ -39,11 +40,12 @@ schedule = "0 1 * * 1"
 [functions.populate-token-addresses]
 verify_jwt = false
 
+# Every 15 min - offset to 5,20,35,50
 [functions.exchange-data-aggregator]
 verify_jwt = false
 
 [[functions.exchange-data-aggregator.cron]]
-schedule = "*/15 * * * *"
+schedule = "5,20,35,50 * * * *"
 
 [functions.enhance-ticker-data]
 verify_jwt = true
@@ -60,11 +62,12 @@ verify_jwt = false
 [functions.coingecko-sync]
 verify_jwt = true
 
+# Every 6 hours - offset to minute 20
 [functions.exchange-sync]
 verify_jwt = false
 
 [[functions.exchange-sync.cron]]
-schedule = "0 */6 * * *"
+schedule = "20 */6 * * *"
 
 [functions.symbol-intelligence]
 verify_jwt = true
@@ -84,11 +87,12 @@ verify_jwt = false
 [functions.polygon-rest-poller]
 verify_jwt = false
 
+# Every 5 min - offset to 1,6,11,16...
 [functions.polygon-stock-poller]
 verify_jwt = false
 
 [[functions.polygon-stock-poller.cron]]
-schedule = "*/5 * * * *"
+schedule = "1-56/5 * * * *"
 
 # DISABLED: polygon-indicators-refresh writes to wrong table (technical_indicators instead of token_cards)
 # Technicals now synced via sync-token-cards-polygon directly to token_cards
@@ -96,23 +100,26 @@ schedule = "*/5 * * * *"
 verify_jwt = false
 
 # Prefetch company details for all stocks (bulk mode, 500 per run)
+# Every 4 hours - offset to minute 15
 [functions.polygon-company-prefetch]
 verify_jwt = false
 
 [[functions.polygon-company-prefetch.cron]]
-schedule = "0 */4 * * *"
+schedule = "15 */4 * * *"
 
+# Daily at 2:15 AM UTC (staggered from 2:05)
 [functions.auto-map-polygon-tickers]
 verify_jwt = false
 
 [[functions.auto-map-polygon-tickers.cron]]
-schedule = "0 2 * * *"
+schedule = "15 2 * * *"
 
+# Every 5 min - offset to 2,7,12,17...
 [functions.price-poller]
 verify_jwt = false
 
 [[functions.price-poller.cron]]
-schedule = "*/5 * * * *"
+schedule = "2-57/5 * * * *"
 
 [functions.polygon-historical-data]
 verify_jwt = false
@@ -177,11 +184,12 @@ verify_jwt = false
 [functions.polygon-crypto-snapshot]
 verify_jwt = false
 
+# Every 5 min - offset to 3,8,13,18...
 [functions.polygon-stock-snapshot]
 verify_jwt = false
 
 [[functions.polygon-stock-snapshot.cron]]
-schedule = "*/5 * * * *"
+schedule = "3-58/5 * * * *"
 
 [functions.polygon-sparkline-data]
 verify_jwt = false
@@ -197,11 +205,12 @@ verify_jwt = false
 [functions.asset-details]
 verify_jwt = false
 
+# Every 5 min - offset to 4,9,14,19...
 [functions.warm-derivs-cache]
 verify_jwt = false
 
 [[functions.warm-derivs-cache.cron]]
-schedule = "*/5 * * * *"
+schedule = "4-59/5 * * * *"
 
 # DISABLED: warm-news-cache uses expensive Tavily API
 # Replaced by sync-token-news-polygon which is FREE (unlimited)
@@ -209,28 +218,31 @@ schedule = "*/5 * * * *"
 verify_jwt = false
 
 # Sync Polygon news to token_cards (FREE - unlimited)
+# Every 15 min - offset to 10,25,40,55
 [functions.sync-token-news-polygon]
 verify_jwt = false
 
 [[functions.sync-token-news-polygon.cron]]
-schedule = "*/15 * * * *"
+schedule = "10,25,40,55 * * * *"
 
+# Every 2 min - offset to odd minutes 1,3,5,7...
 [functions.massive-crypto-snapshot]
 verify_jwt = false
 
 [[functions.massive-crypto-snapshot.cron]]
-schedule = "*/2 * * * *"
+schedule = "1-59/2 * * * *"
 
 # DISABLED: massive-forex-snapshot writes to live_prices, not forex_cards
 # Redundant with sync-forex-cards-polygon which writes to master forex_cards table
 [functions.massive-forex-snapshot]
 verify_jwt = false
 
+# Daily at 3:25 AM UTC (staggered)
 [functions.massive-forex-sync]
 verify_jwt = false
 
 [[functions.massive-forex-sync.cron]]
-schedule = "0 3 * * *"
+schedule = "25 3 * * *"
 
 [functions.market-data]
 verify_jwt = false
@@ -249,11 +261,12 @@ verify_jwt = false
 verify_jwt = false
 
 # Sync technical indicators to token_cards from Polygon OHLCV (local calculation)
+# Every 3 min - offset to 1,4,7,10...
 [functions.sync-polygon-crypto-technicals]
 verify_jwt = false
 
 [[functions.sync-polygon-crypto-technicals.cron]]
-schedule = "*/3 * * * *"
+schedule = "1-58/3 * * * *"
 
 # ============================================
 # TOKEN CARDS SYNC FUNCTIONS
@@ -274,7 +287,7 @@ verify_jwt = false
 [[functions.sync-token-cards-lunarcrush.cron]]
 schedule = "2-58/4 * * * *"
 
-# Sync token_cards prices from Polygon.io (tiered refresh)
+# Sync token_cards prices from Polygon.io (every minute - no stagger needed)
 [functions.sync-token-cards-polygon]
 verify_jwt = false
 
@@ -289,19 +302,20 @@ schedule = "* * * * *"
 [functions.bootstrap-forex-cards]
 verify_jwt = false
 
-# Sync forex_cards prices from Polygon.io (every minute)
+# Sync forex_cards prices from Polygon.io (every minute - no stagger needed)
 [functions.sync-forex-cards-polygon]
 verify_jwt = false
 
 [[functions.sync-forex-cards-polygon.cron]]
 schedule = "* * * * *"
 
-# Sync forex_cards technicals from Polygon historical data (every 15 minutes)
+# Sync forex_cards technicals from Polygon historical data
+# Every 15 min - offset to 7,22,37,52
 [functions.sync-forex-cards-technicals]
 verify_jwt = false
 
 [[functions.sync-forex-cards-technicals.cron]]
-schedule = "*/15 * * * *"
+schedule = "7,22,37,52 * * * *"
 
 # DISABLED: sync-token-cards-lunarcrush-enhanced uses 4 API calls per token
 # News now handled by FREE sync-token-news-polygon (Polygon unlimited quota)
@@ -310,72 +324,77 @@ schedule = "*/15 * * * *"
 verify_jwt = false
 
 # Sync CoinGecko IDs and contract addresses to token_cards
+# Daily at 2:05 AM UTC (staggered)
 [functions.sync-token-cards-coingecko]
 verify_jwt = false
 
 [[functions.sync-token-cards-coingecko.cron]]
-schedule = "0 2 * * *"
+schedule = "5 2 * * *"
 
 # Sync token metadata (descriptions, websites, socials) from CoinGecko
+# Daily at 6:20 AM UTC (staggered)
 [functions.sync-token-cards-metadata]
 verify_jwt = false
 
 [[functions.sync-token-cards-metadata.cron]]
-schedule = "0 6 * * *"
+schedule = "20 6 * * *"
 
 # Sync technical indicators for non-Polygon tokens via CoinGecko historical data
-# Runs 4x daily (5 AM, 11 AM, 5 PM, 11 PM UTC) for top 2,000 tokens
-# Budget: 8,000 calls/day (48% of 16,666 limit)
+# Runs 4x daily at minute 10 (5:10, 11:10, 17:10, 23:10 UTC) for top 2,000 tokens
 [functions.sync-token-cards-coingecko-technicals]
 verify_jwt = false
 
 [[functions.sync-token-cards-coingecko-technicals.cron]]
-schedule = "0 5,11,17,23 * * *"
+schedule = "10 5,11,17,23 * * *"
 
 # Sync CoinGecko prices, market cap, supply, ATH/ATL to dedicated columns
-# Runs every 5 minutes for 5,000 tokens (5,760 calls/day = 35% of limit)
+# Every 5 min - offset to 4,9,14,19...
 [functions.sync-token-cards-coingecko-prices]
 verify_jwt = false
 
 [[functions.sync-token-cards-coingecko-prices.cron]]
-schedule = "*/5 * * * *"
+schedule = "4-59/5 * * * *"
 
 # Enrich contract addresses from CoinGecko cg_master.platforms (ZERO API cost - database only)
-# Runs daily at 6 AM UTC - contracts rarely change
+# Daily at 6:35 AM UTC (staggered from 6:20 metadata)
 [functions.sync-token-cards-coingecko-contracts]
 verify_jwt = false
 
 [[functions.sync-token-cards-coingecko-contracts.cron]]
-schedule = "0 6 * * *"
+schedule = "35 6 * * *"
 
 # ============================================
 # STOCK CARDS SYNC FUNCTIONS
 # ============================================
 
-# Sync stock_cards from live_prices + company_details (every 2 minutes)
+# Sync stock_cards from live_prices + company_details
+# Every 2 min - offset to odd minutes 1,3,5,7...
 [functions.sync-stock-cards]
 verify_jwt = false
 
 [[functions.sync-stock-cards.cron]]
-schedule = "*/2 * * * *"
+schedule = "1-59/2 * * * *"
 
-# Sync 52-week high/low for stocks (daily at 7 AM UTC after market data settles)
+# Sync 52-week high/low for stocks
+# Daily at 7:45 AM UTC (staggered after market data settles)
 [functions.sync-stock-cards-52week]
 verify_jwt = false
 
 [[functions.sync-stock-cards-52week.cron]]
-schedule = "0 7 * * *"
+schedule = "45 7 * * *"
 
-# Sync technical indicators for stocks (every 5 minutes)
+# Sync technical indicators for stocks
+# Every 5 min - offset to 3,8,13,18...
 [functions.sync-stock-cards-technicals]
 verify_jwt = false
 
 [[functions.sync-stock-cards-technicals.cron]]
-schedule = "*/5 * * * *"
+schedule = "3-58/5 * * * *"
 
-# Sync stock news from Polygon (FREE - unlimited, every 15 minutes)
+# Sync stock news from Polygon (FREE - unlimited)
+# Every 15 min - offset to 12,27,42,57
 [functions.sync-stock-news-polygon]
 verify_jwt = false
 
 [[functions.sync-stock-news-polygon.cron]]
-schedule = "*/15 * * * *"
+schedule = "12,27,42,57 * * * *"
