@@ -28,7 +28,7 @@ export function StocksHeatmap() {
         blockSize: "market_cap_basic",
         blockColor: "change",
         locale: "en",
-        symbolUrl: "/markets?symbol=",
+        symbolUrl: "",
         colorTheme: theme === 'dark' ? 'dark' : 'light',
         hasTopBar: false,
         isDataSetEnabled: false,
