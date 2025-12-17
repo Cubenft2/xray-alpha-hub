@@ -282,23 +282,23 @@ async function resolveSingleTicker(
     }
   }
   
-  // Also try crypto_snapshot for market cap data
+  // Query token_cards (master source) for market cap data
   const { data: cryptoData } = await supabase
-    .from('crypto_snapshot')
-    .select('symbol, market_cap, coingecko_id, name')
-    .ilike('symbol', normalized)
+    .from('token_cards')
+    .select('canonical_symbol, market_cap, coingecko_id, name')
+    .ilike('canonical_symbol', normalized)
     .limit(5);
 
   if (cryptoData) {
     for (const c of cryptoData) {
       // Update or add with market cap
-      const existing = candidates.find(x => x.symbol === c.symbol);
+      const existing = candidates.find(x => x.symbol === c.canonical_symbol);
       if (existing) {
         existing.marketCap = c.market_cap;
         existing.coingeckoId = existing.coingeckoId || c.coingecko_id;
       } else {
         candidates.push({
-          symbol: c.symbol,
+          symbol: c.canonical_symbol,
           type: 'crypto',
           coingeckoId: c.coingecko_id,
           marketCap: c.market_cap,
@@ -354,11 +354,11 @@ async function resolveSingleTicker(
     }
   }
 
-  // 5. Try matching by name in crypto_snapshot (for LunarCrush data)
+  // 5. Try matching by name in token_cards (master source)
   if (candidates.length === 0) {
     const { data: cryptoNameData } = await supabase
-      .from('crypto_snapshot')
-      .select('symbol, market_cap, coingecko_id, name')
+      .from('token_cards')
+      .select('canonical_symbol, market_cap, coingecko_id, name')
       .ilike('name', `%${normalized}%`)
       .order('market_cap', { ascending: false, nullsFirst: false })
       .limit(5);
@@ -366,7 +366,7 @@ async function resolveSingleTicker(
     if (cryptoNameData) {
       for (const c of cryptoNameData) {
         candidates.push({
-          symbol: c.symbol,
+          symbol: c.canonical_symbol,
           type: 'crypto',
           coingeckoId: c.coingecko_id,
           marketCap: c.market_cap,
