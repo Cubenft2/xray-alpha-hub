@@ -342,22 +342,25 @@ serve(async (req) => {
     }
 
     // ============= TECHNICALS: Local calculation from OHLCV =============
-    // Fetch every 3rd call to balance freshness vs API load
+    // Staggered by tier: Tier 1-2 every 3rd call, Tier 3 every 6th, Tier 4 every 12th
     let technicalsUpdated = 0;
-    const shouldFetchTechnicals = callCount % 3 === 0;
     
-    if (shouldFetchTechnicals) {
-      console.log('[sync-token-cards-polygon] Calculating technicals from OHLCV for Tier 1-2 tokens...');
+    // Determine which tiers to process this call
+    const techTiers: number[] = [];
+    if (callCount % 3 === 0) techTiers.push(1, 2);   // Every 3rd call (~3 min)
+    if (callCount % 6 === 0) techTiers.push(3);      // Every 6th call (~6 min)
+    if (callCount % 12 === 0) techTiers.push(4);     // Every 12th call (~12 min)
+    
+    if (techTiers.length > 0) {
+      // Get tokens for the tiers being processed this call (no cap)
+      const techTokens = updates.filter(u => u.tier && techTiers.includes(u.tier));
       
-      // Get Tier 1-2 tokens (top priority)
-      const tier12Tokens = updates.filter(u => u.tier === 1 || u.tier === 2).slice(0, 100);
-      
-      console.log(`[sync-token-cards-polygon] Processing ${tier12Tokens.length} tokens for technicals`);
+      console.log(`[sync-token-cards-polygon] Calculating technicals for Tier ${techTiers.join(',')} (${techTokens.length} tokens)...`);
       
       // Process in small batches - reduced parallelism to prevent HTTP2 connection overload
       const TECH_BATCH = 5;
-      for (let i = 0; i < tier12Tokens.length; i += TECH_BATCH) {
-        const batch = tier12Tokens.slice(i, i + TECH_BATCH);
+      for (let i = 0; i < techTokens.length; i += TECH_BATCH) {
+        const batch = techTokens.slice(i, i + TECH_BATCH);
         
         const techResults = await Promise.all(
           batch.map(async (token) => {
@@ -408,12 +411,12 @@ serve(async (req) => {
         }
         
         // 500ms delay between batches to prevent HTTP2 connection overload
-        if (i + TECH_BATCH < tier12Tokens.length) {
+        if (i + TECH_BATCH < techTokens.length) {
           await new Promise(r => setTimeout(r, 500));
         }
       }
       
-      console.log(`[sync-token-cards-polygon] Updated technicals for ${technicalsUpdated} tokens`);
+      console.log(`[sync-token-cards-polygon] Updated technicals for ${technicalsUpdated}/${techTokens.length} tokens (Tier ${techTiers.join(',')})`);
     }
 
     const duration = Date.now() - startTime;
