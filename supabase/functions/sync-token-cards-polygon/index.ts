@@ -77,7 +77,11 @@ function calculateMACD(prices: number[]): { macd: number; signal: number; histog
 }
 
 // Fetch OHLCV data from Polygon (unlimited API calls)
+// Major tokens to debug
+const DEBUG_TICKERS = ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD'];
+
 async function fetchOHLCV(ticker: string, apiKey: string, bars: number = 200): Promise<number[] | null> {
+  const isDebug = DEBUG_TICKERS.includes(ticker);
   try {
     // Fetch 1-minute candles for freshest data
     const to = Date.now();
@@ -87,32 +91,46 @@ async function fetchOHLCV(ticker: string, apiKey: string, bars: number = 200): P
     const response = await fetch(url);
     
     if (!response.ok) {
-      console.log(`[OHLCV] ${ticker} failed: ${response.status}`);
+      if (isDebug) console.log(`[OHLCV DEBUG] ${ticker} failed: ${response.status}`);
       return null;
     }
     
     const data = await response.json();
-    const results = data.results;
+    const results = data.results || [];
     
-    if (!results || results.length < 50) {
-      // Not enough data, try hourly candles as fallback
-      const hourlyFrom = to - (bars * 60 * 60 * 1000);
-      const hourlyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/hour/${hourlyFrom}/${to}?adjusted=true&sort=desc&limit=${bars}&apiKey=${apiKey}`;
-      const hourlyResponse = await fetch(hourlyUrl);
-      
-      if (!hourlyResponse.ok) return null;
-      
-      const hourlyData = await hourlyResponse.json();
-      if (!hourlyData.results || hourlyData.results.length < 20) return null;
-      
-      // Return close prices (newest first)
-      return hourlyData.results.map((r: any) => r.c);
+    if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: minute bars=${results.length}`);
+    
+    // Use minute data if we have enough (30+ bars needed for technicals)
+    if (results.length >= 30) {
+      if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: using ${results.length} minute bars`);
+      return results.map((r: any) => r.c);
     }
     
-    // Return close prices (newest first)
-    return results.map((r: any) => r.c);
+    // Not enough minute data, try hourly candles as fallback
+    const hourlyFrom = to - (bars * 60 * 60 * 1000);
+    const hourlyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/hour/${hourlyFrom}/${to}?adjusted=true&sort=desc&limit=${bars}&apiKey=${apiKey}`;
+    const hourlyResponse = await fetch(hourlyUrl);
+    
+    if (!hourlyResponse.ok) {
+      if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: hourly failed ${hourlyResponse.status}`);
+      return null;
+    }
+    
+    const hourlyData = await hourlyResponse.json();
+    const hourlyResults = hourlyData.results || [];
+    
+    if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: hourly bars=${hourlyResults.length}`);
+    
+    // Need 30+ bars for technicals calculation
+    if (hourlyResults.length < 30) {
+      if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: insufficient hourly (${hourlyResults.length} < 30)`);
+      return null;
+    }
+    
+    if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: using ${hourlyResults.length} hourly bars`);
+    return hourlyResults.map((r: any) => r.c);
   } catch (err) {
-    console.error(`[OHLCV] Error fetching ${ticker}:`, err);
+    if (isDebug) console.error(`[OHLCV DEBUG] ${ticker} error:`, err);
     return null;
   }
 }
