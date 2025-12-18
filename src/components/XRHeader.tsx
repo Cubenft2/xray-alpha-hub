@@ -75,6 +75,7 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'Crypto', href: '/crypto' },
+    { name: 'Stocks', href: '/stocks' },
     { name: 'Markets', href: '/markets' },
     { name: 'Universe', href: '/crypto-universe' },
     { name: 'Watch', href: '/watchlist' },
