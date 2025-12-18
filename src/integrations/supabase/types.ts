@@ -2325,6 +2325,7 @@ export type Database = {
           atl_change_pct: number | null
           atl_date: string | null
           atl_price: number | null
+          best_exchange: string | null
           bid_price: number | null
           bid_size: number | null
           bollinger_lower: number | null
@@ -2389,6 +2390,7 @@ export type Database = {
           ema_200: number | null
           ema_26: number | null
           ema_50: number | null
+          exchanges: Json | null
           explorers: Json | null
           external_call: boolean | null
           first_seen_at: string | null
@@ -2548,6 +2550,7 @@ export type Database = {
           trade_count_24h: number | null
           trades_updated_at: string | null
           trading_cooldown: boolean | null
+          tradingview_symbol: string | null
           transfer_pausable: boolean | null
           twitter: string | null
           twitter_contributors: number | null
@@ -2588,6 +2591,7 @@ export type Database = {
           atl_change_pct?: number | null
           atl_date?: string | null
           atl_price?: number | null
+          best_exchange?: string | null
           bid_price?: number | null
           bid_size?: number | null
           bollinger_lower?: number | null
@@ -2652,6 +2656,7 @@ export type Database = {
           ema_200?: number | null
           ema_26?: number | null
           ema_50?: number | null
+          exchanges?: Json | null
           explorers?: Json | null
           external_call?: boolean | null
           first_seen_at?: string | null
@@ -2811,6 +2816,7 @@ export type Database = {
           trade_count_24h?: number | null
           trades_updated_at?: string | null
           trading_cooldown?: boolean | null
+          tradingview_symbol?: string | null
           transfer_pausable?: boolean | null
           twitter?: string | null
           twitter_contributors?: number | null
@@ -2851,6 +2857,7 @@ export type Database = {
           atl_change_pct?: number | null
           atl_date?: string | null
           atl_price?: number | null
+          best_exchange?: string | null
           bid_price?: number | null
           bid_size?: number | null
           bollinger_lower?: number | null
@@ -2915,6 +2922,7 @@ export type Database = {
           ema_200?: number | null
           ema_26?: number | null
           ema_50?: number | null
+          exchanges?: Json | null
           explorers?: Json | null
           external_call?: boolean | null
           first_seen_at?: string | null
@@ -3074,6 +3082,7 @@ export type Database = {
           trade_count_24h?: number | null
           trades_updated_at?: string | null
           trading_cooldown?: boolean | null
+          tradingview_symbol?: string | null
           transfer_pausable?: boolean | null
           twitter?: string | null
           twitter_contributors?: number | null
