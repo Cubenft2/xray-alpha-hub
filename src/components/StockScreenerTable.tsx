@@ -30,8 +30,131 @@ function formatPrice(price: number | null): string {
   return `$${price.toFixed(4)}`;
 }
 
+// Brand colors for popular stocks
+const BRAND_COLORS: Record<string, string> = {
+  // Tech Giants
+  'NVDA': 'bg-[#76B900]',    // Nvidia green
+  'AAPL': 'bg-[#555555]',    // Apple dark gray
+  'MSFT': 'bg-[#00A4EF]',    // Microsoft blue
+  'GOOGL': 'bg-[#4285F4]',   // Google blue
+  'GOOG': 'bg-[#4285F4]',    // Google blue
+  'AMZN': 'bg-[#FF9900]',    // Amazon orange
+  'META': 'bg-[#0866FF]',    // Meta blue
+  'TSLA': 'bg-[#CC0000]',    // Tesla red
+  'NFLX': 'bg-[#E50914]',    // Netflix red
+  'AMD': 'bg-[#ED1C24]',     // AMD red
+  'INTC': 'bg-[#0071C5]',    // Intel blue
+  'CRM': 'bg-[#00A1E0]',     // Salesforce blue
+  'ORCL': 'bg-[#C74634]',    // Oracle red
+  'IBM': 'bg-[#0530AD]',     // IBM blue
+  'CSCO': 'bg-[#049FD9]',    // Cisco blue
+  'ADBE': 'bg-[#FF0000]',    // Adobe red
+  'AVGO': 'bg-[#CC092F]',    // Broadcom red
+  'QCOM': 'bg-[#3253DC]',    // Qualcomm blue
+  'TXN': 'bg-[#CC0000]',     // Texas Instruments red
+  'NOW': 'bg-[#81B5A1]',     // ServiceNow green
+  'SNOW': 'bg-[#29B5E8]',    // Snowflake blue
+  'PLTR': 'bg-[#101010]',    // Palantir black
+  'UBER': 'bg-[#000000]',    // Uber black
+  'LYFT': 'bg-[#FF00BF]',    // Lyft pink
+  'SQ': 'bg-[#006AFF]',      // Block/Square blue
+  'PYPL': 'bg-[#003087]',    // PayPal blue
+  'SHOP': 'bg-[#96BF48]',    // Shopify green
+  'SPOT': 'bg-[#1DB954]',    // Spotify green
+  'ZM': 'bg-[#2D8CFF]',      // Zoom blue
+  'DOCU': 'bg-[#FFCC22]',    // DocuSign yellow
+  
+  // Finance
+  'JPM': 'bg-[#117ACA]',     // JPMorgan blue
+  'V': 'bg-[#1A1F71]',       // Visa dark blue
+  'MA': 'bg-[#EB001B]',      // Mastercard red
+  'BAC': 'bg-[#012169]',     // Bank of America blue
+  'GS': 'bg-[#7399C6]',      // Goldman Sachs blue
+  'MS': 'bg-[#002D62]',      // Morgan Stanley blue
+  'WFC': 'bg-[#D71E28]',     // Wells Fargo red
+  'C': 'bg-[#003B70]',       // Citigroup blue
+  'AXP': 'bg-[#006FCF]',     // AmEx blue
+  'BLK': 'bg-[#000000]',     // BlackRock black
+  'SCHW': 'bg-[#00A3E0]',    // Schwab blue
+  'COF': 'bg-[#004977]',     // Capital One blue
+  
+  // Consumer
+  'KO': 'bg-[#F40009]',      // Coca-Cola red
+  'PEP': 'bg-[#004B93]',     // Pepsi blue
+  'MCD': 'bg-[#FFC72C]',     // McDonald's gold
+  'SBUX': 'bg-[#00704A]',    // Starbucks green
+  'NKE': 'bg-[#111111]',     // Nike black
+  'DIS': 'bg-[#113CCF]',     // Disney blue
+  'HD': 'bg-[#F96302]',      // Home Depot orange
+  'LOW': 'bg-[#004990]',     // Lowe's blue
+  'TGT': 'bg-[#CC0000]',     // Target red
+  'WMT': 'bg-[#0071CE]',     // Walmart blue
+  'COST': 'bg-[#E31837]',    // Costco red
+  'PG': 'bg-[#003DA5]',      // P&G blue
+  'JNJ': 'bg-[#D51900]',     // J&J red
+  'KHC': 'bg-[#1D428A]',     // Kraft Heinz blue
+  'MDLZ': 'bg-[#5F259F]',    // Mondelez purple
+  'CMG': 'bg-[#A81612]',     // Chipotle red
+  'YUM': 'bg-[#E4002B]',     // Yum! red
+  'DPZ': 'bg-[#006491]',     // Domino's blue
+  
+  // Healthcare/Pharma
+  'PFE': 'bg-[#0093D0]',     // Pfizer blue
+  'UNH': 'bg-[#002677]',     // UnitedHealth blue
+  'ABBV': 'bg-[#071D49]',    // AbbVie blue
+  'MRK': 'bg-[#00857C]',     // Merck teal
+  'LLY': 'bg-[#D52B1E]',     // Eli Lilly red
+  'BMY': 'bg-[#BE2BBB]',     // Bristol-Myers purple
+  'AMGN': 'bg-[#0063BE]',    // Amgen blue
+  'GILD': 'bg-[#C8102E]',    // Gilead red
+  'CVS': 'bg-[#CC0000]',     // CVS red
+  'WBA': 'bg-[#E31837]',     // Walgreens red
+  
+  // Energy
+  'XOM': 'bg-[#ED1C24]',     // ExxonMobil red
+  'CVX': 'bg-[#0066B2]',     // Chevron blue
+  'COP': 'bg-[#CC0000]',     // ConocoPhillips red
+  'SLB': 'bg-[#0066B2]',     // Schlumberger blue
+  'OXY': 'bg-[#CF202E]',     // Occidental red
+  
+  // Crypto-related
+  'COIN': 'bg-[#0052FF]',    // Coinbase blue
+  'MSTR': 'bg-[#CC2027]',    // MicroStrategy red
+  'HOOD': 'bg-[#00C805]',    // Robinhood green
+  'MARA': 'bg-[#F7931A]',    // Marathon orange (Bitcoin)
+  'RIOT': 'bg-[#004C97]',    // Riot blue
+  
+  // Aerospace/Defense
+  'BA': 'bg-[#0033A0]',      // Boeing blue
+  'LMT': 'bg-[#002F6C]',     // Lockheed Martin blue
+  'RTX': 'bg-[#00205B]',     // RTX blue
+  'NOC': 'bg-[#003E7E]',     // Northrop blue
+  'GD': 'bg-[#003366]',      // General Dynamics blue
+  
+  // Automotive
+  'F': 'bg-[#003478]',       // Ford blue
+  'GM': 'bg-[#0170CE]',      // GM blue
+  'TM': 'bg-[#EB0A1E]',      // Toyota red
+  'RIVN': 'bg-[#F68B1F]',    // Rivian orange
+  'LCID': 'bg-[#0033A1]',    // Lucid blue
+  
+  // Telecom/Media
+  'T': 'bg-[#00A8E0]',       // AT&T blue
+  'VZ': 'bg-[#CD040B]',      // Verizon red
+  'TMUS': 'bg-[#E20074]',    // T-Mobile magenta
+  'CMCSA': 'bg-[#FF0066]',   // Comcast red
+  'CHTR': 'bg-[#0078C8]',    // Charter blue
+  'WBD': 'bg-[#003087]',     // Warner Bros blue
+  'PARA': 'bg-[#0064D2]',    // Paramount blue
+};
+
 // Generate consistent color based on symbol
 function getSymbolColor(symbol: string): string {
+  // Check brand color first
+  if (BRAND_COLORS[symbol]) {
+    return BRAND_COLORS[symbol];
+  }
+  // Fallback to hash-based color for unknown stocks
   const colors = [
     'bg-blue-500', 'bg-green-500', 'bg-purple-500', 
     'bg-orange-500', 'bg-pink-500', 'bg-cyan-500',
@@ -46,8 +169,11 @@ function getSymbolColor(symbol: string): string {
 
 // Stock Avatar component with initials
 function StockAvatar({ symbol }: { symbol: string }) {
+  const bgColor = getSymbolColor(symbol);
+  const needsBorder = bgColor.includes('#000000') || bgColor.includes('#111111') || bgColor.includes('#101010');
+  
   return (
-    <div className={`w-6 h-6 rounded-full ${getSymbolColor(symbol)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+    <div className={`w-6 h-6 rounded-full ${bgColor} flex items-center justify-center text-white text-xs font-bold shrink-0 ${needsBorder ? 'ring-1 ring-white/30' : ''}`}>
       {symbol.charAt(0)}
     </div>
   );
