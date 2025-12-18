@@ -306,11 +306,11 @@ export function StockScreenerTable({ stocks, sortKey, sortDirection, onSort, isL
   }
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
+    <div className="w-full rounded-md border bg-card overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/30">
+          <TableHeader className="sticky top-0 bg-card z-10">
+            <TableRow className="bg-card">
               <TableHead className="w-12 text-center">#</TableHead>
               <TableHead className="min-w-[180px]">Stock</TableHead>
               <SortableHeader label="Price" sortKey="price_usd" currentSortKey={sortKey} sortDirection={sortDirection} onSort={onSort} />
