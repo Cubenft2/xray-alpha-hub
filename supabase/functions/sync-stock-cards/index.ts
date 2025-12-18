@@ -70,24 +70,24 @@ Deno.serve(async (req) => {
     // Extract symbols
     const stockSymbols = stockAssets.map(s => (s.assets as any)?.symbol || s.polygon_ticker).filter(Boolean);
 
-    // Step 2: Get live prices from live_prices table (chunked to avoid query limits)
+    // Step 2: Get prices from stock_snapshot table (fresh data for ALL stocks!)
     const priceMap = new Map<string, any>();
     const CHUNK_SIZE = 500;
     
     for (let i = 0; i < stockSymbols.length; i += CHUNK_SIZE) {
       const chunk = stockSymbols.slice(i, i + CHUNK_SIZE);
-      const { data: livePrices, error: pricesError } = await supabase
-        .from('live_prices')
-        .select('*')
-        .in('ticker', chunk);
+      const { data: stockPrices, error: pricesError } = await supabase
+        .from('stock_snapshot')
+        .select('symbol, ticker, price, change_percent, volume_24h, updated_at, high_24h, low_24h, open_price, prev_close, vwap, market_cap, sector, industry, logo_url')
+        .in('symbol', chunk);
 
       if (pricesError) {
-        console.warn(`⚠️ Failed to fetch live_prices chunk ${i}: ${pricesError.message}`);
+        console.warn(`⚠️ Failed to fetch stock_snapshot chunk ${i}: ${pricesError.message}`);
       } else {
-        livePrices?.forEach(p => priceMap.set(p.ticker, p));
+        stockPrices?.forEach(p => priceMap.set(p.symbol, p));
       }
     }
-    console.log(`💰 Loaded ${priceMap.size} live prices`);
+    console.log(`💰 Loaded ${priceMap.size} stock prices from stock_snapshot`);
 
     // Step 3: Get COMPLETE company details for enrichment (chunked)
     const companyMap = new Map<string, any>();
@@ -238,19 +238,19 @@ Deno.serve(async (req) => {
         splits: company?.splits || [],
         related_companies: company?.related_companies || [],
         
-        // Price data from live_prices
+        // Price data from stock_snapshot (fresh for ALL stocks!)
         price_usd: price?.price || null,
-        open_price: price?.day_open || null,
-        high_price: price?.day_high || null,
-        low_price: price?.day_low || null,
+        open_price: price?.open_price || null,
+        high_price: price?.high_24h || null,
+        low_price: price?.low_24h || null,
         close_price: price?.price || null,
-        previous_close: null, // Could calculate from history
+        previous_close: price?.prev_close || null,
         change_usd: null,
-        change_pct: price?.change24h || null,
-        volume: price?.volume ? Math.round(price.volume) : null,
+        change_pct: price?.change_percent || null,
+        volume: price?.volume_24h ? Math.round(price.volume_24h) : null,
         
-        // Calculated fundamentals
-        market_cap: company?.market_cap ? Math.round(company.market_cap) : null,
+        // Market cap from stock_snapshot or company_details
+        market_cap: price?.market_cap ? Math.round(price.market_cap) : (company?.market_cap ? Math.round(company.market_cap) : null),
         pe_ratio: peRatio,
         eps: eps,
         dividend_yield: dividendYield,
@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
         
         // Status
         is_active: true,
-        is_delayed: price?.is_delayed ?? true,
+        is_delayed: true, // stock_snapshot doesn't have is_delayed flag
         tier: 2, // Default tier for stocks
       };
 
@@ -293,20 +293,20 @@ Deno.serve(async (req) => {
         card.low_52w_date = existingCard.low_52w_date;
       }
       
-      // Check if today's high exceeds stored 52-week high
-      if (price?.day_high && card.high_52w && price.day_high > card.high_52w) {
-        console.log(`🚀 NEW 52W HIGH: ${symbol} $${price.day_high} (was $${card.high_52w})`);
-        card.high_52w = price.day_high;
+      // Check if today's high exceeds stored 52-week high (using high_24h from stock_snapshot)
+      if (price?.high_24h && card.high_52w && price.high_24h > card.high_52w) {
+        console.log(`🚀 NEW 52W HIGH: ${symbol} $${price.high_24h} (was $${card.high_52w})`);
+        card.high_52w = price.high_24h;
         card.high_52w_date = todayDate;
-        card.fifty_two_week_high = price.day_high;
+        card.fifty_two_week_high = price.high_24h;
       }
       
-      // Check if today's low is below stored 52-week low
-      if (price?.day_low && card.low_52w && price.day_low < card.low_52w) {
-        console.log(`📉 NEW 52W LOW: ${symbol} $${price.day_low} (was $${card.low_52w})`);
-        card.low_52w = price.day_low;
+      // Check if today's low is below stored 52-week low (using low_24h from stock_snapshot)
+      if (price?.low_24h && card.low_52w && price.low_24h < card.low_52w) {
+        console.log(`📉 NEW 52W LOW: ${symbol} $${price.low_24h} (was $${card.low_52w})`);
+        card.low_52w = price.low_24h;
         card.low_52w_date = todayDate;
-        card.fifty_two_week_low = price.day_low;
+        card.fifty_two_week_low = price.low_24h;
       }
 
       stockCards.push(card);
