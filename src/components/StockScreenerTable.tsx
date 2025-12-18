@@ -30,6 +30,22 @@ function formatPrice(price: number | null): string {
   return `$${price.toFixed(4)}`;
 }
 
+// Get logo URL with Clearbit fallback
+function getLogoUrl(stock: StockCard): string | null {
+  // Try Polygon logo first (but these require API key, so skip)
+  // Use Clearbit which is free and doesn't require auth
+  if (stock.website) {
+    try {
+      const url = new URL(stock.website.startsWith('http') ? stock.website : `https://${stock.website}`);
+      const domain = url.hostname.replace('www.', '');
+      return `https://logo.clearbit.com/${domain}`;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 // RSI Bar component with color coding
 function RSIBar({ rsi }: { rsi: number | null }) {
   if (rsi === null) return <span className="text-muted-foreground text-xs">N/A</span>;
@@ -191,14 +207,15 @@ export function StockScreenerTable({ stocks, sortKey, sortDirection, onSort, isL
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      {(stock.logo_url || stock.icon_url) && (
-                        <img 
-                          src={stock.logo_url || stock.icon_url || ''} 
-                          alt={stock.symbol}
-                          className="w-6 h-6 rounded-full object-cover"
-                          onError={(e) => (e.currentTarget.style.display = 'none')}
-                        />
-                      )}
+                      <img 
+                        src={getLogoUrl(stock) || '/placeholder.svg'} 
+                        alt={stock.symbol}
+                        className="w-6 h-6 rounded-full object-cover bg-muted"
+                        onError={(e) => {
+                          e.currentTarget.src = '/placeholder.svg';
+                          e.currentTarget.onerror = null;
+                        }}
+                      />
                       <div>
                         <div className="font-medium text-sm">{stock.symbol}</div>
                         <div className="text-xs text-muted-foreground truncate max-w-[150px]">
