@@ -289,12 +289,13 @@ serve(async (req) => {
           : null;
 
         // Base card data (always written)
+        // NOTE: polygon_ticker and tradingview_symbol are set by auto-map-exchange-tickers
+        // based on actual exchange_pairs data - NOT generated blindly here
         const cardData: Record<string, any> = {
           canonical_symbol: symbol,
           name: coin.name,
           logo_url: coin.logo || coin.image,
           lunarcrush_id: lunarcrushId,
-          polygon_ticker: `X:${symbol}USD`,
           categories: categories,
           primary_chain: primaryChain,
           

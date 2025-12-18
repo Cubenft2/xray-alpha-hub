@@ -114,6 +114,14 @@ verify_jwt = false
 [[functions.auto-map-polygon-tickers.cron]]
 schedule = "15 2 * * *"
 
+# Auto-map exchange tickers to token_cards using exchange_pairs data
+# Daily at 2:30 AM UTC (after exchange-sync at 2:20)
+[functions.auto-map-exchange-tickers]
+verify_jwt = false
+
+[[functions.auto-map-exchange-tickers.cron]]
+schedule = "30 2 * * *"
+
 # Every 5 min - offset to 2,7,12,17...
 [functions.price-poller]
 verify_jwt = false
