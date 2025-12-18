@@ -30,20 +30,27 @@ function formatPrice(price: number | null): string {
   return `$${price.toFixed(4)}`;
 }
 
-// Get logo URL with Clearbit fallback
-function getLogoUrl(stock: StockCard): string | null {
-  // Try Polygon logo first (but these require API key, so skip)
-  // Use Clearbit which is free and doesn't require auth
-  if (stock.website) {
-    try {
-      const url = new URL(stock.website.startsWith('http') ? stock.website : `https://${stock.website}`);
-      const domain = url.hostname.replace('www.', '');
-      return `https://logo.clearbit.com/${domain}`;
-    } catch {
-      return null;
-    }
+// Generate consistent color based on symbol
+function getSymbolColor(symbol: string): string {
+  const colors = [
+    'bg-blue-500', 'bg-green-500', 'bg-purple-500', 
+    'bg-orange-500', 'bg-pink-500', 'bg-cyan-500',
+    'bg-red-500', 'bg-amber-500', 'bg-indigo-500'
+  ];
+  let hash = 0;
+  for (let i = 0; i < symbol.length; i++) {
+    hash = symbol.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return null;
+  return colors[Math.abs(hash) % colors.length];
+}
+
+// Stock Avatar component with initials
+function StockAvatar({ symbol }: { symbol: string }) {
+  return (
+    <div className={`w-6 h-6 rounded-full ${getSymbolColor(symbol)} flex items-center justify-center text-white text-xs font-bold shrink-0`}>
+      {symbol.charAt(0)}
+    </div>
+  );
 }
 
 // RSI Bar component with color coding
@@ -207,25 +214,12 @@ export function StockScreenerTable({ stocks, sortKey, sortDirection, onSort, isL
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <img 
-                        src={getLogoUrl(stock) || '/placeholder.svg'} 
-                        alt={stock.symbol}
-                        className="w-6 h-6 rounded-full object-cover bg-muted"
-                        onError={(e) => {
-                          e.currentTarget.src = '/placeholder.svg';
-                          e.currentTarget.onerror = null;
-                        }}
-                      />
+                      <StockAvatar symbol={stock.symbol} />
                       <div>
                         <div className="font-medium text-sm">{stock.symbol}</div>
                         <div className="text-xs text-muted-foreground truncate max-w-[150px]">
                           {stock.name}
                         </div>
-                        {simplifiedSector !== 'Other' && (
-                          <Badge variant="outline" className="text-[9px] mt-0.5 border-muted-foreground/30">
-                            {simplifiedSector}
-                          </Badge>
-                        )}
                       </div>
                     </div>
                   </TableCell>
