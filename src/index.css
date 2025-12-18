@@ -15,25 +15,25 @@
     --font-pixel: 'Orbitron', 'Space Mono', monospace;
     --font-mono: 'Space Mono', monospace;
     
-    /* 👻☀️ HAUNTED LIGHT MODE - Richer Sage Green Background 🌿 */
-    --background: 130 32% 92%; /* Rich sage green */
+    /* 👻☀️ HAUNTED LIGHT MODE - Neutral Cream Background for Readability 🌿 */
+    --background: 40 20% 96%; /* Warm cream - easy on eyes */
     --foreground: 30 10% 15%; /* Warm dark brown-gray text */
 
-    --card: 130 28% 95%; /* Sage cards */
-    --card-foreground: 30 10% 18%;
+    --card: 0 0% 99%; /* Near-white cards for clear separation */
+    --card-foreground: 30 10% 15%;
 
-    --popover: 130 28% 95%;
-    --popover-foreground: 30 10% 18%;
+    --popover: 0 0% 99%;
+    --popover-foreground: 30 10% 15%;
 
     /* Spooky Brand Colors - Adjusted for Light Mode */
     --primary: 120 100% 28%; /* Darker toxic green for light bg */
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 130 28% 88%; /* Richer sage secondary */
+    --secondary: 40 18% 92%; /* Warm neutral secondary */
     --secondary-foreground: 30 10% 15%;
 
-    --muted: 130 24% 85%; /* Saturated muted sage */
-    --muted-foreground: 30 8% 45%;
+    --muted: 40 15% 90%; /* Cream-tinted muted */
+    --muted-foreground: 30 10% 35%; /* Darker for better readability */
 
     --accent: 15 90% 45%; /* Slightly muted pumpkin orange */
     --accent-foreground: 0 0% 98%;
@@ -48,8 +48,8 @@
     --destructive: 0 85% 45%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 130 24% 78%; /* Richer sage border */
-    --input: 130 24% 88%; /* Sage input background */
+    --border: 40 15% 82%; /* Warm neutral border */
+    --input: 40 15% 94%; /* Warm neutral input */
     --ring: 120 100% 30%;
 
     --success: 120 90% 30%; /* Toxic green */
@@ -65,9 +65,9 @@
     /* Haunted Light Gradients & Effects 👻☀️ */
     --gradient-primary: linear-gradient(135deg, hsl(120 100% 32%), hsl(120 100% 25%));
     --gradient-accent: linear-gradient(135deg, hsl(15 90% 50%), hsl(0 85% 45%));
-    --gradient-hero: linear-gradient(135deg, hsl(130 32% 92%) 0%, hsl(130 28% 94%) 30%, hsl(120 60% 90%) 60%, hsl(0 60% 95%) 100%);
-    --gradient-pixel: linear-gradient(45deg, hsl(120 90% 35%) 0%, hsl(0 85% 45%) 50%, hsl(130 28% 88%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(130 28% 95%) 0%, hsl(130 24% 93%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(40 20% 96%) 0%, hsl(40 18% 94%) 30%, hsl(120 40% 94%) 60%, hsl(0 40% 96%) 100%);
+    --gradient-pixel: linear-gradient(45deg, hsl(120 90% 35%) 0%, hsl(0 85% 45%) 50%, hsl(40 18% 92%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 99%) 0%, hsl(40 15% 97%) 100%);
     --gradient-zoobie: linear-gradient(135deg, hsl(350 30% 50%), hsl(320 25% 42%));
     --glow-zoobie: 0 0 15px hsl(350 30% 50% / 0.3);
     
@@ -84,13 +84,13 @@
     --radius: 0.5rem;
 
     /* Sidebar Light Mode */
-    --sidebar-background: 130 28% 92%;
+    --sidebar-background: 40 18% 94%;
     --sidebar-foreground: 30 10% 15%;
     --sidebar-primary: 120 100% 30%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 130 28% 88%;
+    --sidebar-accent: 40 15% 90%;
     --sidebar-accent-foreground: 30 10% 15%;
-    --sidebar-border: 130 24% 82%;
+    --sidebar-border: 40 15% 85%;
     --sidebar-ring: 120 100% 30%;
 
     /* Header & Footer - Matching Sage Green (Light Mode) 🌿 */
