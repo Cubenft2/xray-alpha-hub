@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
         try {
           // Fetch 50-day historical data from Polygon
           const to = new Date().toISOString().split('T')[0];
-          const from = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          const from = new Date(Date.now() - 300 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
           
           const url = `https://api.polygon.io/v2/aggs/ticker/${stock.symbol}/range/1/day/${from}/${to}?adjusted=true&sort=asc&apiKey=${polygonKey}`;
           const response = await fetch(url);
