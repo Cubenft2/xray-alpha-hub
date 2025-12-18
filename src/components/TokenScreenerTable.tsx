@@ -162,8 +162,12 @@ function DataSourceBadge({ polygonSupported }: { polygonSupported: boolean | nul
   );
 }
 
-function LiquidityWarningBadge({ marketCap, volume }: { marketCap: number | null; volume: number | null }) {
-  const suspicious = isSuspiciousToken(marketCap, volume);
+function LiquidityWarningBadge({ marketCap, volume, polygonSupported }: { 
+  marketCap: number | null; 
+  volume: number | null;
+  polygonSupported: boolean | null;
+}) {
+  const suspicious = isSuspiciousToken(marketCap, volume, polygonSupported);
   const lowLiquidity = isLowLiquidity(volume);
   
   if (suspicious) {
@@ -290,7 +294,7 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                       <div className="flex items-center gap-1">
                         <span className="font-semibold">{token.canonical_symbol}</span>
                         <DataSourceBadge polygonSupported={token.polygon_supported} />
-                        <LiquidityWarningBadge marketCap={token.market_cap} volume={token.volume_24h_usd} />
+                        <LiquidityWarningBadge marketCap={token.market_cap} volume={token.volume_24h_usd} polygonSupported={token.polygon_supported} />
                       </div>
                       <span className="text-muted-foreground text-xs truncate max-w-[100px]">
                         {token.name}

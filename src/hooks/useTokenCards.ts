@@ -40,7 +40,15 @@ export interface Filters {
 }
 
 // Data quality check - returns true if token appears suspicious
-export function isSuspiciousToken(marketCap: number | null, volume: number | null): boolean {
+// Polygon-supported tokens are verified and never flagged as suspicious
+export function isSuspiciousToken(
+  marketCap: number | null, 
+  volume: number | null,
+  polygonSupported: boolean | null = false
+): boolean {
+  // Polygon-supported tokens are verified - never flag as suspicious
+  if (polygonSupported) return false;
+  
   if (marketCap === null || volume === null) return false;
   // Suspicious if market cap > $1B but volume < $100K (0.01% ratio)
   if (marketCap > 1_000_000_000 && volume < 100_000) return true;
