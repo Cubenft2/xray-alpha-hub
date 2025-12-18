@@ -130,8 +130,11 @@ export default function CryptoUniverseDetail() {
   const hasCoingeckoData = tokenCard.coingecko_id !== null;
   const hasSecurityData = tokenCard.security_score !== null || tokenCard.is_honeypot !== null;
 
-  // Build TradingView symbol
+  // Build TradingView symbol - use stored symbol if available
   const getTradingViewSymbol = () => {
+    if (tokenCard.tradingview_symbol) {
+      return tokenCard.tradingview_symbol;
+    }
     return `CRYPTO:${tokenCard.canonical_symbol}USD`;
   };
 

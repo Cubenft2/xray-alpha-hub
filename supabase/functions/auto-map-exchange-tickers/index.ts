@@ -16,7 +16,7 @@ const EXCHANGE_PRIORITY: Record<string, { priority: number; tvFormat: string; qu
   'bybit': { priority: 70, tvFormat: 'BYBIT', quoteAssets: ['USDT'] },
   'binance': { priority: 65, tvFormat: 'BINANCE', quoteAssets: ['USDT', 'USD'] },
   'kucoin': { priority: 60, tvFormat: 'KUCOIN', quoteAssets: ['USDT'] },
-  'gate': { priority: 55, tvFormat: 'GATEIO', quoteAssets: ['USDT'] },
+  'gateio': { priority: 55, tvFormat: 'GATEIO', quoteAssets: ['USDT'] },
   'htx': { priority: 50, tvFormat: 'HTX', quoteAssets: ['USDT'] },
   'mexc': { priority: 45, tvFormat: 'MEXC', quoteAssets: ['USDT'] },
   'bitget': { priority: 40, tvFormat: 'BITGET', quoteAssets: ['USDT'] },
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
 
     console.log('Starting exchange ticker auto-mapping...');
 
-    // Step 1: Fetch ALL active exchange pairs (paginated to handle large datasets)
+    // Step 1: Fetch ALL exchange pairs (both active and inactive, paginated)
     const allExchangePairs: ExchangePair[] = [];
     const PAGE_SIZE = 1000;
     let offset = 0;
@@ -91,7 +91,6 @@ Deno.serve(async (req) => {
       const { data: batch, error: batchError } = await supabase
         .from('exchange_pairs')
         .select('exchange, base_asset, quote_asset, symbol, is_active')
-        .eq('is_active', true)
         .in('quote_asset', ['USD', 'USDT', 'USDC'])
         .range(offset, offset + PAGE_SIZE - 1);
 
@@ -109,30 +108,47 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Fetched ${allExchangePairs.length} total active exchange pairs`);
+    console.log(`Fetched ${allExchangePairs.length} total exchange pairs (active + inactive)`);
 
-    // Step 2: Group pairs by base asset (symbol)
-    const pairsBySymbol = new Map<string, ExchangePair[]>();
+    // Step 2: Group pairs by base asset (symbol), separating active vs inactive
+    const activePairsBySymbol = new Map<string, ExchangePair[]>();
+    const inactivePairsBySymbol = new Map<string, ExchangePair[]>();
     
     for (const pair of allExchangePairs) {
       const symbol = pair.base_asset.toUpperCase();
-      if (!pairsBySymbol.has(symbol)) {
-        pairsBySymbol.set(symbol, []);
+      const targetMap = pair.is_active ? activePairsBySymbol : inactivePairsBySymbol;
+      
+      if (!targetMap.has(symbol)) {
+        targetMap.set(symbol, []);
       }
-      pairsBySymbol.get(symbol)!.push(pair);
+      targetMap.get(symbol)!.push(pair);
     }
 
-    console.log(`Found pairs for ${pairsBySymbol.size} unique symbols`);
+    console.log(`Found active pairs for ${activePairsBySymbol.size} symbols, inactive pairs for ${inactivePairsBySymbol.size} symbols`);
 
     // Step 3: Calculate best exchange and TradingView symbol for each
+    // Prioritize active pairs, fall back to inactive if no active pairs exist
     const symbolMappings = new Map<string, {
       exchanges: string[];
       bestExchange: string;
       tradingviewSymbol: string;
       bestPair: ExchangePair;
+      isFromInactive: boolean;
     }>();
 
-    for (const [symbol, pairs] of pairsBySymbol) {
+    // Get all unique symbols from both maps
+    const allSymbols = new Set([...activePairsBySymbol.keys(), ...inactivePairsBySymbol.keys()]);
+
+    for (const symbol of allSymbols) {
+      // Prefer active pairs, fall back to inactive
+      const activePairs = activePairsBySymbol.get(symbol) || [];
+      const inactivePairs = inactivePairsBySymbol.get(symbol) || [];
+      
+      const pairs = activePairs.length > 0 ? activePairs : inactivePairs;
+      const isFromInactive = activePairs.length === 0 && inactivePairs.length > 0;
+
+      if (pairs.length === 0) continue;
+
       // Score each pair
       const scoredPairs = pairs.map(pair => ({
         pair,
@@ -144,7 +160,8 @@ Deno.serve(async (req) => {
 
       if (scoredPairs.length > 0 && scoredPairs[0].score > 0) {
         const bestPair = scoredPairs[0].pair;
-        const uniqueExchanges = [...new Set(pairs.map(p => p.exchange.toLowerCase()))];
+        const allPairsForSymbol = [...activePairs, ...inactivePairs];
+        const uniqueExchanges = [...new Set(allPairsForSymbol.map(p => p.exchange.toLowerCase()))];
         
         symbolMappings.set(symbol, {
           exchanges: uniqueExchanges,
@@ -154,12 +171,14 @@ Deno.serve(async (req) => {
             bestPair.base_asset, 
             bestPair.quote_asset
           ),
-          bestPair
+          bestPair,
+          isFromInactive
         });
       }
     }
 
-    console.log(`Generated mappings for ${symbolMappings.size} symbols`);
+    const fromInactiveCount = Array.from(symbolMappings.values()).filter(m => m.isFromInactive).length;
+    console.log(`Generated mappings for ${symbolMappings.size} symbols (${fromInactiveCount} from inactive pairs only)`);
 
     // Step 4: Fetch ALL token_cards (paginated)
     const allTokenCards: TokenCard[] = [];
