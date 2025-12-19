@@ -286,18 +286,26 @@ Deno.serve(async (req) => {
     }
 
     // Sync MEXC
+    // MEXC API uses status: "1" for active pairs (not "ENABLED" or "TRADING")
     try {
       const mexcResponse = await fetchWithTimeout('https://api.mexc.com/api/v3/exchangeInfo', 8000, 1);
       if (mexcResponse.ok) {
         const mexcData = await mexcResponse.json();
         const symbols: MEXCSymbol[] = mexcData?.symbols || [];
         
+        // Log sample status values for debugging
+        if (symbols.length > 0) {
+          const sampleStatuses = [...new Set(symbols.slice(0, 100).map(s => s.status))];
+          console.log(`📊 MEXC status values sample: ${JSON.stringify(sampleStatuses)}`);
+        }
+        
         const mexcRecords = symbols.map(s => ({
           exchange: 'mexc',
           symbol: s.symbol,
           base_asset: s.baseAsset,
           quote_asset: s.quoteAsset,
-          is_active: ['ENABLED', 'TRADING'].includes(s.status?.toUpperCase()),
+          // MEXC uses "1" for active, or check for ENABLED/TRADING as fallback
+          is_active: s.status === '1' || s.status === 1 || ['ENABLED', 'TRADING'].includes(String(s.status).toUpperCase()),
           synced_at: new Date().toISOString(),
         }));
 
