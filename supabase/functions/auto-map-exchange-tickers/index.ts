@@ -15,6 +15,7 @@ const EXCHANGE_PRIORITY: Record<string, { priority: number; tvFormat: string; qu
   'okx': { priority: 75, tvFormat: 'OKX', quoteAssets: ['USD', 'USDT'] },
   'bybit': { priority: 70, tvFormat: 'BYBIT', quoteAssets: ['USDT'] },
   'binance': { priority: 65, tvFormat: 'BINANCE', quoteAssets: ['USDT', 'USD'] },
+  'binance_us': { priority: 63, tvFormat: 'BINANCEUS', quoteAssets: ['USD', 'USDT'] },
   'kucoin': { priority: 60, tvFormat: 'KUCOIN', quoteAssets: ['USDT'] },
   'gateio': { priority: 55, tvFormat: 'GATEIO', quoteAssets: ['USDT'] },
   'htx': { priority: 50, tvFormat: 'HTX', quoteAssets: ['USDT'] },
@@ -22,7 +23,7 @@ const EXCHANGE_PRIORITY: Record<string, { priority: number; tvFormat: string; qu
   'bitget': { priority: 40, tvFormat: 'BITGET', quoteAssets: ['USDT'] },
 };
 
-// Quote asset priority (USD > USDT > USDC)
+// Quote asset priority (USD > USDT > USDC) - case-insensitive lookup
 const QUOTE_PRIORITY: Record<string, number> = {
   'USD': 100,
   'USDT': 50,
@@ -30,6 +31,9 @@ const QUOTE_PRIORITY: Record<string, number> = {
   'EUR': 30,
   'BTC': 20,
 };
+
+// Valid quote assets for filtering (case-insensitive)
+const VALID_QUOTE_ASSETS = ['USD', 'USDT', 'USDC'];
 
 interface ExchangePair {
   exchange: string;
@@ -82,6 +86,7 @@ Deno.serve(async (req) => {
     console.log('Starting exchange ticker auto-mapping...');
 
     // Step 1: Fetch ALL exchange pairs (both active and inactive, paginated)
+    // Note: We fetch all and filter in JS because quote_asset can be mixed case (e.g., 'usdt' from HTX)
     const allExchangePairs: ExchangePair[] = [];
     const PAGE_SIZE = 1000;
     let offset = 0;
@@ -91,7 +96,6 @@ Deno.serve(async (req) => {
       const { data: batch, error: batchError } = await supabase
         .from('exchange_pairs')
         .select('exchange, base_asset, quote_asset, symbol, is_active')
-        .in('quote_asset', ['USD', 'USDT', 'USDC'])
         .range(offset, offset + PAGE_SIZE - 1);
 
       if (batchError) {
@@ -100,7 +104,11 @@ Deno.serve(async (req) => {
       }
 
       if (batch && batch.length > 0) {
-        allExchangePairs.push(...batch);
+        // Filter for valid quote assets case-insensitively
+        const filtered = batch.filter(p => 
+          VALID_QUOTE_ASSETS.includes(p.quote_asset.toUpperCase())
+        );
+        allExchangePairs.push(...filtered);
         offset += batch.length;
         hasMore = batch.length === PAGE_SIZE;
       } else {
@@ -108,7 +116,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Fetched ${allExchangePairs.length} total exchange pairs (active + inactive)`);
+    console.log(`Fetched ${allExchangePairs.length} total exchange pairs with valid quote assets (active + inactive)`);
 
     // Step 2: Group pairs by base asset (symbol), separating active vs inactive
     const activePairsBySymbol = new Map<string, ExchangePair[]>();
@@ -237,35 +245,33 @@ Deno.serve(async (req) => {
 
     console.log(`Preparing ${updates.length} updates and ${clears.length} clears`);
 
-    // Step 6: Batch update token_cards
+    // Step 6: Batch update token_cards using parallel updates for speed
     let updatedCount = 0;
     let clearedCount = 0;
 
-    // Process updates in batches of 100
-    const BATCH_SIZE = 100;
-    for (let i = 0; i < updates.length; i += BATCH_SIZE) {
-      const batch = updates.slice(i, i + BATCH_SIZE);
+    // Process updates in parallel batches of 50 concurrent updates
+    const PARALLEL_SIZE = 50;
+    for (let i = 0; i < updates.length; i += PARALLEL_SIZE) {
+      const batch = updates.slice(i, i + PARALLEL_SIZE);
       
-      for (const update of batch) {
-        const { error: updateError } = await supabase
+      const updatePromises = batch.map(update => 
+        supabase
           .from('token_cards')
           .update({
             exchanges: update.exchanges,
             best_exchange: update.best_exchange,
             tradingview_symbol: update.tradingview_symbol
           })
-          .eq('id', update.id);
+          .eq('id', update.id)
+      );
 
-        if (updateError) {
-          console.error(`Error updating ${update.id}:`, updateError);
-        } else {
-          updatedCount++;
-        }
-      }
-
-      // Small delay between batches
-      if (i + BATCH_SIZE < updates.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      const results = await Promise.all(updatePromises);
+      const successCount = results.filter(r => !r.error).length;
+      updatedCount += successCount;
+      
+      // Log progress every 500 updates
+      if ((i + PARALLEL_SIZE) % 500 === 0 || i + PARALLEL_SIZE >= updates.length) {
+        console.log(`Progress: ${Math.min(i + PARALLEL_SIZE, updates.length)}/${updates.length} updates processed`);
       }
     }
 
