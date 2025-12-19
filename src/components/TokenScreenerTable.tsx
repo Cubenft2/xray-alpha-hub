@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom';
-import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowUpDown, ArrowUp, ArrowDown, AlertTriangle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -209,8 +209,6 @@ function LiquidityWarningBadge({ marketCap, volume, polygonSupported }: {
 }
 
 export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isLoading }: TokenScreenerTableProps) {
-  const navigate = useNavigate();
-
   const columns: { key: SortKey; label: string; className?: string }[] = [
     { key: 'market_cap_rank', label: '#' },
     { key: 'price_usd', label: 'Price' },
@@ -268,14 +266,15 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
             {tokens.map((token) => (
               <TableRow
                 key={token.canonical_symbol}
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => navigate(`/token/${token.canonical_symbol}`)}
+                className="hover:bg-muted/50 transition-colors group"
               >
                 <TableCell className="font-medium text-muted-foreground sticky left-0 bg-card">
-                  {token.market_cap_rank || '-'}
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    {token.market_cap_rank || '-'}
+                  </Link>
                 </TableCell>
                 <TableCell className="sticky left-[50px] bg-card">
-                  <div className="flex items-center gap-2">
+                  <Link to={`/token/${token.canonical_symbol}`} className="flex items-center gap-2">
                     {token.logo_url ? (
                       <img
                         src={token.logo_url}
@@ -300,37 +299,57 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                         {token.name}
                       </span>
                     </div>
-                  </div>
+                  </Link>
                 </TableCell>
                 <TableCell className="text-right font-mono">
-                  {formatPrice(token.price_usd)}
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    {formatPrice(token.price_usd)}
+                  </Link>
                 </TableCell>
                 <TableCell className="text-right">
-                  <PercentChange value={token.change_1h_pct} compact />
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    <PercentChange value={token.change_1h_pct} compact />
+                  </Link>
                 </TableCell>
                 <TableCell className="text-right">
-                  <PercentChange value={token.change_24h_pct} />
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    <PercentChange value={token.change_24h_pct} />
+                  </Link>
                 </TableCell>
                 <TableCell className="text-right">
-                  <PercentChange value={token.change_7d_pct} compact />
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    <PercentChange value={token.change_7d_pct} compact />
+                  </Link>
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
-                  {formatLargeNumber(token.market_cap)}
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    {formatLargeNumber(token.market_cap)}
+                  </Link>
                 </TableCell>
                 <TableCell className="text-right font-mono text-sm">
-                  {formatLargeNumber(token.volume_24h_usd)}
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    {formatLargeNumber(token.volume_24h_usd)}
+                  </Link>
                 </TableCell>
                 <TableCell className="text-right">
-                  <GalaxyScoreBar score={token.galaxy_score} />
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    <GalaxyScoreBar score={token.galaxy_score} />
+                  </Link>
                 </TableCell>
                 <TableCell className="text-right">
-                  <AltRankBadge rank={token.alt_rank} />
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    <AltRankBadge rank={token.alt_rank} />
+                  </Link>
                 </TableCell>
                 <TableCell className="text-right">
-                  <SentimentBar sentiment={token.sentiment} />
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    <SentimentBar sentiment={token.sentiment} />
+                  </Link>
                 </TableCell>
-              <TableCell className="text-right font-mono text-sm">
-                  💬 {formatSocialVolume(token.social_volume_24h)}
+                <TableCell className="text-right font-mono text-sm">
+                  <Link to={`/token/${token.canonical_symbol}`} className="block">
+                    💬 {formatSocialVolume(token.social_volume_24h)}
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}

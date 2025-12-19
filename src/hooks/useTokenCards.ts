@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface TokenCard {
@@ -63,34 +64,92 @@ export function isLowLiquidity(volume: number | null): boolean {
 
 const PAGE_SIZE = 100;
 
+// Parse URL params to state
+function parseUrlParams(searchParams: URLSearchParams): {
+  page: number;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+  filters: Partial<Filters>;
+} {
+  const validSortKeys: SortKey[] = ['market_cap_rank', 'price_usd', 'change_1h_pct', 'change_24h_pct', 'change_7d_pct', 'market_cap', 'volume_24h_usd', 'galaxy_score', 'alt_rank', 'sentiment', 'social_volume_24h'];
+  
+  const page = parseInt(searchParams.get('page') || '1', 10) || 1;
+  const sortKeyParam = searchParams.get('sort') as SortKey | null;
+  const sortKey: SortKey = sortKeyParam && validSortKeys.includes(sortKeyParam) ? sortKeyParam : 'market_cap_rank';
+  const sortDirection: SortDirection = searchParams.get('dir') === 'asc' ? 'asc' : searchParams.get('dir') === 'desc' ? 'desc' : 'asc';
+  
+  const filters: Partial<Filters> = {};
+  if (searchParams.get('search')) filters.search = searchParams.get('search')!;
+  if (searchParams.get('category')) filters.category = searchParams.get('category')!;
+  if (searchParams.get('chain')) filters.chain = searchParams.get('chain')!;
+  if (searchParams.get('tier')) filters.tier = searchParams.get('tier')!;
+  if (searchParams.get('minVolume')) filters.minVolume = searchParams.get('minVolume')!;
+  if (searchParams.get('minGalaxyScore')) filters.minGalaxyScore = searchParams.get('minGalaxyScore')!;
+  if (searchParams.get('minMarketCap')) filters.minMarketCap = searchParams.get('minMarketCap')!;
+  if (searchParams.get('changeFilter')) filters.changeFilter = searchParams.get('changeFilter') as Filters['changeFilter'];
+  if (searchParams.get('dataSource')) filters.dataSource = searchParams.get('dataSource') as Filters['dataSource'];
+  if (searchParams.get('hideSuspicious') === 'false') filters.hideSuspicious = false;
+  
+  return { page, sortKey, sortDirection, filters };
+}
+
 export function useTokenCards() {
-  const [sortKey, setSortKey] = useState<SortKey>('market_cap_rank');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Parse initial state from URL
+  const urlState = useMemo(() => parseUrlParams(searchParams), [searchParams]);
+  
+  const [sortKey, setSortKey] = useState<SortKey>(urlState.sortKey);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(urlState.sortDirection);
+  const [currentPage, setCurrentPage] = useState(urlState.page);
   const [filters, setFilters] = useState<Filters>({
-    search: '',
-    category: '',
-    chain: '',
-    tier: '',
-    minVolume: '',
-    minGalaxyScore: '',
-    minMarketCap: '',
-    changeFilter: 'all',
-    dataSource: 'all',
-    hideSuspicious: true, // ON by default
+    search: urlState.filters.search || '',
+    category: urlState.filters.category || '',
+    chain: urlState.filters.chain || '',
+    tier: urlState.filters.tier || '',
+    minVolume: urlState.filters.minVolume || '',
+    minGalaxyScore: urlState.filters.minGalaxyScore || '',
+    minMarketCap: urlState.filters.minMarketCap || '',
+    changeFilter: urlState.filters.changeFilter || 'all',
+    dataSource: urlState.filters.dataSource || 'all',
+    hideSuspicious: urlState.filters.hideSuspicious ?? true,
   });
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState(urlState.filters.search || '');
+
+  // Sync state to URL (debounced to avoid too many history entries)
+  useEffect(() => {
+    const params = new URLSearchParams();
+    
+    if (currentPage > 1) params.set('page', String(currentPage));
+    if (sortKey !== 'market_cap_rank') params.set('sort', sortKey);
+    if (sortDirection !== 'asc') params.set('dir', sortDirection);
+    if (filters.search) params.set('search', filters.search);
+    if (filters.category) params.set('category', filters.category);
+    if (filters.chain) params.set('chain', filters.chain);
+    if (filters.tier) params.set('tier', filters.tier);
+    if (filters.minVolume) params.set('minVolume', filters.minVolume);
+    if (filters.minGalaxyScore) params.set('minGalaxyScore', filters.minGalaxyScore);
+    if (filters.minMarketCap) params.set('minMarketCap', filters.minMarketCap);
+    if (filters.changeFilter !== 'all') params.set('changeFilter', filters.changeFilter);
+    if (filters.dataSource !== 'all') params.set('dataSource', filters.dataSource);
+    if (!filters.hideSuspicious) params.set('hideSuspicious', 'false');
+    
+    // Use replace to avoid creating new history entries for every state change
+    setSearchParams(params, { replace: true });
+  }, [currentPage, sortKey, sortDirection, filters, setSearchParams]);
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(filters.search);
-      setCurrentPage(1);
+      if (filters.search !== urlState.filters.search) {
+        setCurrentPage(1);
+      }
     }, 300);
     return () => clearTimeout(timer);
   }, [filters.search]);
 
-  // Reset page on filter change
+  // Reset page on filter change (but not on initial load from URL)
   useEffect(() => {
     setCurrentPage(1);
   }, [filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, filters.hideSuspicious, sortKey, sortDirection]);
