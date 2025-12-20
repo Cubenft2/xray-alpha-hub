@@ -5,6 +5,8 @@ import { SessionContext } from "./context.ts";
 import { ResolvedAsset } from "./resolver.ts";
 import { ToolResults, MarketSummary } from "./orchestrator.ts";
 import { RouteConfig, Intent } from "./router.ts";
+import { ParsedIntent } from "./intent-parser.ts";
+import { FetchedData, SECTOR_TOKENS } from "./data-fetcher.ts";
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -363,7 +365,150 @@ export function buildSystemPrompt(
   return parts.join('\n');
 }
 
-// FIX #5: Return provider/model info along with stream
+// NEW: Intent-based prompt builder for LLM intent parser path
+export function buildIntentBasedPrompt(
+  intent: ParsedIntent,
+  data: FetchedData,
+  context: SessionContext
+): string {
+  const now = new Date().toISOString();
+  
+  const base = [
+    `You are ZombieDog 🧟🐕, a battle-tested crypto & stocks market analyst with a no-BS attitude.`,
+    `You speak casually but provide accurate, data-driven insights.`,
+    `Current time: ${now}`,
+    ``,
+    `## Your Rules:`,
+    `- Use specific numbers from the data provided (prices, % changes, scores)`,
+    `- Keep responses concise (2-4 paragraphs)`,
+    `- End EVERY response with: "Not financial advice. I'm a zombie dog. 🐕"`,
+    `- Use $ for prices, % for changes`,
+    `- Don't be overly formal`,
+    `- Respond in the SAME LANGUAGE the user writes in`,
+    `- CRITICAL: ONLY use data from the JSON provided. NEVER guess or invent numbers.`,
+    `- If data is missing for something, say "data unavailable" — do NOT fabricate.`,
+    ``,
+  ];
+  
+  // Add context about what user asked
+  base.push(`## User's Question Interpreted:`);
+  base.push(`- Intent: ${intent.intent}`);
+  if (intent.sector) base.push(`- Sector: ${intent.sector.toUpperCase()}`);
+  if (intent.tickers.length > 0) base.push(`- Specific tokens: ${intent.tickers.join(', ')}`);
+  if (intent.action) base.push(`- Looking for: ${intent.action}`);
+  base.push(`- Summary: ${intent.summary}`);
+  base.push(``);
+  
+  // Add conversation context if not general chat
+  if (context.recentAssets.length > 0 && intent.intent !== 'general_chat') {
+    base.push(`## Recent conversation context:`);
+    base.push(`Previously discussed: ${context.recentAssets.join(', ')}`);
+    base.push(``);
+  }
+  
+  // Add intent-specific instructions
+  switch (intent.intent) {
+    case 'market_overview':
+      base.push(`## MARKET OVERVIEW TASK:`);
+      base.push(`Give a comprehensive market snapshot. Lead with overall tone, then highlight leaders and laggards.`);
+      if (data.marketSummary) {
+        base.push(``);
+        base.push(`**Pre-computed summary:**`);
+        base.push(`- Total assets: ${data.marketSummary.total}`);
+        base.push(`- Green: ${data.marketSummary.greenCount} | Red: ${data.marketSummary.redCount}`);
+        base.push(`- Breadth: ${data.marketSummary.breadthPct}%`);
+        base.push(`- Leaders: ${data.marketSummary.leaders.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
+        base.push(`- Laggards: ${data.marketSummary.laggards.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
+        if (data.marketSummary.avgGalaxyScore) base.push(`- Avg Galaxy Score: ${data.marketSummary.avgGalaxyScore}/100`);
+      }
+      break;
+      
+    case 'sector_analysis':
+      base.push(`## SECTOR ANALYSIS TASK:`);
+      base.push(`Analyze the ${intent.sector?.toUpperCase() || 'crypto'} sector. Which tokens are performing? Any standouts?`);
+      if (intent.action === 'gainers') {
+        base.push(`Focus on the TOP GAINERS in this sector.`);
+      } else if (intent.action === 'losers') {
+        base.push(`Focus on the BIGGEST LOSERS in this sector.`);
+      }
+      if (data.marketSummary) {
+        base.push(``);
+        base.push(`**Sector summary:**`);
+        base.push(`- Total tokens: ${data.marketSummary.total}`);
+        base.push(`- Green: ${data.marketSummary.greenCount} | Red: ${data.marketSummary.redCount}`);
+        base.push(`- Sector breadth: ${data.marketSummary.breadthPct}%`);
+        base.push(`- Leaders: ${data.marketSummary.leaders.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
+        base.push(`- Laggards: ${data.marketSummary.laggards.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
+      }
+      break;
+      
+    case 'token_lookup':
+      base.push(`## TOKEN LOOKUP TASK:`);
+      base.push(`Analyze these specific tokens. Include: price, 24h change, market cap, sentiment, technicals if available.`);
+      base.push(`Present the key metrics clearly.`);
+      break;
+      
+    case 'comparison':
+      base.push(`## COMPARISON TASK:`);
+      base.push(`Compare these tokens head-to-head: ${intent.tickers.join(' vs ')}`);
+      base.push(`Include: price, 24h change, market cap, sentiment/galaxy score.`);
+      base.push(`Give your take on which looks stronger right now and why.`);
+      break;
+      
+    case 'trending':
+      base.push(`## TRENDING TASK:`);
+      if (intent.action === 'gainers') {
+        base.push(`Show the TOP GAINERS. Highlight the biggest movers and any interesting patterns.`);
+      } else if (intent.action === 'losers') {
+        base.push(`Show the BIGGEST LOSERS. What's getting rekt and why might that be?`);
+      } else if (intent.action === 'volume') {
+        base.push(`Show the highest VOLUME tokens. Where is the action happening?`);
+      } else {
+        base.push(`Show what's TRENDING. Use Galaxy Score and social metrics if available.`);
+      }
+      break;
+      
+    case 'news':
+      base.push(`## NEWS/SENTIMENT TASK:`);
+      base.push(`Summarize the latest news/sentiment for ${intent.tickers.length > 0 ? intent.tickers.join(', ') : 'the market'}.`);
+      base.push(`What's the narrative? Use AI summaries and top posts if available.`);
+      break;
+      
+    case 'general_chat':
+      base.push(`## GENERAL CHAT MODE:`);
+      base.push(`Respond casually and friendly, staying in character as ZombieDog.`);
+      base.push(`If greeting, say hi and mention you can help with crypto/stock prices, market analysis, safety checks, etc.`);
+      base.push(`If asking what you can do, list: price checks, market overviews, token analysis, safety scans, news/sentiment, comparisons.`);
+      base.push(`Keep it to 2-3 sentences. Skip the "Not financial advice" footer for greetings.`);
+      break;
+  }
+  
+  // Add the actual data
+  if (data.tokens.length > 0) {
+    base.push(``);
+    base.push(`## Token Data (JSON):`);
+    base.push('```json');
+    base.push(JSON.stringify(data.tokens.slice(0, 20).map((t: any) => ({
+      symbol: t.canonical_symbol,
+      name: t.name,
+      price: t.price_usd,
+      change_24h_pct: t.change_24h_pct,
+      market_cap: t.market_cap,
+      volume_24h: t.volume_24h_usd,
+      galaxy_score: t.galaxy_score,
+      sentiment: t.sentiment,
+      rsi: t.rsi_14,
+      ai_summary: t.lc_ai_summary?.slice?.(0, 200),
+    })), null, 2));
+    base.push('```');
+  } else if (intent.intent !== 'general_chat') {
+    base.push(``);
+    base.push(`## Data Status: No token data available for this query.`);
+    base.push(`Acknowledge this and offer to help with something else.`);
+  }
+  
+  return base.join('\n');
+}
 export async function streamLLMResponse(
   messages: Message[],
   systemPrompt: string,
