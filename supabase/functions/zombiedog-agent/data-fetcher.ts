@@ -70,7 +70,7 @@ async function fetchMarketOverview(supabase: any): Promise<FetchedData> {
   // Get top 25 by market cap
   const { data: topCoins, error: topError } = await supabase
     .from('token_cards')
-    .select('canonical_symbol, name, price_usd, change_24h_pct, volume_24h_usd, market_cap, market_cap_rank, galaxy_score, sentiment, rsi_14, lc_ai_summary')
+    .select('canonical_symbol, name, price_usd, change_24h_pct, volume_24h_usd, market_cap, market_cap_rank, galaxy_score, sentiment, rsi_14, ai_summary')
     .gt('market_cap_rank', 0)
     .order('market_cap_rank', { ascending: true })
     .limit(25);
@@ -112,7 +112,7 @@ async function fetchSectorData(supabase: any, sector: string | null, action: str
   
   let query = supabase
     .from('token_cards')
-    .select('canonical_symbol, name, price_usd, change_24h_pct, volume_24h_usd, market_cap, market_cap_rank, galaxy_score, sentiment, rsi_14, lc_ai_summary')
+    .select('canonical_symbol, name, price_usd, change_24h_pct, volume_24h_usd, market_cap, market_cap_rank, galaxy_score, sentiment, rsi_14, ai_summary')
     .in('canonical_symbol', sectorTokens)
     .gt('market_cap', MIN_MARKET_CAP);
 
@@ -211,7 +211,7 @@ async function fetchNewsData(supabase: any, tickers: string[]): Promise<FetchedD
   
   const { data, error } = await supabase
     .from('token_cards')
-    .select('canonical_symbol, name, lc_ai_summary, lc_top_posts, sentiment, galaxy_score')
+    .select('canonical_symbol, name, ai_summary, top_posts, sentiment, galaxy_score')
     .in('canonical_symbol', tickersToFetch);
 
   if (error) {
