@@ -343,18 +343,6 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
       <div 
         className={`flex-1 overflow-y-auto ${padding} relative ${compact ? 'min-h-0' : 'min-h-[300px]'}`}
       >
-        {/* Animated zombie watermark with spooky glow */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-          <img 
-            src="/zoobie-pfp-transparent.webp" 
-            alt="" 
-            className="w-[95%] h-[95%] object-contain opacity-25 animate-ghost-float"
-            loading="lazy"
-            style={{
-              filter: 'drop-shadow(0 0 15px hsl(120 100% 35% / 0.6)) drop-shadow(0 0 30px hsl(120 100% 35% / 0.3))'
-            }}
-          />
-        </div>
         {/* Semi-transparent overlay for readability */}
         <div className="absolute inset-0 bg-card/70 pointer-events-none" />
         
