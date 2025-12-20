@@ -90,6 +90,9 @@ const STOPWORDS = new Set([
   // Market overview / group query words (prevent "TOP" from being a ticker)
   'TOP', 'BEST', 'BIGGEST', 'LARGEST', 'MAJOR', 'PERFORMANCE', 'RANK', 'RANKING',
   'LIST', 'RUNDOWN', 'COMPARE', 'MOVERS', 'GAINERS', 'LOSERS', 'PASS', 'OVERVIEW',
+  // Additional stopwords to prevent false ticker detection
+  'WORLD', 'GLOBAL', 'WORKS', 'EVER', 'EVERY', 'NEVER', 'OVER',
+  'THING', 'THINGS', 'ALONG', 'MAKES', 'MADE', 'FEELS',
 ]);
 
 // Top cryptos by market cap for popularity ranking and validation
