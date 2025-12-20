@@ -15,7 +15,9 @@ export type Intent =
   | 'content' 
   | 'verification'
   | 'market_overview'
-  | 'market_preset'  // NEW: Canonical preset execution
+  | 'market_preset'
+  | 'compare'        // NEW: Asset comparison (BTC vs ETH)
+  | 'general_chat'   // NEW: Greetings, help, non-market queries
   | 'general';
 
 export interface RouteConfig {
@@ -43,9 +45,21 @@ const VERIFY_PATTERN = /\b(is this|verify|confirm|correct|right|legit|real|offic
 const MARKET_PATTERN = /\b(market|crypto|how('s|s| is)|what('s|s| is))\b.*\b(today|doing|looking|going|overall)\b/i;
 const ANALYSIS_PATTERN = /\b(analysis|analyze|deep dive|breakdown|overview|tell me about|explain)\b/i;
 const DETAILS_PATTERN = /\b(what is|what are|about|fundamentals|describe|who is|explain|overview|info)\b/i;
-// NEW: Top N / group queries
+// Top N / group queries
 const TOP_N_PATTERN = /\b(top\s*\d+|top\s*ten|top\s*twenty|top\s*100|best|biggest|largest|major|rundown|movers?|gainers?|losers?)\b.*\b(coins?|crypto|tokens?|assets?|currencies?|market|performance)?\b/i;
 const GROUP_QUERY_PATTERN = /\b(give me|show me|list|what are|how are|can you make|make me)\b.*\b(top|biggest|best|major|all|movers?|gainers?|losers?)\b/i;
+
+// NEW: Trending / Hot patterns → route to market_preset
+const TRENDING_PATTERN = /\b(what'?s|which|show me|give me)\s*(hot|trending|pumping|moving|on fire)\b/i;
+const HOT_PATTERN = /\b(hot|trending)\s*(coins?|tokens?|crypto)?\s*(right now|today)?/i;
+
+// NEW: Compare patterns → compare intent
+const COMPARE_PATTERN = /\b(vs\.?|versus|compare|between)\b/i;
+const COMPARE_EXPLICIT = /\b(\w+)\s+or\s+(\w+)\b.*\b(better|pick|choose)\b/i;
+
+// NEW: General chat (skip all data fetching)
+const GREETING_PATTERN = /^(hi|hello|hey|yo|sup|gm|thanks?|thank you|thx|good morning|good evening)\s*[!.]?$/i;
+const CAPABILITIES_PATTERN = /\b(what can you|who are you|what are you|help$|how do you work)\b/i;
 
 // Check if query contains explicit ticker
 function hasExplicitTicker(query: string): boolean {
@@ -70,6 +84,22 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
   
   // Check if details should be fetched (fundamentals/about queries)
   const wantsDetails = DETAILS_PATTERN.test(query);
+  
+  // === GENERAL CHAT (highest priority - skip all data fetching) ===
+  if (GREETING_PATTERN.test(query) || CAPABILITIES_PATTERN.test(query)) {
+    console.log('[Router] General chat detected (greeting/capabilities)');
+    return {
+      intent: 'general_chat',
+      fetchPrices: false,
+      fetchSocial: false,
+      fetchDerivs: false,
+      fetchSecurity: false,
+      fetchNews: false,
+      fetchCharts: false,
+      fetchDetails: false,
+      isSimpleQuery: true,
+    };
+  }
   
   // Content creation - high confidence pre-route
   if (CONTENT_PATTERN.test(query)) {
@@ -101,6 +131,44 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchDetails: false,
       isSimpleQuery: true,
     };
+  }
+  
+  // === COMPARE (BTC vs ETH, compare X and Y) ===
+  if ((COMPARE_PATTERN.test(query) || COMPARE_EXPLICIT.test(query)) && hasExplicitTicker(query)) {
+    console.log('[Router] Compare intent detected');
+    return {
+      intent: 'compare',
+      fetchPrices: true,
+      fetchSocial: true,
+      fetchDerivs: false,
+      fetchSecurity: false,
+      fetchNews: false,
+      fetchCharts: true,
+      fetchDetails: false,
+      isSimpleQuery: false,
+    };
+  }
+  
+  // === TRENDING/HOT patterns → route to market_preset ===
+  if ((TRENDING_PATTERN.test(query) || HOT_PATTERN.test(query)) && !hasExplicitTicker(query)) {
+    // Try to match to a preset (usually TOP_GALAXY_SCORE for "what's hot")
+    const matchedPreset = matchQueryToPreset(query);
+    
+    if (matchedPreset) {
+      console.log(`[Router] TRENDING matched to preset=${matchedPreset.id}`);
+      return {
+        intent: 'market_preset',
+        fetchPrices: false,
+        fetchSocial: false,
+        fetchDerivs: false,
+        fetchSecurity: false,
+        fetchNews: false,
+        fetchCharts: false,
+        fetchDetails: false,
+        isSimpleQuery: false,
+        preset: matchedPreset,
+      };
+    }
   }
   
   // Market preset - check if query matches a canonical preset first
