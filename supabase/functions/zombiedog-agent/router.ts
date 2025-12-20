@@ -49,6 +49,15 @@ const DETAILS_PATTERN = /\b(what is|what are|about|fundamentals|describe|who is|
 const TOP_N_PATTERN = /\b(top\s*\d+|top\s*ten|top\s*twenty|top\s*100|best|biggest|largest|major|rundown|movers?|gainers?|losers?)\b.*\b(coins?|crypto|tokens?|assets?|currencies?|market|performance)?\b/i;
 const GROUP_QUERY_PATTERN = /\b(give me|show me|list|what are|how are|can you make|make me)\b.*\b(top|biggest|best|major|all|movers?|gainers?|losers?)\b/i;
 
+// NEW: Sector/Category detection patterns - high priority
+const SECTOR_PATTERNS: Record<string, RegExp> = {
+  'ai': /\b(ai|artificial intelligence|machine learning|ml)\s*(tokens?|coins?|crypto|projects?|sector|narrative)?\b/i,
+  'defi': /\b(defi|decentralized finance|yield|lending|dex)\s*(tokens?|coins?|crypto|projects?|sector)?\b/i,
+  'meme': /\b(meme|memecoin|dog coin|shitcoin|degen)\s*(tokens?|coins?)?\b/i,
+  'gaming': /\b(gaming|gamefi|play.?to.?earn|p2e|metaverse)\s*(tokens?|coins?|crypto|sector)?\b/i,
+  'layer-1': /\b(layer.?1|l1|layer.?one|alt.?l1|base.?chain)\s*(tokens?|coins?|crypto)?\b/i,
+};
+
 // NEW: Trending / Hot patterns → route to market_preset
 const TRENDING_PATTERN = /\b(what'?s|which|show me|give me)\s*(hot|trending|pumping|moving|on fire)\b/i;
 const HOT_PATTERN = /\b(hot|trending)\s*(coins?|tokens?|crypto)?\s*(right now|today)?/i;
@@ -99,6 +108,38 @@ export function detectIntent(userQuery: string, context: SessionContext): RouteC
       fetchDetails: false,
       isSimpleQuery: true,
     };
+  }
+  
+  // === SECTOR QUERIES (ai coins, defi tokens, meme coins, etc.) ===
+  // Check BEFORE general patterns to ensure "ai coins" routes to AI_TOKENS preset
+  for (const [sectorKey, pattern] of Object.entries(SECTOR_PATTERNS)) {
+    if (pattern.test(query) && !hasExplicitTicker(query)) {
+      // Find the matching sector preset
+      const sectorPreset = MARKET_PRESETS.find(p => 
+        p.query.categoryFilter === sectorKey || 
+        (sectorKey === 'ai' && p.id === 'AI_TOKENS') ||
+        (sectorKey === 'defi' && p.id === 'DEFI_TOKENS') ||
+        (sectorKey === 'meme' && p.id === 'MEME_TOKENS') ||
+        (sectorKey === 'gaming' && p.id === 'GAMING_TOKENS') ||
+        (sectorKey === 'layer-1' && p.id === 'L1_BY_MARKET_CAP')
+      );
+      
+      if (sectorPreset) {
+        console.log(`[Router] SECTOR_QUERY detected sector=${sectorKey} preset=${sectorPreset.id}`);
+        return {
+          intent: 'market_preset',
+          fetchPrices: false,
+          fetchSocial: false,
+          fetchDerivs: false,
+          fetchSecurity: false,
+          fetchNews: false,
+          fetchCharts: false,
+          fetchDetails: false,
+          isSimpleQuery: false,
+          preset: sectorPreset,
+        };
+      }
+    }
   }
   
   // Content creation - high confidence pre-route

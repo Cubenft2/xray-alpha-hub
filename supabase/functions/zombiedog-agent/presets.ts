@@ -21,6 +21,7 @@ export interface MarketPreset {
     limit: number;
   };
   intentKeywords: string[];
+  fallbackSymbols?: string[]; // Fallback symbols when category filter returns empty
 }
 
 export const MARKET_PRESETS: MarketPreset[] = [
@@ -84,7 +85,13 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Artificial intelligence and ML related tokens',
     category: 'sector',
     query: { sortBy: 'market_cap_rank', sortDir: 'asc', changeFilter: 'all', categoryFilter: 'ai', minVolume: 0, minGalaxyScore: 0, minMarketCap: 5000, limit: 25 },
-    intentKeywords: ['ai tokens', 'ai crypto', 'artificial intelligence', 'machine learning tokens'],
+    intentKeywords: [
+      'ai tokens', 'ai crypto', 'artificial intelligence', 'machine learning', 'ml tokens',
+      'ai coins', 'ai coin', 'ai sector', 'ai narrative', 'ai projects',
+      'what ai', 'show ai', 'give ai', 'list ai', 'best ai'
+    ],
+    // Fallback symbols when category filter returns empty
+    fallbackSymbols: ['LINK', 'TAO', 'NEAR', 'RENDER', 'FET', 'INJ', 'VIRTUAL', 'GRT', 'THETA', 'TRAC', 'AGIX', 'OCEAN', 'AKT', 'ATH', 'AIOZ', 'ROSE', 'NMR', 'GLM'],
   },
   {
     id: 'DEFI_TOKENS',
@@ -92,7 +99,11 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Decentralized finance protocol tokens',
     category: 'sector',
     query: { sortBy: 'market_cap_rank', sortDir: 'asc', changeFilter: 'all', categoryFilter: 'defi', minVolume: 0, minGalaxyScore: 0, minMarketCap: 5000, limit: 25 },
-    intentKeywords: ['defi', 'defi tokens', 'decentralized finance'],
+    intentKeywords: [
+      'defi', 'defi tokens', 'defi coins', 'decentralized finance', 'defi sector',
+      'yield', 'lending', 'dex tokens', 'defi projects'
+    ],
+    fallbackSymbols: ['UNI', 'AAVE', 'MKR', 'LDO', 'CRV', 'SNX', 'COMP', 'SUSHI', '1INCH', 'YFI', 'BAL', 'DYDX'],
   },
   {
     id: 'GAMING_TOKENS',
@@ -100,7 +111,11 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Gaming and metaverse tokens',
     category: 'sector',
     query: { sortBy: 'market_cap_rank', sortDir: 'asc', changeFilter: 'all', categoryFilter: 'gaming', minVolume: 0, minGalaxyScore: 0, minMarketCap: 5000, limit: 25 },
-    intentKeywords: ['gaming tokens', 'gaming crypto', 'game tokens', 'metaverse'],
+    intentKeywords: [
+      'gaming tokens', 'gaming crypto', 'game tokens', 'metaverse', 'gamefi',
+      'play to earn', 'p2e', 'gaming coins', 'gaming sector'
+    ],
+    fallbackSymbols: ['IMX', 'AXS', 'SAND', 'MANA', 'GALA', 'ENJ', 'ILV', 'BEAM', 'RONIN', 'PRIME'],
   },
   {
     id: 'MEME_TOKENS',
@@ -108,7 +123,11 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Meme coins and community tokens',
     category: 'sector',
     query: { sortBy: 'market_cap_rank', sortDir: 'asc', changeFilter: 'all', categoryFilter: 'meme', minVolume: 0, minGalaxyScore: 0, minMarketCap: 5000, limit: 25 },
-    intentKeywords: ['meme', 'meme tokens', 'memecoins', 'meme coins'],
+    intentKeywords: [
+      'meme', 'meme tokens', 'memecoins', 'meme coins', 'dog coins', 'meme sector',
+      'degen', 'shitcoins', 'meme narrative'
+    ],
+    fallbackSymbols: ['DOGE', 'SHIB', 'PEPE', 'WIF', 'FLOKI', 'BONK', 'BRETT', 'POPCAT', 'MOG', 'TURBO'],
   },
   // Structure
   {
