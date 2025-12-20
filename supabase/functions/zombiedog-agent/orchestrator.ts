@@ -267,6 +267,12 @@ export async function executeTools(
   
   console.log(`[Orchestrator] Intent: ${config.intent}, assets: [${symbols.join(', ')}], count: ${symbols.length}`);
   
+  // === GENERAL_CHAT: Early return - no data fetching needed ===
+  if (config.intent === 'general_chat') {
+    console.log('[Orchestrator] General chat - skipping all data fetches');
+    return results;
+  }
+  
   // CANONICAL PRESET EXECUTION - deterministic, no guessing
   if (config.intent === 'market_preset' && config.preset) {
     const preset = config.preset;
@@ -474,8 +480,15 @@ export async function executeTools(
   
   // News from Mastercards FIRST, then cache/API fallback
   if (config.fetchNews) {
-    const primarySymbol = symbols[0];
+    // Auto-fetch BTC/ETH news if no specific ticker was mentioned
+    let newsSymbols = symbols.length > 0 ? symbols : ['BTC', 'ETH'];
+    const primarySymbol = newsSymbols[0];
     const primaryType = assetTypes.get(primarySymbol) || 'crypto';
+    
+    if (symbols.length === 0) {
+      console.log('[Orchestrator] News query with no ticker - defaulting to BTC/ETH');
+    }
+    
     tasks.push(
       fetchWithTimeout(
         (signal) => fetchNews(supabase, primarySymbol, primaryType, signal, budget, results.cacheStats),

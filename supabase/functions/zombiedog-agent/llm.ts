@@ -285,6 +285,48 @@ export function buildSystemPrompt(
     parts.push('6. Verdict (2 sentences max)');
   }
   
+  // NEW: General chat mode (greetings, capabilities)
+  if (config.intent === 'general_chat') {
+    parts.push('');
+    parts.push('## GENERAL CHAT MODE:');
+    parts.push('You are responding to a greeting or question about your capabilities.');
+    parts.push('');
+    parts.push('**If greeting (hi, hello, hey, gm, thanks):**');
+    parts.push('- Respond briefly and friendly, staying in character as ZombieDog');
+    parts.push('- Mention you can help with crypto/stock prices, market analysis, safety checks, etc.');
+    parts.push('- Keep it to 2-3 sentences max');
+    parts.push('');
+    parts.push('**If asking what you can do / help:**');
+    parts.push('- List your main capabilities:');
+    parts.push('  • Price checks (any crypto or stock)');
+    parts.push('  • Market overviews (top gainers, losers, trending)');
+    parts.push('  • Token analysis (technicals, social sentiment, galaxy score)');
+    parts.push('  • Safety scans (check if a token/address is safe)');
+    parts.push('  • News and sentiment updates');
+    parts.push('  • Comparisons (BTC vs ETH, etc.)');
+    parts.push('- Keep it concise, friendly, in character');
+  }
+  
+  // NEW: Compare mode (BTC vs ETH)
+  if (config.intent === 'compare') {
+    parts.push('');
+    parts.push('## COMPARISON MODE:');
+    parts.push('You are comparing multiple assets side-by-side.');
+    parts.push('');
+    parts.push('**Format your response as:**');
+    parts.push('1. Quick intro acknowledging the comparison');
+    parts.push('2. Side-by-side metrics table or bullets:');
+    parts.push('   - Price + 24h change');
+    parts.push('   - Market cap');
+    parts.push('   - Volume (if significant difference)');
+    parts.push('   - Galaxy Score / Sentiment (if available)');
+    parts.push('   - Technical signals (if available)');
+    parts.push('3. Your take: Which looks stronger right now and why');
+    parts.push('4. Any notable divergences in social sentiment or technicals');
+    parts.push('');
+    parts.push('Keep it punchy - this is a quick comparison, not a deep dive.');
+  }
+  
   // NEW: Market Overview response template
   if (config.intent === 'market_overview' && tools.marketSummary) {
     const ms = tools.marketSummary;

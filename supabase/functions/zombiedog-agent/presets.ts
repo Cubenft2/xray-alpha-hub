@@ -31,7 +31,8 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Cryptocurrencies with the highest price increase in the last 24 hours',
     category: 'movement',
     query: { sortBy: 'percent_change_24h', sortDir: 'desc', changeFilter: 'gainers', categoryFilter: 'all', minVolume: 0, minGalaxyScore: 0, minMarketCap: 0, limit: 25 },
-    intentKeywords: ['gainers', 'top gainers', 'biggest gainers', 'movers up', 'pumping', 'green'],
+    intentKeywords: ['gainers', 'top gainers', 'biggest gainers', 'movers up', 'pumping', 'green', 
+                     'what\'s up', 'what\'s pumping', 'what\'s green', 'biggest winners', 'up the most'],
   },
   {
     id: 'TOP_LOSERS_24H',
@@ -39,7 +40,9 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Cryptocurrencies with the largest price decrease in the last 24 hours',
     category: 'movement',
     query: { sortBy: 'percent_change_24h', sortDir: 'asc', changeFilter: 'losers', categoryFilter: 'all', minVolume: 0, minGalaxyScore: 0, minMarketCap: 0, limit: 25 },
-    intentKeywords: ['losers', 'top losers', 'biggest losers', 'movers down', 'dumping', 'red'],
+    intentKeywords: ['losers', 'top losers', 'biggest losers', 'movers down', 'dumping', 'red',
+                     'getting rekt', 'getting wrecked', 'what\'s down', 'what\'s red', 'what\'s dumping', 
+                     'biggest dumps', 'down the most', 'crashed', 'crashing'],
   },
   {
     id: 'HIGHEST_VOLUME_24H',
@@ -47,7 +50,7 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Cryptocurrencies with the highest trading volume in the last 24 hours',
     category: 'movement',
     query: { sortBy: 'volume_24h', sortDir: 'desc', changeFilter: 'all', categoryFilter: 'all', minVolume: 0, minGalaxyScore: 0, minMarketCap: 0, limit: 25 },
-    intentKeywords: ['volume', 'highest volume', 'most traded', 'active'],
+    intentKeywords: ['volume', 'highest volume', 'most traded', 'active', 'most volume', 'trading volume'],
   },
   {
     id: 'TOP_MOVERS_24H',
@@ -55,7 +58,7 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Cryptocurrencies with the biggest price movement',
     category: 'movement',
     query: { sortBy: 'percent_change_24h', sortDir: 'desc', changeFilter: 'gainers', categoryFilter: 'all', minVolume: 10000000, minGalaxyScore: 0, minMarketCap: 0, limit: 25 },
-    intentKeywords: ['movers', 'top movers', 'biggest movers', 'market movers'],
+    intentKeywords: ['movers', 'top movers', 'biggest movers', 'market movers', 'moving today'],
   },
   // Network
   {
@@ -136,10 +139,12 @@ export const MARKET_PRESETS: MarketPreset[] = [
   {
     id: 'TOP_GALAXY_SCORE',
     name: 'Top Galaxy Score',
-    description: 'Highest LunarCrush Galaxy Score',
+    description: 'Highest LunarCrush Galaxy Score - social health indicator',
     category: 'sentiment',
     query: { sortBy: 'galaxy_score', sortDir: 'desc', changeFilter: 'all', categoryFilter: 'all', minVolume: 0, minGalaxyScore: 0, minMarketCap: 0, limit: 25 },
-    intentKeywords: ['galaxy score', 'top galaxy', 'best galaxy score', 'social health'],
+    intentKeywords: ['galaxy score', 'top galaxy', 'best galaxy score', 'social health',
+                     'hot', 'what\'s hot', 'trending', 'what to watch', 'what should i watch',
+                     'interesting', 'viral', 'buzz', 'on fire', 'which coins are hot'],
   },
   {
     id: 'TRENDING_SOCIAL_VOLUME',
@@ -147,7 +152,8 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Highest social media activity',
     category: 'sentiment',
     query: { sortBy: 'social_volume', sortDir: 'desc', changeFilter: 'all', categoryFilter: 'all', minVolume: 0, minGalaxyScore: 0, minMarketCap: 0, limit: 25 },
-    intentKeywords: ['trending', 'social volume', 'most discussed', 'viral', 'social activity'],
+    intentKeywords: ['social volume', 'most discussed', 'most talked about', 'social activity', 
+                     'twitter trending', 'being discussed'],
   },
   {
     id: 'HIGHEST_SENTIMENT',
@@ -155,7 +161,7 @@ export const MARKET_PRESETS: MarketPreset[] = [
     description: 'Most positive social sentiment',
     category: 'sentiment',
     query: { sortBy: 'sentiment', sortDir: 'desc', changeFilter: 'all', categoryFilter: 'all', minVolume: 0, minGalaxyScore: 0, minMarketCap: 0, limit: 25 },
-    intentKeywords: ['sentiment', 'positive sentiment', 'bullish sentiment'],
+    intentKeywords: ['sentiment', 'positive sentiment', 'bullish sentiment', 'most bullish', 'best vibes'],
   },
 ];
 
