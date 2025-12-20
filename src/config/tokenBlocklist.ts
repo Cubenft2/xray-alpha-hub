@@ -24,8 +24,13 @@ export interface BlockedToken {
 export const BLOCKED_TOKENS: BlockedToken[] = [
   {
     symbol: 'SOLZILLA',
-    reason: 'Fake market cap data - shows $1.69T market cap with only $43 volume, +6B% fake change',
-    blockedAt: '2025-12-16',
+    reason: 'Deleted - Inconsistent data: $0 market cap with rank #2, unreliable data source',
+    blockedAt: '2025-12-20',
+  },
+  {
+    symbol: 'LILPEPE',
+    reason: 'Deleted - Fake $1 quadrillion market cap with $18 volume, clearly manipulated LunarCrush data',
+    blockedAt: '2025-12-20',
   },
   {
     symbol: 'BZR',
