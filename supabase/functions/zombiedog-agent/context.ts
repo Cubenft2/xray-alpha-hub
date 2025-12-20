@@ -56,6 +56,12 @@ const STOPWORDS = new Set([
   'ABOUT', 'SAID', 'SAYS', 'SAY', 'THINK', 'KNOW', 'FEEL', 'BELIEVE',
   'THANKS', 'THANK', 'THX', 'LIKE', 'AWESOME',
   'COPY', 'PASTE', 'DATA', 'INFO', 'COMPLETE',
+  // Market overview / group query words (prevent false ticker detection)
+  'TOP', 'BEST', 'BIGGEST', 'LARGEST', 'MAJOR', 'PERFORMANCE', 'RANK', 'RANKING',
+  'LIST', 'RUNDOWN', 'COMPARE', 'MOVERS', 'GAINERS', 'LOSERS', 'PASS', 'OVERVIEW',
+  // Additional stopwords to prevent false ticker detection
+  'WORLD', 'GLOBAL', 'WORKS', 'EVER', 'EVERY', 'NEVER', 'OVER',
+  'THING', 'THINGS', 'ALONG', 'MAKES', 'MADE', 'FEELS',
 ]);
 
 const TICKER_ALIASES: Record<string, string> = {
