@@ -280,9 +280,41 @@ export async function executeTools(
     
     console.log(`MARKET_PRESET_EXECUTING preset=${preset.id}`);
     
-    const presetData = await executePreset(supabase, preset);
+    let presetData = await executePreset(supabase, preset);
     
     const executionTime = Date.now() - startTime;
+    
+    // FALLBACK: If category filter returned empty and we have fallback symbols, use them
+    if (presetData.length === 0 && preset.fallbackSymbols && preset.fallbackSymbols.length > 0) {
+      console.log(`[Preset] Category filter empty, using fallback symbols for ${preset.id}: [${preset.fallbackSymbols.join(', ')}]`);
+      
+      // Query token_cards directly for fallback symbols
+      const { data: fallbackData } = await supabase
+        .from('token_cards')
+        .select('canonical_symbol, name, price_usd, change_24h_pct, market_cap, market_cap_rank, galaxy_score, sentiment, volume_24h_usd, logo_url')
+        .in('canonical_symbol', preset.fallbackSymbols)
+        .gt('market_cap', preset.query.minMarketCap)
+        .order('market_cap', { ascending: false })
+        .limit(preset.query.limit);
+      
+      if (fallbackData && fallbackData.length > 0) {
+        // Map to expected format
+        presetData = fallbackData.map((t: any) => ({
+          symbol: t.canonical_symbol,
+          name: t.name,
+          price: t.price_usd,
+          percent_change_24h: t.change_24h_pct,
+          market_cap: t.market_cap,
+          market_cap_rank: t.market_cap_rank,
+          galaxy_score: t.galaxy_score,
+          sentiment: t.sentiment,
+          volume_24h: t.volume_24h_usd,
+          logo_url: t.logo_url,
+        }));
+        console.log(`[Preset] Fallback query returned ${presetData.length} tokens`);
+        results.cacheStats.hits.push(`preset:${preset.id}:fallback`);
+      }
+    }
     
     if (presetData.length === 0) {
       console.log(`MARKET_PRESET_EMPTY preset=${preset.id} rows=0 latency_ms=${executionTime}`);
