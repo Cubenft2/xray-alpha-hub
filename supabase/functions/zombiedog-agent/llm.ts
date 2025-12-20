@@ -1,12 +1,12 @@
 // LLM Caller: Lovable AI → OpenAI → Anthropic fallback chain
-// FIXES: #4 (tool data contract), #5 (actual provider logging), #11 (SSE format)
+// UPGRADED: Rich data formatting with technicals, social, AI summaries
 
 import { SessionContext } from "./context.ts";
 import { ResolvedAsset } from "./resolver.ts";
 import { ToolResults, MarketSummary } from "./orchestrator.ts";
 import { RouteConfig, Intent } from "./router.ts";
 import { ParsedIntent } from "./intent-parser.ts";
-import { FetchedData, SECTOR_TOKENS } from "./data-fetcher.ts";
+import { FetchedData, SECTOR_TOKENS, RichToken } from "./data-fetcher.ts";
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -44,6 +44,71 @@ const PROVIDERS = [
   },
 ];
 
+// Helper functions for formatting
+function formatPrice(price: number | null): string {
+  if (price === null || price === undefined) return '?';
+  if (price >= 1000) return price.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (price >= 1) return price.toFixed(2);
+  if (price >= 0.01) return price.toFixed(4);
+  return price.toFixed(8);
+}
+
+function formatLargeNumber(num: number | null): string {
+  if (num === null || num === undefined) return '?';
+  if (num >= 1e12) return `${(num / 1e12).toFixed(2)}T`;
+  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
+  return num.toFixed(0);
+}
+
+function formatRichTokenCard(token: any): string {
+  const changeEmoji = (token.change_24h_pct || 0) >= 0 ? '🟢' : '🔴';
+  const changeSign = (token.change_24h_pct || 0) >= 0 ? '+' : '';
+  
+  let card = `\n**${token.name} (${token.canonical_symbol})** #${token.market_cap_rank || '?'}\n`;
+  card += `$${formatPrice(token.price_usd)} (${changeSign}${(token.change_24h_pct || 0).toFixed(2)}%) ${changeEmoji}\n`;
+  card += `MCap: $${formatLargeNumber(token.market_cap)} │ Vol: $${formatLargeNumber(token.volume_24h_usd)}\n`;
+  
+  // Technicals (if available)
+  const technicals: string[] = [];
+  if (token.rsi_14) {
+    const rsiStatus = token.rsi_14 > 70 ? 'overbought' : token.rsi_14 < 30 ? 'oversold' : 'neutral';
+    technicals.push(`RSI ${Math.round(token.rsi_14)} (${rsiStatus})`);
+  }
+  if (token.macd_trend) {
+    technicals.push(`MACD ${token.macd_trend}`);
+  }
+  if (token.price_vs_sma_50) {
+    technicals.push(`${token.price_vs_sma_50} 50 SMA`);
+  }
+  if (technicals.length > 0) {
+    card += `📈 Technical: ${technicals.join(' • ')}\n`;
+  }
+  
+  // Social (if available)
+  const social: string[] = [];
+  if (token.galaxy_score) social.push(`Galaxy ${token.galaxy_score}`);
+  if (token.sentiment) {
+    const sentEmoji = token.sentiment > 60 ? '🟢' : token.sentiment < 40 ? '🔴' : '🟡';
+    social.push(`Sentiment ${token.sentiment}% ${sentEmoji}`);
+  }
+  if (token.social_dominance) social.push(`Dominance ${token.social_dominance.toFixed(1)}%`);
+  if (social.length > 0) {
+    card += `🔥 Social: ${social.join(' │ ')}\n`;
+  }
+  
+  // AI Summary (the gold - what's actually happening)
+  const aiSummary = token.ai_summary_short || token.ai_summary;
+  if (aiSummary) {
+    // Truncate to first sentence or 120 chars
+    const shortSummary = aiSummary.split('.')[0].slice(0, 120);
+    card += `💬 "${shortSummary}"\n`;
+  }
+  
+  return card;
+}
+
 // FIX #4: Strict tool data contract with timestamps and recency
 export function buildSystemPrompt(
   context: SessionContext,
@@ -66,11 +131,11 @@ export function buildSystemPrompt(
     `- For prices: show symbol, price, 24h %, and data age (e.g., "updated 42s ago").`,
     `- For safety: show risk level, flags, and verdict.`,
     `- For content creation: output ONLY the requested content.`,
-`- Keep responses concise but informative.`,
-`- Respond in the SAME LANGUAGE the user writes in.`,
-`- When data shows "_stale" source, mention it may be slightly delayed.`,
-`- CRITICAL: ONLY use prices from the Tool Data JSON provided. NEVER guess or invent numbers.`,
-`- If price is missing for an asset, say "price data unavailable" — do NOT fabricate prices.`,
+    `- Keep responses concise but informative.`,
+    `- Respond in the SAME LANGUAGE the user writes in.`,
+    `- When data shows "_stale" source, mention it may be slightly delayed.`,
+    `- CRITICAL: ONLY use prices from the Tool Data JSON provided. NEVER guess or invent numbers.`,
+    `- If price is missing for an asset, say "price data unavailable" — do NOT fabricate prices.`,
   ];
   
   // Add data recency summary
@@ -365,7 +430,7 @@ export function buildSystemPrompt(
   return parts.join('\n');
 }
 
-// NEW: Intent-based prompt builder for LLM intent parser path
+// UPGRADED: Intent-based prompt builder with RICH data formatting
 export function buildIntentBasedPrompt(
   intent: ParsedIntent,
   data: FetchedData,
@@ -380,7 +445,7 @@ export function buildIntentBasedPrompt(
     ``,
     `## Your Rules:`,
     `- Use specific numbers from the data provided (prices, % changes, scores)`,
-    `- Keep responses concise (2-4 paragraphs)`,
+    `- Keep responses concise (2-4 paragraphs max)`,
     `- End EVERY response with: "Not financial advice. I'm a zombie dog. 🐕"`,
     `- Use $ for prices, % for changes`,
     `- Don't be overly formal`,
@@ -406,26 +471,42 @@ export function buildIntentBasedPrompt(
     base.push(``);
   }
   
-  // Add intent-specific instructions
+  // Add intent-specific instructions with RICH data format requirements
   switch (intent.intent) {
     case 'market_overview':
       base.push(`## MARKET OVERVIEW TASK:`);
-      base.push(`Give a comprehensive market snapshot. Lead with overall tone, then highlight leaders and laggards.`);
+      base.push(`Give a comprehensive market snapshot using the FULL data provided.`);
+      base.push(``);
+      base.push(`**Response Structure:**`);
+      base.push(`1. **Market Pulse Header** - Date, overall tone (bullish/neutral/bearish)`);
+      base.push(`2. **Top 3 Tokens with Rich Cards** - For each major token show:`);
+      base.push(`   - Price + 24h % change`);
+      base.push(`   - Technical signals: RSI, MACD trend, SMA position`);
+      base.push(`   - Social: Galaxy Score, Sentiment %, Social Dominance`);
+      base.push(`   - AI Summary quote (the WHY behind the move)`);
+      base.push(`3. **Movers Section** - Top gainers and losers with Galaxy Score and AI summary`);
+      base.push(`4. **ZombieDog Take** - Your personal market read (2-3 sentences)`);
+      base.push(``);
       if (data.marketSummary) {
-        base.push(``);
         base.push(`**Pre-computed summary:**`);
-        base.push(`- Total assets: ${data.marketSummary.total}`);
-        base.push(`- Green: ${data.marketSummary.greenCount} | Red: ${data.marketSummary.redCount}`);
+        base.push(`- Total: ${data.marketSummary.total} | Green: ${data.marketSummary.greenCount} | Red: ${data.marketSummary.redCount}`);
         base.push(`- Breadth: ${data.marketSummary.breadthPct}%`);
-        base.push(`- Leaders: ${data.marketSummary.leaders.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
+        base.push(`- Leaders: ${data.marketSummary.leaders.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}% (Galaxy: ${l.galaxy || '?'})`).join(', ')}`);
         base.push(`- Laggards: ${data.marketSummary.laggards.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
         if (data.marketSummary.avgGalaxyScore) base.push(`- Avg Galaxy Score: ${data.marketSummary.avgGalaxyScore}/100`);
+        if (data.marketSummary.avgSentiment) base.push(`- Avg Sentiment: ${data.marketSummary.avgSentiment}%`);
+        if (data.marketSummary.avgRsi) base.push(`- Avg RSI: ${data.marketSummary.avgRsi}`);
       }
       break;
       
     case 'sector_analysis':
       base.push(`## SECTOR ANALYSIS TASK:`);
-      base.push(`Analyze the ${intent.sector?.toUpperCase() || 'crypto'} sector. Which tokens are performing? Any standouts?`);
+      base.push(`Analyze the ${intent.sector?.toUpperCase() || 'crypto'} sector with RICH data.`);
+      base.push(``);
+      base.push(`**Response Structure:**`);
+      base.push(`1. **Sector Header** - Name, breadth (X/Y green), overall sector tone`);
+      base.push(`2. **Top 5 Tokens** - For each show: Price, 24h%, Technicals, Social metrics, AI summary`);
+      base.push(`3. **Sector Insights** - Any patterns? Divergences between price and social?`);
       if (intent.action === 'gainers') {
         base.push(`Focus on the TOP GAINERS in this sector.`);
       } else if (intent.action === 'losers') {
@@ -439,39 +520,71 @@ export function buildIntentBasedPrompt(
         base.push(`- Sector breadth: ${data.marketSummary.breadthPct}%`);
         base.push(`- Leaders: ${data.marketSummary.leaders.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
         base.push(`- Laggards: ${data.marketSummary.laggards.map(l => `${l.symbol} ${l.change >= 0 ? '+' : ''}${l.change.toFixed(1)}%`).join(', ')}`);
+        if (data.marketSummary.avgGalaxyScore) base.push(`- Avg Galaxy Score: ${data.marketSummary.avgGalaxyScore}/100`);
       }
       break;
       
     case 'token_lookup':
       base.push(`## TOKEN LOOKUP TASK:`);
-      base.push(`Analyze these specific tokens. Include: price, 24h change, market cap, sentiment, technicals if available.`);
-      base.push(`Present the key metrics clearly.`);
+      base.push(`Give a COMPREHENSIVE analysis of these specific tokens.`);
+      base.push(``);
+      base.push(`**For each token include:**`);
+      base.push(`1. **Header**: Name (Symbol) #Rank`);
+      base.push(`2. **Price**: Current price, 24h change %, 7d change if available`);
+      base.push(`3. **Market**: Market cap, Volume 24h, ATH info if relevant`);
+      base.push(`4. **Technicals**: RSI (overbought/oversold/neutral), MACD trend, SMA position`);
+      base.push(`5. **Social**: Galaxy Score, Sentiment %, Social Dominance, Social Volume`);
+      base.push(`6. **AI Summary**: Quote the ai_summary - this explains WHAT'S HAPPENING`);
+      base.push(`7. **Your Take**: 1-2 sentence interpretation`);
       break;
       
     case 'comparison':
       base.push(`## COMPARISON TASK:`);
       base.push(`Compare these tokens head-to-head: ${intent.tickers.join(' vs ')}`);
-      base.push(`Include: price, 24h change, market cap, sentiment/galaxy score.`);
-      base.push(`Give your take on which looks stronger right now and why.`);
+      base.push(``);
+      base.push(`**Side-by-Side Format:**`);
+      base.push(`| Metric | Token1 | Token2 |`);
+      base.push(`- Price + 24h change`);
+      base.push(`- Market Cap + Rank`);
+      base.push(`- Volume 24h`);
+      base.push(`- RSI + Technical Signal`);
+      base.push(`- Galaxy Score + Sentiment`);
+      base.push(`- AI Summary snippet`);
+      base.push(``);
+      base.push(`**Then give your verdict:**`);
+      base.push(`- Which looks stronger RIGHT NOW and why`);
+      base.push(`- Any interesting divergences (e.g., price down but sentiment up)`);
       break;
       
     case 'trending':
       base.push(`## TRENDING TASK:`);
       if (intent.action === 'gainers') {
-        base.push(`Show the TOP GAINERS. Highlight the biggest movers and any interesting patterns.`);
+        base.push(`Show the TOP GAINERS with full context.`);
+        base.push(`For each: Price, 24h%, Galaxy Score, AI Summary (the WHY)`);
       } else if (intent.action === 'losers') {
-        base.push(`Show the BIGGEST LOSERS. What's getting rekt and why might that be?`);
+        base.push(`Show the BIGGEST LOSERS. What's getting rekt and WHY?`);
+        base.push(`Use the AI summaries to explain the narratives.`);
       } else if (intent.action === 'volume') {
         base.push(`Show the highest VOLUME tokens. Where is the action happening?`);
+        base.push(`Include Galaxy Score to see if it's organic interest.`);
       } else {
-        base.push(`Show what's TRENDING. Use Galaxy Score and social metrics if available.`);
+        base.push(`Show what's TRENDING socially.`);
+        base.push(`Use Galaxy Score, sentiment, and AI summaries.`);
       }
       break;
       
     case 'news':
       base.push(`## NEWS/SENTIMENT TASK:`);
-      base.push(`Summarize the latest news/sentiment for ${intent.tickers.length > 0 ? intent.tickers.join(', ') : 'the market'}.`);
-      base.push(`What's the narrative? Use AI summaries and top posts if available.`);
+      base.push(`Summarize the latest sentiment for ${intent.tickers.length > 0 ? intent.tickers.join(', ') : 'the market'}.`);
+      base.push(``);
+      base.push(`**Use these data sources:**`);
+      base.push(`- ai_summary: LunarCrush AI analysis of what's happening`);
+      base.push(`- key_themes: Main topics being discussed`);
+      base.push(`- sentiment: Overall crowd mood %`);
+      base.push(`- top_posts: What influencers are saying`);
+      base.push(`- top_news: Recent headlines`);
+      base.push(``);
+      base.push(`Synthesize into a narrative: What's the story? Why are people talking?`);
       break;
       
     case 'general_chat':
@@ -483,25 +596,81 @@ export function buildIntentBasedPrompt(
       break;
   }
   
-  // Add the actual data
+  // Add the RICH token data with all available fields
   if (data.tokens.length > 0) {
     base.push(``);
-    base.push(`## Token Data (JSON):`);
+    base.push(`## Token Data (RICH - use ALL of this):`);
     base.push('```json');
-    base.push(JSON.stringify(data.tokens.slice(0, 20).map((t: any) => ({
+    base.push(JSON.stringify(data.tokens.slice(0, 15).map((t: any) => ({
       symbol: t.canonical_symbol,
       name: t.name,
-      price: t.price_usd,
+      rank: t.market_cap_rank,
+      // Price data
+      price_usd: t.price_usd,
       change_24h_pct: t.change_24h_pct,
+      change_7d_pct: t.change_7d_pct,
+      high_24h: t.high_24h,
+      low_24h: t.low_24h,
+      volume_24h_usd: t.volume_24h_usd,
       market_cap: t.market_cap,
-      volume_24h: t.volume_24h_usd,
+      // Technicals (Polygon)
+      rsi_14: t.rsi_14,
+      rsi_signal: t.rsi_signal,
+      macd_trend: t.macd_trend,
+      price_vs_sma_50: t.price_vs_sma_50,
+      price_vs_sma_200: t.price_vs_sma_200,
+      technical_signal: t.technical_signal,
+      // Social (LunarCrush)
       galaxy_score: t.galaxy_score,
+      alt_rank: t.alt_rank,
       sentiment: t.sentiment,
-      rsi: t.rsi_14,
-      ai_summary: t.lc_ai_summary?.slice?.(0, 200),
+      sentiment_label: t.sentiment_label,
+      social_volume_24h: t.social_volume_24h,
+      social_dominance: t.social_dominance,
+      // AI Summary (THE GOLD)
+      ai_summary: t.ai_summary?.slice?.(0, 300) || t.ai_summary_short,
+      key_themes: t.key_themes,
+      // ATH data
+      ath_price: t.ath_price,
+      ath_change_pct: t.ath_change_pct,
     })), null, 2));
     base.push('```');
-  } else if (intent.intent !== 'general_chat') {
+  }
+  
+  // Add gainers/losers if available (for market overview)
+  if (data.gainers && data.gainers.length > 0) {
+    base.push(``);
+    base.push(`## Top Gainers:`);
+    base.push('```json');
+    base.push(JSON.stringify(data.gainers.slice(0, 5).map((t: any) => ({
+      symbol: t.canonical_symbol,
+      name: t.name,
+      price_usd: t.price_usd,
+      change_24h_pct: t.change_24h_pct,
+      galaxy_score: t.galaxy_score,
+      sentiment: t.sentiment,
+      ai_summary: t.ai_summary?.slice?.(0, 200) || t.ai_summary_short,
+    })), null, 2));
+    base.push('```');
+  }
+  
+  if (data.losers && data.losers.length > 0) {
+    base.push(``);
+    base.push(`## Top Losers:`);
+    base.push('```json');
+    base.push(JSON.stringify(data.losers.slice(0, 5).map((t: any) => ({
+      symbol: t.canonical_symbol,
+      name: t.name,
+      price_usd: t.price_usd,
+      change_24h_pct: t.change_24h_pct,
+      galaxy_score: t.galaxy_score,
+      sentiment: t.sentiment,
+      ai_summary: t.ai_summary?.slice?.(0, 200) || t.ai_summary_short,
+    })), null, 2));
+    base.push('```');
+  }
+  
+  if (data.tokens.length === 0 && intent.intent !== 'general_chat') {
     base.push(``);
     base.push(`## Data Status: No token data available for this query.`);
     base.push(`Acknowledge this and offer to help with something else.`);
@@ -509,6 +678,7 @@ export function buildIntentBasedPrompt(
   
   return base.join('\n');
 }
+
 export async function streamLLMResponse(
   messages: Message[],
   systemPrompt: string,
