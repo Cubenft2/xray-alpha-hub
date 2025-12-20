@@ -1,6 +1,5 @@
 // Entity Resolver: Resolve tickers, names, addresses to canonical assets
-// FIX #6: Proper ambiguity handling with ranking by market cap
-// FIX: Comprehensive stopword filtering to prevent common words as tickers
+// Database-first validation: Only treat words as tickers if they exist in DB
 
 import { SessionContext } from "./context.ts";
 
@@ -9,12 +8,14 @@ export interface ResolvedAsset {
   type: 'crypto' | 'stock' | 'unknown';
   coingeckoId?: string;
   polygonTicker?: string;
-  source: 'context' | 'alias' | 'database' | 'guess';
+  source: 'context' | 'alias' | 'database' | 'explicit';
   assumptionNote?: string;
   address?: string;
 }
 
+// Ticker aliases: common names/misspellings → canonical symbols
 const TICKER_ALIASES: Record<string, string> = {
+  // Crypto names
   'ETHE': 'ETH', 'ETHER': 'ETH', 'ETHEREUM': 'ETH', 'ETHERIUM': 'ETH',
   'BITC': 'BTC', 'BITCOIN': 'BTC', 'BITCOINS': 'BTC',
   'SOLA': 'SOL', 'SOLANA': 'SOL',
@@ -31,6 +32,7 @@ const TICKER_ALIASES: Record<string, string> = {
   'COSM': 'ATOM', 'COSMOS': 'ATOM',
   'BINANCE': 'BNB', 'BINACE': 'BNB',
   'TETHER': 'USDT', 'STABLECOIN': 'USDT',
+  // Stock names
   'APPLE': 'AAPL', 'APPL': 'AAPL',
   'NVIDIA': 'NVDA', 'NVIDI': 'NVDA', 'NVIDEA': 'NVDA',
   'TESLA': 'TSLA', 'TESLE': 'TSLA',
@@ -39,118 +41,110 @@ const TICKER_ALIASES: Record<string, string> = {
   'AMAZON': 'AMZN', 'AMAZN': 'AMZN',
   'COINBASE': 'COIN', 'COINBSE': 'COIN',
   'MICROSTRATEGY': 'MSTR', 'MICROSTR': 'MSTR',
+  // Project names (multi-word)
+  'WORLDLIBERTYFINANCE': 'WLFI', 'WORLDLIBERTY': 'WLFI',
+  'PEPECOIN': 'PEPE', 'PEPEMEME': 'PEPE',
 };
 
-// FIX #1: Comprehensive stopword blacklist - pronouns, verbs, helpers, chat words
-const STOPWORDS = new Set([
-  // Pronouns / possessives
-  'I', 'ME', 'MY', 'MINE', 'YOU', 'YOUR', 'YOURS', 'WE', 'US', 'OUR', 'OURS',
-  'THEY', 'THEM', 'THEIR', 'THEIRS', 'IT', 'ITS', 'HE', 'HIM', 'HIS', 'SHE', 'HER', 'HERS',
-  
-  // Common verbs / helpers
-  'IS', 'ARE', 'WAS', 'WERE', 'BE', 'BEEN', 'BEING', 'AM',
-  'DO', 'DOES', 'DID', 'DONE', 'DOING',
-  'HAS', 'HAD', 'HAVE', 'HAVING',
-  'CAN', 'COULD', 'SHOULD', 'WOULD', 'WILL', 'WONT', 'DONT', 'NOT',
-  'YES', 'NO', 'YEAH', 'NAH', 'YEP', 'NOPE', 'OK', 'OKAY',
-  
-  // Question words
-  'WHAT', 'WHY', 'HOW', 'WHEN', 'WHERE', 'WHO', 'WHOM', 'WHICH',
-  
-  // Articles / prepositions / conjunctions
-  'A', 'AN', 'THE', 'AND', 'OR', 'BUT', 'IF', 'THEN', 'ELSE',
-  'WITH', 'WITHOUT', 'OF', 'FOR', 'TO', 'FROM', 'IN', 'ON', 'AT', 'BY',
-  
-  // Chat/task words that trigger false positives
-  'WRITE', 'MAKE', 'CREATE', 'POST', 'TWEET', 'THREAD', 'CAPTION',
-  'ANALYZE', 'ANALYSIS', 'CHECK', 'SAFE', 'SAFETY', 'NEWS',
-  'PRICE', 'CHART', 'TRENDING', 'SENTIMENT', 'TODAY', 'NOW',
-  'PLEASE', 'HELP', 'GIVE', 'GAVE', 'LET', 'LETS', 'TELL', 'TOLD',
-  'SHOW', 'FIND', 'SEARCH', 'LOOK', 'SEE', 'WANT', 'NEED', 'ASK',
-  
-  // Common crypto/finance words that aren't tickers
-  'CRYPTO', 'TOKEN', 'TOKENS', 'COIN', 'COINS',
-  'MARKET', 'MARKETS', 'VOLUME', 'MCAP', 'LIQUIDITY',
-  'DEX', 'CEX', 'WALLET', 'ADDRESS', 'CONTRACT',
-  'USD', 'EUR', 'GBP', 'NFT', 'DAO', 'TVL', 'APY', 'APR', 'ATH', 'ATL',
-  'BUY', 'SELL', 'HOLD', 'TRADE', 'TRADES', 'LONG', 'SHORT',
-  
-  // Additional common words
-  'THIS', 'THAT', 'THESE', 'THOSE', 'SUCH', 'OWN',
-  'REAL', 'TRUE', 'FALSE', 'HIGH', 'LOW', 'BIG', 'SMALL', 'LARGE',
-  'FIRST', 'LAST', 'SAME', 'OTHER', 'ANOTHER', 'NEXT',
-  'BECAUSE', 'SINCE', 'AFTER', 'BEFORE', 'DURING', 'UNTIL', 'WHILE',
-  'SOME', 'MANY', 'MUCH', 'MOST', 'MORE', 'LESS', 'FEW',
-  'JUST', 'ALSO', 'ONLY', 'EVEN', 'VERY', 'REALLY', 'STILL', 'YET',
-  'ALL', 'GET', 'NEW', 'ONE', 'TWO', 'OUT', 'DAY', 'ANY',
-  'GOOD', 'WELL', 'BEST', 'GREAT', 'NICE', 'COOL', 'BAD', 'WORST',
-  'ABOUT', 'SAID', 'SAYS', 'SAY', 'THINK', 'KNOW', 'FEEL', 'BELIEVE',
-  'THANKS', 'THANK', 'THX', 'LIKE', 'AWESOME',
-  'COPY', 'PASTE', 'DATA', 'INFO', 'COMPLETE',
-  // Market overview / group query words (prevent "TOP" from being a ticker)
-  'TOP', 'BEST', 'BIGGEST', 'LARGEST', 'MAJOR', 'PERFORMANCE', 'RANK', 'RANKING',
-  'LIST', 'RUNDOWN', 'COMPARE', 'MOVERS', 'GAINERS', 'LOSERS', 'PASS', 'OVERVIEW',
-  // Additional stopwords to prevent false ticker detection
-  'WORLD', 'GLOBAL', 'WORKS', 'EVER', 'EVERY', 'NEVER', 'OVER',
-  'THING', 'THINGS', 'ALONG', 'MAKES', 'MADE', 'FEELS',
-]);
-
-// Top cryptos by market cap for popularity ranking and validation
-const TOP_CRYPTOS = ['BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'DOGE', 'AVAX',
+// Top cryptos by market cap - these are trusted even without DB lookup
+const TOP_CRYPTOS = new Set([
+  'BTC', 'ETH', 'USDT', 'BNB', 'SOL', 'XRP', 'USDC', 'ADA', 'DOGE', 'AVAX',
   'TRX', 'LINK', 'DOT', 'MATIC', 'SHIB', 'LTC', 'BCH', 'UNI', 'ATOM', 'XLM',
   'NEAR', 'APT', 'ARB', 'OP', 'FIL', 'INJ', 'AAVE', 'MKR', 'RENDER', 'FET',
-  'SUI', 'PEPE', 'WIF', 'BONK', 'FLOKI', 'MEME', 'TAO', 'KAS', 'HBAR', 'VET'];
+  'SUI', 'PEPE', 'WIF', 'BONK', 'FLOKI', 'MEME', 'TAO', 'KAS', 'HBAR', 'VET',
+]);
 
-// FIX #1: Check if token looks like a valid ticker
-function looksLikeTicker(token: string, hadDollar: boolean): boolean {
-  // If user typed $ETH, treat it as intentional
-  if (hadDollar) return /^[A-Z0-9]{2,10}$/.test(token);
+// Minimal stopwords - only for blocking explicit $TICKER that shouldn't be tickers
+// Most filtering happens via DB validation now
+const EXPLICIT_STOPWORDS = new Set([
+  // These could be typed as $USD, $EUR etc but aren't tokens
+  'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'CAD', 'AUD',
+  // Finance terms that might get $ prefix
+  'ATH', 'ATL', 'TVL', 'APY', 'APR', 'ROI', 'PNL',
+]);
 
-  // Without $, be stricter: 2-6 chars, mostly letters, avoid pure words
-  if (!/^[A-Z0-9]{2,6}$/.test(token)) return false;
-  if (STOPWORDS.has(token)) return false;
-
-  // Block super-common English two-letter words (extra defense)
-  if (token.length === 2 && ['IN', 'ON', 'AT', 'TO', 'OF', 'IT', 'IS', 'AS', 'OR', 'AN', 'UP', 'SO', 'GO', 'NO', 'IF', 'BY', 'BE', 'AM', 'WE', 'US', 'ME', 'MY', 'HE'].includes(token)) {
-    return false;
-  }
-
-  return true;
+interface ExtractedTickers {
+  explicit: string[];   // User typed $TICKER - trusted
+  candidates: string[]; // No $ prefix - needs DB validation
 }
 
-// FIX #1: Updated extractTickers with comprehensive filtering
-function extractTickers(query: string): string[] {
-  const out: string[] = [];
-  const matches = query.match(/\$?[A-Za-z0-9]{2,10}\b/g) || [];
-
+/**
+ * Extract potential tickers from query
+ * - Explicit ($TICKER): Trusted, user intentionally marked
+ * - Candidates: Need DB validation before treating as ticker
+ */
+function extractTickers(query: string): ExtractedTickers {
+  const explicit: string[] = [];
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  
+  // First, check for multi-word project names
+  const queryUpper = query.toUpperCase().replace(/[^A-Z\s]/g, ' ');
+  for (const [phrase, ticker] of Object.entries(TICKER_ALIASES)) {
+    // Check if phrase (as words) appears in query
+    const phraseWords = phrase.replace(/([A-Z])/g, ' $1').trim(); // "WORLDLIBERTY" -> "W O R L D..."
+    if (queryUpper.includes(phrase) || queryUpper.includes(phrase.replace(/([a-z])([A-Z])/g, '$1 $2'))) {
+      if (!seen.has(ticker)) {
+        seen.add(ticker);
+        explicit.push(ticker); // Project name match = trusted
+      }
+    }
+  }
+  
+  // Check for "World Liberty Finance" style multi-word matches
+  const multiWordPatterns = [
+    { pattern: /world\s+liberty\s*(finance|financial)?/i, ticker: 'WLFI' },
+    { pattern: /pepe\s+coin/i, ticker: 'PEPE' },
+    { pattern: /shiba\s+inu/i, ticker: 'SHIB' },
+    { pattern: /doge\s*coin/i, ticker: 'DOGE' },
+  ];
+  
+  for (const { pattern, ticker } of multiWordPatterns) {
+    if (pattern.test(query) && !seen.has(ticker)) {
+      seen.add(ticker);
+      explicit.push(ticker);
+    }
+  }
+  
+  // Extract individual tokens
+  const matches = query.match(/\$?[A-Za-z]{2,10}\b/g) || [];
+  
   for (const m of matches) {
     const hadDollar = m.startsWith('$');
-    const cleanedRaw = m.replace('$', '');
-    const cleaned = cleanedRaw.toUpperCase();
-
+    const cleaned = m.replace('$', '').toUpperCase();
+    
+    // Apply alias
     const aliased = TICKER_ALIASES[cleaned] || cleaned;
-
-    if (!looksLikeTicker(aliased, hadDollar)) continue;
-
-    if (!out.includes(aliased)) out.push(aliased);
+    
+    // Skip if already found
+    if (seen.has(aliased)) continue;
+    
+    // Validate format: 2-10 alphanumeric chars
+    if (!/^[A-Z0-9]{2,10}$/.test(aliased)) continue;
+    
+    if (hadDollar) {
+      // User explicitly marked with $ - trust it (unless blocked)
+      if (!EXPLICIT_STOPWORDS.has(aliased)) {
+        seen.add(aliased);
+        explicit.push(aliased);
+      }
+    } else {
+      // No $ prefix - candidate that needs DB validation
+      // Only consider short, ticker-like strings (2-6 chars)
+      if (aliased.length >= 2 && aliased.length <= 6) {
+        seen.add(aliased);
+        candidates.push(aliased);
+      }
+    }
   }
-
-  return out;
+  
+  return { explicit, candidates };
 }
 
-// FIX #3: For content intent, only extract tickers with $ prefix
+// For content intent, only extract $TICKER (not candidates)
 function extractTickersOnlyWithDollar(query: string): string[] {
-  const out: string[] = [];
-  const matches = query.match(/\$[A-Za-z0-9]{2,10}\b/g) || [];
-  
-  for (const m of matches) {
-    const cleaned = m.replace('$', '').toUpperCase();
-    const aliased = TICKER_ALIASES[cleaned] || cleaned;
-    if (!/^[A-Z0-9]{2,10}$/.test(aliased)) continue;
-    if (!out.includes(aliased)) out.push(aliased);
-  }
-  
-  return out;
+  const { explicit } = extractTickers(query);
+  return explicit;
 }
 
 function extractAddress(query: string): string | null {
@@ -169,8 +163,8 @@ function extractAddress(query: string): string | null {
 
 function isPronouns(query: string): boolean {
   const pronounPattern = /\b(it|this|that|the same|this one|that one)\b/i;
-  const tickers = extractTickers(query);
-  return pronounPattern.test(query) && tickers.length === 0;
+  const { explicit, candidates } = extractTickers(query);
+  return pronounPattern.test(query) && explicit.length === 0 && candidates.length === 0;
 }
 
 export async function resolveEntities(
@@ -182,15 +176,17 @@ export async function resolveEntities(
   const resolved: ResolvedAsset[] = [];
   const seen = new Set<string>();
   
-  // FIX #3: For content intent, only extract $TICKER or use context
-  const queryTickers = (intent === 'content')
-    ? extractTickersOnlyWithDollar(userQuery)
+  // For content intent, only extract $TICKER
+  const { explicit, candidates } = (intent === 'content')
+    ? { explicit: extractTickersOnlyWithDollar(userQuery), candidates: [] }
     : extractTickers(userQuery);
+  
+  console.log(`[resolver] Extracted - explicit: [${explicit.join(',')}], candidates: [${candidates.join(',')}]`);
   
   // Extract addresses from query
   const queryAddress = extractAddress(userQuery);
   
-  // FIX #2: Handle pronouns ("it", "this") - use lastResolvedAsset first
+  // Handle pronouns ("it", "this") - use lastResolvedAsset first
   if (isPronouns(userQuery)) {
     const ref = context.lastResolvedAsset || context.recentAssets[0];
     if (ref && !seen.has(ref)) {
@@ -203,19 +199,64 @@ export async function resolveEntities(
     }
   }
   
-  // Resolve each extracted ticker with DB validation
-  for (const ticker of queryTickers) {
+  // Process explicit tickers first (they're trusted)
+  for (const ticker of explicit) {
     if (seen.has(ticker)) continue;
     
-    const asset = await resolveSingleTicker(supabase, ticker, context);
+    // For explicit tickers, check if in TOP_CRYPTOS or resolve via DB
+    if (TOP_CRYPTOS.has(ticker)) {
+      seen.add(ticker);
+      resolved.push({
+        symbol: ticker,
+        type: 'crypto',
+        source: 'explicit',
+      });
+    } else {
+      // Validate via DB
+      const asset = await resolveSingleTicker(supabase, ticker, context, true);
+      if (asset) {
+        seen.add(asset.symbol);
+        resolved.push(asset);
+      } else {
+        // Explicit ticker not in DB - still include but mark as explicit
+        // User intentionally typed $SOMETHING
+        seen.add(ticker);
+        resolved.push({
+          symbol: ticker,
+          type: 'unknown',
+          source: 'explicit',
+          assumptionNote: `Note: ${ticker} was not found in our database.`,
+        });
+      }
+    }
+  }
+  
+  // Process candidates - ONLY include if validated in DB
+  for (const ticker of candidates) {
+    if (seen.has(ticker)) continue;
+    
+    // Quick check: is it a known top crypto?
+    if (TOP_CRYPTOS.has(ticker)) {
+      seen.add(ticker);
+      resolved.push({
+        symbol: ticker,
+        type: 'crypto',
+        source: 'database',
+      });
+      continue;
+    }
+    
+    // Must exist in database to be treated as ticker
+    const asset = await resolveSingleTicker(supabase, ticker, context, false);
     if (asset) {
       seen.add(asset.symbol);
       resolved.push(asset);
     }
+    // If not in DB, silently ignore - it's probably just a regular word
   }
   
-  // FIX #2: If no assets found but context has assets, use lastResolvedAsset
-  // SKIP for market_overview intent - orchestrator will fetch top 25 from crypto_snapshot
+  // If no assets found but context has assets, use lastResolvedAsset
+  // SKIP for market_overview intent - orchestrator will fetch top 25
   if (resolved.length === 0 && intent !== 'market_overview') {
     const ref = context.lastResolvedAsset || context.recentAssets[0];
     if (ref) {
@@ -232,31 +273,37 @@ export async function resolveEntities(
     resolved[0].address = queryAddress;
   }
   
+  console.log(`[resolver] Resolved ${resolved.length} assets: [${resolved.map(a => a.symbol).join(',')}]`);
+  
   return resolved.slice(0, 5); // Max 5 assets
 }
 
-// FIX #4 & #6: Proper ambiguity handling with ranking + no guessing for unknown
+/**
+ * Resolve a single ticker against database
+ * @param isExplicit - If true, user typed $TICKER so we're more trusting
+ */
 async function resolveSingleTicker(
   supabase: any,
   ticker: string,
-  context: SessionContext
+  context: SessionContext,
+  isExplicit: boolean
 ): Promise<ResolvedAsset | null> {
   const normalized = ticker.toUpperCase();
   
   // Check alias first
-  if (TICKER_ALIASES[normalized] && TICKER_ALIASES[normalized] !== normalized) {
-    const aliasedSymbol = TICKER_ALIASES[normalized];
-    // Verify aliased symbol exists in DB or TOP_CRYPTOS
-    if (TOP_CRYPTOS.includes(aliasedSymbol)) {
+  const aliased = TICKER_ALIASES[normalized];
+  if (aliased && aliased !== normalized) {
+    // If aliased to a known crypto, accept it
+    if (TOP_CRYPTOS.has(aliased)) {
       return {
-        symbol: aliasedSymbol,
+        symbol: aliased,
         type: 'crypto',
         source: 'alias',
       };
     }
   }
   
-  // FIX #6: Query ALL matches and rank them
+  // Query DB for matches
   const candidates: Array<{
     symbol: string;
     type: 'crypto' | 'stock';
@@ -266,7 +313,7 @@ async function resolveSingleTicker(
     matchType: 'exact' | 'alias';
   }> = [];
   
-  // Try ticker_mappings - get all matches
+  // Try ticker_mappings
   const { data: tickerMappings } = await supabase
     .from('ticker_mappings')
     .select('symbol, type, coingecko_id, polygon_ticker, aliases')
@@ -285,7 +332,7 @@ async function resolveSingleTicker(
     }
   }
   
-  // Query token_cards (master source) for market cap data
+  // Query token_cards (master source)
   const { data: cryptoData } = await supabase
     .from('token_cards')
     .select('canonical_symbol, market_cap, coingecko_id, name')
@@ -294,7 +341,6 @@ async function resolveSingleTicker(
 
   if (cryptoData) {
     for (const c of cryptoData) {
-      // Update or add with market cap
       const existing = candidates.find(x => x.symbol === c.canonical_symbol);
       if (existing) {
         existing.marketCap = c.market_cap;
@@ -335,29 +381,7 @@ async function resolveSingleTicker(
     }
   }
 
-  // 4. Try matching by display_name in ticker_mappings (for name-based queries like "memecore")
-  if (candidates.length === 0) {
-    const { data: nameMatches } = await supabase
-      .from('ticker_mappings')
-      .select('symbol, type, coingecko_id, polygon_ticker, display_name')
-      .ilike('display_name', `%${normalized}%`)
-      .eq('is_active', true)
-      .limit(5);
-
-    if (nameMatches) {
-      for (const nm of nameMatches) {
-        candidates.push({
-          symbol: nm.symbol,
-          type: nm.type === 'stock' ? 'stock' : 'crypto',
-          coingeckoId: nm.coingecko_id,
-          polygonTicker: nm.polygon_ticker,
-          matchType: 'alias',
-        });
-      }
-    }
-  }
-
-  // 5. Try matching by name in token_cards (master source)
+  // Try matching by name in token_cards
   if (candidates.length === 0) {
     const { data: cryptoNameData } = await supabase
       .from('token_cards')
@@ -379,25 +403,12 @@ async function resolveSingleTicker(
     }
   }
   
-  // FIX #4: If no DB matches, only allow if it's a known top crypto
+  // No DB matches - return null (word is not a known ticker)
   if (candidates.length === 0) {
-    if (TOP_CRYPTOS.includes(normalized)) {
-      return {
-        symbol: normalized,
-        type: 'crypto',
-        source: 'guess',
-      };
-    }
-    
-    // FIX #4: Do NOT guess for unknown tickers - return null
-    // This prevents random uppercase words from becoming fake assets
     return null;
   }
   
-  // FIX #6: Rank candidates
-  // 1. Context match (if in recent assets)
-  // 2. Exact symbol match > alias match
-  // 3. Higher market cap
+  // Rank candidates
   candidates.sort((a, b) => {
     // Context match priority
     const aInContext = context.recentAssets.includes(a.symbol) ? 1 : 0;
