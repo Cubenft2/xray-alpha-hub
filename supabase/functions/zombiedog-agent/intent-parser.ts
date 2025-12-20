@@ -3,7 +3,7 @@
 
 export interface ParsedIntent {
   intent: 'market_overview' | 'sector_analysis' | 'token_lookup' | 'comparison' | 'trending' | 'news' | 'general_chat';
-  sector: 'ai' | 'defi' | 'meme' | 'gaming' | 'l1' | 'l2' | 'nft' | null;
+  sector: 'ai' | 'defi' | 'meme' | 'gaming' | 'l1' | 'l2' | 'nft' | 'privacy' | 'storage' | 'rwa' | 'btc_eco' | null;
   tickers: string[];
   timeframe: 'now' | 'today' | '24h' | 'week' | 'month';
   action: 'gainers' | 'losers' | 'movers' | 'volume' | null;
@@ -29,6 +29,10 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto m
 - "l1": Layer 1, alt L1s, base chains (ETH, SOL, AVAX, ADA, DOT, NEAR, ATOM)
 - "l2": Layer 2, rollups, scaling (ARB, OP, MATIC, BASE, ZK)
 - "nft": NFT-related tokens
+- "privacy": Privacy coins, anonymous, untraceable, confidential (XMR, ZEC, DASH, SCRT, ZEN, XVG, Monero, Zcash)
+- "storage": Storage, decentralized storage, data, file sharing (FIL, AR, SC, STORJ, BTT)
+- "rwa": Real world assets, tokenization, RWA (ONDO, PENDLE, MKR)
+- "btc_eco": Bitcoin ecosystem, ordinals, BRC-20, runes (STX, RUNE, ORDI, SATS)
 
 ## TICKERS: Extract any crypto/stock symbols. Convert names to symbols:
 - Bitcoin/BTC → BTC
