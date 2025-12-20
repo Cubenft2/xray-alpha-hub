@@ -346,7 +346,7 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
         {/* Animated zombie watermark with spooky glow */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
           <img 
-            src="/zombiechat-bg.webp" 
+            src="/zoobie-pfp-transparent.webp" 
             alt="" 
             className="w-[95%] h-[95%] object-contain opacity-25 animate-ghost-float"
             loading="lazy"
