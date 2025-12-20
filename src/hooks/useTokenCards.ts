@@ -203,6 +203,10 @@ export function useTokenCards() {
     // ALWAYS exclude scam tokens (cannot be bypassed by any filter)
     query = query.or('is_scam.is.null,is_scam.eq.false');
 
+    // DEFAULT: Filter out tokens with market_cap < $5000
+    // EXCEPTION: Keep ALL Polygon-supported tokens (verified data quality)
+    query = query.or('market_cap.gte.5000,polygon_supported.eq.true');
+
     // Hide suspicious tokens (market cap > $1B with volume < $100K)
     if (filters.hideSuspicious) {
       // Filter: volume > $1000 OR market_cap < $100M (allow small caps with low volume)
