@@ -3,15 +3,23 @@
 
 import { ParsedIntent } from './intent-parser.ts';
 
-// Sector token definitions
+// Sector token definitions - comprehensive coverage
 export const SECTOR_TOKENS: Record<string, string[]> = {
-  ai: ['LINK', 'TAO', 'NEAR', 'RENDER', 'FET', 'INJ', 'VIRTUAL', 'GRT', 'THETA', 'TRAC', 'AGIX', 'OCEAN', 'AKT', 'ATH', 'AIOZ'],
-  defi: ['AAVE', 'UNI', 'MKR', 'CRV', 'SNX', 'COMP', 'SUSHI', 'YFI', 'CAKE', 'JOE', 'LDO', 'PENDLE'],
-  meme: ['DOGE', 'SHIB', 'PEPE', 'FLOKI', 'BONK', 'WIF', 'BRETT', 'MOG', 'TURBO', 'POPCAT'],
+  ai: ['LINK', 'TAO', 'NEAR', 'RENDER', 'FET', 'INJ', 'VIRTUAL', 'GRT', 'THETA', 'TRAC', 'AGIX', 'OCEAN', 'AKT', 'ATH', 'AIOZ', 'CGPT'],
+  defi: ['AAVE', 'UNI', 'MKR', 'CRV', 'SNX', 'COMP', 'SUSHI', 'YFI', 'CAKE', 'JOE', 'LDO', 'PENDLE', 'KNC', 'HFT'],
+  meme: ['DOGE', 'SHIB', 'PEPE', 'FLOKI', 'BONK', 'WIF', 'BRETT', 'MOG', 'TURBO', 'POPCAT', 'ELON'],
   gaming: ['AXS', 'SAND', 'MANA', 'IMX', 'GALA', 'ENJ', 'MAGIC', 'PRIME', 'BEAM', 'RONIN'],
-  l1: ['BTC', 'ETH', 'SOL', 'AVAX', 'ADA', 'DOT', 'NEAR', 'ATOM', 'SUI', 'APT', 'SEI', 'TON'],
-  l2: ['ARB', 'OP', 'MATIC', 'IMX', 'MNT', 'METIS', 'ZK', 'STRK', 'BLAST'],
+  l1: ['BTC', 'ETH', 'SOL', 'AVAX', 'ADA', 'DOT', 'NEAR', 'ATOM', 'SUI', 'APT', 'SEI', 'TON', 'INJ', 'CRO'],
+  l2: ['ARB', 'OP', 'MATIC', 'IMX', 'MNT', 'METIS', 'ZK', 'STRK', 'BLAST', 'AXL'],
   nft: ['APE', 'BLUR', 'LOOKS', 'X2Y2', 'RARI', 'SUPER'],
+  // NEW: Privacy coins - always relevant for crypto natives
+  privacy: ['XMR', 'ZEC', 'DASH', 'DCR', 'ZEN', 'XVG', 'BEAM', 'ZANO', 'BDX', 'MWC', 'ALEO', 'SCRT', 'ROSE', 'NIGHT'],
+  // NEW: Storage/infrastructure 
+  storage: ['FIL', 'AR', 'SC', 'STORJ', 'BTT', 'AIOZ'],
+  // NEW: RWA - Real World Assets
+  rwa: ['ONDO', 'PENDLE', 'MKR', 'AXL', 'LINK', 'SNX'],
+  // NEW: Bitcoin ecosystem
+  btc_eco: ['BTC', 'STX', 'RUNE', 'ORDI', 'SATS', 'TRAC'],
 };
 
 // Rich token data interface matching token_cards schema
