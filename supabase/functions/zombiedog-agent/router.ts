@@ -2,7 +2,7 @@
 // Uses canonical market presets for deterministic queries
 
 import { SessionContext } from "./context.ts";
-import { matchQueryToPreset, MarketPreset } from "./presets.ts";
+import { matchQueryToPreset, MarketPreset, MARKET_PRESETS } from "./presets.ts";
 
 export type Intent = 
   | 'price' 
@@ -51,11 +51,11 @@ const GROUP_QUERY_PATTERN = /\b(give me|show me|list|what are|how are|can you ma
 
 // NEW: Sector/Category detection patterns - high priority
 const SECTOR_PATTERNS: Record<string, RegExp> = {
-  'ai': /\b(ai|artificial intelligence|machine learning|ml)\s*(tokens?|coins?|crypto|projects?|sector|narrative)?\b/i,
-  'defi': /\b(defi|decentralized finance|yield|lending|dex)\s*(tokens?|coins?|crypto|projects?|sector)?\b/i,
-  'meme': /\b(meme|memecoin|dog coin|shitcoin|degen)\s*(tokens?|coins?)?\b/i,
-  'gaming': /\b(gaming|gamefi|play.?to.?earn|p2e|metaverse)\s*(tokens?|coins?|crypto|sector)?\b/i,
-  'layer-1': /\b(layer.?1|l1|layer.?one|alt.?l1|base.?chain)\s*(tokens?|coins?|crypto)?\b/i,
+  'ai': /\b(ai|artificial intelligence|machine learning|ml)\s*(tokens?|coins?|crypto|projects?|sector|narrative|world|market|doing|pumping|space)?\b/i,
+  'defi': /\b(defi|decentralized finance|yield|lending|dex)\s*(tokens?|coins?|crypto|projects?|sector|world|market|doing|pumping|space)?\b/i,
+  'meme': /\b(meme|memecoin|dog coin|shitcoin|degen)\s*(tokens?|coins?|world|market|doing|pumping|space)?\b/i,
+  'gaming': /\b(gaming|gamefi|play.?to.?earn|p2e|metaverse)\s*(tokens?|coins?|crypto|sector|world|market|doing|pumping|space)?\b/i,
+  'layer-1': /\b(layer.?1|l1|layer.?one|alt.?l1|base.?chain)\s*(tokens?|coins?|crypto|world|market|doing|pumping|space)?\b/i,
 };
 
 // NEW: Trending / Hot patterns → route to market_preset
@@ -77,6 +77,8 @@ const COMMON = new Set(['THE', 'AND', 'FOR', 'NOT', 'YOU', 'ARE', 'BUT', 'CAN', 
     'TODAY', 'MARKET', 'CRYPTO', 'DOING', 'GOING', 'LOOKING', 'OVERALL', 'SAFE', 'NEWS', 'CHART',
     'TOP', 'BEST', 'BIGGEST', 'LARGEST', 'MAJOR', 'PERFORMANCE', 'RANK', 'RANKING',
     'LIST', 'RUNDOWN', 'SHOW', 'GIVE', 'COMPARE', 'MOVERS', 'GAINERS', 'LOSERS', 'PASS',
+    // Category words - not tickers
+    'AI', 'DEFI', 'MEME', 'GAMING', 'L1', 'L2',
     // Additional stopwords to prevent false ticker detection
     'WORLD', 'GLOBAL', 'WORKS', 'EVER', 'EVERY', 'NEVER', 'BEEN', 'OVER', 'MUCH',
     'THING', 'THINGS', 'ALONG', 'TELL', 'MAKES', 'MADE', 'WELL', 'FEEL', 'FEELS']);
