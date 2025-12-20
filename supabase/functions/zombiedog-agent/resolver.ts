@@ -1,7 +1,102 @@
 // Entity Resolver: Resolve tickers, names, addresses to canonical assets
-// Database-first validation: Only treat words as tickers if they exist in DB
+// Hybrid approach: Regex first, LLM fallback for ambiguous queries only
 
 import { SessionContext } from "./context.ts";
+
+// LLM extraction for ambiguous queries - uses OpenAI gpt-4o-mini
+async function extractWithLLM(query: string): Promise<{ tickers: string[], intent?: string } | null> {
+  const openAIKey = Deno.env.get('OPENAI_API_KEY');
+  if (!openAIKey) {
+    console.log('[resolver] No OPENAI_API_KEY, skipping LLM extraction');
+    return null;
+  }
+  
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 100,
+        temperature: 0,
+        messages: [
+          {
+            role: 'system',
+            content: `Extract crypto/stock tickers from the user query. Return JSON only.
+Rules:
+- Convert project names to tickers (World Liberty Finance → WLFI, Nvidia → NVDA)
+- Include explicit $TICKER mentions
+- Max 3 tickers, ordered by relevance
+- If no tickers found, return empty array
+Response format: {"tickers": ["BTC", "ETH"], "intent": "price|news|analysis|general"}`
+          },
+          { role: 'user', content: query }
+        ],
+      }),
+    });
+    
+    if (!response.ok) {
+      console.log(`[resolver] LLM extraction failed: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) return null;
+    
+    // Parse JSON from response
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    
+    const parsed = JSON.parse(jsonMatch[0]);
+    console.log(`[resolver] LLM extracted: ${JSON.stringify(parsed)}`);
+    return {
+      tickers: (parsed.tickers || []).map((t: string) => t.toUpperCase()),
+      intent: parsed.intent,
+    };
+  } catch (err) {
+    console.log(`[resolver] LLM extraction error: ${err}`);
+    return null;
+  }
+}
+
+// Check if query is ambiguous and needs LLM help
+function isAmbiguousQuery(query: string, explicit: string[], candidates: string[]): boolean {
+  // Clear cases - no LLM needed:
+  // 1. Has explicit $TICKER
+  if (explicit.length > 0) return false;
+  
+  // 2. Has clear candidates that are in TOP_CRYPTOS
+  const topCryptoMatches = candidates.filter(c => TOP_CRYPTOS.has(c));
+  if (topCryptoMatches.length > 0) return false;
+  
+  // 3. Short simple query with no candidates (probably general chat)
+  if (query.length < 20 && candidates.length === 0) return false;
+  
+  // Ambiguous cases - LLM can help:
+  // 1. Long query with potential project names
+  if (query.length > 30 && candidates.length === 0) {
+    // Check for potential project name patterns
+    const hasProjectWords = /\b(coin|token|finance|financial|protocol|chain|network|dao)\b/i.test(query);
+    if (hasProjectWords) return true;
+  }
+  
+  // 2. Query mentions comparison/multiple assets without clear tickers
+  if (/\b(vs|versus|compare|between|or)\b/i.test(query) && candidates.length < 2) {
+    return true;
+  }
+  
+  // 3. Contains company/project names without ticker symbols
+  const companyPatterns = /\b(nvidia|microsoft|apple|google|amazon|coinbase|stripe|openai|tesla|meta)\b/i;
+  if (companyPatterns.test(query) && !explicit.some(t => ['NVDA', 'MSFT', 'AAPL', 'GOOGL', 'AMZN', 'COIN', 'TSLA', 'META'].includes(t))) {
+    return true;
+  }
+  
+  return false;
+}
 
 export interface ResolvedAsset {
   symbol: string;
@@ -177,11 +272,27 @@ export async function resolveEntities(
   const seen = new Set<string>();
   
   // For content intent, only extract $TICKER
-  const { explicit, candidates } = (intent === 'content')
-    ? { explicit: extractTickersOnlyWithDollar(userQuery), candidates: [] }
+  let { explicit, candidates } = (intent === 'content')
+    ? { explicit: extractTickersOnlyWithDollar(userQuery), candidates: [] as string[] }
     : extractTickers(userQuery);
   
-  console.log(`[resolver] Extracted - explicit: [${explicit.join(',')}], candidates: [${candidates.join(',')}]`);
+  console.log(`[resolver] Regex extracted - explicit: [${explicit.join(',')}], candidates: [${candidates.join(',')}]`);
+  
+  // Hybrid: Use LLM only for ambiguous queries
+  if (isAmbiguousQuery(userQuery, explicit, candidates)) {
+    console.log('[resolver] Query is ambiguous, trying LLM extraction...');
+    const llmResult = await extractWithLLM(userQuery);
+    if (llmResult && llmResult.tickers.length > 0) {
+      // LLM found tickers - treat them as explicit (trusted)
+      for (const ticker of llmResult.tickers) {
+        if (!seen.has(ticker)) {
+          seen.add(ticker);
+          explicit.push(ticker);
+        }
+      }
+      console.log(`[resolver] LLM added tickers: [${llmResult.tickers.join(',')}]`);
+    }
+  }
   
   // Extract addresses from query
   const queryAddress = extractAddress(userQuery);
