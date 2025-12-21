@@ -2357,6 +2357,7 @@ export type Database = {
           coingecko_atl_price: number | null
           coingecko_change_24h_pct: number | null
           coingecko_circulating_supply: number | null
+          coingecko_fdv: number | null
           coingecko_high_24h: number | null
           coingecko_id: string | null
           coingecko_low_24h: number | null
@@ -2623,6 +2624,7 @@ export type Database = {
           coingecko_atl_price?: number | null
           coingecko_change_24h_pct?: number | null
           coingecko_circulating_supply?: number | null
+          coingecko_fdv?: number | null
           coingecko_high_24h?: number | null
           coingecko_id?: string | null
           coingecko_low_24h?: number | null
@@ -2889,6 +2891,7 @@ export type Database = {
           coingecko_atl_price?: number | null
           coingecko_change_24h_pct?: number | null
           coingecko_circulating_supply?: number | null
+          coingecko_fdv?: number | null
           coingecko_high_24h?: number | null
           coingecko_id?: string | null
           coingecko_low_24h?: number | null
