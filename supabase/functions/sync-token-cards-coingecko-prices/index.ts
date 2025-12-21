@@ -50,19 +50,43 @@ serve(async (req) => {
       success: true
     });
 
-    // Fetch token_cards that have coingecko_id (simple query to avoid timeout)
-    const { data: tokenCards, error: fetchError } = await supabase
-      .from('token_cards')
-      .select('id, canonical_symbol, coingecko_id')
-      .not('coingecko_id', 'is', null)
-      .limit(5000);
+    // Fetch ALL token_cards with coingecko_id using pagination
+    // Supabase has a 1000 row limit per query, so we paginate
+    let allTokenCards: any[] = [];
+    let page = 0;
+    const PAGE_SIZE = 1000;
 
-    if (fetchError) {
-      console.error('[sync-token-cards-coingecko-prices] Error fetching token_cards:', fetchError);
-      throw fetchError;
+    console.log('[sync-token-cards-coingecko-prices] Fetching all tokens with coingecko_id (paginated)...');
+
+    while (true) {
+      const { data: batch, error: fetchError } = await supabase
+        .from('token_cards')
+        .select('id, canonical_symbol, coingecko_id, market_cap_rank')
+        .not('coingecko_id', 'is', null)
+        .order('market_cap_rank', { ascending: true, nullsFirst: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+      if (fetchError) {
+        console.error(`[sync-token-cards-coingecko-prices] Error fetching page ${page}:`, fetchError);
+        throw fetchError;
+      }
+
+      if (!batch || batch.length === 0) {
+        console.log(`[sync-token-cards-coingecko-prices] Page ${page}: no more data`);
+        break;
+      }
+
+      allTokenCards = [...allTokenCards, ...batch];
+      console.log(`[sync-token-cards-coingecko-prices] Page ${page + 1}: fetched ${batch.length} tokens (total: ${allTokenCards.length})`);
+      page++;
+
+      // If we got less than PAGE_SIZE, we've reached the end
+      if (batch.length < PAGE_SIZE) break;
     }
 
-    if (!tokenCards || tokenCards.length === 0) {
+    const tokenCards = allTokenCards;
+
+    if (tokenCards.length === 0) {
       console.log('[sync-token-cards-coingecko-prices] No token_cards with coingecko_id found');
       return new Response(JSON.stringify({ 
         success: true, 
@@ -73,7 +97,7 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[sync-token-cards-coingecko-prices] Found ${tokenCards.length} tokens with coingecko_id`);
+    console.log(`[sync-token-cards-coingecko-prices] Found ${tokenCards.length} tokens with coingecko_id (fetched in ${page} pages)`);
 
     // Build coingecko_id -> token_card mapping
     const cgIdToToken = new Map<string, { id: string; symbol: string }>();
