@@ -209,16 +209,16 @@ serve(async (req) => {
       
       const batchPromises = batch.map(async (card) => {
         try {
-          // Get historical data from Polygon (60 days of daily data)
+          // Get historical data from Polygon (250 days to ensure 200 trading days for SMA200)
           const ticker = card.pair.startsWith('C:') ? card.pair : `C:${card.pair}`;
           const to = new Date();
           const from = new Date();
-          from.setDate(from.getDate() - 60);
+          from.setDate(from.getDate() - 300); // 300 calendar days ≈ 200+ trading days
           
           const fromStr = from.toISOString().split('T')[0];
           const toStr = to.toISOString().split('T')[0];
           
-          const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${fromStr}/${toStr}?adjusted=true&sort=asc&apiKey=${polygonKey}`;
+          const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/day/${fromStr}/${toStr}?adjusted=true&sort=asc&limit=250&apiKey=${polygonKey}`;
           
           const response = await fetch(url);
           if (!response.ok) {
@@ -232,6 +232,13 @@ serve(async (req) => {
           if (results.length < 20) {
             console.warn(`[sync-forex-cards-technicals] Insufficient data for ${ticker}: ${results.length} bars`);
             return null;
+          }
+          
+          // Log if we have enough for SMA200
+          if (results.length >= 200) {
+            console.log(`[sync-forex-cards-technicals] ${ticker}: ${results.length} bars (SMA200 ✓)`);
+          } else {
+            console.log(`[sync-forex-cards-technicals] ${ticker}: ${results.length} bars (need 200 for SMA200)`);
           }
           
           // Extract closes for calculations
