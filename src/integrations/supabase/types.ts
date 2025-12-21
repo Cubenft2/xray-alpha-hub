@@ -3155,6 +3155,39 @@ export type Database = {
           },
         ]
       }
+      token_flags: {
+        Row: {
+          category: Database["public"]["Enums"]["token_flag_category"]
+          created_at: string
+          flagged_by: string
+          id: string
+          notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          symbol: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["token_flag_category"]
+          created_at?: string
+          flagged_by: string
+          id?: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          symbol: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["token_flag_category"]
+          created_at?: string
+          flagged_by?: string
+          id?: string
+          notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          symbol?: string
+        }
+        Relationships: []
+      }
       token_price_history: {
         Row: {
           close: number
@@ -3391,6 +3424,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      token_flag_category:
+        | "needs_work"
+        | "remove"
+        | "review"
+        | "suspicious"
+        | "duplicate"
+        | "missing_data"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3519,6 +3559,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      token_flag_category: [
+        "needs_work",
+        "remove",
+        "review",
+        "suspicious",
+        "duplicate",
+        "missing_data",
+      ],
     },
   },
 } as const

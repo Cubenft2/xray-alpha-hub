@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 import { TokenCard, SortKey, SortDirection, isSuspiciousToken, isLowLiquidity } from '@/hooks/useTokenCards';
 import { cn } from '@/lib/utils';
+import { TokenFlagButton } from '@/components/TokenFlagButton';
 
 interface TokenScreenerTableProps {
   tokens: TokenCard[];
@@ -32,12 +33,6 @@ function formatLargeNumber(value: number | null): string {
   if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
   if (value >= 1e3) return `$${(value / 1e3).toFixed(1)}K`;
   return `$${value.toFixed(0)}`;
-}
-
-function formatPercent(value: number | null): string {
-  if (value === null || value === undefined) return '-';
-  const formatted = value.toFixed(2);
-  return value >= 0 ? `+${formatted}%` : `${formatted}%`;
 }
 
 function formatSocialVolume(value: number | null): string {
@@ -260,6 +255,7 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                   </button>
                 </TableHead>
               ))}
+              <TableHead className="text-center w-[50px]">Flag</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -350,6 +346,9 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                   <Link to={`/token/${token.canonical_symbol}`} className="block">
                     💬 {formatSocialVolume(token.social_volume_24h)}
                   </Link>
+                </TableCell>
+                <TableCell className="text-center w-[50px]">
+                  <TokenFlagButton symbol={token.canonical_symbol} compact />
                 </TableCell>
               </TableRow>
             ))}
