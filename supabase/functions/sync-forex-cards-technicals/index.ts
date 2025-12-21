@@ -139,6 +139,10 @@ serve(async (req) => {
 
   const startTime = Date.now();
   
+  // Parse force parameter to bypass weekend check
+  const url = new URL(req.url);
+  const forceRun = url.searchParams.get('force') === 'true';
+  
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -149,20 +153,24 @@ serve(async (req) => {
       throw new Error('POLYGON_API_KEY not configured');
     }
 
-    console.log('[sync-forex-cards-technicals] Starting forex technicals sync...');
+    console.log(`[sync-forex-cards-technicals] Starting forex technicals sync... (force=${forceRun})`);
 
     // Check if forex market is open (Sunday 5 PM EST - Friday 5 PM EST)
     const now = new Date();
     const dayOfWeek = now.getUTCDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     
-    if (isWeekend) {
-      console.log('[sync-forex-cards-technicals] Weekend - forex markets closed, skipping');
+    if (isWeekend && !forceRun) {
+      console.log('[sync-forex-cards-technicals] Weekend - forex markets closed, skipping (use ?force=true to override)');
       return new Response(JSON.stringify({
         success: true,
-        message: 'Forex markets closed (weekend)',
+        message: 'Forex markets closed (weekend) - use ?force=true to override',
         stats: { updated: 0, market_status: 'closed' }
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    
+    if (isWeekend && forceRun) {
+      console.log('[sync-forex-cards-technicals] Weekend but force=true, proceeding...');
     }
 
     // Fetch all active forex pairs
