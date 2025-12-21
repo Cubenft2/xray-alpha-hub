@@ -28,7 +28,11 @@ Deno.serve(async (req) => {
         change24h,
         display,
         asset_id,
-        updated_at
+        updated_at,
+        volume,
+        day_high,
+        day_low,
+        day_open
       `)
       .eq('source', 'polygon')
       .not('ticker', 'like', 'X:%')
@@ -94,7 +98,10 @@ Deno.serve(async (req) => {
         price: p.price,
         change_24h: 0,
         change_percent: p.change24h || 0,
-        volume_24h: 0,
+        volume_24h: p.volume || 0,
+        high_24h: p.day_high || null,
+        low_24h: p.day_low || null,
+        open_price: p.day_open || null,
         sector: company?.sector || null,
         industry: company?.industry || null,
         logo_url: company?.logo_url || null,

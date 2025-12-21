@@ -208,11 +208,16 @@ serve(async (req) => {
             coingecko_circulating_supply: coin.circulating_supply,
             coingecko_total_supply: coin.total_supply,
             coingecko_max_supply: coin.max_supply,
-            // ATH/ATL data
+            // ATH/ATL data (both source columns AND display columns)
             coingecko_ath_price: coin.ath,
             coingecko_ath_date: coin.ath_date,
             coingecko_atl_price: coin.atl,
             coingecko_atl_date: coin.atl_date,
+            // Map to display columns (trigger doesn't handle ATH/ATL)
+            ath_price: coin.ath,
+            atl_price: coin.atl,
+            ath_date: coin.ath_date,
+            atl_date: coin.atl_date,
             // Update timestamp
             updated_at: now
           });
