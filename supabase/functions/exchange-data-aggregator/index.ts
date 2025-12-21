@@ -12,6 +12,13 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
+// Helper: safely parse a number, returning fallback if NaN/undefined/null
+function safeNumber(value: unknown, fallback = 0): number {
+  if (value === null || value === undefined) return fallback;
+  const parsed = typeof value === 'number' ? value : parseFloat(String(value));
+  return isNaN(parsed) || !isFinite(parsed) ? fallback : parsed;
+}
+
 interface ExchangeData {
   exchange: string;
   symbol: string;
@@ -134,14 +141,17 @@ async function fetchBinanceData(symbol: string): Promise<ExchangeData | null> {
     if (!response) return null;
     
     const data = await response.json();
+    const price = safeNumber(data.lastPrice);
+    const volume = safeNumber(data.volume);
+    
     return {
       exchange: 'Binance',
       symbol: symbol,
-      price: parseFloat(data.lastPrice),
-      volume_24h: parseFloat(data.volume) * parseFloat(data.lastPrice),
-      change_24h: parseFloat(data.priceChangePercent),
-      high_24h: parseFloat(data.highPrice),
-      low_24h: parseFloat(data.lowPrice),
+      price: price,
+      volume_24h: volume * price,
+      change_24h: safeNumber(data.priceChangePercent),
+      high_24h: safeNumber(data.highPrice) || undefined,
+      low_24h: safeNumber(data.lowPrice) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -168,16 +178,19 @@ async function fetchCoinbaseData(symbol: string): Promise<ExchangeData | null> {
       statsResponse.json()
     ]);
     
-    const change24h = ((parseFloat(tickerData.price) - parseFloat(statsData.open)) / parseFloat(statsData.open)) * 100;
+    const price = safeNumber(tickerData.price);
+    const open = safeNumber(statsData.open);
+    const volume = safeNumber(statsData.volume);
+    const change24h = open > 0 ? ((price - open) / open) * 100 : 0;
     
     return {
       exchange: 'Coinbase',
       symbol: symbol,
-      price: parseFloat(tickerData.price),
-      volume_24h: parseFloat(statsData.volume) * parseFloat(tickerData.price),
+      price: price,
+      volume_24h: volume * price,
       change_24h: change24h,
-      high_24h: parseFloat(statsData.high),
-      low_24h: parseFloat(statsData.low),
+      high_24h: safeNumber(statsData.high) || undefined,
+      low_24h: safeNumber(statsData.low) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -206,11 +219,11 @@ async function fetchBybitData(symbol: string): Promise<ExchangeData | null> {
     return {
       exchange: 'Bybit',
       symbol: symbol,
-      price: parseFloat(ticker.lastPrice),
-      volume_24h: parseFloat(ticker.turnover24h),
-      change_24h: parseFloat(ticker.price24hPcnt) * 100,
-      high_24h: parseFloat(ticker.highPrice24h),
-      low_24h: parseFloat(ticker.lowPrice24h),
+      price: safeNumber(ticker.lastPrice),
+      volume_24h: safeNumber(ticker.turnover24h),
+      change_24h: safeNumber(ticker.price24hPcnt) * 100,
+      high_24h: safeNumber(ticker.highPrice24h) || undefined,
+      low_24h: safeNumber(ticker.lowPrice24h) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -233,11 +246,11 @@ async function fetchOKXData(symbol: string): Promise<ExchangeData | null> {
     return {
       exchange: 'OKX',
       symbol: symbol,
-      price: parseFloat(ticker.last),
-      volume_24h: parseFloat(ticker.volCcy24h),
-      change_24h: parseFloat(ticker.chgUtc0) * 100,
-      high_24h: parseFloat(ticker.high24h),
-      low_24h: parseFloat(ticker.low24h),
+      price: safeNumber(ticker.last),
+      volume_24h: safeNumber(ticker.volCcy24h),
+      change_24h: safeNumber(ticker.chgUtc0) * 100,
+      high_24h: safeNumber(ticker.high24h) || undefined,
+      low_24h: safeNumber(ticker.low24h) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -260,11 +273,11 @@ async function fetchBitgetData(symbol: string): Promise<ExchangeData | null> {
     return {
       exchange: 'Bitget',
       symbol: symbol,
-      price: parseFloat(ticker.lastPr),
-      volume_24h: parseFloat(ticker.baseVolume),
-      change_24h: parseFloat(ticker.chgUtc),
-      high_24h: parseFloat(ticker.high24h),
-      low_24h: parseFloat(ticker.low24h),
+      price: safeNumber(ticker.lastPr),
+      volume_24h: safeNumber(ticker.baseVolume),
+      change_24h: safeNumber(ticker.chgUtc),
+      high_24h: safeNumber(ticker.high24h) || undefined,
+      low_24h: safeNumber(ticker.low24h) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -284,11 +297,11 @@ async function fetchMEXCData(symbol: string): Promise<ExchangeData | null> {
     return {
       exchange: 'MEXC',
       symbol: symbol,
-      price: parseFloat(data.lastPrice),
-      volume_24h: parseFloat(data.quoteVolume),
-      change_24h: parseFloat(data.priceChangePercent),
-      high_24h: parseFloat(data.highPrice),
-      low_24h: parseFloat(data.lowPrice),
+      price: safeNumber(data.lastPrice),
+      volume_24h: safeNumber(data.quoteVolume),
+      change_24h: safeNumber(data.priceChangePercent),
+      high_24h: safeNumber(data.highPrice) || undefined,
+      low_24h: safeNumber(data.lowPrice) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -308,11 +321,11 @@ async function fetchGateData(symbol: string): Promise<ExchangeData | null> {
     return {
       exchange: 'Gate.io',
       symbol: symbol,
-      price: parseFloat(data.last),
-      volume_24h: parseFloat(data.quote_volume),
-      change_24h: parseFloat(data.change_percentage),
-      high_24h: parseFloat(data.high_24h),
-      low_24h: parseFloat(data.low_24h),
+      price: safeNumber(data.last),
+      volume_24h: safeNumber(data.quote_volume),
+      change_24h: safeNumber(data.change_percentage),
+      high_24h: safeNumber(data.high_24h) || undefined,
+      low_24h: safeNumber(data.low_24h) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -332,16 +345,19 @@ async function fetchHTXData(symbol: string): Promise<ExchangeData | null> {
     if (!data.tick) return null;
     
     const ticker = data.tick;
-    const change24h = ((ticker.close - ticker.open) / ticker.open) * 100;
+    const close = safeNumber(ticker.close);
+    const open = safeNumber(ticker.open);
+    const vol = safeNumber(ticker.vol);
+    const change24h = open > 0 ? ((close - open) / open) * 100 : 0;
     
     return {
       exchange: 'HTX',
       symbol: symbol,
-      price: ticker.close,
-      volume_24h: ticker.vol * ticker.close,
+      price: close,
+      volume_24h: vol * close,
       change_24h: change24h,
-      high_24h: ticker.high,
-      low_24h: ticker.low,
+      high_24h: safeNumber(ticker.high) || undefined,
+      low_24h: safeNumber(ticker.low) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -362,16 +378,18 @@ async function fetchKrakenData(symbol: string): Promise<ExchangeData | null> {
     if (!pairKey) return null;
     
     const ticker = data.result[pairKey];
-    const change24h = parseFloat(ticker.p[1]); // Today's percentage change
+    const price = safeNumber(ticker.c?.[0]);
+    const volume = safeNumber(ticker.v?.[1]);
+    const change24h = safeNumber(ticker.p?.[1]); // Today's percentage change
     
     return {
       exchange: 'Kraken',
       symbol: symbol,
-      price: parseFloat(ticker.c[0]), // Last trade closed
-      volume_24h: parseFloat(ticker.v[1]) * parseFloat(ticker.c[0]), // 24h volume * price
+      price: price,
+      volume_24h: volume * price,
       change_24h: change24h,
-      high_24h: parseFloat(ticker.h[1]),
-      low_24h: parseFloat(ticker.l[1]),
+      high_24h: safeNumber(ticker.h?.[1]) || undefined,
+      low_24h: safeNumber(ticker.l?.[1]) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -394,11 +412,11 @@ async function fetchKuCoinData(symbol: string): Promise<ExchangeData | null> {
     return {
       exchange: 'KuCoin',
       symbol: symbol,
-      price: parseFloat(ticker.last),
-      volume_24h: parseFloat(ticker.volValue),
-      change_24h: parseFloat(ticker.changeRate) * 100,
-      high_24h: parseFloat(ticker.high),
-      low_24h: parseFloat(ticker.low),
+      price: safeNumber(ticker.last),
+      volume_24h: safeNumber(ticker.volValue),
+      change_24h: safeNumber(ticker.changeRate) * 100,
+      high_24h: safeNumber(ticker.high) || undefined,
+      low_24h: safeNumber(ticker.low) || undefined,
       timestamp: Date.now()
     };
   } catch (error) {
@@ -444,9 +462,13 @@ async function aggregateExchangeData(symbol: string): Promise<AggregatedTokenDat
   
   // Calculate aggregated metrics
   const totalVolume = validExchangeData.reduce((sum, data) => sum + data.volume_24h, 0);
-  const weightedPrice = validExchangeData.reduce((sum, data) => sum + (data.price * data.volume_24h), 0) / totalVolume;
+  const weightedPrice = totalVolume > 0 
+    ? validExchangeData.reduce((sum, data) => sum + (data.price * data.volume_24h), 0) / totalVolume 
+    : validExchangeData.reduce((sum, data) => sum + data.price, 0) / validExchangeData.length;
   const averagePrice = validExchangeData.reduce((sum, data) => sum + data.price, 0) / validExchangeData.length;
-  const weightedChange = validExchangeData.reduce((sum, data) => sum + (data.change_24h * data.volume_24h), 0) / totalVolume;
+  const weightedChange = totalVolume > 0 
+    ? validExchangeData.reduce((sum, data) => sum + (data.change_24h * data.volume_24h), 0) / totalVolume 
+    : validExchangeData.reduce((sum, data) => sum + data.change_24h, 0) / validExchangeData.length;
   
   // Calculate price variance
   const priceVariance = Math.sqrt(
@@ -454,12 +476,17 @@ async function aggregateExchangeData(symbol: string): Promise<AggregatedTokenDat
   );
   
   // Market dominance by volume
-  const marketDominance = validExchangeData
-    .map(data => ({
-      exchange: data.exchange,
-      volume_percentage: (data.volume_24h / totalVolume) * 100
-    }))
-    .sort((a, b) => b.volume_percentage - a.volume_percentage);
+  const marketDominance = totalVolume > 0 
+    ? validExchangeData
+        .map(data => ({
+          exchange: data.exchange,
+          volume_percentage: (data.volume_24h / totalVolume) * 100
+        }))
+        .sort((a, b) => b.volume_percentage - a.volume_percentage)
+    : validExchangeData.map(data => ({
+        exchange: data.exchange,
+        volume_percentage: 100 / validExchangeData.length
+      }));
   
   // Price discovery
   const prices = validExchangeData.map(data => ({ exchange: data.exchange, price: data.price }));
@@ -533,21 +560,25 @@ serve(async (req) => {
         try {
           // Store individual exchange prices
           for (const exchangeData of tokenData.exchanges) {
-            await supabase
+            const { error: upsertError } = await supabase
               .from('exchange_ticker_data')
               .upsert({
                 asset_symbol: tokenData.symbol,
                 exchange: exchangeData.exchange,
-                price: exchangeData.price,
-                volume_24h: exchangeData.volume_24h,
-                change_24h: exchangeData.change_24h,
-                high_24h: exchangeData.high_24h,
-                low_24h: exchangeData.low_24h,
+                price: exchangeData.price || null,
+                volume_24h: exchangeData.volume_24h || 0, // Never null - default to 0
+                change_24h: exchangeData.change_24h || 0, // Never null - default to 0
+                high_24h: exchangeData.high_24h || null,
+                low_24h: exchangeData.low_24h || null,
                 last_updated: new Date().toISOString(),
               }, {
                 onConflict: 'asset_symbol,exchange',
                 ignoreDuplicates: false
               });
+            
+            if (upsertError) {
+              console.error(`Upsert error for ${tokenData.symbol}/${exchangeData.exchange}:`, upsertError);
+            }
           }
 
           // Also keep social_sentiment for compatibility
