@@ -17,35 +17,56 @@ Deno.serve(async (req) => {
 
     console.log('🚀 Starting stock snapshot sync from live_prices...');
 
-    // Read from live_prices table - ONLY stock tickers (NOT X: or C: prefix)
+    // Read from live_prices table with PAGINATION - ONLY stock tickers (NOT X: or C: prefix)
     // Stock tickers are pure alphabetic like AAPL, MSFT, NVDA
-    console.log('🔄 Reading STOCK prices from live_prices table (non-crypto only)...');
-    const { data: livePrices, error: livePricesError } = await supabase
-      .from('live_prices')
-      .select(`
-        ticker,
-        price,
-        change24h,
-        display,
-        asset_id,
-        updated_at,
-        volume,
-        day_high,
-        day_low,
-        day_open
-      `)
-      .eq('source', 'polygon')
-      .not('ticker', 'like', 'X:%')
-      .not('ticker', 'like', 'C:%')
-      .not('price', 'is', null);
+    console.log('🔄 Reading STOCK prices from live_prices table (non-crypto only) with pagination...');
+    
+    const PAGE_SIZE = 1000;
+    let allLivePrices: any[] = [];
+    let offset = 0;
+    let hasMore = true;
+    let pageCount = 0;
 
-    if (livePricesError) {
-      throw new Error(`Failed to fetch live_prices: ${livePricesError.message}`);
+    while (hasMore) {
+      const { data: pageData, error: pageError } = await supabase
+        .from('live_prices')
+        .select(`
+          ticker,
+          price,
+          change24h,
+          display,
+          asset_id,
+          updated_at,
+          volume,
+          day_high,
+          day_low,
+          day_open
+        `)
+        .eq('source', 'polygon')
+        .not('ticker', 'like', 'X:%')
+        .not('ticker', 'like', 'C:%')
+        .not('price', 'is', null)
+        .range(offset, offset + PAGE_SIZE - 1);
+
+      if (pageError) {
+        throw new Error(`Failed to fetch live_prices page ${pageCount}: ${pageError.message}`);
+      }
+
+      if (pageData && pageData.length > 0) {
+        allLivePrices = allLivePrices.concat(pageData);
+        pageCount++;
+        console.log(`📄 Page ${pageCount}: fetched ${pageData.length} records (total: ${allLivePrices.length})`);
+        offset += pageData.length;
+        hasMore = pageData.length === PAGE_SIZE;
+      } else {
+        hasMore = false;
+      }
     }
 
-    console.log(`📊 Found ${livePrices?.length || 0} stock prices in live_prices table`);
+    const livePrices = allLivePrices;
+    console.log(`📊 Found ${livePrices.length} total stock prices across ${pageCount} pages`);
 
-    if (!livePrices || livePrices.length === 0) {
+    if (livePrices.length === 0) {
       return new Response(JSON.stringify({ 
         success: true, 
         count: 0,
