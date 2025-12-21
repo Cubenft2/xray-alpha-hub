@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -96,25 +96,32 @@ function parseUrlParams(searchParams: URLSearchParams): {
 export function useTokenCards() {
   const [searchParams, setSearchParams] = useSearchParams();
   
-  // Parse initial state from URL
-  const urlState = useMemo(() => parseUrlParams(searchParams), [searchParams]);
+  // Parse initial state from URL - only once on mount
+  const initialUrlState = useMemo(() => parseUrlParams(searchParams), []);
   
-  const [sortKey, setSortKey] = useState<SortKey>(urlState.sortKey);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(urlState.sortDirection);
-  const [currentPage, setCurrentPage] = useState(urlState.page);
+  const [sortKey, setSortKey] = useState<SortKey>(initialUrlState.sortKey);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(initialUrlState.sortDirection);
+  const [currentPage, setCurrentPage] = useState(initialUrlState.page);
   const [filters, setFilters] = useState<Filters>({
-    search: urlState.filters.search || '',
-    category: urlState.filters.category || '',
-    chain: urlState.filters.chain || '',
-    tier: urlState.filters.tier || '',
-    minVolume: urlState.filters.minVolume || '',
-    minGalaxyScore: urlState.filters.minGalaxyScore || '',
-    minMarketCap: urlState.filters.minMarketCap || '',
-    changeFilter: urlState.filters.changeFilter || 'all',
-    dataSource: urlState.filters.dataSource || 'all',
-    hideSuspicious: urlState.filters.hideSuspicious ?? true,
+    search: initialUrlState.filters.search || '',
+    category: initialUrlState.filters.category || '',
+    chain: initialUrlState.filters.chain || '',
+    tier: initialUrlState.filters.tier || '',
+    minVolume: initialUrlState.filters.minVolume || '',
+    minGalaxyScore: initialUrlState.filters.minGalaxyScore || '',
+    minMarketCap: initialUrlState.filters.minMarketCap || '',
+    changeFilter: initialUrlState.filters.changeFilter || 'all',
+    dataSource: initialUrlState.filters.dataSource || 'all',
+    hideSuspicious: initialUrlState.filters.hideSuspicious ?? true,
   });
-  const [debouncedSearch, setDebouncedSearch] = useState(urlState.filters.search || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(initialUrlState.filters.search || '');
+  
+  // Track if this is the initial mount to prevent resetting page on first render
+  const [isInitialMount, setIsInitialMount] = useState(true);
+  useEffect(() => {
+    // Mark initial mount complete after first render
+    setIsInitialMount(false);
+  }, []);
 
   // Sync state to URL (debounced to avoid too many history entries)
   useEffect(() => {
@@ -142,17 +149,30 @@ export function useTokenCards() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(filters.search);
-      if (filters.search !== urlState.filters.search) {
+      // Only reset page if search actually changed after initial load
+      if (!isInitialMount && filters.search !== debouncedSearch) {
         setCurrentPage(1);
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [filters.search]);
+  }, [filters.search, isInitialMount]);
 
-  // Reset page on filter change (but not on initial load from URL)
+  // Track previous filter/sort values to detect actual changes (not initial load)
+  const prevFiltersRef = useRef<string | null>(null);
+  const filterSortKey = `${filters.category}|${filters.chain}|${filters.tier}|${filters.minVolume}|${filters.minGalaxyScore}|${filters.minMarketCap}|${filters.changeFilter}|${filters.dataSource}|${filters.hideSuspicious}|${sortKey}|${sortDirection}`;
+  
+  // Reset page on filter/sort change, but not on initial mount
   useEffect(() => {
-    setCurrentPage(1);
-  }, [filters.category, filters.chain, filters.tier, filters.minVolume, filters.minGalaxyScore, filters.minMarketCap, filters.changeFilter, filters.dataSource, filters.hideSuspicious, sortKey, sortDirection]);
+    if (isInitialMount) {
+      prevFiltersRef.current = filterSortKey;
+      return;
+    }
+    
+    if (prevFiltersRef.current !== null && prevFiltersRef.current !== filterSortKey) {
+      setCurrentPage(1);
+    }
+    prevFiltersRef.current = filterSortKey;
+  }, [filterSortKey, isInitialMount]);
 
   const fetchTokens = useCallback(async () => {
     let query = supabase
