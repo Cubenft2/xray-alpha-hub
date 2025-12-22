@@ -21,7 +21,6 @@ import {
   Radio
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { DataFreshnessSummary } from '@/components/admin/DataFreshnessSummary';
 import { APIRateLimitMonitor } from '@/components/admin/APIRateLimitMonitor';
 
 interface HealthStatus {
@@ -493,8 +492,6 @@ export function SystemHealth() {
       {/* API Rate Limit Monitor - Top Priority */}
       <APIRateLimitMonitor />
 
-      {/* Data Freshness Summary */}
-      <DataFreshnessSummary />
 
       <Card>
         <CardHeader>
