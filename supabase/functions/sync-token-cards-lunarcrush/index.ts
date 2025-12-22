@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Prevent known-bad/duplicate symbols from being inserted or re-activated by sync
+const BLOCKED_SYMBOLS = new Set<string>([
+  'TPT3',
+]);
+
 // Transform blockchains array to contracts JSONB object
 function transformBlockchainsToContracts(blockchains: any[] | null): Record<string, any> {
   if (!blockchains || !Array.isArray(blockchains)) return {};
@@ -157,7 +162,9 @@ serve(async (req) => {
     const seenSymbols = new Set<string>();
     const dedupedCoins = allCoins.filter(coin => {
       const symbol = coin.symbol?.toUpperCase();
-      if (!symbol || seenSymbols.has(symbol)) return false;
+      if (!symbol) return false;
+      if (BLOCKED_SYMBOLS.has(symbol)) return false;
+      if (seenSymbols.has(symbol)) return false;
       seenSymbols.add(symbol);
       return true;
     });
@@ -180,7 +187,7 @@ serve(async (req) => {
     while (true) {
       const { data: pageCards, error: fetchError } = await supabase
         .from('token_cards')
-        .select('id, canonical_symbol, lunarcrush_id, contracts, polygon_supported')
+        .select('id, canonical_symbol, lunarcrush_id, contracts, polygon_supported, is_active')
         .order('market_cap_rank', { ascending: true, nullsFirst: false })
         .range(offset, offset + PAGE_SIZE - 1);
 
@@ -288,7 +295,14 @@ serve(async (req) => {
           ? coin.galaxy_score - coin.galaxy_score_previous
           : null;
 
-        // Base card data (always written)
+        // Preserve manual activation state:
+        // - If we matched an existing row, keep its current is_active
+        // - If we didn't match, but the symbol already exists, keep that row's is_active (covers upsert conflicts)
+        // - Otherwise default new inserts to active
+        const existingSameSymbol = symbol ? (bySymbol.get(symbol)?.[0] ?? null) : null;
+        const preservedIsActive = (matchedCard?.is_active ?? existingSameSymbol?.is_active ?? true) === true;
+
+        // Base card data
         // NOTE: polygon_ticker and tradingview_symbol are set by auto-map-exchange-tickers
         // based on actual exchange_pairs data - NOT generated blindly here
         const cardData: Record<string, any> = {
@@ -298,8 +312,8 @@ serve(async (req) => {
           lunarcrush_id: lunarcrushId,
           categories: categories,
           primary_chain: primaryChain,
-          
-          // LunarCrush-unique data (always write - no other source provides these)
+
+          // LunarCrush-unique data
           market_cap: coin.market_cap,
           market_cap_rank: coin.market_cap_rank,
           change_1h_pct: coin.percent_change_1h,
@@ -309,8 +323,8 @@ serve(async (req) => {
           market_dominance: coin.market_dominance,
           circulating_supply: coin.circulating_supply,
           max_supply: coin.max_supply,
-          
-          // Social data (LunarCrush is THE source - always write)
+
+          // Social data (LunarCrush is THE source)
           galaxy_score: coin.galaxy_score != null ? Math.round(coin.galaxy_score) : null,
           galaxy_score_previous: coin.galaxy_score_previous != null ? Math.round(coin.galaxy_score_previous) : null,
           galaxy_score_change: galaxyScoreChange != null ? Math.round(galaxyScoreChange) : null,
@@ -321,20 +335,21 @@ serve(async (req) => {
           social_volume_24h: coin.social_volume_24h,
           social_dominance: coin.social_dominance,
           interactions_24h: coin.interactions_24h,
-          
+
           // Timestamps and source tracking
           social_updated_at: new Date().toISOString(),
           social_source: 'lunarcrush',
-          
+
           // Tier
-          tier: coin.market_cap_rank 
+          tier: coin.market_cap_rank
             ? (coin.market_cap_rank <= 50 ? 1 : coin.market_cap_rank <= 500 ? 2 : coin.market_cap_rank <= 2000 ? 3 : 4)
             : 4,
           tier_reason: coin.market_cap_rank ? 'market_cap' : null,
-          
-          is_active: true,
-          
-          // DEDICATED LUNARCRUSH PRICE COLUMNS - ALWAYS WRITE (no smart routing skip!)
+
+          // IMPORTANT: do NOT force-reactivate tokens every sync
+          is_active: preservedIsActive,
+
+          // DEDICATED LUNARCRUSH PRICE COLUMNS - ALWAYS WRITE
           // Trigger will compute display price_usd from freshest source
           lunarcrush_price_usd: coin.price,
           lunarcrush_volume_24h: coin.volume_24h,
