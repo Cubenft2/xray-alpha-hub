@@ -1,3 +1,10 @@
+/**
+ * @deprecated This function reads from polygon_crypto_cards table which is DEPRECATED.
+ * Token data now flows through sync-token-cards-polygon directly to token_cards table.
+ * This file is kept for reference only. No cron schedule configured.
+ * 
+ * DO NOT USE - Data flow is now: Polygon API → sync-token-cards-polygon → token_cards
+ */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
