@@ -259,13 +259,17 @@ verify_jwt = false
 [functions.polygon-raw-preview]
 verify_jwt = false
 
-# DISABLED: sync-polygon-crypto-reference writes to polygon_crypto_cards, not token_cards
-# Token data now flows through sync-token-cards-polygon
+# ============================================================================
+# DEPRECATED FUNCTIONS - polygon_crypto_cards table is no longer used
+# All Polygon crypto data now flows through sync-token-cards-polygon → token_cards
+# These functions are kept for reference only. DO NOT RE-ENABLE.
+# ============================================================================
+
+# @deprecated - writes to polygon_crypto_cards (deprecated table)
 [functions.sync-polygon-crypto-reference]
 verify_jwt = false
 
-# DISABLED: sync-polygon-crypto-snapshot writes to polygon_crypto_cards, not token_cards
-# Token data now flows through sync-token-cards-polygon
+# @deprecated - writes to polygon_crypto_cards (deprecated table)
 [functions.sync-polygon-crypto-snapshot]
 verify_jwt = false
 

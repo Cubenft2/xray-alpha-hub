@@ -280,42 +280,41 @@ serve(async (req) => {
     // Sample raw ticker for inspection
     const sampleRawTicker = cryptoTickers.find(t => t.ticker === 'X:BTCUSD') || cryptoTickers[0];
 
-    // Fetch polygon_crypto_cards status
-    console.log('🎴 Fetching polygon_crypto_cards status...');
+    // NOTE: polygon_crypto_cards is DEPRECATED
+    // Token data now flows through sync-token-cards-polygon → token_cards
+    // Keeping this section for backward compatibility in preview responses
+    console.log('🎴 Fetching token_cards status (polygon_crypto_cards is deprecated)...');
     
     const { count: totalCards } = await supabase
-      .from('polygon_crypto_cards')
-      .select('*', { count: 'exact', head: true });
+      .from('token_cards')
+      .select('*', { count: 'exact', head: true })
+      .eq('polygon_supported', true);
     
     const { count: activeCards } = await supabase
-      .from('polygon_crypto_cards')
+      .from('token_cards')
       .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
-    
-    const { count: referenceOnlyCards } = await supabase
-      .from('polygon_crypto_cards')
-      .select('*', { count: 'exact', head: true })
-      .eq('in_reference', true)
-      .eq('in_snapshot', false);
+      .eq('polygon_supported', true)
+      .not('polygon_price_usd', 'is', null);
     
     const { data: lastCardUpdate } = await supabase
-      .from('polygon_crypto_cards')
-      .select('price_updated_at')
-      .not('price_updated_at', 'is', null)
-      .order('price_updated_at', { ascending: false })
+      .from('token_cards')
+      .select('polygon_price_updated_at')
+      .eq('polygon_supported', true)
+      .not('polygon_price_updated_at', 'is', null)
+      .order('polygon_price_updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     
     const { data: sampleCards } = await supabase
-      .from('polygon_crypto_cards')
-      .select('canonical_symbol, name, price_usd, change_24h_pct, volume_24h, is_active, primary_ticker, price_updated_at')
-      .eq('is_active', true)
+      .from('token_cards')
+      .select('canonical_symbol, name, price_usd, change_24h_pct, volume_24h_usd, polygon_supported, polygon_ticker, polygon_price_updated_at')
+      .eq('polygon_supported', true)
       .not('price_usd', 'is', null)
-      .order('volume_24h', { ascending: false, nullsFirst: false })
+      .order('market_cap', { ascending: false, nullsFirst: false })
       .limit(10);
 
-    const cardsLastUpdate = lastCardUpdate?.price_updated_at;
-    const cardsIsFresh = cardsLastUpdate && (Date.now() - new Date(cardsLastUpdate).getTime() < 2 * 60 * 1000);
+    const cardsLastUpdate = lastCardUpdate?.polygon_price_updated_at;
+    const cardsIsFresh = cardsLastUpdate && (Date.now() - new Date(cardsLastUpdate).getTime() < 6 * 60 * 1000);
 
     const response = {
       timestamp: new Date().toISOString(),
@@ -330,10 +329,12 @@ serve(async (req) => {
         sampleTickers: cryptoTickers.slice(0, 10),
         sampleRawTicker
       },
+      // NOTE: Now showing token_cards with polygon_supported=true (polygon_crypto_cards is deprecated)
       cryptoCards: {
+        source: 'token_cards (polygon_supported=true)',
+        deprecationNotice: 'polygon_crypto_cards table is deprecated. Data now flows through sync-token-cards-polygon → token_cards.',
         totalCards: totalCards || 0,
         activeCards: activeCards || 0,
-        referenceOnlyCards: referenceOnlyCards || 0,
         lastUpdate: cardsLastUpdate,
         isFresh: cardsIsFresh,
         sampleCards: sampleCards || []
@@ -373,7 +374,7 @@ serve(async (req) => {
 
     console.log(`✅ Analysis complete: ${cryptoTickers.length} snapshot, ${referenceTickers.length} reference, ${gap} gap (${gapPercentage}%)`);
     console.log(`💱 Forex status: ${forexPriceCount} prices, ${forexPairCount} pairs, ${forexAssetCount} assets, fresh: ${forexIsFresh}`);
-    console.log(`🎴 Crypto Cards: ${totalCards} total, ${activeCards} active, ${referenceOnlyCards} reference-only, fresh: ${cardsIsFresh}`);
+    console.log(`🎴 Token Cards (polygon_supported): ${totalCards} total, ${activeCards} with prices, fresh: ${cardsIsFresh}`);
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
