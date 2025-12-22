@@ -53,8 +53,9 @@ verify_jwt = true
 [functions.news-fetch]
 verify_jwt = false
 
+# Every 15 min - offset to 8,23,38,53 (keeps news + sentiment fresh)
 [[functions.news-fetch.cron]]
-schedule = "30 * * * *"
+schedule = "8,23,38,53 * * * *"
 
 [functions.symbol-validation]
 verify_jwt = false
