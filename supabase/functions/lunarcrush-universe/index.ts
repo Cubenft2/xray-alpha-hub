@@ -120,20 +120,23 @@ Deno.serve(async (req) => {
       const expiredCoins = cachedData?.v?.data || [];
 
       console.log('🔄 Fetching fresh LunarCrush universe data...');
-      const response = await fetch('https://lunarcrush.com/api4/public/coins/list/v1', {
-        headers: {
-          'Authorization': `Bearer ${lunarCrushApiKey}`,
-        },
-      });
+      
+      try {
+        const response = await fetch('https://lunarcrush.com/api4/public/coins/list/v1', {
+          headers: {
+            'Authorization': `Bearer ${lunarCrushApiKey}`,
+          },
+        });
 
-      if (!response.ok) {
-        if (response.status === 429 && expiredCoins.length > 0) {
-          console.log('⚠️ Rate limited! Using expired cache as fallback');
-          allCoins = expiredCoins;
+        if (!response.ok) {
+          // Always try to use expired cache on any API error
+          if (expiredCoins.length > 0) {
+            console.log(`⚠️ API error ${response.status}! Using expired cache as fallback (${expiredCoins.length} coins)`);
+            allCoins = expiredCoins;
+          } else {
+            throw new Error(`LunarCrush API error: ${response.status} ${response.statusText}`);
+          }
         } else {
-          throw new Error(`LunarCrush API error: ${response.status} ${response.statusText}`);
-        }
-      } else {
         const apiData = await response.json();
         const rawCoins = apiData.data || [];
         
@@ -176,6 +179,15 @@ Deno.serve(async (req) => {
           });
 
         console.log(`✅ Fetched and cached ${allCoins.length} coins from LunarCrush`);
+        }
+      } catch (fetchError) {
+        // Network error - try to use expired cache
+        if (expiredCoins.length > 0) {
+          console.log(`⚠️ Fetch failed: ${fetchError.message}. Using expired cache (${expiredCoins.length} coins)`);
+          allCoins = expiredCoins;
+        } else {
+          throw fetchError;
+        }
       }
     }
 
