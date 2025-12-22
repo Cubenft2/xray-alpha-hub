@@ -1,3 +1,10 @@
+/**
+ * @deprecated This hook uses the legacy crypto_snapshot table.
+ * For new development, use useTokenCards() or query token_cards directly.
+ * The crypto_snapshot table is no longer actively maintained.
+ * 
+ * Migration path: token_cards has all the same data plus more fields.
+ */
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -20,39 +27,46 @@ export interface CryptoSnapshot {
   updated_at: string;
 }
 
+/**
+ * @deprecated Use token_cards table instead of crypto_snapshot.
+ * This hook now reads from token_cards for forward compatibility.
+ */
 export function useCryptoSnapshot() {
   const [data, setData] = useState<CryptoSnapshot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  // Initial fetch
+  // Initial fetch - now uses token_cards instead of crypto_snapshot
   useEffect(() => {
     async function fetchSnapshot() {
       try {
         setIsLoading(true);
+        // Query token_cards instead of deprecated crypto_snapshot
         const { data: snapshot, error: fetchError } = await supabase
-          .from('crypto_snapshot')
-          .select('*')
-          .order('market_cap_rank', { ascending: true, nullsFirst: false });
+          .from('token_cards')
+          .select('canonical_symbol, name, logo_url, coingecko_id, price_usd, change_24h_pct, volume_24h_usd, high_24h, low_24h, market_cap, market_cap_rank, updated_at')
+          .eq('is_active', true)
+          .order('market_cap_rank', { ascending: true, nullsFirst: false })
+          .limit(500);
 
         if (fetchError) throw fetchError;
 
-        // Cast to our interface (database uses snake_case)
+        // Map token_cards fields to CryptoSnapshot interface for backward compatibility
         const formattedData = (snapshot || []).map(row => ({
-          symbol: row.symbol,
-          ticker: row.ticker,
-          name: row.name,
+          symbol: row.canonical_symbol,
+          ticker: `X:${row.canonical_symbol}USD`,
+          name: row.name || row.canonical_symbol,
           logo_url: row.logo_url,
           coingecko_id: row.coingecko_id,
-          price: Number(row.price) || 0,
-          change_24h: Number(row.change_24h) || 0,
-          change_percent: Number(row.change_percent) || 0,
-          volume_24h: Number(row.volume_24h) || 0,
-          vwap: Number(row.vwap) || 0,
+          price: Number(row.price_usd) || 0,
+          change_24h: 0, // Not available in token_cards
+          change_percent: Number(row.change_24h_pct) || 0,
+          volume_24h: Number(row.volume_24h_usd) || 0,
+          vwap: 0, // Not available in token_cards
           high_24h: Number(row.high_24h) || 0,
           low_24h: Number(row.low_24h) || 0,
-          open_24h: Number(row.open_24h) || 0,
+          open_24h: 0, // Not available in token_cards
           market_cap: row.market_cap ? Number(row.market_cap) : null,
           market_cap_rank: row.market_cap_rank,
           updated_at: row.updated_at,
@@ -74,34 +88,36 @@ export function useCryptoSnapshot() {
     fetchSnapshot();
   }, []);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates on token_cards
   useEffect(() => {
     const channel = supabase
-      .channel('crypto-snapshot-changes')
+      .channel('token-cards-snapshot-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'crypto_snapshot',
+          table: 'token_cards',
         },
         (payload) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newRow = payload.new as any;
+            if (!newRow.is_active) return; // Skip inactive tokens
+            
             const formattedRow: CryptoSnapshot = {
-              symbol: newRow.symbol,
-              ticker: newRow.ticker,
-              name: newRow.name,
+              symbol: newRow.canonical_symbol,
+              ticker: `X:${newRow.canonical_symbol}USD`,
+              name: newRow.name || newRow.canonical_symbol,
               logo_url: newRow.logo_url,
               coingecko_id: newRow.coingecko_id,
-              price: Number(newRow.price) || 0,
-              change_24h: Number(newRow.change_24h) || 0,
-              change_percent: Number(newRow.change_percent) || 0,
-              volume_24h: Number(newRow.volume_24h) || 0,
-              vwap: Number(newRow.vwap) || 0,
+              price: Number(newRow.price_usd) || 0,
+              change_24h: 0,
+              change_percent: Number(newRow.change_24h_pct) || 0,
+              volume_24h: Number(newRow.volume_24h_usd) || 0,
+              vwap: 0,
               high_24h: Number(newRow.high_24h) || 0,
               low_24h: Number(newRow.low_24h) || 0,
-              open_24h: Number(newRow.open_24h) || 0,
+              open_24h: 0,
               market_cap: newRow.market_cap ? Number(newRow.market_cap) : null,
               market_cap_rank: newRow.market_cap_rank,
               updated_at: newRow.updated_at,
@@ -126,7 +142,7 @@ export function useCryptoSnapshot() {
             setLastUpdated(new Date(formattedRow.updated_at));
           } else if (payload.eventType === 'DELETE') {
             const oldRow = payload.old as any;
-            setData((prev) => prev.filter((item) => item.symbol !== oldRow.symbol));
+            setData((prev) => prev.filter((item) => item.symbol !== oldRow.canonical_symbol));
           }
         }
       )
