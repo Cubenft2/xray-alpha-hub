@@ -200,6 +200,8 @@ export default function MarketBriefHome() {
       TRAC: { symbol: 'TRACUSD', displayName: 'OriginTrail' },
       BLESS: { symbol: 'KRAKEN:BLESSUSD', displayName: 'Bless' },
       AKI: { symbol: 'AKIUSD', displayName: 'AKI' },
+      // Fixed TradingView symbols (ASTER not on Coinbase, use Binance USDT pair)
+      ASTER: { symbol: 'BINANCE:ASTERUSDT', displayName: 'Aster' },
     };
     const ov = OVERRIDES[upperTicker];
     if (ov) {
