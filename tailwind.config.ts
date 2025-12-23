@@ -195,6 +195,22 @@ export default {
             transform: "translateY(-8px) scale(1.02)",
           }
         },
+        "flash-green": {
+          "0%": {
+            backgroundColor: "hsl(var(--success) / 0.3)",
+          },
+          "100%": {
+            backgroundColor: "transparent",
+          }
+        },
+        "flash-red": {
+          "0%": {
+            backgroundColor: "hsl(var(--destructive) / 0.3)",
+          },
+          "100%": {
+            backgroundColor: "transparent",
+          }
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -210,6 +226,8 @@ export default {
         "gradient": "gradient 3s ease infinite",
         "slide-in-down": "slide-in-down 0.3s ease-out",
         "ghost-float": "ghost-float 4s ease-in-out infinite",
+        "flash-green": "flash-green 0.3s ease-out",
+        "flash-red": "flash-red 0.3s ease-out",
       },
     },
   },

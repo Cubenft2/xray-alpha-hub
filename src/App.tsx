@@ -31,6 +31,7 @@ import Screener from "./pages/Screener";
 import Favorites from "./pages/Favorites";
 import StockScreener from "./pages/StockScreener";
 import StockDetail from "./pages/StockDetail";
+import WebSocketTest from "./pages/test/WebSocketTest";
 import { Navigate } from "react-router-dom";
 const queryClient = new QueryClient();
 
@@ -77,6 +78,7 @@ const App = () => (
                       <AdminIndex />
                     </ProtectedRoute>
                   } />
+                  <Route path="/test/websocket" element={<WebSocketTest />} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
