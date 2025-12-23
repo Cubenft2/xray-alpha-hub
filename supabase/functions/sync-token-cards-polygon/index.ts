@@ -18,9 +18,7 @@ function calculateSMA(prices: number[], period: number): number | null {
 function calculateEMA(prices: number[], period: number): number | null {
   if (prices.length < period) return null;
   const k = 2 / (period + 1);
-  // Start with SMA as first EMA value
   let ema = prices.slice(prices.length - period).reduce((a, b) => a + b, 0) / period;
-  // Calculate EMA from oldest to newest
   for (let i = prices.length - period - 1; i >= 0; i--) {
     ema = prices[i] * k + ema * (1 - k);
   }
@@ -33,7 +31,6 @@ function calculateRSI(prices: number[], period: number = 14): number | null {
   let gains = 0;
   let losses = 0;
   
-  // Calculate initial average gain/loss
   for (let i = 0; i < period; i++) {
     const change = prices[i] - prices[i + 1];
     if (change > 0) gains += change;
@@ -43,7 +40,6 @@ function calculateRSI(prices: number[], period: number = 14): number | null {
   let avgGain = gains / period;
   let avgLoss = losses / period;
   
-  // Calculate smoothed RSI
   for (let i = period; i < prices.length - 1; i++) {
     const change = prices[i] - prices[i + 1];
     if (change > 0) {
@@ -67,25 +63,19 @@ function calculateMACD(prices: number[]): { macd: number; signal: number; histog
   if (ema12 === null || ema26 === null) return null;
   
   const macd = ema12 - ema26;
-  
-  // Calculate signal line (9-period EMA of MACD)
-  // For simplicity, approximate signal as fraction of MACD
-  const signal = macd * 0.8; // Approximation
+  const signal = macd * 0.8;
   const histogram = macd - signal;
   
   return { macd, signal, histogram };
 }
 
-// Fetch OHLCV data from Polygon (unlimited API calls)
-// Major tokens to debug
 const DEBUG_TICKERS = ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD'];
 
 async function fetchOHLCV(ticker: string, apiKey: string, bars: number = 200): Promise<number[] | null> {
   const isDebug = DEBUG_TICKERS.includes(ticker);
   try {
-    // Fetch 1-minute candles for freshest data
     const to = Date.now();
-    const from = to - (bars * 60 * 1000); // bars minutes ago
+    const from = to - (bars * 60 * 1000);
     
     const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/minute/${from}/${to}?adjusted=true&sort=desc&limit=${bars}&apiKey=${apiKey}`;
     const response = await fetch(url);
@@ -100,13 +90,11 @@ async function fetchOHLCV(ticker: string, apiKey: string, bars: number = 200): P
     
     if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: minute bars=${results.length}`);
     
-    // Use minute data if we have enough (30+ bars needed for technicals)
     if (results.length >= 30) {
       if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: using ${results.length} minute bars`);
       return results.map((r: any) => r.c);
     }
     
-    // Not enough minute data, try hourly candles as fallback
     const hourlyFrom = to - (bars * 60 * 60 * 1000);
     const hourlyUrl = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/hour/${hourlyFrom}/${to}?adjusted=true&sort=desc&limit=${bars}&apiKey=${apiKey}`;
     const hourlyResponse = await fetch(hourlyUrl);
@@ -121,7 +109,6 @@ async function fetchOHLCV(ticker: string, apiKey: string, bars: number = 200): P
     
     if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: hourly bars=${hourlyResults.length}`);
     
-    // Need 30+ bars for technicals calculation
     if (hourlyResults.length < 30) {
       if (isDebug) console.log(`[OHLCV DEBUG] ${ticker}: insufficient hourly (${hourlyResults.length} < 30)`);
       return null;
@@ -135,7 +122,6 @@ async function fetchOHLCV(ticker: string, apiKey: string, bars: number = 200): P
   }
 }
 
-// Calculate all technicals from OHLCV prices
 function calculateAllTechnicals(prices: number[]): {
   rsi_14: number | null;
   macd_line: number | null;
@@ -182,7 +168,7 @@ serve(async (req) => {
 
     console.log('[sync-token-cards-polygon] Starting price + technicals sync...');
 
-    // Get and increment call counter for tiered refresh
+    // Get and increment call counter
     const COUNTER_KEY = 'sync-token-cards-polygon:call_count';
     const { data: counterData } = await supabase
       .from('cache_kv')
@@ -193,31 +179,29 @@ serve(async (req) => {
     let callCount = counterData?.v?.count || 0;
     callCount++;
     
-    // Update counter
     await supabase
       .from('cache_kv')
       .upsert({
         k: COUNTER_KEY,
         v: { count: callCount },
-        expires_at: new Date(Date.now() + 86400000).toISOString() // 24h expiry
+        expires_at: new Date(Date.now() + 86400000).toISOString()
       }, { onConflict: 'k' });
 
     console.log(`[sync-token-cards-polygon] Call #${callCount}`);
 
-    // Determine which tiers to fetch this call
-    const fetchTier1 = true; // Always
-    const fetchTier2 = true; // Always
-    const fetchTier3 = callCount % 2 === 0; // Every 2nd call
-    const fetchTier4 = callCount % 5 === 0; // Every 5th call
+    // PRICE tiers (staggered)
+    const fetchTier1 = true;
+    const fetchTier2 = true;
+    const fetchTier3 = callCount % 2 === 0;
+    const fetchTier4 = callCount % 5 === 0;
 
-    // Build tier filter
     const tiers: number[] = [1, 2];
     if (fetchTier3) tiers.push(3);
     if (fetchTier4) tiers.push(4);
 
-    console.log(`[sync-token-cards-polygon] Fetching tiers: ${tiers.join(', ')}`);
+    console.log(`[sync-token-cards-polygon] Fetching price tiers: ${tiers.join(', ')}`);
 
-    // Fetch tokens with polygon_ticker for selected tiers
+    // Fetch tokens with polygon_ticker
     const { data: tokens, error: fetchError } = await supabase
       .from('token_cards')
       .select('id, canonical_symbol, polygon_ticker, tier')
@@ -239,7 +223,7 @@ serve(async (req) => {
 
     console.log(`[sync-token-cards-polygon] Found ${tokens.length} tokens to sync`);
 
-    // Fetch Polygon snapshot for all crypto tickers
+    // Fetch Polygon snapshot
     const snapshotUrl = `https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers?apiKey=${polygonKey}`;
     const snapshotResponse = await fetch(snapshotUrl);
     
@@ -252,7 +236,7 @@ serve(async (req) => {
     
     console.log(`[sync-token-cards-polygon] Polygon returned ${tickersList.length} tickers`);
 
-    // Build lookup map from Polygon data (ticker -> data)
+    // Build lookup map
     const polygonMap = new Map<string, any>();
     for (const t of tickersList) {
       if (t.ticker) {
@@ -280,7 +264,6 @@ serve(async (req) => {
       const lastQuote = tickerData.lastQuote || {};
       const lastTrade = tickerData.lastTrade || {};
 
-      // Calculate change percentage
       const currentPrice = lastTrade.p || day.c || tickerData.lastTrade?.p;
       const openPrice = day.o || prevDay.c;
       let changePct = null;
@@ -288,7 +271,6 @@ serve(async (req) => {
         changePct = ((currentPrice - openPrice) / openPrice) * 100;
       }
 
-      // Calculate spread percentage
       let spreadPct = null;
       if (lastQuote.P && lastQuote.p && lastQuote.P !== 0) {
         spreadPct = ((lastQuote.P - lastQuote.p) / lastQuote.P) * 100;
@@ -301,14 +283,12 @@ serve(async (req) => {
         polygon_ticker: polygonTicker,
         canonical_symbol: token.canonical_symbol,
         tier: token.tier,
-        // DEDICATED POLYGON PRICE COLUMNS - ALWAYS WRITE
         polygon_price_usd: currentPrice,
         polygon_volume_24h: volume24h,
         polygon_change_24h_pct: changePct,
         polygon_high_24h: day.h || null,
         polygon_low_24h: day.l || null,
         polygon_price_updated_at: now,
-        // Additional Polygon-specific fields
         open_24h: day.o || null,
         close_24h: day.c || null,
         vwap_24h: day.vw || null,
@@ -319,9 +299,9 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[sync-token-cards-polygon] Prepared ${updates.length} price updates, ${notFound} not found in Polygon`);
+    console.log(`[sync-token-cards-polygon] Prepared ${updates.length} price updates, ${notFound} not found`);
 
-    // Batch update token_cards with prices
+    // Batch update prices
     const BATCH_SIZE = 100;
     for (let i = 0; i < updates.length; i += BATCH_SIZE) {
       const batch = updates.slice(i, i + BATCH_SIZE);
@@ -341,83 +321,84 @@ serve(async (req) => {
       }
     }
 
-    // ============= TECHNICALS: Local calculation from OHLCV =============
-    // Staggered by tier: Tier 1-2 every 3rd call, Tier 3 every 6th, Tier 4 every 12th
+    // ============= TECHNICALS: Tier 1-2 EVERY CALL, Tier 3-4 staggered =============
     let technicalsUpdated = 0;
     
-    // Determine which tiers to process this call
-    const techTiers: number[] = [];
-    if (callCount % 3 === 0) techTiers.push(1, 2);   // Every 3rd call (~3 min)
-    if (callCount % 6 === 0) techTiers.push(3);      // Every 6th call (~6 min)
-    if (callCount % 12 === 0) techTiers.push(4);     // Every 12th call (~12 min)
+    // FIXED: Tier 1-2 ALWAYS get technicals every call
+    const techTiers: number[] = [1, 2]; // Always include Tier 1-2
+    if (callCount % 3 === 0) techTiers.push(3);  // Every 3rd call
+    if (callCount % 6 === 0) techTiers.push(4);  // Every 6th call
     
-    if (techTiers.length > 0) {
-      // Get tokens for the tiers being processed this call (no cap)
-      const techTokens = updates.filter(u => u.tier && techTiers.includes(u.tier));
+    // Get ALL tokens for technicals (including ones not in price update if needed)
+    const { data: techTokensRaw } = await supabase
+      .from('token_cards')
+      .select('id, canonical_symbol, polygon_ticker, tier')
+      .not('polygon_ticker', 'is', null)
+      .in('tier', techTiers)
+      .eq('is_active', true);
+    
+    const techTokens = techTokensRaw || [];
+    
+    console.log(`[sync-token-cards-polygon] Calculating technicals for Tier ${techTiers.join(',')} (${techTokens.length} tokens)...`);
+    
+    // Process in batches
+    const TECH_BATCH = 5;
+    for (let i = 0; i < techTokens.length; i += TECH_BATCH) {
+      const batch = techTokens.slice(i, i + TECH_BATCH);
       
-      console.log(`[sync-token-cards-polygon] Calculating technicals for Tier ${techTiers.join(',')} (${techTokens.length} tokens)...`);
-      
-      // Process in small batches - reduced parallelism to prevent HTTP2 connection overload
-      const TECH_BATCH = 5;
-      for (let i = 0; i < techTokens.length; i += TECH_BATCH) {
-        const batch = techTokens.slice(i, i + TECH_BATCH);
-        
-        const techResults = await Promise.all(
-          batch.map(async (token) => {
-            const ticker = token.polygon_ticker;
-            if (!ticker) return null;
-            
-            try {
-              const prices = await fetchOHLCV(ticker, polygonKey, 250);
-              if (!prices || prices.length < 30) {
-                console.log(`[Technicals] ${ticker}: insufficient data (${prices?.length || 0} bars)`);
-                return null;
-              }
-              
-              const technicals = calculateAllTechnicals(prices);
-              
-              return {
-                id: token.id,
-                symbol: token.canonical_symbol,
-                ...technicals,
-                technicals_updated_at: now,
-                technicals_source: 'polygon'
-              };
-            } catch (err) {
-              console.error(`[Technicals] Error for ${ticker}:`, err);
+      const techResults = await Promise.all(
+        batch.map(async (token) => {
+          const ticker = token.polygon_ticker;
+          if (!ticker) return null;
+          
+          try {
+            const prices = await fetchOHLCV(ticker, polygonKey, 250);
+            if (!prices || prices.length < 30) {
+              console.log(`[Technicals] ${ticker}: insufficient data (${prices?.length || 0} bars)`);
               return null;
             }
-          })
-        );
-        
-        // Update successful results
-        for (const result of techResults) {
-          if (!result) continue;
-          
-          const { id, symbol, ...techData } = result;
-          const { error } = await supabase
-            .from('token_cards')
-            .update(techData)
-            .eq('id', id);
-          
-          if (error) {
-            console.error(`[Technicals] ❌ FAILED ${symbol}:`, error.message, error.details);
-          } else {
-            technicalsUpdated++;
-            if (techData.rsi_14) {
-              console.log(`[Technicals] ✅ ${symbol}: RSI=${techData.rsi_14?.toFixed(1)}, MACD=${techData.macd_line?.toFixed(4)}`);
-            }
+            
+            const technicals = calculateAllTechnicals(prices);
+            
+            return {
+              id: token.id,
+              symbol: token.canonical_symbol,
+              ...technicals,
+              technicals_updated_at: now,
+              technicals_source: 'polygon'
+            };
+          } catch (err) {
+            console.error(`[Technicals] Error for ${ticker}:`, err);
+            return null;
           }
-        }
+        })
+      );
+      
+      for (const result of techResults) {
+        if (!result) continue;
         
-        // 500ms delay between batches to prevent HTTP2 connection overload
-        if (i + TECH_BATCH < techTokens.length) {
-          await new Promise(r => setTimeout(r, 500));
+        const { id, symbol, ...techData } = result;
+        const { error } = await supabase
+          .from('token_cards')
+          .update(techData)
+          .eq('id', id);
+        
+        if (error) {
+          console.error(`[Technicals] ❌ FAILED ${symbol}:`, error.message);
+        } else {
+          technicalsUpdated++;
+          if (techData.rsi_14) {
+            console.log(`[Technicals] ✅ ${symbol}: RSI=${techData.rsi_14?.toFixed(1)}, MACD=${techData.macd_line?.toFixed(4)}`);
+          }
         }
       }
       
-      console.log(`[sync-token-cards-polygon] Updated technicals for ${technicalsUpdated}/${techTokens.length} tokens (Tier ${techTiers.join(',')})`);
+      if (i + TECH_BATCH < techTokens.length) {
+        await new Promise(r => setTimeout(r, 500));
+      }
     }
+    
+    console.log(`[sync-token-cards-polygon] Technicals: ${technicalsUpdated}/${techTokens.length} updated (Tier ${techTiers.join(',')})`);
 
     const duration = Date.now() - startTime;
     console.log(`[sync-token-cards-polygon] Sync complete in ${duration}ms: ${updated} prices, ${technicalsUpdated} technicals`);
