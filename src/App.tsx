@@ -9,6 +9,7 @@ import { Layout } from "./components/Layout";
 import { CommunityPromotion } from "./components/CommunityPromotion";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { WebSocketProvider } from "./contexts/WebSocketContext";
 
 // All pages imported eagerly to avoid dynamic import issues in corporate browsers
 import MarketBriefHome from "./pages/MarketBriefHome";
@@ -44,48 +45,50 @@ const App = () => (
         enableSystem
         disableTransitionOnChange
       >
-        <TooltipProvider>
-          <Toaster />
-          <Sonner position="top-center" offset="120px" />
-          {import.meta.env.VITE_SHOW_PROMOS === 'true' && <CommunityPromotion />}
-          <BrowserRouter>
-            <Layout>
-              <PageTransition>
-                <Routes>
-                  <Route path="/" element={<MarketBriefHome />} />
-                  <Route path="/marketbrief/:date" element={<MarketBriefHome />} />
-                  <Route path="/crypto" element={<Index />} />
-                  <Route path="/markets" element={<Markets />} />
-                  <Route path="/stocks" element={<StockScreener />} />
-                  <Route path="/stock/:symbol" element={<StockDetail />} />
-                  <Route path="/watchlist" element={<Watchlist />} />
-                  <Route path="/news" element={<News />} />
-                  <Route path="/store" element={<Store />} />
-                  <Route path="/support" element={<Support />} />
-                  <Route path="/chill" element={<ChillZone />} />
-                  <Route path="/about" element={<About />} />
-                  <Route path="/terms" element={<Terms />} />
-                  <Route path="/privacy" element={<Privacy />} />
-                  <Route path="/author/xray" element={<AuthorXRay />} />
-                  <Route path="/auth" element={<Auth />} />
-                  <Route path="/crypto-universe" element={<Screener />} />
-                  <Route path="/crypto-universe/:symbol" element={<CryptoUniverseDetail />} />
-                  <Route path="/screener" element={<Navigate to="/crypto-universe" replace />} />
-                  <Route path="/token/:symbol" element={<CryptoUniverseDetail />} />
-                  <Route path="/favorites" element={<Favorites />} />
-                  <Route path="/admin" element={
-                    <ProtectedRoute requireAdmin={true}>
-                      <AdminIndex />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/test/websocket" element={<WebSocketTest />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </PageTransition>
-            </Layout>
-          </BrowserRouter>
-        </TooltipProvider>
+        <WebSocketProvider enabled={true}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner position="top-center" offset="120px" />
+            {import.meta.env.VITE_SHOW_PROMOS === 'true' && <CommunityPromotion />}
+            <BrowserRouter>
+              <Layout>
+                <PageTransition>
+                  <Routes>
+                    <Route path="/" element={<MarketBriefHome />} />
+                    <Route path="/marketbrief/:date" element={<MarketBriefHome />} />
+                    <Route path="/crypto" element={<Index />} />
+                    <Route path="/markets" element={<Markets />} />
+                    <Route path="/stocks" element={<StockScreener />} />
+                    <Route path="/stock/:symbol" element={<StockDetail />} />
+                    <Route path="/watchlist" element={<Watchlist />} />
+                    <Route path="/news" element={<News />} />
+                    <Route path="/store" element={<Store />} />
+                    <Route path="/support" element={<Support />} />
+                    <Route path="/chill" element={<ChillZone />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/author/xray" element={<AuthorXRay />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/crypto-universe" element={<Screener />} />
+                    <Route path="/crypto-universe/:symbol" element={<CryptoUniverseDetail />} />
+                    <Route path="/screener" element={<Navigate to="/crypto-universe" replace />} />
+                    <Route path="/token/:symbol" element={<CryptoUniverseDetail />} />
+                    <Route path="/favorites" element={<Favorites />} />
+                    <Route path="/admin" element={
+                      <ProtectedRoute requireAdmin={true}>
+                        <AdminIndex />
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/test/websocket" element={<WebSocketTest />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </PageTransition>
+              </Layout>
+            </BrowserRouter>
+          </TooltipProvider>
+        </WebSocketProvider>
       </ThemeProvider>
     </QueryClientProvider>
   </ErrorBoundary>

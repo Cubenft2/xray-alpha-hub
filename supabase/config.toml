@@ -370,3 +370,15 @@ verify_jwt = false
 
 [[functions.sync-stock-news-polygon.cron]]
 schedule = "12,27,42,57 * * * *"
+
+# ============================================
+# WEBSOCKET SYNC FUNCTION
+# ============================================
+
+# Sync WebSocket prices from Cloudflare Worker to token_cards
+# Every 30 seconds (runs at :00 and :30)
+[functions.sync-token-cards-websocket]
+verify_jwt = false
+
+[[functions.sync-token-cards-websocket.cron]]
+schedule = "*/1 * * * *"
