@@ -268,6 +268,47 @@ export function useWebSocketPrices({
     }, 30000);
   }, [stopHeartbeat]);
 
+  // REST snapshot (also used for fallback)
+  const fetchRestPrices = useCallback(async () => {
+    try {
+      const response = await fetch(REST_URL);
+      if (!response.ok) return;
+
+      const data: any = await response.json();
+      const workerPrices: Record<string, any> =
+        data && typeof data === 'object' && 'prices' in data ? data.prices : data;
+
+      if (!workerPrices || typeof workerPrices !== 'object') return;
+
+      Object.entries(workerPrices).forEach(([workerSymbol, priceData]) => {
+        if (!priceData) return;
+        const symbol = parseWorkerSymbol(workerSymbol);
+        const px = priceData.price ?? priceData.close;
+        if (px == null) return;
+
+        const update: PriceUpdate = {
+          symbol,
+          price: Number(px),
+          bid: Number(px),
+          ask: Number(px),
+          timestamp: priceData.timestamp || Date.now(),
+          volume: priceData.volume,
+          change24h: calculateChange24h(priceData.open, priceData.close),
+          open: priceData.open,
+          high: priceData.high,
+          low: priceData.low,
+          close: priceData.close,
+          vwap: priceData.vwap,
+        };
+
+        queueUpdate(update);
+      });
+    } catch (err) {
+      console.warn('[WS] REST snapshot failed:', err);
+    }
+  }, [queueUpdate]);
+
+
   // Connect to WebSocket
   const connect = useCallback(() => {
     // Prevent multiple simultaneous connection attempts
