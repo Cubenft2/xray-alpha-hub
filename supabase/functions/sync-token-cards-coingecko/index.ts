@@ -69,7 +69,7 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'XTZ': 'tezos',
   'LUNC': 'terra-luna',
   'LUNA': 'terra-luna-2',
-  'JLP': 'jupiter-perpetuals-liquidity-provider-token', // Jupiter Perps LP (Solana), NOT jlaunchpad
+  'JLP': 'jupiter-perpetuals-liquidity-provider-token',
   
   // Native L1 tokens (no contract addresses)
   'SUI': 'sui',
@@ -230,9 +230,7 @@ const MANUAL_MAPPINGS: Record<string, string> = {
 };
 
 // Chain mappings: token_cards chain name -> CoinGecko platform identifier
-// Expanded from 14 to 55 chains for comprehensive contract address matching
 const CHAIN_MAPPINGS = [
-  // Original 14 chains
   { tc: 'ethereum', cg: 'ethereum' },
   { tc: 'solana', cg: 'solana' },
   { tc: 'polygon', cg: 'polygon-pos' },
@@ -247,372 +245,370 @@ const CHAIN_MAPPINGS = [
   { tc: 'near', cg: 'near-protocol' },
   { tc: 'sui', cg: 'sui' },
   { tc: 'aptos', cg: 'aptos' },
-  
-  // NEW: High-impact chains (41 additional) sorted by token count
-  { tc: 'ton', cg: 'the-open-network' },           // 225 tokens
-  { tc: 'osmosis', cg: 'osmosis' },                // 159 tokens
-  { tc: 'blast', cg: 'blast' },                    // 149 tokens
-  { tc: 'chiliz', cg: 'chiliz' },                  // 135 tokens
-  { tc: 'cronos', cg: 'cronos' },                  // 127 tokens
-  { tc: 'sonic', cg: 'sonic' },                    // 124 tokens
-  { tc: 'pulsechain', cg: 'pulsechain' },          // 121 tokens
-  { tc: 'bittensor', cg: 'bittensor' },            // 118 tokens
-  { tc: 'hyperevm', cg: 'hyperevm' },              // 116 tokens
-  { tc: 'zksync', cg: 'zksync' },                  // 112 tokens
-  { tc: 'gnosis', cg: 'xdai' },                    // 112 tokens
-  { tc: 'xdai', cg: 'xdai' },                      // alias for gnosis
-  { tc: 'cardano', cg: 'cardano' },                // 109 tokens
-  { tc: 'berachain', cg: 'berachain' },            // 93 tokens
-  { tc: 'linea', cg: 'linea' },                    // 93 tokens
-  { tc: 'harmony', cg: 'harmony-shard-0' },        // 84 tokens
-  { tc: 'ordinals', cg: 'ordinals' },              // 80 tokens (BRC-20)
-  { tc: 'xrp', cg: 'xrp' },                        // 77 tokens
-  { tc: 'ripple', cg: 'xrp' },                     // alias for xrp
-  { tc: 'mantle', cg: 'mantle' },                  // 76 tokens
-  { tc: 'klaytn', cg: 'klay-token' },              // 70 tokens
-  { tc: 'celo', cg: 'celo' },                      // 58 tokens
-  { tc: 'hedera', cg: 'hedera-hashgraph' },        // 54 tokens
-  { tc: 'sei', cg: 'sei-v2' },                     // 51 tokens
-  { tc: 'scroll', cg: 'scroll' },                  // 49 tokens
-  { tc: 'hyperliquid', cg: 'hyperliquid' },        // 47 tokens
-  { tc: 'stellar', cg: 'stellar' },                // 46 tokens
-  { tc: 'ronin', cg: 'ronin' },                    // 44 tokens
-  { tc: 'multiversx', cg: 'elrond' },              // 43 tokens
-  { tc: 'elrond', cg: 'elrond' },                  // alias for multiversx
-  { tc: 'algorand', cg: 'algorand' },              // 41 tokens
-  { tc: 'mode', cg: 'mode' },                      // 39 tokens
-  { tc: 'core', cg: 'core' },                      // 39 tokens
-  { tc: 'starknet', cg: 'starknet' },              // 38 tokens
-  { tc: 'unichain', cg: 'unichain' },              // 37 tokens
-  { tc: 'icp', cg: 'internet-computer' },          // 36 tokens
-  { tc: 'internet-computer', cg: 'internet-computer' }, // alias
-  { tc: 'metis', cg: 'metis-andromeda' },          // 35 tokens
-  { tc: 'aurora', cg: 'aurora' },                  // 35 tokens
-  { tc: 'manta', cg: 'manta-pacific' },            // 34 tokens
-  { tc: 'kava', cg: 'kava' },                      // 32 tokens
-  { tc: 'moonbeam', cg: 'moonbeam' },              // 32 tokens
-  { tc: 'cosmos', cg: 'cosmos' },                  // 31 tokens
-  { tc: 'moonriver', cg: 'moonriver' },            // 28 tokens
-  { tc: 'iotex', cg: 'iotex' },                    // 26 tokens
-  { tc: 'thundercore', cg: 'thundercore' },        // 24 tokens
-  { tc: 'wemix', cg: 'wemix-network' },            // 22 tokens
-  { tc: 'oasis', cg: 'oasis' },                    // 21 tokens
-  { tc: 'astar', cg: 'astar' },                    // 20 tokens
-  { tc: 'zkfair', cg: 'zkfair' },                  // 19 tokens
-  { tc: 'boba', cg: 'boba' },                      // 18 tokens
-  { tc: 'fuse', cg: 'fuse' },                      // 17 tokens
-  { tc: 'taiko', cg: 'taiko' },                    // 16 tokens
+  { tc: 'ton', cg: 'the-open-network' },
+  { tc: 'osmosis', cg: 'osmosis' },
+  { tc: 'blast', cg: 'blast' },
+  { tc: 'chiliz', cg: 'chiliz' },
+  { tc: 'cronos', cg: 'cronos' },
+  { tc: 'sonic', cg: 'sonic' },
+  { tc: 'pulsechain', cg: 'pulsechain' },
+  { tc: 'bittensor', cg: 'bittensor' },
+  { tc: 'hyperevm', cg: 'hyperevm' },
+  { tc: 'zksync', cg: 'zksync' },
+  { tc: 'gnosis', cg: 'xdai' },
+  { tc: 'xdai', cg: 'xdai' },
+  { tc: 'cardano', cg: 'cardano' },
+  { tc: 'berachain', cg: 'berachain' },
+  { tc: 'linea', cg: 'linea' },
+  { tc: 'harmony', cg: 'harmony-shard-0' },
+  { tc: 'ordinals', cg: 'ordinals' },
+  { tc: 'xrp', cg: 'xrp' },
+  { tc: 'ripple', cg: 'xrp' },
+  { tc: 'mantle', cg: 'mantle' },
+  { tc: 'klaytn', cg: 'klay-token' },
+  { tc: 'celo', cg: 'celo' },
+  { tc: 'hedera', cg: 'hedera-hashgraph' },
+  { tc: 'sei', cg: 'sei-v2' },
+  { tc: 'scroll', cg: 'scroll' },
+  { tc: 'hyperliquid', cg: 'hyperliquid' },
+  { tc: 'stellar', cg: 'stellar' },
+  { tc: 'ronin', cg: 'ronin' },
+  { tc: 'multiversx', cg: 'elrond' },
+  { tc: 'elrond', cg: 'elrond' },
+  { tc: 'algorand', cg: 'algorand' },
+  { tc: 'mode', cg: 'mode' },
+  { tc: 'core', cg: 'core' },
+  { tc: 'starknet', cg: 'starknet' },
+  { tc: 'unichain', cg: 'unichain' },
+  { tc: 'icp', cg: 'internet-computer' },
+  { tc: 'internet-computer', cg: 'internet-computer' },
+  { tc: 'metis', cg: 'metis-andromeda' },
+  { tc: 'aurora', cg: 'aurora' },
+  { tc: 'manta', cg: 'manta-pacific' },
+  { tc: 'kava', cg: 'kava' },
+  { tc: 'moonbeam', cg: 'moonbeam' },
+  { tc: 'cosmos', cg: 'cosmos' },
+  { tc: 'moonriver', cg: 'moonriver' },
+  { tc: 'iotex', cg: 'iotex' },
+  { tc: 'thundercore', cg: 'thundercore' },
+  { tc: 'wemix', cg: 'wemix-network' },
+  { tc: 'oasis', cg: 'oasis' },
+  { tc: 'astar', cg: 'astar' },
+  { tc: 'zkfair', cg: 'zkfair' },
+  { tc: 'boba', cg: 'boba' },
+  { tc: 'fuse', cg: 'fuse' },
+  { tc: 'taiko', cg: 'taiko' },
 ];
+
+// Configuration
+const MAX_RUNTIME_MS = 55000; // 55 seconds max runtime (edge function limit is 60s)
+const CONTRACT_BATCH_SIZE = 500;
+const SYMBOL_BATCH_SIZE = 500;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('[sync-token-cards-coingecko] Starting CoinGecko ID matching...');
+    console.log('[sync-token-cards-coingecko] Starting CoinGecko ID matching (cursor mode)...');
 
-    // Step 0: Apply manual mappings FIRST for high-tier tokens
-    // This will OVERWRITE any wrong coingecko_id values (not just NULL)
-    console.log('[sync-token-cards-coingecko] Applying manual mappings (overwrite mode)...');
+    // ========== STATS TRACKING ==========
+    const stats = {
+      manualMapped: 0,
+      manualCorrected: 0,
+      contractMatched: 0,
+      symbolMatched: 0,
+      errors: [] as string[],
+      missingBefore: 0,
+      missingAfter: 0,
+    };
+
+    // Count missing before we start
+    const { count: missingBefore } = await supabase
+      .from('token_cards')
+      .select('*', { count: 'exact', head: true })
+      .is('coingecko_id', null)
+      .eq('is_active', true);
+    stats.missingBefore = missingBefore || 0;
+    console.log(`[sync-token-cards-coingecko] Missing coingecko_id before: ${stats.missingBefore}`);
+
+    // ========== STEP 0: MANUAL MAPPINGS (ALWAYS FIRST) ==========
+    console.log('[sync-token-cards-coingecko] Step 0: Applying manual mappings...');
     
-    // Fetch ALL tokens that have manual mappings, regardless of current coingecko_id
-    const { data: manualTargets, error: manualFetchError } = await supabase
+    const { data: manualTargets } = await supabase
       .from('token_cards')
       .select('id, canonical_symbol, tier, coingecko_id')
       .in('canonical_symbol', Object.keys(MANUAL_MAPPINGS));
 
-    let manualMapped = 0;
-    let manualCorrected = 0;
-    const manualErrors: string[] = [];
-
-    if (!manualFetchError && manualTargets && manualTargets.length > 0) {
-      console.log(`[sync-token-cards-coingecko] Found ${manualTargets.length} tokens for manual mapping check`);
-      
+    if (manualTargets && manualTargets.length > 0) {
       for (const token of manualTargets) {
         const correctCgId = MANUAL_MAPPINGS[token.canonical_symbol];
-        
-        // Skip if already has correct coingecko_id
-        if (token.coingecko_id === correctCgId) {
-          continue;
-        }
+        if (token.coingecko_id === correctCgId) continue;
         
         const wasWrong = token.coingecko_id !== null && token.coingecko_id !== correctCgId;
         
-        const { error: updateError } = await supabase
+        const { error } = await supabase
           .from('token_cards')
-          .update({
-            coingecko_id: correctCgId,
-            updated_at: new Date().toISOString()
-          })
+          .update({ coingecko_id: correctCgId, updated_at: new Date().toISOString() })
           .eq('id', token.id);
 
-        if (updateError) {
-          manualErrors.push(`${token.canonical_symbol}: ${updateError.message}`);
+        if (error) {
+          stats.errors.push(`Manual ${token.canonical_symbol}: ${error.message}`);
         } else {
           if (wasWrong) {
-            manualCorrected++;
-            console.log(`[sync-token-cards-coingecko] CORRECTED: ${token.canonical_symbol} ${token.coingecko_id} -> ${correctCgId}`);
+            stats.manualCorrected++;
+            console.log(`[Manual] CORRECTED: ${token.canonical_symbol} -> ${correctCgId}`);
           } else {
-            manualMapped++;
-            console.log(`[sync-token-cards-coingecko] Manual: ${token.canonical_symbol} -> ${correctCgId}`);
+            stats.manualMapped++;
           }
         }
       }
-      console.log(`[sync-token-cards-coingecko] Manual mapping complete: ${manualMapped} new, ${manualCorrected} corrected`);
+    }
+    console.log(`[sync-token-cards-coingecko] Manual: ${stats.manualMapped} new, ${stats.manualCorrected} corrected`);
+
+    // Check time budget
+    if (Date.now() - startTime > MAX_RUNTIME_MS) {
+      return finishWithStats(supabase, stats, startTime, 'time_limit_manual');
     }
 
-    // Step 1: Fetch token_cards missing coingecko_id that have contracts
-    const { data: tokenCards, error: fetchError } = await supabase
-      .from('token_cards')
-      .select('id, canonical_symbol, contracts, tier')
-      .is('coingecko_id', null)
-      .not('contracts', 'is', null)
-      .order('tier', { ascending: true })
-      .order('market_cap_rank', { ascending: true, nullsFirst: false })
-      .limit(1000);
-
-    if (fetchError) {
-      console.error('[sync-token-cards-coingecko] Error fetching token_cards:', fetchError);
-      throw fetchError;
-    }
-
-    if (!tokenCards || tokenCards.length === 0) {
-      console.log('[sync-token-cards-coingecko] No token_cards with contracts missing coingecko_id');
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: 'Manual mappings applied, no contract matching needed',
-        manualMapped,
-        updated: manualMapped 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log(`[sync-token-cards-coingecko] Found ${tokenCards.length} token_cards with contracts missing coingecko_id`);
-
-    // Step 2: Fetch ALL cg_master entries with platforms (paginated to handle >1000 rows)
+    // ========== LOAD CG_MASTER DATA ==========
+    console.log('[sync-token-cards-coingecko] Loading cg_master data...');
     let allCgEntries: any[] = [];
     let offset = 0;
     const batchSize = 1000;
 
     while (true) {
-      const { data, error: cgError } = await supabase
+      const { data } = await supabase
         .from('cg_master')
         .select('cg_id, symbol, name, platforms')
         .not('platforms', 'is', null)
         .range(offset, offset + batchSize - 1);
 
-      if (cgError) {
-        console.error('[sync-token-cards-coingecko] Error fetching cg_master:', cgError);
-        throw cgError;
-      }
-
       if (!data || data.length === 0) break;
-      
       allCgEntries = allCgEntries.concat(data);
       offset += batchSize;
-      
-      console.log(`[sync-token-cards-coingecko] Fetched ${allCgEntries.length} cg_master entries so far...`);
-      
       if (data.length < batchSize) break;
     }
+    console.log(`[sync-token-cards-coingecko] Loaded ${allCgEntries.length} cg_master entries`);
 
-    console.log(`[sync-token-cards-coingecko] Loaded ${allCgEntries.length} total cg_master entries with platforms`);
-
-    // Step 3: Build address -> cg_id lookup maps for each chain
+    // Build address maps
     const addressMaps: Record<string, Map<string, string>> = {};
-    
     for (const mapping of CHAIN_MAPPINGS) {
       addressMaps[mapping.tc] = new Map();
     }
-
     for (const cg of allCgEntries) {
       if (!cg.platforms || typeof cg.platforms !== 'object') continue;
-      
       for (const mapping of CHAIN_MAPPINGS) {
         const address = cg.platforms[mapping.cg];
         if (address && typeof address === 'string' && address.length > 0) {
-          // Store lowercase address for case-insensitive matching
           addressMaps[mapping.tc].set(address.toLowerCase(), cg.cg_id);
         }
       }
     }
 
-    // Log map sizes
-    for (const mapping of CHAIN_MAPPINGS) {
-      const size = addressMaps[mapping.tc].size;
-      if (size > 0) {
-        console.log(`[sync-token-cards-coingecko] ${mapping.tc}: ${size} addresses indexed`);
-      }
-    }
+    // ========== STEP 1: CONTRACT MATCHING (CURSOR-BASED, NO LIMIT) ==========
+    console.log('[sync-token-cards-coingecko] Step 1: Contract address matching...');
+    
+    // Get cursor from cache_kv
+    const CURSOR_KEY = 'sync-cg:contract_cursor';
+    const { data: cursorData } = await supabase
+      .from('cache_kv')
+      .select('v')
+      .eq('k', CURSOR_KEY)
+      .single();
+    
+    let lastProcessedRank = cursorData?.v?.last_rank || 0;
+    let contractBatchesProcessed = 0;
+    const maxContractBatches = 10; // Process up to 10 batches per run
 
-    // Step 4: Match each token_card by contract address
-    let updated = 0;
-    let noMatch = 0;
-    const errors: string[] = [];
-
-    for (const token of tokenCards) {
-      if (!token.contracts || typeof token.contracts !== 'object') {
-        noMatch++;
-        continue;
-      }
-
-      let matchedCgId: string | null = null;
-
-      // Try each chain in priority order
-      for (const mapping of CHAIN_MAPPINGS) {
-        const contractData = token.contracts[mapping.tc];
-        if (!contractData) continue;
-
-        // Handle both formats: string or { address: string }
-        let address: string | null = null;
-        if (typeof contractData === 'string') {
-          address = contractData;
-        } else if (contractData.address) {
-          address = contractData.address;
-        }
-
-        if (!address) continue;
-
-        const cgId = addressMaps[mapping.tc].get(address.toLowerCase());
-        if (cgId) {
-          matchedCgId = cgId;
-          break; // Found a match, stop searching
-        }
-      }
-
-      if (!matchedCgId) {
-        noMatch++;
-        continue;
-      }
-
-      // Update token_card with matched coingecko_id
-      const { error: updateError } = await supabase
+    while (contractBatchesProcessed < maxContractBatches && Date.now() - startTime < MAX_RUNTIME_MS) {
+      const { data: tokenCards } = await supabase
         .from('token_cards')
-        .update({
-          coingecko_id: matchedCgId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', token.id);
+        .select('id, canonical_symbol, contracts, tier, market_cap_rank')
+        .is('coingecko_id', null)
+        .not('contracts', 'is', null)
+        .gt('market_cap_rank', lastProcessedRank)
+        .order('market_cap_rank', { ascending: true, nullsFirst: false })
+        .limit(CONTRACT_BATCH_SIZE);
 
-      if (updateError) {
-        errors.push(`${token.canonical_symbol}: ${updateError.message}`);
-      } else {
-        updated++;
+      if (!tokenCards || tokenCards.length === 0) {
+        // Reset cursor - we've processed all
+        await supabase.from('cache_kv').upsert({
+          k: CURSOR_KEY,
+          v: { last_rank: 0, completed_at: new Date().toISOString() },
+          expires_at: new Date(Date.now() + 86400000).toISOString()
+        }, { onConflict: 'k' });
+        console.log('[sync-token-cards-coingecko] Contract matching complete - cursor reset');
+        break;
       }
 
-      // Small delay every 50 updates
-      if (updated % 50 === 0) {
-        await new Promise(r => setTimeout(r, 100));
+      console.log(`[Contract] Processing batch from rank ${lastProcessedRank}, ${tokenCards.length} tokens`);
+
+      for (const token of tokenCards) {
+        if (!token.contracts || typeof token.contracts !== 'object') continue;
+
+        let matchedCgId: string | null = null;
+        for (const mapping of CHAIN_MAPPINGS) {
+          const contractData = token.contracts[mapping.tc];
+          if (!contractData) continue;
+
+          let address: string | null = null;
+          if (typeof contractData === 'string') {
+            address = contractData;
+          } else if (contractData.address) {
+            address = contractData.address;
+          }
+          if (!address) continue;
+
+          const cgId = addressMaps[mapping.tc].get(address.toLowerCase());
+          if (cgId) {
+            matchedCgId = cgId;
+            break;
+          }
+        }
+
+        if (matchedCgId) {
+          const { error } = await supabase
+            .from('token_cards')
+            .update({ coingecko_id: matchedCgId, updated_at: new Date().toISOString() })
+            .eq('id', token.id);
+
+          if (!error) {
+            stats.contractMatched++;
+          }
+        }
+
+        lastProcessedRank = token.market_cap_rank || lastProcessedRank + 1;
       }
+
+      // Update cursor
+      await supabase.from('cache_kv').upsert({
+        k: CURSOR_KEY,
+        v: { last_rank: lastProcessedRank, updated_at: new Date().toISOString() },
+        expires_at: new Date(Date.now() + 86400000).toISOString()
+      }, { onConflict: 'k' });
+
+      contractBatchesProcessed++;
+    }
+    console.log(`[sync-token-cards-coingecko] Contract matched: ${stats.contractMatched} (${contractBatchesProcessed} batches)`);
+
+    // Check time budget
+    if (Date.now() - startTime > MAX_RUNTIME_MS) {
+      return finishWithStats(supabase, stats, startTime, 'time_limit_contract');
     }
 
-    console.log(`[sync-token-cards-coingecko] Contract matching complete: ${updated} matched, ${noMatch} no match`);
+    // ========== STEP 2: SYMBOL MATCHING (CURSOR-BASED, NO LIMIT) ==========
+    console.log('[sync-token-cards-coingecko] Step 2: Symbol-based fallback matching...');
 
-    // Step 5: Symbol-based fallback for ALL tokens (not just native/empty platforms)
-    console.log('[sync-token-cards-coingecko] Starting symbol-based fallback for ALL tokens...');
-
-    // Fetch tokens still missing coingecko_id
-    const { data: stillMissing, error: stillMissingError } = await supabase
-      .from('token_cards')
-      .select('id, canonical_symbol, name, tier')
-      .is('coingecko_id', null)
-      .order('tier', { ascending: true })
-      .order('market_cap_rank', { ascending: true, nullsFirst: false })
-      .limit(500);
-
-    if (stillMissingError) {
-      console.error('[sync-token-cards-coingecko] Error fetching still missing:', stillMissingError);
-    }
-
-    let symbolMatched = 0;
-    const symbolErrors: string[] = [];
-
-    if (stillMissing && stillMissing.length > 0) {
-      console.log(`[sync-token-cards-coingecko] Found ${stillMissing.length} tokens still missing coingecko_id`);
-
-      // Build symbol -> cg_id map for ALL tokens (not just empty platforms)
-      // Use priority scoring to prefer native/non-bridged variants
-      const symbolTokenMap = new Map<string, { cg_id: string; name: string; score: number }>();
+    // Build symbol -> cg_id map with scoring
+    const symbolTokenMap = new Map<string, { cg_id: string; name: string; score: number }>();
+    for (const cg of allCgEntries) {
+      const upperSymbol = cg.symbol.toUpperCase();
+      const existing = symbolTokenMap.get(upperSymbol);
       
-      for (const cg of allCgEntries) {
+      let score = 0;
+      const hasNoPlatforms = !cg.platforms || 
+        (typeof cg.platforms === 'object' && Object.keys(cg.platforms).length === 0);
+      if (hasNoPlatforms) score += 100;
+      
+      const isBridgedOrWrapped = /bridged|wrapped|wormhole|peg|bsc|bnb\-|polygon\-|arbitrum\-/i.test(cg.name) ||
+                                  /bridged|wrapped|wormhole/i.test(cg.cg_id);
+      if (isBridgedOrWrapped) score -= 50;
+      
+      const isPrimaryToken = cg.cg_id === cg.symbol.toLowerCase() || 
+                              cg.cg_id === cg.name.toLowerCase().replace(/\s+/g, '-');
+      if (isPrimaryToken) score += 25;
+      
+      if (!existing || score > existing.score) {
+        symbolTokenMap.set(upperSymbol, { cg_id: cg.cg_id, name: cg.name, score });
+      }
+    }
+
+    // Also add all cg_master entries for symbol matching (including those without platforms)
+    const { data: allCgForSymbol } = await supabase
+      .from('cg_master')
+      .select('cg_id, symbol, name');
+    
+    if (allCgForSymbol) {
+      for (const cg of allCgForSymbol) {
         const upperSymbol = cg.symbol.toUpperCase();
-        const existing = symbolTokenMap.get(upperSymbol);
-        
-        // Calculate priority score
-        let score = 0;
-        
-        // Native tokens (empty platforms) get highest priority
-        const hasNoPlatforms = !cg.platforms || 
-          (typeof cg.platforms === 'object' && Object.keys(cg.platforms).length === 0);
-        if (hasNoPlatforms) score += 100;
-        
-        // Bridged/wrapped variants get penalty
-        const isBridgedOrWrapped = /bridged|wrapped|wormhole|peg|bsc|bnb\-|polygon\-|arbitrum\-/i.test(cg.name) ||
-                                    /bridged|wrapped|wormhole/i.test(cg.cg_id);
-        if (isBridgedOrWrapped) score -= 50;
-        
-        // Exact symbol/name match gets bonus
-        const isPrimaryToken = cg.cg_id === cg.symbol.toLowerCase() || 
-                                cg.cg_id === cg.name.toLowerCase().replace(/\s+/g, '-');
-        if (isPrimaryToken) score += 25;
-        
-        // Only update if this is better than existing match
-        if (!existing || score > existing.score) {
-          symbolTokenMap.set(upperSymbol, { cg_id: cg.cg_id, name: cg.name, score });
+        if (!symbolTokenMap.has(upperSymbol)) {
+          symbolTokenMap.set(upperSymbol, { cg_id: cg.cg_id, name: cg.name, score: 0 });
         }
       }
+    }
+    console.log(`[Symbol] Built map with ${symbolTokenMap.size} entries`);
 
-      console.log(`[sync-token-cards-coingecko] Built symbol map with ${symbolTokenMap.size} entries (all tokens)`);
+    // Get symbol cursor
+    const SYMBOL_CURSOR_KEY = 'sync-cg:symbol_cursor';
+    const { data: symbolCursorData } = await supabase
+      .from('cache_kv')
+      .select('v')
+      .eq('k', SYMBOL_CURSOR_KEY)
+      .single();
+    
+    let lastSymbolRank = symbolCursorData?.v?.last_rank || 0;
+    let symbolBatchesProcessed = 0;
+    const maxSymbolBatches = 10;
 
-      // Match still-missing tokens by symbol
+    while (symbolBatchesProcessed < maxSymbolBatches && Date.now() - startTime < MAX_RUNTIME_MS) {
+      const { data: stillMissing } = await supabase
+        .from('token_cards')
+        .select('id, canonical_symbol, name, tier, market_cap_rank')
+        .is('coingecko_id', null)
+        .gt('market_cap_rank', lastSymbolRank)
+        .order('market_cap_rank', { ascending: true, nullsFirst: false })
+        .limit(SYMBOL_BATCH_SIZE);
+
+      if (!stillMissing || stillMissing.length === 0) {
+        // Reset cursor
+        await supabase.from('cache_kv').upsert({
+          k: SYMBOL_CURSOR_KEY,
+          v: { last_rank: 0, completed_at: new Date().toISOString() },
+          expires_at: new Date(Date.now() + 86400000).toISOString()
+        }, { onConflict: 'k' });
+        console.log('[sync-token-cards-coingecko] Symbol matching complete - cursor reset');
+        break;
+      }
+
+      console.log(`[Symbol] Processing batch from rank ${lastSymbolRank}, ${stillMissing.length} tokens`);
+
       for (const token of stillMissing) {
         const match = symbolTokenMap.get(token.canonical_symbol);
         
         if (match) {
-          const { error: updateError } = await supabase
+          const { error } = await supabase
             .from('token_cards')
-            .update({
-              coingecko_id: match.cg_id,
-              updated_at: new Date().toISOString()
-            })
+            .update({ coingecko_id: match.cg_id, updated_at: new Date().toISOString() })
             .eq('id', token.id);
 
-          if (updateError) {
-            symbolErrors.push(`${token.canonical_symbol}: ${updateError.message}`);
-          } else {
-            symbolMatched++;
-            console.log(`[sync-token-cards-coingecko] Symbol matched: ${token.canonical_symbol} -> ${match.cg_id} (score: ${match.score})`);
+          if (!error) {
+            stats.symbolMatched++;
           }
         }
 
-        // Small delay every 25 updates
-        if (symbolMatched % 25 === 0 && symbolMatched > 0) {
-          await new Promise(r => setTimeout(r, 100));
-        }
+        lastSymbolRank = token.market_cap_rank || lastSymbolRank + 1;
       }
+
+      // Update cursor
+      await supabase.from('cache_kv').upsert({
+        k: SYMBOL_CURSOR_KEY,
+        v: { last_rank: lastSymbolRank, updated_at: new Date().toISOString() },
+        expires_at: new Date(Date.now() + 86400000).toISOString()
+      }, { onConflict: 'k' });
+
+      symbolBatchesProcessed++;
     }
+    console.log(`[sync-token-cards-coingecko] Symbol matched: ${stats.symbolMatched} (${symbolBatchesProcessed} batches)`);
 
-    console.log(`[sync-token-cards-coingecko] Complete: ${manualMapped} manual, ${manualCorrected} corrected, ${updated} contract, ${symbolMatched} symbol matches`);
-
-    return new Response(JSON.stringify({
-      success: true,
-      processed: tokenCards.length,
-      manualMapped,
-      manualCorrected,
-      contractMatched: updated,
-      symbolMatched,
-      totalMatched: manualMapped + manualCorrected + updated + symbolMatched,
-      noMatch: noMatch - symbolMatched,
-      errors: [...manualErrors, ...errors, ...symbolErrors].slice(0, 10)
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return finishWithStats(supabase, stats, startTime, 'complete');
 
   } catch (error) {
     console.error('[sync-token-cards-coingecko] Error:', error);
@@ -625,3 +621,46 @@ serve(async (req) => {
     });
   }
 });
+
+async function finishWithStats(
+  supabase: any,
+  stats: any,
+  startTime: number,
+  exitReason: string
+): Promise<Response> {
+  // Count missing after
+  const { count: missingAfter } = await supabase
+    .from('token_cards')
+    .select('*', { count: 'exact', head: true })
+    .is('coingecko_id', null)
+    .eq('is_active', true);
+  stats.missingAfter = missingAfter || 0;
+
+  const duration = Date.now() - startTime;
+  const totalMatched = stats.manualMapped + stats.manualCorrected + stats.contractMatched + stats.symbolMatched;
+  const improvement = stats.missingBefore - stats.missingAfter;
+
+  console.log(`[sync-token-cards-coingecko] COMPLETE in ${duration}ms`);
+  console.log(`[sync-token-cards-coingecko] Exit reason: ${exitReason}`);
+  console.log(`[sync-token-cards-coingecko] Missing: ${stats.missingBefore} -> ${stats.missingAfter} (improved: ${improvement})`);
+  console.log(`[sync-token-cards-coingecko] Matched: ${stats.manualMapped} manual, ${stats.manualCorrected} corrected, ${stats.contractMatched} contract, ${stats.symbolMatched} symbol`);
+
+  return new Response(JSON.stringify({
+    success: true,
+    exitReason,
+    duration_ms: duration,
+    stats: {
+      manualMapped: stats.manualMapped,
+      manualCorrected: stats.manualCorrected,
+      contractMatched: stats.contractMatched,
+      symbolMatched: stats.symbolMatched,
+      totalMatched,
+      missingBefore: stats.missingBefore,
+      missingAfter: stats.missingAfter,
+      improvement,
+    },
+    errors: stats.errors.slice(0, 10)
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
