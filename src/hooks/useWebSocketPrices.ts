@@ -245,7 +245,11 @@ export function useWebSocketPrices({
         } 
         // Handle subscription confirmation
         else if (msg.type === 'subscribed') {
-          console.log('[WS] Subscribed to:', msg.symbols);
+          console.log('[WS] Subscribed to:', msg.symbols?.length || msg.symbols, 'symbols');
+        }
+        // Handle subscribe_all confirmation
+        else if (msg.type === 'subscribed_all') {
+          console.log('[WS] ✅ Subscribed to ALL', msg.count, 'tokens');
         }
         // Handle errors
         else if (msg.type === 'error' || msg.status === 'error') {
@@ -339,7 +343,7 @@ export function useWebSocketPrices({
       ws.onopen = () => {
         if (!isMountedRef.current) return;
         
-        console.log('[WS] Connected');
+        console.log('[WS] Connected to', WS_URL);
         isConnectingRef.current = false;
         setIsConnected(true);
         setError(null);
@@ -348,11 +352,9 @@ export function useWebSocketPrices({
         lastWsUpdateRef.current = Date.now();
         startHeartbeat();
 
-        // Subscribe to current symbols
-        const currentSymbols = symbolsRef.current;
-        if (currentSymbols.length > 0) {
-          sendSubscription('subscribe', currentSymbols);
-        }
+        // Subscribe to ALL tokens from the Worker (596+ tokens)
+        console.log('[WS] Sending subscribe_all to get ALL Polygon tokens');
+        ws.send(JSON.stringify({ action: 'subscribe_all' }));
       };
 
       ws.onmessage = handleMessage;
@@ -418,11 +420,11 @@ export function useWebSocketPrices({
     subscribedSymbolsRef.current.clear();
   }, [cleanupAll]);
 
-  // Main connection effect - only runs on mount/unmount and enabled changes
+  // Main connection effect - connect immediately when enabled (subscribe_all gets ALL tokens)
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (enabled && symbols.length > 0) {
+    if (enabled) {
       reconnectAttemptsRef.current = 0;
       connect();
     }
@@ -431,7 +433,7 @@ export function useWebSocketPrices({
       isMountedRef.current = false;
       disconnect();
     };
-  }, [enabled]); // Only depend on enabled, not on connect/disconnect to avoid loops
+  }, [enabled]); // Only depend on enabled - subscribe_all gets ALL tokens
 
   // Handle symbol changes (subscribe to new, unsubscribe from removed)
   useEffect(() => {
