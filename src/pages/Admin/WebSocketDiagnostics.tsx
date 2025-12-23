@@ -71,7 +71,9 @@ export function WebSocketDiagnostics() {
     error,
     prices,
     subscribe,
-    unsubscribe
+    unsubscribe,
+    addSymbols,
+    removeSymbols
   } = useWebSocket();
 
   const [workerHealth, setWorkerHealth] = useState<WorkerHealth | null>(null);
@@ -202,6 +204,19 @@ export function WebSocketDiagnostics() {
       clearInterval(dbInterval);
     };
   }, [fetchWorkerHealth, fetchDbStats, fetchSampleTokens]);
+
+  // Subscribe to sample tokens for live price display
+  useEffect(() => {
+    if (sampleTokens.length > 0) {
+      const symbols = sampleTokens.map(t => t.canonical_symbol.toUpperCase());
+      console.log('[WebSocketDiagnostics] Subscribing to sample tokens:', symbols);
+      addSymbols(symbols);
+      
+      return () => {
+        removeSymbols(symbols);
+      };
+    }
+  }, [sampleTokens, addSymbols, removeSymbols]);
 
   const formatTime = (timestamp: string | number | null): string => {
     if (!timestamp) return 'Never';
