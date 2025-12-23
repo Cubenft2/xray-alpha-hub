@@ -16,7 +16,8 @@ interface TokenScreenerTableRowProps {
 
 function formatPrice(value: number | null): string {
   if (value === null || value === undefined) return '-';
-  if (value >= 1000) return `$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  // Always use consistent decimal places to prevent layout shift
+  if (value >= 1000) return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   if (value >= 1) return `$${value.toFixed(2)}`;
   if (value >= 0.0001) return `$${value.toFixed(4)}`;
   return `$${value.toFixed(8)}`;
@@ -115,16 +116,16 @@ function AltRankBadge({ rank }: { rank: number | null }) {
 }
 
 function PercentChange({ value, compact, flash }: { value: number | null; compact?: boolean; flash?: 'up' | 'down' | null }) {
-  if (value === null || value === undefined) return <span className="text-muted-foreground">-</span>;
+  if (value === null || value === undefined) return <span className="text-muted-foreground tabular-nums min-w-[60px] inline-block text-right">-</span>;
   
   const isPositive = value >= 0;
   return (
     <span className={cn(
-      "font-mono tabular-nums transition-all duration-300",
+      "font-mono tabular-nums transition-colors duration-300 px-1 rounded min-w-[60px] inline-block text-right",
       compact ? "text-xs" : "text-sm",
       isPositive ? "text-green-500" : "text-red-500",
-      flash === 'up' && "animate-pulse bg-green-500/20 rounded px-1",
-      flash === 'down' && "animate-pulse bg-red-500/20 rounded px-1"
+      flash === 'up' && "bg-green-500/20",
+      flash === 'down' && "bg-red-500/20"
     )}>
       {isPositive ? '+' : ''}{value.toFixed(2)}%
     </span>
@@ -258,12 +259,12 @@ export function TokenScreenerTableRow({ token, livePrice }: TokenScreenerTableRo
           </div>
         </Link>
       </TableCell>
-      <TableCell className="text-right font-mono">
+      <TableCell className="text-right font-mono min-w-[110px]">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           <span className={cn(
-            "transition-all duration-300",
-            priceFlash === 'up' && "text-green-400 bg-green-500/20 rounded px-1",
-            priceFlash === 'down' && "text-red-400 bg-red-500/20 rounded px-1"
+            "tabular-nums transition-colors duration-300 px-1 rounded inline-block min-w-[90px] text-right",
+            priceFlash === 'up' && "text-green-400 bg-green-500/20",
+            priceFlash === 'down' && "text-red-400 bg-red-500/20"
           )}>
             {formatPrice(displayPrice)}
           </span>
