@@ -29,15 +29,9 @@ export interface UseWebSocketPricesReturn {
   lastUpdateTime: number | null;
 }
 
-// Convert symbol to Polygon pair format
-const symbolToPair = (symbol: string): string => {
-  const s = symbol.toUpperCase();
-  return s.includes('-') ? s : `${s}-USD`;
-};
-
-// Extract symbol from pair
-const pairToSymbol = (pair: string): string => {
-  return pair.split('-')[0].toUpperCase();
+// Extract symbol from Worker format (e.g., "X:BTCUSD" -> "BTC")
+const parseWorkerSymbol = (symbol: string): string => {
+  return symbol.replace('X:', '').replace('USD', '').toUpperCase();
 };
 
 export function useWebSocketPrices({
@@ -119,15 +113,12 @@ export function useWebSocketPrices({
       return;
     }
 
-    const pairs = syms.map(symbolToPair).join(',');
-    const params = syms.map(s => `XA.${symbolToPair(s)}`).join(',');
-    
     const message = {
       action,
-      params,
+      symbols: syms.map(s => s.toUpperCase()),
     };
 
-    console.log(`[WS] ${action}:`, params);
+    console.log(`[WS] ${action}:`, message.symbols);
     wsRef.current.send(JSON.stringify(message));
 
     // Track subscribed symbols
@@ -166,25 +157,37 @@ export function useWebSocketPrices({
       const messages = Array.isArray(data) ? data : [data];
       
       for (const msg of messages) {
-        // Check for crypto aggregate event
-        if (msg.ev === 'XA' && msg.pair) {
-          const symbol = pairToSymbol(msg.pair);
+        // Handle price updates from Worker
+        if (msg.type === 'price' && msg.symbol) {
+          const symbol = parseWorkerSymbol(msg.symbol);
           
           const update: PriceUpdate = {
             symbol,
-            price: msg.p || msg.c || 0,
-            bid: msg.bp || msg.p || 0,
-            ask: msg.ap || msg.p || 0,
-            timestamp: msg.t || Date.now(),
-            volume: msg.v,
-            change24h: msg.dp, // Daily change percent if available
+            price: msg.price || msg.close || 0,
+            bid: msg.price || 0,
+            ask: msg.price || 0,
+            timestamp: msg.timestamp || Date.now(),
+            volume: msg.volume,
+            change24h: undefined,
           };
 
           queueUpdate(update);
-        } else if (msg.ev === 'status') {
-          console.log('[WS] Status:', msg.message);
-        } else if (msg.status === 'error') {
+        } 
+        // Handle connection confirmation
+        else if (msg.type === 'connected') {
+          console.log('[WS] Connected:', msg.message);
+        } 
+        // Handle subscription confirmation
+        else if (msg.type === 'subscribed') {
+          console.log('[WS] Subscribed to:', msg.symbols);
+        }
+        // Handle errors
+        else if (msg.type === 'error' || msg.status === 'error') {
           console.warn('[WS] Error:', msg.message);
+        }
+        // Handle pong response
+        else if (msg.type === 'pong') {
+          // Heartbeat acknowledged
         }
       }
     } catch (err) {
