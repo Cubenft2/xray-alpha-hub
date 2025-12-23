@@ -1,0 +1,1 @@
+UPDATE token_cards SET is_scam = true WHERE canonical_symbol = 'SOLZILLA';
