@@ -161,8 +161,16 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   }, [getMapping]);
 
   const processContent = (text: string) => {
+    // SECURITY: Sanitize input FIRST before any processing to prevent XSS
+    // This ensures malicious content is neutralized before any DOM manipulation
+    const preSanitized = DOMPurify.sanitize(text, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'ul', 'ol', 'li', 'hr', 'blockquote', 'cite'],
+      ALLOWED_ATTR: ['class'],
+      KEEP_CONTENT: true
+    });
+
     // Normalize any pre-existing HTML tags in the source to plain newlines/markdown first
-    const normalized = text
+    const normalized = preSanitized
       .replace(/<\/p>\s*<p>/gi, '\n\n')
       .replace(/<\/?p>/gi, '')
       .replace(/<br\s*\/?>(\n)?/gi, '\n')
@@ -207,12 +215,18 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     // This must happen BEFORE price/percentage styling to avoid breaking the pattern
     const priceRegex = /\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\s+\(([A-Z]{2,10})\s+\$([0-9,]+(?:\.\d{1,6})?)\s+([+-][0-9]+\.?[0-9]*)%\)/g;
     enhancedText = enhancedText.replace(priceRegex, (fullMatch, name, ticker, price, change) => {
-      const tickerUpper = ticker.toUpperCase();
+      // Validate extracted values before using
+      const tickerUpper = String(ticker).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const safeName = String(name).replace(/[<>"'&]/g, '');
+      const safePrice = String(price).replace(/[^0-9,.]/g, '');
+      const safeChange = String(change).replace(/[^0-9.+-]/g, '');
+      
+      if (!tickerUpper || tickerUpper.length > 12) return fullMatch;
       
       // Build clean clickable link with original brief data (no live price overlay)
-      const linkContent = `${name} (<span class="inline-ticker">${ticker}</span> <span class="inline-price">$${price}</span> <span class="inline-change ${change.startsWith('-') ? 'negative' : 'positive'}">${change}%</span>)`;
+      const linkContent = `${safeName} (<span class="inline-ticker">${tickerUpper}</span> <span class="inline-price">$${safePrice}</span> <span class="inline-change ${safeChange.startsWith('-') ? 'negative' : 'positive'}">${safeChange}%</span>)`;
       
-      return `<a href="#" class="inline-crypto-link" data-ticker="${tickerUpper}" onclick="event.preventDefault(); window.handleAssetClick(event, '${tickerUpper}')">${linkContent}</a>`;
+      return `<a href="#" class="inline-crypto-link" data-ticker="${tickerUpper}">${linkContent}</a>`;
     });
 
     // Style standalone prices (e.g., $50,000, $1.25, $0.00045) - bold white
@@ -223,16 +237,18 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     enhancedText = enhancedText.replace(/([+-]?)([0-9]+\.?[0-9]*)%/g, 
       '<span class="percentage-badge" data-sign="$1" data-value="$2">$1$2%</span>');
 
-    // Sanitize HTML before DOM manipulation to prevent XSS attacks
+    // SECURITY: Final sanitization after all transformations
+    // This is the authoritative sanitization before DOM insertion
     const sanitized = DOMPurify.sanitize(enhancedText, {
       ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'div', 'ul', 'ol', 'li', 'hr', 'a'],
-      ALLOWED_ATTR: ['class', 'data-ticker', 'data-type', 'data-sign', 'data-value', 'data-quote-symbol', 'data-sym', 'style', 'href', 'onclick'],
+      ALLOWED_ATTR: ['class', 'data-ticker', 'data-type', 'data-sign', 'data-value', 'data-quote-symbol', 'data-sym', 'style', 'href'],
       KEEP_CONTENT: true,
       RETURN_DOM: false,
       RETURN_DOM_FRAGMENT: false
     });
 
     // DOM-based ticker wrapping - link only ticker symbol inside parentheses
+    // SECURITY: We use DOMParser for safe DOM manipulation, not innerHTML assignment
     const extractedTickers: string[] = [];
     const parser = new DOMParser();
     const tempDoc = parser.parseFromString(`<div>${sanitized}</div>`, 'text/html');
@@ -252,12 +268,16 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
         let match;
         tickerRegex.lastIndex = 0;
         while ((match = tickerRegex.exec(text)) !== null) {
-          matches.push({
-            match: match[0],
-            name: match[1].trim(),
-            symbol: match[2].toUpperCase(),
-            index: match.index
-          });
+          // Validate symbol format
+          const symbol = match[2].toUpperCase().replace(/[^A-Z0-9_]/g, '');
+          if (symbol.length >= 2 && symbol.length <= 12) {
+            matches.push({
+              match: match[0],
+              name: match[1].trim(),
+              symbol: symbol,
+              index: match.index
+            });
+          }
         }
         
         if (matches.length > 0) {
@@ -268,14 +288,13 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             const beforeText = text.substring(0, index);
             const afterText = text.substring(index + match.length);
             
-            // Create clickable link wrapper for entire mention
+            // Create clickable link wrapper for entire mention using DOM APIs (not innerHTML)
             const linkWrapper = document.createElement('a');
             linkWrapper.href = '#';
             linkWrapper.className = 'asset-mention-link';
             linkWrapper.setAttribute('data-ticker', symbol);
-            linkWrapper.setAttribute('onclick', `event.preventDefault(); window.handleAssetClick(event, '${symbol}')`);
             
-            // Name span
+            // Name span - use textContent for safety
             const nameSpan = document.createElement('span');
             nameSpan.className = 'sym-name';
             nameSpan.textContent = name;
@@ -292,7 +311,7 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             // Opening paren
             const openParen = document.createTextNode('(');
             
-            // Ticker symbol span (no longer needs click handler - parent link handles it)
+            // Ticker symbol span - use textContent for safety
             const tickerSpan = document.createElement('span');
             tickerSpan.className = 'sym-ticker';
             tickerSpan.textContent = symbol;
@@ -337,6 +356,8 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     
     walkTextNodes(container);
     
+    // SECURITY: Final output - the DOM manipulation above uses safe DOM APIs (createElement, textContent)
+    // not innerHTML assignment, so the content remains safely structured
     enhancedText = container.innerHTML;
 
     return { html: enhancedText, tickers: extractedTickers };
@@ -501,9 +522,36 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
   }, [polygonData]);
 
   React.useEffect(() => {
-    // Add global click handlers
-    (window as any).handleTickerClick = handleTickerClick;
-    (window as any).handleAssetClick = handleAssetClick;
+    // SECURITY: Use event delegation instead of inline onclick handlers
+    // This prevents XSS via onclick attribute injection
+    const handleLinkClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      
+      // Check for asset-mention-link clicks
+      const assetLink = target.closest('.asset-mention-link');
+      if (assetLink) {
+        event.preventDefault();
+        const ticker = assetLink.getAttribute('data-ticker');
+        if (ticker && /^[A-Z0-9_]{2,12}$/.test(ticker)) {
+          handleAssetClick(event as any, ticker);
+        }
+        return;
+      }
+      
+      // Check for inline-crypto-link clicks
+      const cryptoLink = target.closest('.inline-crypto-link');
+      if (cryptoLink) {
+        event.preventDefault();
+        const ticker = cryptoLink.getAttribute('data-ticker');
+        if (ticker && /^[A-Z0-9_]{2,12}$/.test(ticker)) {
+          handleAssetClick(event as any, ticker);
+        }
+        return;
+      }
+    };
+    
+    // Add event listener to the document for delegation
+    document.addEventListener('click', handleLinkClick);
     
     // Initialize capability-aware inline quotes
     const initCapabilityQuotes = async () => {
@@ -577,7 +625,11 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
           }
 
           // Only show price if price_ok AND we have price data
+          // SECURITY: Validate price data before inserting into DOM
           if (capability.price_ok && priceData && priceData.price !== null) {
+            const validPrice = parseFloat(String(priceData.price));
+            if (isNaN(validPrice)) return; // Don't render invalid data
+            
             const formatPrice = (price: number) => {
               if (price >= 1000) return price.toLocaleString('en-US', { maximumFractionDigits: 0 });
               if (price >= 1) return price.toLocaleString('en-US', { maximumFractionDigits: 2 });
@@ -585,8 +637,10 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
             };
 
             const formatChange = (change: number) => {
-              const sign = change >= 0 ? '+' : '';
-              return `${sign}${change.toFixed(2)}%`;
+              const validChange = parseFloat(String(change));
+              if (isNaN(validChange)) return '+0.00%';
+              const sign = validChange >= 0 ? '+' : '';
+              return `${sign}${validChange.toFixed(2)}%`;
             };
 
             // Find existing or create new price span (prevents duplicates)
@@ -596,21 +650,26 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
               priceSpan.className = 'sym-price';
               el.insertBefore(priceSpan, closeParen);
             }
-            priceSpan.textContent = ` $${formatPrice(priceData.price)}`;
+            // SECURITY: Use textContent, not innerHTML
+            priceSpan.textContent = ` $${formatPrice(validPrice)}`;
             
             if (priceData.change !== null && priceData.change !== undefined) {
-              // Find existing or create new change span (prevents duplicates)
-              let changeSpan = el.querySelector('.sym-change') as HTMLElement | null;
-              if (!changeSpan) {
-                changeSpan = document.createElement('span');
-                el.insertBefore(changeSpan, closeParen);
+              const validChange = parseFloat(String(priceData.change));
+              if (!isNaN(validChange)) {
+                // Find existing or create new change span (prevents duplicates)
+                let changeSpan = el.querySelector('.sym-change') as HTMLElement | null;
+                if (!changeSpan) {
+                  changeSpan = document.createElement('span');
+                  el.insertBefore(changeSpan, closeParen);
+                }
+                const isPositive = validChange >= 0;
+                changeSpan.className = isPositive ? 'sym-change positive' : 'sym-change negative';
+                // SECURITY: Use textContent, not innerHTML
+                changeSpan.textContent = ` ${formatChange(validChange)}`;
               }
-              const isPositive = priceData.change >= 0;
-              changeSpan.className = isPositive ? 'sym-change positive' : 'sym-change negative';
-              changeSpan.textContent = ` ${formatChange(priceData.change)}`;
             }
             
-            console.log(`✅ Updated ${sym} with price $${priceData.price}`);
+            console.log(`✅ Updated ${sym} with price $${validPrice}`);
           } else if (capability.price_ok) {
             // price_ok but no price data - show loading (only if no price/change spans exist)
             if (!el.querySelector('.sym-price') && !el.querySelector('.sym-change')) {
@@ -649,9 +708,9 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
     });
 
     return () => {
-      delete (window as any).handleTickerClick;
+      document.removeEventListener('click', handleLinkClick);
     };
-  }, [handleTickerClick, tickers.length]);
+  }, [handleTickerClick, handleAssetClick, tickers.length, enhancedTickers]);
 
   const processedContent = `<div class="space-y-6"><p class="mb-6 leading-relaxed text-foreground/90">${enhancedHtml}</p></div>`;
 
