@@ -227,6 +227,16 @@ const MANUAL_MAPPINGS: Record<string, string> = {
   'KMNO': 'kamino',
   'JELLY': 'jelly-ai',
   'PARTI': 'particle-network',
+  
+  // ========== TIER 1-2 GAPS FOUND IN AUDIT ==========
+  'SOLZILLA': 'solzilla',
+  'NIGHT': 'midnight',
+  'BEAT': 'audiera',
+  'H': 'humanity',
+  'RAVE': 'ravedao',
+  'PIEVERSE': 'pieverse',
+  'POWER': 'power-protocol',
+  'OKT': 'okt-chain',
 };
 
 // Chain mappings: token_cards chain name -> CoinGecko platform identifier
