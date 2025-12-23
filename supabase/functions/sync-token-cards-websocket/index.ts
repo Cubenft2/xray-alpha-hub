@@ -55,10 +55,29 @@ serve(async (req) => {
     }
 
     const workerData = await response.json();
-    const prices: Record<string, WorkerPriceData> = workerData.prices || {};
-    const priceCount = Object.keys(prices).length;
     
-    console.log(`[sync-token-cards-websocket] Received ${priceCount} prices from Worker`);
+    // Worker returns prices at root level, not nested in .prices
+    // Check if it has a .prices property, otherwise treat root as prices
+    let prices: Record<string, WorkerPriceData>;
+
+    if (workerData.prices && typeof workerData.prices === 'object') {
+      // Handle nested format (if Worker ever changes)
+      prices = workerData.prices;
+      console.log("[sync-token-cards-websocket] Using nested .prices format");
+    } else {
+      // Filter for price keys (symbols start with X:)
+      prices = {};
+      for (const [key, value] of Object.entries(workerData)) {
+        if (key.startsWith('X:') && value && typeof value === 'object') {
+          prices[key] = value as WorkerPriceData;
+        }
+      }
+      console.log("[sync-token-cards-websocket] Using root-level format");
+    }
+
+    const priceCount = Object.keys(prices).length;
+    console.log(`[sync-token-cards-websocket] Parsed ${priceCount} prices from Worker`);
+    console.log(`[sync-token-cards-websocket] Sample keys:`, Object.keys(prices).slice(0, 5));
 
     if (priceCount === 0) {
       return new Response(
