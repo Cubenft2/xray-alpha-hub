@@ -455,40 +455,6 @@ export function useWebSocketPrices({
     }
   }, [symbols, isConnected, sendSubscription]);
 
-  // REST fallback - poll when WS is down
-  const fetchRestPrices = useCallback(async () => {
-    try {
-      const response = await fetch(REST_URL);
-      if (!response.ok) return;
-      
-      const data = await response.json();
-      const workerPrices = data.prices || {};
-      
-      Object.entries(workerPrices).forEach(([workerSymbol, priceData]: [string, any]) => {
-        const symbol = parseWorkerSymbol(workerSymbol);
-        if (!priceData.price) return;
-        
-        const update: PriceUpdate = {
-          symbol,
-          price: priceData.price,
-          bid: priceData.price,
-          ask: priceData.price,
-          timestamp: priceData.timestamp || Date.now(),
-          volume: priceData.volume,
-          change24h: calculateChange24h(priceData.open, priceData.close),
-          open: priceData.open,
-          high: priceData.high,
-          low: priceData.low,
-          close: priceData.close,
-          vwap: priceData.vwap,
-        };
-        
-        queueUpdate(update);
-      });
-    } catch (err) {
-      console.warn('[WS] REST fallback failed:', err);
-    }
-  }, [queueUpdate]);
 
   // Check for fallback mode (no WS updates in 10 seconds)
   useEffect(() => {
