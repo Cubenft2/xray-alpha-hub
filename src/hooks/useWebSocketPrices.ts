@@ -153,6 +153,9 @@ export function useWebSocketPrices({
     try {
       const data = JSON.parse(event.data);
       
+      // Debug: log all incoming messages
+      console.log('[WS] Raw message:', data);
+      
       // Handle array of messages
       const messages = Array.isArray(data) ? data : [data];
       
@@ -171,6 +174,7 @@ export function useWebSocketPrices({
             change24h: undefined,
           };
 
+          console.log('[WS] Price update:', update);
           queueUpdate(update);
         } 
         // Handle connection confirmation
