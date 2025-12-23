@@ -2566,6 +2566,15 @@ export type Database = {
           vwap_24h: number | null
           website: string | null
           whitepaper_url: string | null
+          ws_change_24h_pct: number | null
+          ws_close_24h: number | null
+          ws_high_24h: number | null
+          ws_low_24h: number | null
+          ws_open_24h: number | null
+          ws_price_updated_at: string | null
+          ws_price_usd: number | null
+          ws_volume_24h: number | null
+          ws_vwap_24h: number | null
           youtube_contributors: number | null
           youtube_interactions: number | null
           youtube_sentiment: number | null
@@ -2833,6 +2842,15 @@ export type Database = {
           vwap_24h?: number | null
           website?: string | null
           whitepaper_url?: string | null
+          ws_change_24h_pct?: number | null
+          ws_close_24h?: number | null
+          ws_high_24h?: number | null
+          ws_low_24h?: number | null
+          ws_open_24h?: number | null
+          ws_price_updated_at?: string | null
+          ws_price_usd?: number | null
+          ws_volume_24h?: number | null
+          ws_vwap_24h?: number | null
           youtube_contributors?: number | null
           youtube_interactions?: number | null
           youtube_sentiment?: number | null
@@ -3100,6 +3118,15 @@ export type Database = {
           vwap_24h?: number | null
           website?: string | null
           whitepaper_url?: string | null
+          ws_change_24h_pct?: number | null
+          ws_close_24h?: number | null
+          ws_high_24h?: number | null
+          ws_low_24h?: number | null
+          ws_open_24h?: number | null
+          ws_price_updated_at?: string | null
+          ws_price_usd?: number | null
+          ws_volume_24h?: number | null
+          ws_vwap_24h?: number | null
           youtube_contributors?: number | null
           youtube_interactions?: number | null
           youtube_sentiment?: number | null

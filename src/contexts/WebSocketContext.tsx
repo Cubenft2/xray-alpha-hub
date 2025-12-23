@@ -31,7 +31,7 @@ export function WebSocketProvider({
   }, [priceListeners]);
 
   const wsResult = useWebSocketPrices({
-    symbols: activeSymbols,
+    symbols: activeSymbols.length > 0 ? activeSymbols : ['BTC', 'ETH', 'SOL', 'XRP'],
     enabled,
     onPriceUpdate: handlePriceUpdate,
   });
@@ -70,7 +70,21 @@ export function WebSocketProvider({
 export function useWebSocket(): WebSocketContextValue {
   const context = useContext(WebSocketContext);
   if (!context) {
-    throw new Error('useWebSocket must be used within a WebSocketProvider');
+    // Return a default mock when not in provider (for non-WS pages)
+    return {
+      prices: {},
+      isConnected: false,
+      error: null,
+      subscribe: () => {},
+      unsubscribe: () => {},
+      messageCount: 0,
+      lastUpdateTime: null,
+      isFallbackMode: false,
+      priceCount: 0,
+      addSymbols: () => {},
+      removeSymbols: () => {},
+      activeSymbols: [],
+    };
   }
   return context;
 }

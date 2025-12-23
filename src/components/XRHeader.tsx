@@ -7,6 +7,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
+import { useWebSocket } from '@/contexts/WebSocketContext';
+import { LivePriceIndicator } from '@/components/LivePriceIndicator';
 
 interface XRHeaderProps {
   currentPage?: string;
@@ -21,6 +23,9 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // WebSocket connection status
+  const { isConnected, priceCount, isFallbackMode } = useWebSocket();
 
   useEffect(() => {
     // Check current auth state
@@ -151,6 +156,14 @@ export function XRHeader({ currentPage, onSearch }: XRHeaderProps) {
 
           {/* Search & Theme Toggle */}
           <div className="flex items-center space-x-1">
+            {/* Live Price Indicator */}
+            <LivePriceIndicator 
+              isConnected={isConnected} 
+              priceCount={priceCount}
+              isFallbackMode={isFallbackMode}
+              className="hidden sm:flex"
+            />
+
             {(location.pathname === '/crypto' || location.pathname === '/markets') && (
               <div className="flex items-center space-x-1">
                 <Search className="w-3.5 h-3.5 text-muted-foreground" />
