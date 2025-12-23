@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 const WS_URL = 'wss://crypto-stream.xrprat.workers.dev/ws';
 const REST_URL = 'https://crypto-stream.xrprat.workers.dev/prices';
+const MAX_RECONNECT_ATTEMPTS = 10;
 
 export interface PriceUpdate {
   symbol: string;
@@ -71,11 +72,23 @@ export function useWebSocketPrices({
   const pendingUpdatesRef = useRef<Map<string, PriceUpdate>>(new Map());
   const batchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const onPriceUpdateRef = useRef(onPriceUpdate);
+  const symbolsRef = useRef<string[]>(symbols);
+  const enabledRef = useRef(enabled);
+  const isConnectingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
-  // Keep callback ref updated
+  // Keep refs updated
   useEffect(() => {
     onPriceUpdateRef.current = onPriceUpdate;
   }, [onPriceUpdate]);
+
+  useEffect(() => {
+    symbolsRef.current = symbols;
+  }, [symbols]);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
 
   // Calculate reconnect delay with exponential backoff
   const getReconnectDelay = useCallback(() => {
@@ -124,10 +137,34 @@ export function useWebSocketPrices({
     batchTimeoutRef.current = setTimeout(flushUpdates, 100);
   }, [flushUpdates]);
 
+  // Stop heartbeat
+  const stopHeartbeat = useCallback(() => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+  }, []);
+
+  // Cleanup all timers
+  const cleanupAll = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (batchTimeoutRef.current) {
+      clearTimeout(batchTimeoutRef.current);
+      batchTimeoutRef.current = null;
+    }
+    if (fallbackIntervalRef.current) {
+      clearInterval(fallbackIntervalRef.current);
+      fallbackIntervalRef.current = null;
+    }
+    stopHeartbeat();
+  }, [stopHeartbeat]);
+
   // Send subscription message
   const sendSubscription = useCallback((action: 'subscribe' | 'unsubscribe', syms: string[]) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      console.warn('[WS] Cannot send subscription, socket not open');
       return;
     }
 
@@ -214,43 +251,43 @@ export function useWebSocketPrices({
         else if (msg.type === 'error' || msg.status === 'error') {
           console.warn('[WS] Error:', msg.message);
         }
-        // Handle pong response
-        else if (msg.type === 'pong') {
-          // Heartbeat acknowledged
-        }
       }
     } catch (err) {
       console.error('[WS] Failed to parse message:', err);
     }
-  }, [queueUpdate]);
+  }, [queueUpdate, isFallbackMode]);
 
   // Start heartbeat ping
   const startHeartbeat = useCallback(() => {
-    if (heartbeatIntervalRef.current) {
-      clearInterval(heartbeatIntervalRef.current);
-    }
+    stopHeartbeat();
 
     heartbeatIntervalRef.current = setInterval(() => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ action: 'ping' }));
       }
     }, 30000);
-  }, []);
-
-  // Stop heartbeat
-  const stopHeartbeat = useCallback(() => {
-    if (heartbeatIntervalRef.current) {
-      clearInterval(heartbeatIntervalRef.current);
-      heartbeatIntervalRef.current = null;
-    }
-  }, []);
+  }, [stopHeartbeat]);
 
   // Connect to WebSocket
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    // Prevent multiple simultaneous connection attempts
+    if (isConnectingRef.current) {
       return;
     }
 
+    if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+
+    // Check if we've exceeded max reconnection attempts
+    if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+      console.log('[WS] Max reconnection attempts reached, switching to fallback');
+      setError('Max reconnection attempts reached');
+      setIsFallbackMode(true);
+      return;
+    }
+
+    isConnectingRef.current = true;
     console.log('[WS] Connecting to', WS_URL);
     setError(null);
 
@@ -259,80 +296,101 @@ export function useWebSocketPrices({
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (!isMountedRef.current) return;
+        
         console.log('[WS] Connected');
+        isConnectingRef.current = false;
         setIsConnected(true);
         setError(null);
+        setIsFallbackMode(false);
         reconnectAttemptsRef.current = 0;
+        lastWsUpdateRef.current = Date.now();
         startHeartbeat();
 
-        // Re-subscribe to all symbols
-        if (symbols.length > 0) {
-          sendSubscription('subscribe', symbols);
+        // Subscribe to current symbols
+        const currentSymbols = symbolsRef.current;
+        if (currentSymbols.length > 0) {
+          sendSubscription('subscribe', currentSymbols);
         }
       };
 
       ws.onmessage = handleMessage;
 
       ws.onclose = (event) => {
+        if (!isMountedRef.current) return;
+        
         console.log('[WS] Disconnected:', event.code, event.reason);
+        isConnectingRef.current = false;
         setIsConnected(false);
         stopHeartbeat();
 
-        // Auto-reconnect if enabled
-        if (enabled) {
-          const delay = getReconnectDelay();
+        // Only auto-reconnect if enabled and within limits
+        if (enabledRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
           reconnectAttemptsRef.current++;
-          console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`);
+          const delay = getReconnectDelay();
+          console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
           
+          // Clear any existing timeout before setting a new one
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+          }
           reconnectTimeoutRef.current = setTimeout(connect, delay);
+        } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+          console.log('[WS] Max attempts reached, using REST fallback');
+          setIsFallbackMode(true);
         }
       };
 
-      ws.onerror = (event) => {
-        console.error('[WS] Error:', event);
-        setError('Connection error - will retry');
+      ws.onerror = () => {
+        if (!isMountedRef.current) return;
+        console.error('[WS] Connection error');
+        setError('Connection error');
+        isConnectingRef.current = false;
       };
     } catch (err) {
       console.error('[WS] Failed to create WebSocket:', err);
       setError('Failed to connect');
+      isConnectingRef.current = false;
     }
-  }, [enabled, symbols, handleMessage, startHeartbeat, stopHeartbeat, getReconnectDelay, sendSubscription]);
+  }, [handleMessage, startHeartbeat, stopHeartbeat, getReconnectDelay, sendSubscription]);
 
   // Disconnect from WebSocket
   const disconnect = useCallback(() => {
     console.log('[WS] Disconnecting');
-    
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = null;
-    }
-
-    stopHeartbeat();
+    cleanupAll();
 
     if (wsRef.current) {
-      wsRef.current.close(1000, 'Client disconnect');
+      // Remove handlers to prevent reconnection attempts
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.onopen = null;
+      
+      if (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING) {
+        wsRef.current.close(1000, 'Client disconnect');
+      }
       wsRef.current = null;
     }
 
+    isConnectingRef.current = false;
     setIsConnected(false);
     subscribedSymbolsRef.current.clear();
-  }, [stopHeartbeat]);
+  }, [cleanupAll]);
 
-  // Connect/disconnect based on enabled state
+  // Main connection effect - only runs on mount/unmount and enabled changes
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (enabled && symbols.length > 0) {
+      reconnectAttemptsRef.current = 0;
       connect();
-    } else {
-      disconnect();
     }
 
     return () => {
+      isMountedRef.current = false;
       disconnect();
-      if (batchTimeoutRef.current) {
-        clearTimeout(batchTimeoutRef.current);
-      }
     };
-  }, [enabled, connect, disconnect]);
+  }, [enabled]); // Only depend on enabled, not on connect/disconnect to avoid loops
 
   // Handle symbol changes (subscribe to new, unsubscribe from removed)
   useEffect(() => {
@@ -393,10 +451,12 @@ export function useWebSocketPrices({
 
   // Check for fallback mode (no WS updates in 10 seconds)
   useEffect(() => {
+    if (!enabled) return;
+
     const checkFallback = setInterval(() => {
       const timeSinceLastUpdate = Date.now() - lastWsUpdateRef.current;
-      if (timeSinceLastUpdate > 10000 && !isFallbackMode && enabled) {
-        console.log('[WS] Switching to REST fallback mode');
+      if (timeSinceLastUpdate > 10000 && !isFallbackMode) {
+        console.log('[WS] No updates for 10s, switching to REST fallback');
         setIsFallbackMode(true);
       }
     }, 5000);
@@ -412,6 +472,7 @@ export function useWebSocketPrices({
       return () => {
         if (fallbackIntervalRef.current) {
           clearInterval(fallbackIntervalRef.current);
+          fallbackIntervalRef.current = null;
         }
       };
     }
