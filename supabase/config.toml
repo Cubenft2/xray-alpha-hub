@@ -382,3 +382,11 @@ verify_jwt = false
 
 [[functions.sync-token-cards-websocket.cron]]
 schedule = "*/1 * * * *"
+
+# Mark tokens available in Polygon WebSocket stream
+# Daily at 4:00 AM UTC
+[functions.mark-polygon-tokens]
+verify_jwt = false
+
+[[functions.mark-polygon-tokens.cron]]
+schedule = "0 4 * * *"

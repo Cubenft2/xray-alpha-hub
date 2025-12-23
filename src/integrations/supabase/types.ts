@@ -2409,6 +2409,7 @@ export type Database = {
           honeypot_with_same_creator: boolean | null
           id: string
           identity_updated_at: string | null
+          in_polygon: boolean | null
           interactions_24h: number | null
           interactions_change_24h_pct: number | null
           is_active: boolean | null
@@ -2685,6 +2686,7 @@ export type Database = {
           honeypot_with_same_creator?: boolean | null
           id?: string
           identity_updated_at?: string | null
+          in_polygon?: boolean | null
           interactions_24h?: number | null
           interactions_change_24h_pct?: number | null
           is_active?: boolean | null
@@ -2961,6 +2963,7 @@ export type Database = {
           honeypot_with_same_creator?: boolean | null
           id?: string
           identity_updated_at?: string | null
+          in_polygon?: boolean | null
           interactions_24h?: number | null
           interactions_change_24h_pct?: number | null
           is_active?: boolean | null

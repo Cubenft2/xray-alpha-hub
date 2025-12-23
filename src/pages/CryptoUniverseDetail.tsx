@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +10,8 @@ import { TradingViewChart } from '@/components/TradingViewChart';
 import { ExchangePriceComparison } from '@/components/ExchangePriceComparison';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { useLivePrice } from '@/contexts/WebSocketContext';
+import { TokenLiveOHLC } from '@/components/token-detail/TokenLiveOHLC';
 import {
   TokenHeader,
   TokenPriceMarket,
@@ -30,6 +32,9 @@ export default function CryptoUniverseDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('summary');
+
+  // Subscribe to live WebSocket price for this token
+  const livePrice = useLivePrice(symbol?.toUpperCase() || '');
 
   // Single query to token_cards - the master source of truth
   const { data: tokenCard, isLoading, error } = useQuery({
@@ -140,6 +145,11 @@ export default function CryptoUniverseDetail() {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
+      {/* Live WebSocket OHLC Data (if available) */}
+      {livePrice && (
+        <TokenLiveOHLC livePrice={livePrice} symbol={tokenCard.canonical_symbol} />
+      )}
+
       {/* Header with Price */}
       <TokenHeader
         symbol={tokenCard.canonical_symbol}
@@ -148,8 +158,8 @@ export default function CryptoUniverseDetail() {
         tier={tokenCard.tier}
         marketCapRank={tokenCard.market_cap_rank}
         categories={tokenCard.categories}
-        priceUsd={tokenCard.price_usd}
-        change24hPct={tokenCard.change_24h_pct}
+        priceUsd={livePrice?.price ?? tokenCard.price_usd}
+        change24hPct={livePrice?.change24h ?? tokenCard.change_24h_pct}
       />
 
       {/* Tab Navigation */}
