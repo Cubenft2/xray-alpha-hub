@@ -95,11 +95,6 @@ verify_jwt = false
 [[functions.polygon-stock-poller.cron]]
 schedule = "1-56/5 * * * *"
 
-# DISABLED: polygon-indicators-refresh writes to wrong table (technical_indicators instead of token_cards)
-# Technicals now synced via sync-token-cards-polygon directly to token_cards
-[functions.polygon-indicators-refresh]
-verify_jwt = false
-
 # Prefetch company details for all stocks (bulk mode, 500 per run)
 # Every 4 hours - offset to minute 15
 [functions.polygon-company-prefetch]
@@ -190,9 +185,6 @@ verify_jwt = false
 [functions.migrate-ticker-data]
 verify_jwt = false
 
-[functions.polygon-crypto-snapshot]
-verify_jwt = false
-
 # Every 5 min - offset to 3,8,13,18...
 [functions.polygon-stock-snapshot]
 verify_jwt = false
@@ -206,11 +198,6 @@ verify_jwt = false
 [functions.fix-coingecko-mappings]
 verify_jwt = false
 
-# DISABLED: lunarcrush-sync writes to wrong table (crypto_snapshot instead of token_cards)
-# Use sync-token-cards-lunarcrush instead which writes to token_cards
-[functions.lunarcrush-sync]
-verify_jwt = false
-
 [functions.asset-details]
 verify_jwt = false
 
@@ -220,11 +207,6 @@ verify_jwt = false
 
 [[functions.warm-derivs-cache.cron]]
 schedule = "4-59/5 * * * *"
-
-# DISABLED: warm-news-cache uses expensive Tavily API
-# Replaced by sync-token-news-polygon which is FREE (unlimited)
-[functions.warm-news-cache]
-verify_jwt = false
 
 # Sync Polygon news to token_cards (FREE - unlimited)
 # Every 15 min - offset to 10,25,40,55
@@ -241,11 +223,6 @@ verify_jwt = false
 [[functions.massive-crypto-snapshot.cron]]
 schedule = "1-59/2 * * * *"
 
-# DISABLED: massive-forex-snapshot writes to live_prices, not forex_cards
-# Redundant with sync-forex-cards-polygon which writes to master forex_cards table
-[functions.massive-forex-snapshot]
-verify_jwt = false
-
 # Daily at 3:25 AM UTC (staggered)
 [functions.massive-forex-sync]
 verify_jwt = false
@@ -257,20 +234,6 @@ schedule = "25 3 * * *"
 verify_jwt = false
 
 [functions.polygon-raw-preview]
-verify_jwt = false
-
-# ============================================================================
-# DEPRECATED FUNCTIONS - polygon_crypto_cards table is no longer used
-# All Polygon crypto data now flows through sync-token-cards-polygon → token_cards
-# These functions are kept for reference only. DO NOT RE-ENABLE.
-# ============================================================================
-
-# @deprecated - writes to polygon_crypto_cards (deprecated table)
-[functions.sync-polygon-crypto-reference]
-verify_jwt = false
-
-# @deprecated - writes to polygon_crypto_cards (deprecated table)
-[functions.sync-polygon-crypto-snapshot]
 verify_jwt = false
 
 # Sync technical indicators to token_cards from Polygon OHLCV (local calculation)
@@ -287,10 +250,6 @@ schedule = "1-58/3 * * * *"
 
 # Bootstrap token_cards from crypto_snapshot (run once manually)
 [functions.bootstrap-token-cards]
-verify_jwt = false
-
-# Bootstrap Polygon tokens into token_cards (run once manually)
-[functions.bootstrap-polygon-to-token-cards]
 verify_jwt = false
 
 # Sync token_cards from LunarCrush with smart matching (every 4 min, offset by 2 to avoid minute-0 collision)
@@ -315,7 +274,7 @@ schedule = "* * * * *"
 [functions.bootstrap-forex-cards]
 verify_jwt = false
 
-# Sync forex_cards prices from Polygon.io (every minute - no stagger needed)
+# Sync forex_cards prices from Polygon.io (every 15 min)
 [functions.sync-forex-cards-polygon]
 verify_jwt = false
 
@@ -381,7 +340,7 @@ schedule = "35 6 * * *"
 # ============================================
 
 # Sync stock_cards from live_prices + company_details
-# Every 2 min - offset to odd minutes 1,3,5,7...
+# Every 10 min - offset to 1,11,21,31,41,51
 [functions.sync-stock-cards]
 verify_jwt = false
 
