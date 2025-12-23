@@ -320,7 +320,7 @@ verify_jwt = false
 verify_jwt = false
 
 [[functions.sync-forex-cards-polygon.cron]]
-schedule = "* * * * *"
+schedule = "5,20,35,50 * * * *"
 
 # Sync forex_cards technicals from Polygon historical data
 # Every 15 min - offset to 7,22,37,52
@@ -386,7 +386,7 @@ schedule = "35 6 * * *"
 verify_jwt = false
 
 [[functions.sync-stock-cards.cron]]
-schedule = "1-59/2 * * * *"
+schedule = "1,11,21,31,41,51 * * * *"
 
 # Sync 52-week high/low for stocks
 # Daily at 7:45 AM UTC (staggered after market data settles)
