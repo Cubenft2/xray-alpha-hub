@@ -11,3 +11,4 @@ export { TokenMetricsGrid } from './TokenMetricsGrid';
 export { TokenCreators } from './TokenCreators';
 export { TokenPosts } from './TokenPosts';
 export { TokenThemes } from './TokenThemes';
+export { TokenLiveOHLC } from './TokenLiveOHLC';
