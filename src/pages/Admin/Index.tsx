@@ -16,7 +16,8 @@ import {
   Dog,
   Activity,
   Database,
-  Wrench
+  Wrench,
+  Wifi
 } from 'lucide-react';
 import { GenerateBrief } from './GenerateBrief';
 import QuoteLibraryAdmin from './QuoteLibraryAdmin';
@@ -24,6 +25,7 @@ import { ZombieDogAnalytics } from './ZombieDogAnalytics';
 import { SystemHealth } from './SystemHealth';
 import { DataSources } from './DataSources';
 import { Diagnostics } from './Diagnostics';
+import { WebSocketDiagnostics } from './WebSocketDiagnostics';
 
 function AdminContent() {
   const [activeView, setActiveView] = useState('dashboard');
@@ -96,6 +98,15 @@ function AdminContent() {
                 <span>Diagnostics</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                onClick={() => handleViewChange('websocket')}
+                isActive={activeView === 'websocket'}
+              >
+                <Wifi className="mr-2 h-4 w-4" />
+                <span>WebSocket</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>
@@ -115,6 +126,7 @@ function AdminContent() {
           {activeView === 'data-sources' && <DataSources />}
           {activeView === 'zombiedog-analytics' && <ZombieDogAnalytics />}
           {activeView === 'diagnostics' && <Diagnostics />}
+          {activeView === 'websocket' && <WebSocketDiagnostics />}
         </main>
       </div>
     </>
