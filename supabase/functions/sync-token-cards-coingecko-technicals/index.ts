@@ -7,7 +7,18 @@ const corsHeaders = {
 };
 
 // ============================================
-// LOCAL INDICATOR CALCULATORS (same as Polygon version)
+// CONFIGURATION
+// ============================================
+
+const CACHE_KEY = 'coingecko_technicals_cursor';
+const CACHE_TTL_HOURS = 24; // Reset cursor daily
+const MAX_RUNTIME_MS = 55000; // 55 seconds max (leave buffer for edge function timeout)
+const API_DELAY_MS = 150; // 150ms between API calls
+const BATCH_SIZE = 20; // Upsert batch size
+const TOP_1000_ALWAYS_REFRESH = true; // Always refresh top 1000
+
+// ============================================
+// LOCAL INDICATOR CALCULATORS
 // ============================================
 
 function calculateSMA(prices: number[], period: number): number | null {
@@ -131,7 +142,6 @@ function calculateTechnicalScore(
 
 async function fetchCoinGeckoOHLC(coinId: string, apiKey: string): Promise<number[] | null> {
   try {
-    // Fetch 30 days of daily data (sufficient for RSI-14, MACD, SMA-20)
     const url = `https://pro-api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=30&interval=daily&x_cg_pro_api_key=${apiKey}`;
     
     const response = await fetch(url);
@@ -145,12 +155,48 @@ async function fetchCoinGeckoOHLC(coinId: string, apiKey: string): Promise<numbe
     const data = await response.json();
     if (!data.prices || data.prices.length < 26) return null;
     
-    // Extract closing prices from [timestamp, price] pairs
     return data.prices.map((p: [number, number]) => p[1]);
   } catch (error) {
     console.error(`[CoinGecko] Error fetching ${coinId}:`, error);
     return null;
   }
+}
+
+// ============================================
+// CURSOR MANAGEMENT
+// ============================================
+
+async function getCursor(supabase: any): Promise<{ lastRank: number; phase: string; runCount: number }> {
+  try {
+    const { data } = await supabase
+      .from('cache_kv')
+      .select('v')
+      .eq('k', CACHE_KEY)
+      .single();
+    
+    if (data?.v) {
+      return data.v as { lastRank: number; phase: string; runCount: number };
+    }
+  } catch {
+    // No cursor found
+  }
+  return { lastRank: 0, phase: 'top1000', runCount: 0 };
+}
+
+async function setCursor(supabase: any, cursor: { lastRank: number; phase: string; runCount: number }): Promise<void> {
+  const expiresAt = new Date(Date.now() + CACHE_TTL_HOURS * 60 * 60 * 1000).toISOString();
+  
+  await supabase
+    .from('cache_kv')
+    .upsert({
+      k: CACHE_KEY,
+      v: cursor,
+      expires_at: expiresAt,
+    }, { onConflict: 'k' });
+}
+
+async function clearCursor(supabase: any): Promise<void> {
+  await supabase.from('cache_kv').delete().eq('k', CACHE_KEY);
 }
 
 // ============================================
@@ -166,7 +212,7 @@ async function logApiCall(supabase: any, success: boolean, errorMsg?: string) {
       call_count: 1,
       error_message: errorMsg || null,
     });
-  } catch (e) {
+  } catch {
     // Ignore logging errors
   }
 }
@@ -189,53 +235,169 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Parse limit from request (default 2000 for 4x daily runs)
-    let limit = 2000;
+    // Parse options from request
+    let forceReset = false;
+    let targetLimit = 500; // Default tokens per run
     try {
       const body = await req.json();
-      if (body.limit) limit = Math.min(body.limit, 2000);
+      forceReset = body.reset === true;
+      if (body.limit) targetLimit = Math.min(body.limit, 1000);
     } catch {
-      // Use default limit
+      // Use defaults
     }
     
-    // Fetch top non-Polygon tokens by market cap rank with coingecko_id
-    const { data: tokens, error: fetchError } = await supabase
-      .from('token_cards')
-      .select('canonical_symbol, coingecko_id, price_usd, market_cap_rank')
-      .eq('is_active', true)
-      .or('polygon_supported.is.null,polygon_supported.eq.false')
-      .not('coingecko_id', 'is', null)
-      .not('market_cap_rank', 'is', null)
-      .order('market_cap_rank', { ascending: true })
-      .limit(limit);
+    // Get or reset cursor
+    let cursor = forceReset ? { lastRank: 0, phase: 'top1000', runCount: 0 } : await getCursor(supabase);
     
-    if (fetchError) throw new Error(`Failed to fetch tokens: ${fetchError.message}`);
+    if (forceReset) {
+      await clearCursor(supabase);
+      console.log('[CG-Technicals] Cursor reset requested');
+    }
     
-    console.log(`[sync-token-cards-coingecko-technicals] Processing ${tokens?.length || 0} non-Polygon tokens`);
+    console.log(`[CG-Technicals] Starting run #${cursor.runCount + 1}, phase: ${cursor.phase}, lastRank: ${cursor.lastRank}`);
     
-    if (!tokens || tokens.length === 0) {
+    // ============================================
+    // PHASE 1: Top 1000 (always refresh if enabled)
+    // ============================================
+    
+    let tokens: any[] = [];
+    let isTop1000Phase = cursor.phase === 'top1000';
+    
+    if (isTop1000Phase) {
+      // Fetch Top 1000 tokens that need technicals update
+      // Either: no technicals yet, OR stale (>6 hours for top 1000)
+      const staleThreshold = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+      
+      const { data, error } = await supabase
+        .from('token_cards')
+        .select('canonical_symbol, coingecko_id, price_usd, market_cap_rank, technicals_updated_at')
+        .eq('is_active', true)
+        .or('polygon_supported.is.null,polygon_supported.eq.false')
+        .not('coingecko_id', 'is', null)
+        .not('market_cap_rank', 'is', null)
+        .lte('market_cap_rank', 1000)
+        .gt('market_cap_rank', cursor.lastRank)
+        .or(`technicals_updated_at.is.null,technicals_updated_at.lt.${staleThreshold}`)
+        .order('market_cap_rank', { ascending: true })
+        .limit(targetLimit);
+      
+      if (error) throw new Error(`Failed to fetch Top 1000: ${error.message}`);
+      
+      tokens = data || [];
+      console.log(`[CG-Technicals] Top 1000 phase: found ${tokens.length} tokens needing update (rank > ${cursor.lastRank})`);
+      
+      // If no more Top 1000 to process, move to next phase
+      if (tokens.length === 0) {
+        cursor.phase = 'top3000';
+        cursor.lastRank = 1000; // Start from rank 1001
+        console.log('[CG-Technicals] Top 1000 complete, moving to Top 3000 phase');
+      }
+    }
+    
+    // ============================================
+    // PHASE 2: Ranks 1001-3000
+    // ============================================
+    
+    if (cursor.phase === 'top3000' && tokens.length === 0) {
+      const staleThreshold = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(); // 12 hour threshold for 1001-3000
+      
+      const { data, error } = await supabase
+        .from('token_cards')
+        .select('canonical_symbol, coingecko_id, price_usd, market_cap_rank, technicals_updated_at')
+        .eq('is_active', true)
+        .or('polygon_supported.is.null,polygon_supported.eq.false')
+        .not('coingecko_id', 'is', null)
+        .not('market_cap_rank', 'is', null)
+        .gt('market_cap_rank', cursor.lastRank)
+        .lte('market_cap_rank', 3000)
+        .or(`technicals_updated_at.is.null,technicals_updated_at.lt.${staleThreshold}`)
+        .order('market_cap_rank', { ascending: true })
+        .limit(targetLimit);
+      
+      if (error) throw new Error(`Failed to fetch Top 3000: ${error.message}`);
+      
+      tokens = data || [];
+      console.log(`[CG-Technicals] Top 3000 phase: found ${tokens.length} tokens needing update (rank > ${cursor.lastRank})`);
+      
+      // If no more 1001-3000 to process, move to backlog
+      if (tokens.length === 0) {
+        cursor.phase = 'backlog';
+        cursor.lastRank = 3000;
+        console.log('[CG-Technicals] Top 3000 complete, moving to backlog phase');
+      }
+    }
+    
+    // ============================================
+    // PHASE 3: Backlog (ranks > 3000)
+    // ============================================
+    
+    if (cursor.phase === 'backlog' && tokens.length === 0) {
+      const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(); // 24 hour threshold for backlog
+      
+      const { data, error } = await supabase
+        .from('token_cards')
+        .select('canonical_symbol, coingecko_id, price_usd, market_cap_rank, technicals_updated_at')
+        .eq('is_active', true)
+        .or('polygon_supported.is.null,polygon_supported.eq.false')
+        .not('coingecko_id', 'is', null)
+        .gt('market_cap_rank', cursor.lastRank)
+        .or(`technicals_updated_at.is.null,technicals_updated_at.lt.${staleThreshold}`)
+        .order('market_cap_rank', { ascending: true, nullsFirst: false })
+        .limit(targetLimit);
+      
+      if (error) throw new Error(`Failed to fetch backlog: ${error.message}`);
+      
+      tokens = data || [];
+      console.log(`[CG-Technicals] Backlog phase: found ${tokens.length} tokens needing update (rank > ${cursor.lastRank})`);
+      
+      // If backlog is empty, reset to start fresh cycle
+      if (tokens.length === 0) {
+        cursor.phase = 'top1000';
+        cursor.lastRank = 0;
+        cursor.runCount++;
+        await setCursor(supabase, cursor);
+        console.log(`[CG-Technicals] Full cycle complete! Run count: ${cursor.runCount}`);
+        
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: 'Full cycle complete, cursor reset',
+          run_count: cursor.runCount
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    if (tokens.length === 0) {
       return new Response(JSON.stringify({ success: true, message: 'No tokens to process' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
-    const now = new Date().toISOString();
-    const BATCH_SIZE = 10;
-    const API_DELAY = 200; // 200ms between API calls to respect rate limits
+    // ============================================
+    // PROCESS TOKENS
+    // ============================================
     
+    const now = new Date().toISOString();
     let processed = 0, updated = 0, errors = 0, apiCalls = 0;
     const updates: any[] = [];
+    let lastProcessedRank = cursor.lastRank;
     
-    for (let i = 0; i < tokens.length; i++) {
-      const token = tokens[i];
+    for (const token of tokens) {
+      // Check time limit
+      if (Date.now() - startTime > MAX_RUNTIME_MS) {
+        console.log(`[CG-Technicals] Time limit reached after ${processed} tokens`);
+        break;
+      }
       
       try {
         const closePrices = await fetchCoinGeckoOHLC(token.coingecko_id, coingeckoApiKey);
         apiCalls++;
         
         if (!closePrices || closePrices.length < 26) {
-          await logApiCall(supabase, true); // API call succeeded but insufficient data
+          await logApiCall(supabase, true);
           processed++;
+          lastProcessedRank = Math.max(lastProcessedRank, token.market_cap_rank || 0);
           continue;
         }
         
@@ -245,7 +407,7 @@ serve(async (req) => {
         const macd = calculateMACD(closePrices);
         const sma20 = calculateSMA(closePrices, 20);
         const sma50 = closePrices.length >= 50 ? calculateSMA(closePrices, 50) : null;
-        const sma200 = null; // Not enough daily data for 200-day SMA
+        const sma200 = null; // Not enough daily data
         const ema12 = calculateEMA(closePrices, 12);
         const ema26 = calculateEMA(closePrices, 26);
         
@@ -255,14 +417,14 @@ serve(async (req) => {
         updates.push({
           canonical_symbol: token.canonical_symbol,
           technicals_updated_at: now,
-          technicals_source: 'coingecko',  // Track data source
+          technicals_source: 'coingecko',
           rsi_14: rsi14 !== null ? Math.round(rsi14 * 100) / 100 : null,
           macd_line: macd?.value !== undefined ? Math.round(macd.value * 1e8) / 1e8 : null,
           macd_signal: macd?.signal !== undefined ? Math.round(macd.signal * 1e8) / 1e8 : null,
           macd_histogram: macd?.histogram !== undefined ? Math.round(macd.histogram * 1e8) / 1e8 : null,
           sma_20: sma20 !== null ? Math.round(sma20 * 1e8) / 1e8 : null,
           sma_50: sma50 !== null ? Math.round(sma50 * 1e8) / 1e8 : null,
-          sma_200: sma200, // null for CoinGecko (30-day data only)
+          sma_200: sma200,
           ema_12: ema12 !== null ? Math.round(ema12 * 1e8) / 1e8 : null,
           ema_26: ema26 !== null ? Math.round(ema26 * 1e8) / 1e8 : null,
           technical_score: score,
@@ -270,15 +432,16 @@ serve(async (req) => {
         });
         
         processed++;
+        lastProcessedRank = Math.max(lastProcessedRank, token.market_cap_rank || 0);
         
-        // Batch upsert every BATCH_SIZE records
+        // Batch upsert
         if (updates.length >= BATCH_SIZE) {
           const { error: upsertError } = await supabase
             .from('token_cards')
             .upsert(updates, { onConflict: 'canonical_symbol' });
           
           if (upsertError) {
-            console.error(`[CoinGecko Technicals] Upsert error:`, upsertError);
+            console.error(`[CG-Technicals] Upsert error:`, upsertError);
             errors += updates.length;
           } else {
             updated += updates.length;
@@ -287,32 +450,37 @@ serve(async (req) => {
         }
         
         // Rate limit delay
-        await new Promise(r => setTimeout(r, API_DELAY));
+        await new Promise(r => setTimeout(r, API_DELAY_MS));
         
       } catch (err) {
-        console.error(`[CoinGecko Technicals] Error for ${token.canonical_symbol}:`, err);
+        console.error(`[CG-Technicals] Error for ${token.canonical_symbol}:`, err);
         await logApiCall(supabase, false, String(err));
         errors++;
         processed++;
+        lastProcessedRank = Math.max(lastProcessedRank, token.market_cap_rank || 0);
       }
     }
     
-    // Upsert remaining updates
+    // Final batch upsert
     if (updates.length > 0) {
       const { error: upsertError } = await supabase
         .from('token_cards')
         .upsert(updates, { onConflict: 'canonical_symbol' });
       
       if (upsertError) {
-        console.error(`[CoinGecko Technicals] Final upsert error:`, upsertError);
+        console.error(`[CG-Technicals] Final upsert error:`, upsertError);
         errors += updates.length;
       } else {
         updated += updates.length;
       }
     }
     
+    // Update cursor for next run
+    cursor.lastRank = lastProcessedRank;
+    await setCursor(supabase, cursor);
+    
     const duration = Date.now() - startTime;
-    console.log(`[sync-token-cards-coingecko-technicals] Done: ${updated}/${processed} updated, ${errors} errors, ${apiCalls} API calls, ${duration}ms`);
+    console.log(`[CG-Technicals] Done: ${updated}/${processed} updated, ${errors} errors, ${apiCalls} API calls, phase: ${cursor.phase}, lastRank: ${lastProcessedRank}, ${duration}ms`);
     
     return new Response(JSON.stringify({ 
       success: true, 
@@ -320,13 +488,15 @@ serve(async (req) => {
       updated, 
       errors, 
       api_calls: apiCalls,
+      phase: cursor.phase,
+      last_rank: lastProcessedRank,
       duration_ms: duration 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
     
   } catch (error) {
-    console.error('[sync-token-cards-coingecko-technicals] Fatal:', error);
+    console.error('[CG-Technicals] Fatal:', error);
     return new Response(JSON.stringify({ success: false, error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
