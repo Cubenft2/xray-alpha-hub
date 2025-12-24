@@ -311,8 +311,16 @@ verify_jwt = false
 [[functions.sync-token-cards-metadata.cron]]
 schedule = "20 6 * * *"
 
+# Dedicated Top 500 technicals sync (every 30 min, ensures ≤2 hour freshness)
+[functions.sync-top500-technicals]
+verify_jwt = false
+
+[[functions.sync-top500-technicals.cron]]
+schedule = "*/30 * * * *"
+
 # Sync technical indicators for non-Polygon tokens via CoinGecko historical data
-# Runs 4x daily at minute 10 (5:10, 11:10, 17:10, 23:10 UTC) for top 2,000 tokens
+# Handles ranks 501+ (Top 500 handled by sync-top500-technicals)
+# Runs 4x daily at minute 10 (5:10, 11:10, 17:10, 23:10 UTC)
 [functions.sync-token-cards-coingecko-technicals]
 verify_jwt = false
 
