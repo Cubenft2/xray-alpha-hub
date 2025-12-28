@@ -69,127 +69,62 @@ Deno.serve(async (req) => {
       }
     }
 
-    const lunarCrushApiKey = Deno.env.get('LUNARCRUSH_API_KEY');
-    
-    if (!lunarCrushApiKey) {
-      console.error('❌ LUNARCRUSH_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'LunarCrush API key not configured' 
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const cacheKey = 'lunarcrush:universe:v4';
-    const cacheTTL = 300; // 5 minutes
-    const MAX_COINS = 3000;
+    console.log('📊 Reading token_cards from database (no LunarCrush API call)...');
 
-    // Try to get cached full dataset
-    let allCoins: CoinData[] = [];
-    let cacheHit = false;
+    // Read from token_cards table instead of calling LunarCrush API
+    const { data: tokenCards, error: dbError } = await supabase
+      .from('token_cards')
+      .select(`
+        id, canonical_symbol, name, logo_url, market_cap, market_cap_rank,
+        price_usd, volume_24h_usd, change_24h_pct, change_1h_pct, change_7d_pct, change_30d_pct,
+        galaxy_score, alt_rank, sentiment, social_volume_24h, social_dominance, interactions_24h,
+        volatility, circulating_supply, max_supply, categories, primary_chain, is_active
+      `)
+      .eq('is_active', true)
+      .not('market_cap_rank', 'is', null)
+      .order('market_cap_rank', { ascending: true })
+      .limit(3000);
 
-    const { data: cachedData } = await supabase
-      .from('cache_kv')
-      .select('v')
-      .eq('k', cacheKey)
-      .maybeSingle();
-
-    const now = Date.now();
-    if (cachedData?.v?.data && cachedData?.v?.cached_at) {
-      const cachedAt = new Date(cachedData.v.cached_at).getTime();
-      const age = (now - cachedAt) / 1000;
-      
-      if (age < cacheTTL) {
-        console.log(`✅ Using cached LunarCrush data (${Math.round(age)}s old)`);
-        allCoins = cachedData.v.data;
-        cacheHit = true;
-      } else {
-        console.log(`⏰ Cache expired (${Math.round(age)}s old, TTL: ${cacheTTL}s)`);
-      }
+    if (dbError) {
+      console.error('❌ Database error:', dbError.message);
+      throw new Error(`Database error: ${dbError.message}`);
     }
 
-    // If no cache, fetch from API
-    if (!cacheHit) {
-      const expiredCoins = cachedData?.v?.data || [];
+    // Transform token_cards to CoinData format
+    const allCoins: CoinData[] = (tokenCards || []).map((card: any) => ({
+      id: card.id,
+      name: card.name || card.canonical_symbol,
+      symbol: card.canonical_symbol,
+      price: card.price_usd || 0,
+      price_btc: 0, // Not available from token_cards
+      market_cap: card.market_cap || 0,
+      percent_change_1h: card.change_1h_pct || 0,
+      percent_change_24h: card.change_24h_pct || 0,
+      percent_change_7d: card.change_7d_pct || 0,
+      percent_change_30d: card.change_30d_pct || 0,
+      volume_24h: card.volume_24h_usd || 0,
+      max_supply: card.max_supply,
+      circulating_supply: card.circulating_supply || 0,
+      close: card.price_usd || 0,
+      galaxy_score: card.galaxy_score || 0,
+      alt_rank: card.alt_rank || 0,
+      volatility: card.volatility || 0,
+      market_cap_rank: card.market_cap_rank || 9999,
+      logo_url: card.logo_url,
+      categories: Array.isArray(card.categories) ? card.categories : [],
+      social_volume: card.social_volume_24h || 0,
+      social_dominance: card.social_dominance || 0,
+      interactions_24h: card.interactions_24h || 0,
+      sentiment: card.sentiment || 50,
+      blockchains: card.primary_chain ? [card.primary_chain] : [],
+    }));
 
-      console.log('🔄 Fetching fresh LunarCrush universe data...');
-      
-      try {
-        const response = await fetch('https://lunarcrush.com/api4/public/coins/list/v1', {
-          headers: {
-            'Authorization': `Bearer ${lunarCrushApiKey}`,
-          },
-        });
-
-        if (!response.ok) {
-          // Always try to use expired cache on any API error
-          if (expiredCoins.length > 0) {
-            console.log(`⚠️ API error ${response.status}! Using expired cache as fallback (${expiredCoins.length} coins)`);
-            allCoins = expiredCoins;
-          } else {
-            throw new Error(`LunarCrush API error: ${response.status} ${response.statusText}`);
-          }
-        } else {
-        const apiData = await response.json();
-        const rawCoins = apiData.data || [];
-        
-        // Map API fields to our interface
-        allCoins = rawCoins
-          .filter((coin: any) => coin.market_cap_rank && coin.market_cap_rank <= MAX_COINS)
-          .map((coin: any) => {
-            const social_volume = coin.interactions_24h || coin.social_volume_24h || coin.social_volume || 0;
-            const categories = coin.categories ? 
-              (Array.isArray(coin.categories) ? coin.categories : [coin.categories]) : 
-              [];
-            const blockchains = coin.blockchains ?
-              (Array.isArray(coin.blockchains) ? coin.blockchains : [coin.blockchains]) :
-              [];
-            
-            return {
-              ...coin,
-              logo_url: coin.logo || coin.logo_url || null,
-              percent_change_1h: coin.percent_change_1h || coin.change_1h || 0,
-              percent_change_7d: coin.percent_change_7d || coin.change_7d || 0,
-              social_volume,
-              social_dominance: coin.social_dominance || 0,
-              interactions_24h: coin.interactions_24h || 0,
-              sentiment: coin.sentiment || 50,
-              categories,
-              blockchains,
-            };
-          });
-
-        console.log(`📊 Filtered to ${allCoins.length} coins (top ${MAX_COINS} by market cap)`);
-
-        // Cache the full dataset
-        const expiresAt = new Date(Date.now() + cacheTTL * 1000).toISOString();
-        await supabase
-          .from('cache_kv')
-          .upsert({
-            k: cacheKey,
-            v: { data: allCoins, cached_at: new Date().toISOString() },
-            expires_at: expiresAt,
-          });
-
-        console.log(`✅ Fetched and cached ${allCoins.length} coins from LunarCrush`);
-        }
-      } catch (fetchError) {
-        // Network error - try to use expired cache
-        if (expiredCoins.length > 0) {
-          console.log(`⚠️ Fetch failed: ${fetchError.message}. Using expired cache (${expiredCoins.length} coins)`);
-          allCoins = expiredCoins;
-        } else {
-          throw fetchError;
-        }
-      }
-    }
+    console.log(`📊 Loaded ${allCoins.length} tokens from token_cards`);
 
     // Apply server-side filtering
     let filteredCoins = allCoins;
@@ -260,7 +195,7 @@ Deno.serve(async (req) => {
     // Apply pagination
     const paginatedCoins = filteredCoins.slice(offset, offset + limit);
 
-    // Calculate metadata including average sentiment
+    // Calculate metadata
     const avgSentiment = allCoins.reduce((sum, c) => sum + (c.sentiment || 50), 0) / (allCoins.length || 1);
 
     const metadata = {
@@ -274,6 +209,7 @@ Deno.serve(async (req) => {
       page_size: limit,
       offset: offset,
       has_more: offset + limit < totalFiltered,
+      source: 'token_cards', // Indicate data comes from DB, not API
     };
 
     const result = {
@@ -282,7 +218,7 @@ Deno.serve(async (req) => {
       metadata,
     };
 
-    console.log(`📊 Returning ${paginatedCoins.length}/${totalFiltered} coins (offset: ${offset}, limit: ${limit})`);
+    console.log(`📊 Returning ${paginatedCoins.length}/${totalFiltered} coins from token_cards (offset: ${offset})`);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
