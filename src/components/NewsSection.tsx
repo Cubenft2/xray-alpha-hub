@@ -207,10 +207,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   useEffect(() => {
     console.log('🐕 XRay: NewsSection component mounted, fetching news...');
     fetchNews();
-
-    // Auto-refresh every 5 minutes
-    const interval = setInterval(fetchNews, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    // No auto-refresh - news is now updated via cron every 30 min
   }, []);
 
   const formatTime = (dateString: string) => {

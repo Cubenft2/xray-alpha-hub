@@ -137,12 +137,18 @@ verify_jwt = false
 [functions.derivs]
 verify_jwt = false
 
+# LunarCrush functions - now read from token_cards DB (no API calls)
 [functions.lunarcrush-social]
 verify_jwt = false
 
+# LunarCrush news - runs every 30 min via cron
 [functions.lunarcrush-news]
 verify_jwt = false
 
+[[functions.lunarcrush-news.cron]]
+schedule = "*/30 * * * *"
+
+# LunarCrush universe - reads from token_cards (no API calls)
 [functions.lunarcrush-universe]
 verify_jwt = false
 
@@ -245,19 +251,33 @@ verify_jwt = false
 schedule = "1-58/3 * * * *"
 
 # ============================================
-# TOKEN CARDS SYNC FUNCTIONS
+# TOKEN CARDS SYNC FUNCTIONS - TIERED LUNARCRUSH
 # ============================================
 
 # Bootstrap token_cards from crypto_snapshot (run once manually)
 [functions.bootstrap-token-cards]
 verify_jwt = false
 
-# Sync token_cards from LunarCrush with smart matching (every 4 min, offset by 2 to avoid minute-0 collision)
+# TIER 1: Top 1000 tokens - every 10 min (144 calls/day)
+[functions.sync-token-cards-lunarcrush-tier1]
+verify_jwt = false
+
+[[functions.sync-token-cards-lunarcrush-tier1.cron]]
+schedule = "*/10 * * * *"
+
+# TIER 2: Tokens 1001-2000 - every 30 min (48 calls/day)
+[functions.sync-token-cards-lunarcrush-tier2]
+verify_jwt = false
+
+[[functions.sync-token-cards-lunarcrush-tier2.cron]]
+schedule = "5,35 * * * *"
+
+# FULL SYNC: All 3000 tokens - every 2 hours (36 calls/day = 12 runs × 3 pages)
 [functions.sync-token-cards-lunarcrush]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush.cron]]
-schedule = "2-58/4 * * * *"
+schedule = "0 */2 * * *"
 
 # Sync token_cards prices from Polygon.io (every minute - no stagger needed)
 [functions.sync-token-cards-polygon]
