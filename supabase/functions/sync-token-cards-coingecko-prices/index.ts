@@ -1,35 +1,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { 
+  parseCoingeckoMarkets, 
+  type CoinGeckoMarketData 
+} from "../_shared/validation-schemas.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-interface CoinGeckoMarketData {
-  id: string;
-  symbol: string;
-  name: string;
-  current_price: number;
-  market_cap: number;
-  market_cap_rank: number;
-  fully_diluted_valuation: number | null;
-  total_volume: number;
-  high_24h: number;
-  low_24h: number;
-  price_change_percentage_24h: number;
-  price_change_percentage_1h_in_currency: number | null;
-  price_change_percentage_7d_in_currency: number | null;
-  price_change_percentage_30d_in_currency: number | null;
-  circulating_supply: number;
-  total_supply: number | null;
-  max_supply: number | null;
-  ath: number;
-  ath_date: string;
-  atl: number;
-  atl_date: string;
-  last_updated: string;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -174,8 +153,9 @@ serve(async (req) => {
           continue;
         }
 
-        const marketData: CoinGeckoMarketData[] = await response.json();
-        console.log(`[sync-token-cards-coingecko-prices] Received ${marketData.length} coins from CoinGecko`);
+        const rawData = await response.json();
+        const marketData = parseCoingeckoMarkets(rawData, 'sync-token-cards-coingecko-prices');
+        console.log(`[sync-token-cards-coingecko-prices] Validated ${marketData.length} coins from CoinGecko (raw: ${Array.isArray(rawData) ? rawData.length : 0})`);
 
         // Update each token_card with CoinGecko data
         const updates: any[] = [];

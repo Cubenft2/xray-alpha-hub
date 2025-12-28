@@ -1,5 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { 
+  transformLunarCrushCoin, 
+  type LunarCrushAsset 
+} from "../_shared/validation-schemas.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,18 +15,6 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const lunarcrushMcpKey = Deno.env.get('LUNARCRUSH_MCP_KEY') ?? Deno.env.get('LUNARCRUSH_API_KEY');
 if (!lunarcrushMcpKey) {
   console.warn('⚠️ Missing LUNARCRUSH_MCP_KEY and LUNARCRUSH_API_KEY in environment');
-}
-
-
-interface LunarCrushAsset {
-  name: string;
-  symbol: string;
-  galaxy_score: number;
-  alt_rank: number;
-  social_volume: number;
-  social_dominance: number;
-  sentiment: number;
-  fomo_score: number;
 }
 
 serve(async (req) => {
@@ -121,19 +113,13 @@ serve(async (req) => {
         );
       }
 
-      
-      const assets: LunarCrushAsset[] = (lunarcrushJson.data || []).map((coin: any) => ({
-        name: coin.name,
-        symbol: coin.symbol,
-        galaxy_score: coin.galaxy_score || 0,
-        alt_rank: coin.alt_rank || 0,
-        social_volume: coin.interactions_24h ?? coin.social_volume ?? 0,
-        social_dominance: coin.social_dominance || 0,
-        sentiment: coin.sentiment || 0,
-        fomo_score: coin.fomo_score || 0
-      }));
+      // Use shared validation/transform function
+      const rawCoins = lunarcrushJson.data || [];
+      const assets: LunarCrushAsset[] = rawCoins
+        .filter((coin: unknown) => coin && typeof coin === 'object')
+        .map((coin: Record<string, unknown>) => transformLunarCrushCoin(coin));
 
-      console.log(`✅ Fetched ${assets.length} assets from LunarCrush`);
+      console.log(`✅ Validated ${assets.length} assets from LunarCrush (raw: ${rawCoins.length})`);
 
       // Cache for 30 minutes
       const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
