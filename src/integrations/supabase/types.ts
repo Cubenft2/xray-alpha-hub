@@ -1058,6 +1058,36 @@ export type Database = {
           },
         ]
       }
+      lunarcrush_ai_usage: {
+        Row: {
+          calls_made: number
+          created_at: string | null
+          date: string
+          id: string
+          source: string
+          tokens_used: number
+          updated_at: string | null
+        }
+        Insert: {
+          calls_made?: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          source?: string
+          tokens_used?: number
+          updated_at?: string | null
+        }
+        Update: {
+          calls_made?: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          source?: string
+          tokens_used?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       lunarcrush_assets: {
         Row: {
           alt_rank: number | null
@@ -2312,6 +2342,8 @@ export type Database = {
           adx_signal: string | null
           ai_summary: string | null
           ai_summary_short: string | null
+          ai_summary_updated_at: string | null
+          ai_token_cost: number | null
           ai_updated_at: string | null
           alt_rank: number | null
           alt_rank_change: number | null
@@ -2589,6 +2621,8 @@ export type Database = {
           adx_signal?: string | null
           ai_summary?: string | null
           ai_summary_short?: string | null
+          ai_summary_updated_at?: string | null
+          ai_token_cost?: number | null
           ai_updated_at?: string | null
           alt_rank?: number | null
           alt_rank_change?: number | null
@@ -2866,6 +2900,8 @@ export type Database = {
           adx_signal?: string | null
           ai_summary?: string | null
           ai_summary_short?: string | null
+          ai_summary_updated_at?: string | null
+          ai_token_cost?: number | null
           ai_updated_at?: string | null
           alt_rank?: number | null
           alt_rank_change?: number | null
