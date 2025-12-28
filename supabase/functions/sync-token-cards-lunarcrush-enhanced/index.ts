@@ -62,11 +62,13 @@ serve(async (req) => {
     
     let currentOffset = cacheData?.v?.offset || 0;
     
-    // Fetch Tier 1-2 tokens (top 500 by market cap rank)
+    // Fetch Tier 1 tokens only (top ~50 by market cap rank)
+    // Budget: 2 tokens/run × 4 endpoints = 8 API calls/run
+    // At 48 runs/day = 384 LunarCrush API calls/day
     const { data: tokens, error: fetchError } = await supabase
       .from('token_cards')
       .select('canonical_symbol, tier, market_cap_rank')
-      .in('tier', [1, 2])
+      .eq('tier', 1)
       .not('canonical_symbol', 'is', null)
       .order('market_cap_rank', { ascending: true, nullsFirst: false })
       .range(currentOffset, currentOffset + TOKENS_PER_RUN - 1);
