@@ -1,26 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { 
+  LunarCrushNewsPostSchema,
+  safeParseArray,
+  type LunarCrushNewsPost 
+} from "../_shared/validation-schemas.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-interface LunarCrushNewsPost {
-  id: string;
-  post_type: string;
-  post_title: string;
-  post_link: string;
-  post_image?: string;
-  post_created: number;
-  post_sentiment: number;
-  creator_id: string;
-  creator_name: string;
-  creator_display_name?: string;
-  creator_followers: number;
-  creator_avatar?: string;
-  interactions_24h: number;
-  interactions_total: number;
-}
 
 interface NewsItem {
   title: string;
@@ -73,9 +61,12 @@ async function fetchTopicNews(topic: string, apiKey: string): Promise<NewsItem[]
     }
 
     const result = await response.json();
-    const posts: LunarCrushNewsPost[] = result.data || [];
+    const rawPosts = result.data || [];
     
-    console.log(`✅ Got ${posts.length} news items for ${topic}`);
+    // Validate with Zod - skip invalid posts
+    const posts = safeParseArray(LunarCrushNewsPostSchema, rawPosts, `lunarcrush-news/${topic}`);
+    
+    console.log(`✅ Validated ${posts.length}/${rawPosts.length} news items for ${topic}`);
 
     return posts.map((post): NewsItem => ({
       title: post.post_title,

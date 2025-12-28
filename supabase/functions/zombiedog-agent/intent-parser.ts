@@ -1,31 +1,10 @@
 // LLM-based Intent Parser for ZombieDog
-// Uses Zod for strict validation of AI responses
+// Uses shared Zod schemas for strict validation
 
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { ParsedIntentSchema, type ParsedIntent } from "../_shared/validation-schemas.ts";
 
-// ============= Zod Schema for ParsedIntent =============
-export const ParsedIntentSchema = z.object({
-  intent: z.enum([
-    'market_overview', 'sector_analysis', 'token_lookup', 
-    'stock_lookup', 'comparison', 'trending', 'news', 'general_chat'
-  ]),
-  sector: z.enum([
-    'ai', 'defi', 'meme', 'gaming', 'l1', 'l2', 
-    'nft', 'privacy', 'storage', 'rwa', 'btc_eco'
-  ]).nullable().default(null),
-  stockSector: z.enum([
-    'tech', 'healthcare', 'finance', 'energy', 'retail', 
-    'auto', 'aerospace', 'utilities', 'communications'
-  ]).nullable().default(null),
-  tickers: z.array(z.string()).default([]),
-  assetType: z.enum(['crypto', 'stock', 'mixed']).default('crypto'),
-  timeframe: z.enum(['now', 'today', '24h', 'week', 'month']).default('24h'),
-  action: z.enum(['gainers', 'losers', 'movers', 'volume']).nullable().default(null),
-  summary: z.string().default('Parsed successfully'),
-});
-
-// Derive TypeScript type from schema (single source of truth)
-export type ParsedIntent = z.infer<typeof ParsedIntentSchema>;
+// Re-export for backwards compatibility
+export { ParsedIntentSchema, type ParsedIntent };
 
 const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto AND stock market assistant. Analyze the user's question and return JSON only.
 
