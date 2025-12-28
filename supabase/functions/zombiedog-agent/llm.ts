@@ -6,7 +6,7 @@ import { ResolvedAsset } from "./resolver.ts";
 import { ToolResults, MarketSummary } from "./orchestrator.ts";
 import { RouteConfig, Intent } from "./router.ts";
 import { ParsedIntent } from "./intent-parser.ts";
-import { FetchedData, SECTOR_TOKENS, RichToken } from "./data-fetcher.ts";
+import { FetchedData, SECTOR_TOKENS, RichToken, RichStock } from "./data-fetcher.ts";
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -594,6 +594,34 @@ export function buildIntentBasedPrompt(
       base.push(`If asking what you can do, list: price checks, market overviews, token analysis, safety scans, news/sentiment, comparisons.`);
       base.push(`Keep it to 2-3 sentences. Skip the "Not financial advice" footer for greetings.`);
       break;
+      
+    case 'stock_lookup':
+      base.push(`## STOCK LOOKUP TASK:`);
+      base.push(`Give a COMPREHENSIVE analysis of these stocks.`);
+      base.push(``);
+      base.push(`**For each stock include:**`);
+      base.push(`1. **Header**: Company Name (SYMBOL) - Exchange`);
+      base.push(`2. **Price**: Current price, daily change %, 52-week range`);
+      base.push(`3. **Fundamentals**: P/E ratio, EPS, Dividend Yield, Market Cap`);
+      base.push(`4. **Technicals**: RSI (overbought/oversold/neutral), MACD, SMA positioning`);
+      base.push(`5. **Company**: Sector, Industry, employees`);
+      base.push(`6. **Your Take**: 1-2 sentence analysis`);
+      break;
+      
+    case 'stock_sector':
+      base.push(`## STOCK SECTOR ANALYSIS TASK:`);
+      base.push(`Analyze the ${intent.stockSector?.toUpperCase() || 'sector'} sector.`);
+      base.push(``);
+      base.push(`**Response Structure:**`);
+      base.push(`1. **Sector Header** - Name, overall tone (bullish/neutral/bearish)`);
+      base.push(`2. **Top 5 Stocks** - For each: Price, daily %, Technicals, Fundamentals`);
+      base.push(`3. **Sector Insights** - Any patterns or notable movers?`);
+      if (intent.action === 'gainers') {
+        base.push(`Focus on the TOP GAINERS in this sector.`);
+      } else if (intent.action === 'losers') {
+        base.push(`Focus on the BIGGEST LOSERS in this sector.`);
+      }
+      break;
   }
   
   // Add the RICH token data with all available fields
@@ -637,6 +665,74 @@ export function buildIntentBasedPrompt(
     base.push('```');
   }
   
+  // Add STOCK data (for stock queries)
+  if (data.stocks && data.stocks.length > 0) {
+    base.push(``);
+    base.push(`## Stock Data (RICH - use ALL of this):`);
+    base.push('```json');
+    base.push(JSON.stringify(data.stocks.slice(0, 15).map((s: RichStock) => ({
+      symbol: s.symbol,
+      name: s.name,
+      sector: s.sector,
+      industry: s.industry,
+      exchange: s.exchange,
+      // Price data
+      price_usd: s.price_usd,
+      change_pct: s.change_pct,
+      volume: s.volume,
+      market_cap: s.market_cap,
+      high_52w: s.high_52w,
+      low_52w: s.low_52w,
+      // Technicals
+      rsi_14: s.rsi_14,
+      macd_line: s.macd_line,
+      macd_signal: s.macd_signal,
+      sma_20: s.sma_20,
+      sma_50: s.sma_50,
+      sma_200: s.sma_200,
+      technical_signal: s.technical_signal,
+      // Fundamentals
+      pe_ratio: s.pe_ratio,
+      eps: s.eps,
+      dividend_yield: s.dividend_yield,
+      // Company info
+      employees: s.employees,
+      description: s.description?.slice(0, 200),
+    })), null, 2));
+    base.push('```');
+  }
+  
+  // Add stock gainers/losers if available
+  if (data.stockGainers && data.stockGainers.length > 0) {
+    base.push(``);
+    base.push(`## Top Stock Gainers:`);
+    base.push('```json');
+    base.push(JSON.stringify(data.stockGainers.slice(0, 5).map((s: RichStock) => ({
+      symbol: s.symbol,
+      name: s.name,
+      price_usd: s.price_usd,
+      change_pct: s.change_pct,
+      sector: s.sector,
+      pe_ratio: s.pe_ratio,
+    })), null, 2));
+    base.push('```');
+  }
+  
+  if (data.stockLosers && data.stockLosers.length > 0) {
+    base.push(``);
+    base.push(`## Top Stock Losers:`);
+    base.push('```json');
+    base.push(JSON.stringify(data.stockLosers.slice(0, 5).map((s: RichStock) => ({
+      symbol: s.symbol,
+      name: s.name,
+      price_usd: s.price_usd,
+      change_pct: s.change_pct,
+      sector: s.sector,
+      pe_ratio: s.pe_ratio,
+    })), null, 2));
+    base.push('```');
+  }
+  
   // Add gainers/losers if available (for market overview)
   if (data.gainers && data.gainers.length > 0) {
     base.push(``);
@@ -670,9 +766,12 @@ export function buildIntentBasedPrompt(
     base.push('```');
   }
   
-  if (data.tokens.length === 0 && intent.intent !== 'general_chat') {
+  const hasTokens = data.tokens.length > 0;
+  const hasStocks = data.stocks && data.stocks.length > 0;
+  
+  if (!hasTokens && !hasStocks && intent.intent !== 'general_chat') {
     base.push(``);
-    base.push(`## Data Status: No token data available for this query.`);
+    base.push(`## Data Status: No data available for this query.`);
     base.push(`Acknowledge this and offer to help with something else.`);
   }
   
