@@ -75,11 +75,42 @@ export interface RichToken {
   ath_change_pct: number | null;
 }
 
+// Rich stock data interface matching stock_cards schema
+export interface RichStock {
+  symbol: string;
+  name: string | null;
+  price_usd: number | null;
+  change_pct: number | null;
+  market_cap: number | null;
+  volume: number | null;
+  sector: string | null;
+  industry: string | null;
+  pe_ratio: number | null;
+  dividend_yield: number | null;
+  eps: number | null;
+  rsi_14: number | null;
+  macd_line: number | null;
+  macd_signal: number | null;
+  sma_20: number | null;
+  sma_50: number | null;
+  sma_200: number | null;
+  technical_signal: string | null;
+  high_52w: number | null;
+  low_52w: number | null;
+  employees: number | null;
+  website: string | null;
+  description: string | null;
+  exchange: string | null;
+}
+
 export interface FetchedData {
   type: string;
   tokens: RichToken[];
+  stocks?: RichStock[];
   gainers?: RichToken[];
   losers?: RichToken[];
+  stockGainers?: RichStock[];
+  stockLosers?: RichStock[];
   marketSummary?: {
     total: number;
     greenCount: number;
@@ -138,10 +169,69 @@ const RICH_TOKEN_SELECT = `
   ath_change_pct
 `;
 
+// Stock select for rich stock data
+const RICH_STOCK_SELECT = `
+  symbol,
+  name,
+  price_usd,
+  change_pct,
+  market_cap,
+  volume,
+  sector,
+  industry,
+  pe_ratio,
+  dividend_yield,
+  eps,
+  rsi_14,
+  macd_line,
+  macd_signal,
+  sma_20,
+  sma_50,
+  sma_200,
+  technical_signal,
+  high_52w,
+  low_52w,
+  employees,
+  website,
+  description,
+  exchange
+`;
+
+// Stock sector mapping
+const STOCK_SECTOR_KEYWORDS: Record<string, string[]> = {
+  tech: ['SOFTWARE', 'COMPUTER', 'ELECTRONIC', 'SEMICONDUCTOR', 'PROGRAMMING', 'DATA PROCESSING'],
+  healthcare: ['PHARMACEUTICAL', 'BIOLOGICAL', 'MEDICAL', 'HEALTH', 'DRUG', 'HOSPITAL', 'SURGICAL'],
+  finance: ['BANK', 'INSURANCE', 'FINANCE', 'INVESTMENT', 'SECURITY', 'LOAN', 'CREDIT'],
+  energy: ['OIL', 'GAS', 'PETROLEUM', 'MINING', 'COAL', 'CRUDE'],
+  retail: ['RETAIL', 'STORE', 'CATALOG', 'DEPARTMENT', 'VARIETY'],
+  auto: ['MOTOR', 'AUTO', 'VEHICLE', 'CAR'],
+  aerospace: ['AEROSPACE', 'AIRCRAFT', 'MISSILE', 'GUIDED'],
+  utilities: ['ELECTRIC', 'UTILITY', 'WATER', 'SANITARY'],
+  communications: ['TELEPHONE', 'COMMUNICATION', 'RADIO', 'TELEVISION', 'BROADCASTING'],
+};
+
+// Top stocks by sector for sector queries
+const TOP_STOCKS_BY_SECTOR: Record<string, string[]> = {
+  tech: ['NVDA', 'AAPL', 'MSFT', 'GOOG', 'META', 'AMD', 'INTC', 'CRM', 'ORCL', 'ADBE'],
+  healthcare: ['LLY', 'UNH', 'JNJ', 'PFE', 'ABBV', 'MRK', 'TMO', 'ABT', 'DHR', 'BMY'],
+  finance: ['JPM', 'BAC', 'GS', 'MS', 'WFC', 'C', 'BLK', 'SCHW', 'V', 'MA'],
+  energy: ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'MPC', 'PSX', 'VLO', 'OXY', 'HAL'],
+  retail: ['AMZN', 'WMT', 'COST', 'TGT', 'HD', 'LOW', 'TJX', 'ROST', 'DG', 'DLTR'],
+  auto: ['TSLA', 'F', 'GM', 'RIVN', 'TM', 'HMC', 'STLA', 'NIO', 'LCID', 'XPEV'],
+  aerospace: ['BA', 'LMT', 'RTX', 'NOC', 'GD', 'GE', 'HWM', 'TDG', 'HII', 'LHX'],
+  utilities: ['NEE', 'DUK', 'SO', 'D', 'AEP', 'EXC', 'SRE', 'XEL', 'PEG', 'ED'],
+  communications: ['VZ', 'T', 'CMCSA', 'DIS', 'NFLX', 'TMUS', 'CHTR', 'WBD', 'PARA', 'FOX'],
+};
+
 export async function fetchDataForIntent(supabase: any, intent: ParsedIntent): Promise<FetchedData> {
-  console.log(`[data-fetcher] Fetching RICH data for intent: ${intent.intent}, sector: ${intent.sector}, tickers: [${intent.tickers.join(',')}]`);
+  console.log(`[data-fetcher] Fetching data for intent: ${intent.intent}, assetType: ${intent.assetType}, sector: ${intent.sector}, stockSector: ${intent.stockSector}, tickers: [${intent.tickers.join(',')}]`);
   
   try {
+    // Route based on asset type and intent
+    if (intent.assetType === 'stock' || intent.intent === 'stock_lookup') {
+      return await fetchStockData(supabase, intent);
+    }
+    
     switch (intent.intent) {
       case 'market_overview':
         return await fetchMarketOverview(supabase);
@@ -153,6 +243,10 @@ export async function fetchDataForIntent(supabase: any, intent: ParsedIntent): P
         return await fetchTokens(supabase, intent.tickers);
         
       case 'comparison':
+        // Check if comparing stocks or crypto
+        if (intent.assetType === 'stock') {
+          return await fetchStockData(supabase, intent);
+        }
         return await fetchTokens(supabase, intent.tickers);
         
       case 'trending':
@@ -385,5 +479,140 @@ async function fetchNewsData(supabase: any, tickers: string[]): Promise<FetchedD
   return {
     type: 'news',
     tokens: data || [],
+  };
+}
+
+// ============= STOCK FETCHING FUNCTIONS =============
+
+async function fetchStockData(supabase: any, intent: ParsedIntent): Promise<FetchedData> {
+  console.log(`[data-fetcher] Fetching stock data - stockSector: ${intent.stockSector}, tickers: [${intent.tickers.join(',')}]`);
+  
+  // If specific tickers requested, fetch those
+  if (intent.tickers.length > 0) {
+    return await fetchStocksBySymbols(supabase, intent.tickers);
+  }
+  
+  // If stock sector requested, fetch top stocks in that sector
+  if (intent.stockSector) {
+    return await fetchStocksBySector(supabase, intent.stockSector, intent.action);
+  }
+  
+  // Default: fetch top stocks by market cap
+  return await fetchTopStocks(supabase, intent.action);
+}
+
+async function fetchStocksBySymbols(supabase: any, symbols: string[]): Promise<FetchedData> {
+  const { data, error } = await supabase
+    .from('stock_cards')
+    .select(RICH_STOCK_SELECT)
+    .in('symbol', symbols)
+    .eq('is_active', true);
+
+  if (error) {
+    console.error(`[data-fetcher] Stock lookup error: ${error.message}`);
+    return { type: 'stock_lookup', tokens: [], stocks: [], error: error.message };
+  }
+
+  const stocks = data || [];
+  console.log(`[data-fetcher] Found ${stocks.length} stocks for symbols: [${symbols.join(',')}]`);
+
+  return {
+    type: 'stock_lookup',
+    tokens: [],
+    stocks,
+  };
+}
+
+async function fetchStocksBySector(supabase: any, stockSector: string, action: string | null): Promise<FetchedData> {
+  // Get top stocks for this sector
+  const sectorStocks = TOP_STOCKS_BY_SECTOR[stockSector] || TOP_STOCKS_BY_SECTOR.tech;
+  
+  let query = supabase
+    .from('stock_cards')
+    .select(RICH_STOCK_SELECT)
+    .in('symbol', sectorStocks)
+    .eq('is_active', true)
+    .not('price_usd', 'is', null);
+
+  // Sort based on action
+  if (action === 'gainers') {
+    query = query.order('change_pct', { ascending: false });
+  } else if (action === 'losers') {
+    query = query.order('change_pct', { ascending: true });
+  } else if (action === 'volume') {
+    query = query.order('volume', { ascending: false });
+  } else {
+    query = query.order('market_cap', { ascending: false, nullsFirst: false });
+  }
+
+  const { data, error } = await query.limit(10);
+
+  if (error) {
+    console.error(`[data-fetcher] Stock sector query error: ${error.message}`);
+    return { type: 'stock_lookup', tokens: [], stocks: [], error: error.message };
+  }
+
+  const stocks = data || [];
+  const greenCount = stocks.filter((s: any) => (s.change_pct || 0) > 0).length;
+  const redCount = stocks.filter((s: any) => (s.change_pct || 0) < 0).length;
+  const sorted = [...stocks].sort((a: any, b: any) => (b.change_pct || 0) - (a.change_pct || 0));
+
+  console.log(`[data-fetcher] Found ${stocks.length} stocks for sector: ${stockSector}`);
+
+  return {
+    type: 'stock_lookup',
+    tokens: [],
+    stocks,
+    marketSummary: {
+      total: stocks.length,
+      greenCount,
+      redCount,
+      breadthPct: stocks.length > 0 ? Math.round((greenCount / stocks.length) * 100) : 0,
+      leaders: sorted.slice(0, 3).map((s: any) => ({ 
+        symbol: s.symbol, 
+        change: s.change_pct || 0,
+        galaxy: null
+      })),
+      laggards: sorted.slice(-3).reverse().map((s: any) => ({ 
+        symbol: s.symbol, 
+        change: s.change_pct || 0,
+        galaxy: null
+      })),
+    }
+  };
+}
+
+async function fetchTopStocks(supabase: any, action: string | null): Promise<FetchedData> {
+  let query = supabase
+    .from('stock_cards')
+    .select(RICH_STOCK_SELECT)
+    .eq('is_active', true)
+    .not('price_usd', 'is', null)
+    .gt('market_cap', 1000000000); // $1B+ market cap
+
+  if (action === 'gainers') {
+    query = query.not('change_pct', 'is', null).order('change_pct', { ascending: false });
+  } else if (action === 'losers') {
+    query = query.not('change_pct', 'is', null).order('change_pct', { ascending: true });
+  } else if (action === 'volume') {
+    query = query.order('volume', { ascending: false });
+  } else {
+    query = query.order('market_cap', { ascending: false, nullsFirst: false });
+  }
+
+  const { data, error } = await query.limit(10);
+
+  if (error) {
+    console.error(`[data-fetcher] Top stocks query error: ${error.message}`);
+    return { type: 'stock_lookup', tokens: [], stocks: [], error: error.message };
+  }
+
+  const stocks = data || [];
+  console.log(`[data-fetcher] Found ${stocks.length} top stocks`);
+
+  return {
+    type: 'stock_lookup',
+    tokens: [],
+    stocks,
   };
 }
