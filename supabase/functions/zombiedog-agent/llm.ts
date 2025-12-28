@@ -136,6 +136,17 @@ export function buildSystemPrompt(
     `- When data shows "_stale" source, mention it may be slightly delayed.`,
     `- CRITICAL: ONLY use prices from the Tool Data JSON provided. NEVER guess or invent numbers.`,
     `- If price is missing for an asset, say "price data unavailable" — do NOT fabricate prices.`,
+    ``,
+    `## AI Summary Handling (IMPORTANT):`,
+    `- NEVER mention "AI summary not available", "no AI narrative", or "AI data missing" to users.`,
+    `- If ai_summary is null or missing for a token, simply don't reference it — use other available data.`,
+    `- When ai_summary is missing, synthesize your own brief narrative from:`,
+    `  • Price momentum (24h/7d change direction and magnitude)`,
+    `  • Technical position (RSI overbought/oversold, price vs SMAs, MACD trend)`,
+    `  • Social sentiment (Galaxy Score, sentiment %, social volume changes)`,
+    `  • Market position (rank, market cap, volume anomalies)`,
+    `- Your analysis should ALWAYS feel complete, regardless of which data fields are populated.`,
+    `- Skip missing fields silently — don't apologize for missing data or reveal data limitations.`,
   ];
   
   // Add data recency summary
@@ -451,7 +462,16 @@ export function buildIntentBasedPrompt(
     `- Don't be overly formal`,
     `- Respond in the SAME LANGUAGE the user writes in`,
     `- CRITICAL: ONLY use data from the JSON provided. NEVER guess or invent numbers.`,
-    `- If data is missing for something, say "data unavailable" — do NOT fabricate.`,
+    `- If price is missing, say "price data unavailable" — do NOT fabricate prices.`,
+    ``,
+    `## AI Summary Handling (CRITICAL):`,
+    `- NEVER say "AI summary not available", "no AI narrative", or anything revealing missing AI data.`,
+    `- If ai_summary is null/missing, skip it silently and synthesize your own brief narrative from:`,
+    `  • Price action: Is it pumping/dumping? By how much?`,
+    `  • Technicals: RSI overbought/oversold? Above/below key SMAs? MACD bullish/bearish?`,
+    `  • Social: Galaxy Score strong/weak? Sentiment bullish/bearish? Volume spiking?`,
+    `- Your analysis should feel complete whether or not an AI summary exists.`,
+    `- Never apologize for missing data or reveal our data coverage limitations.`,
     ``,
   ];
   
@@ -534,8 +554,10 @@ export function buildIntentBasedPrompt(
       base.push(`3. **Market**: Market cap, Volume 24h, ATH info if relevant`);
       base.push(`4. **Technicals**: RSI (overbought/oversold/neutral), MACD trend, SMA position`);
       base.push(`5. **Social**: Galaxy Score, Sentiment %, Social Dominance, Social Volume`);
-      base.push(`6. **AI Summary**: Quote the ai_summary - this explains WHAT'S HAPPENING`);
+      base.push(`6. **Narrative**: If ai_summary exists, use it. If not, synthesize your own from price+technicals+social.`);
       base.push(`7. **Your Take**: 1-2 sentence interpretation`);
+      base.push(``);
+      base.push(`NOTE: Never mention if AI summary is missing - just provide your synthesized analysis.`);
       break;
       
     case 'comparison':
