@@ -2,81 +2,105 @@
 // Replaces regex-based routing with OpenAI understanding
 
 export interface ParsedIntent {
-  intent: 'market_overview' | 'sector_analysis' | 'token_lookup' | 'comparison' | 'trending' | 'news' | 'general_chat';
+  intent: 'market_overview' | 'sector_analysis' | 'token_lookup' | 'stock_lookup' | 'comparison' | 'trending' | 'news' | 'general_chat';
   sector: 'ai' | 'defi' | 'meme' | 'gaming' | 'l1' | 'l2' | 'nft' | 'privacy' | 'storage' | 'rwa' | 'btc_eco' | null;
+  stockSector: 'tech' | 'healthcare' | 'finance' | 'energy' | 'retail' | 'auto' | 'aerospace' | 'utilities' | 'communications' | null;
   tickers: string[];
+  assetType: 'crypto' | 'stock' | 'mixed';
   timeframe: 'now' | 'today' | '24h' | 'week' | 'month';
   action: 'gainers' | 'losers' | 'movers' | 'volume' | null;
   summary: string;
 }
 
-const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto market assistant. Analyze the user's question and return JSON only.
+const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto AND stock market assistant. Analyze the user's question and return JSON only.
 
 ## INTENTS (pick one):
-- "market_overview": General market questions. Examples: "how's the market", "what's crypto doing today", "market update", "what's happening in crypto"
-- "sector_analysis": Questions about a specific sector/category. Examples: "AI coins", "meme tokens pumping", "how's DeFi", "L1 comparison"
-- "token_lookup": Questions about specific token(s). Examples: "how's BTC", "tell me about Solana", "ETH price", "what's WLFI doing"
-- "comparison": Comparing multiple tokens. Examples: "BTC vs ETH", "compare SOL and AVAX", "which is better"
-- "trending": What's hot/moving/gaining/losing. Examples: "top gainers", "what's pumping", "biggest losers", "what should I watch"
-- "news": News/headlines requests. Examples: "any news", "latest on Bitcoin", "what happened with ETH"
-- "general_chat": Greetings, thanks, meta questions. Examples: "hi", "thanks", "who are you", "what can you do"
+- "market_overview": General market questions. Examples: "how's the market", "what's crypto doing today", "market update"
+- "sector_analysis": Questions about a specific crypto sector. Examples: "AI coins", "meme tokens pumping", "how's DeFi"
+- "token_lookup": Questions about specific crypto token(s). Examples: "how's BTC", "tell me about Solana", "ETH price"
+- "stock_lookup": Questions about specific stock(s). Examples: "how's NVDA", "tell me about Apple", "TSLA price", "what's Tesla doing"
+- "comparison": Comparing multiple assets. Examples: "BTC vs ETH", "compare NVDA and AMD"
+- "trending": What's hot/moving. Examples: "top gainers", "what's pumping", "biggest losers"
+- "news": News requests. Examples: "any news", "latest on Bitcoin"
+- "general_chat": Greetings, thanks, meta questions. Examples: "hi", "thanks", "who are you"
 
-## SECTORS (if mentioned, else null):
-- "ai": AI, artificial intelligence, machine learning, ML tokens (FET, TAO, RENDER, LINK, AGIX, OCEAN, AKT, NEAR, GRT, THETA)
-- "defi": DeFi, decentralized finance, yield, lending, DEX (AAVE, UNI, SUSHI, CRV, MKR, COMP)
-- "meme": Meme coins, dog coins, community tokens (DOGE, SHIB, PEPE, FLOKI, BONK, WIF)
-- "gaming": Gaming, metaverse, play-to-earn, GameFi (AXS, SAND, MANA, IMX, GALA, ENJ)
-- "l1": Layer 1, alt L1s, base chains (ETH, SOL, AVAX, ADA, DOT, NEAR, ATOM)
-- "l2": Layer 2, rollups, scaling (ARB, OP, MATIC, BASE, ZK)
-- "nft": NFT-related tokens
-- "privacy": Privacy coins, anonymous, untraceable, confidential (XMR, ZEC, DASH, SCRT, ZEN, XVG, Monero, Zcash)
-- "storage": Storage, decentralized storage, data, file sharing (FIL, AR, SC, STORJ, BTT)
-- "rwa": Real world assets, tokenization, RWA (ONDO, PENDLE, MKR)
-- "btc_eco": Bitcoin ecosystem, ordinals, BRC-20, runes (STX, RUNE, ORDI, SATS)
+## CRYPTO SECTORS (sector field, null if not crypto sector):
+- "ai": AI tokens (FET, TAO, RENDER, LINK, AGIX, OCEAN)
+- "defi": DeFi (AAVE, UNI, SUSHI, CRV, MKR)
+- "meme": Meme coins (DOGE, SHIB, PEPE, FLOKI, BONK, WIF)
+- "gaming": Gaming/metaverse (AXS, SAND, MANA, IMX, GALA)
+- "l1": Layer 1 chains (ETH, SOL, AVAX, ADA, DOT)
+- "l2": Layer 2 (ARB, OP, MATIC)
+- "nft": NFT tokens
+- "privacy": Privacy coins (XMR, ZEC, DASH)
+- "storage": Storage (FIL, AR, SC)
+- "rwa": Real world assets (ONDO, PENDLE)
+- "btc_eco": Bitcoin ecosystem (STX, RUNE, ORDI)
 
-## TICKERS: Extract any crypto/stock symbols. Convert names to symbols:
-- Bitcoin/BTC → BTC
-- Ethereum/ETH → ETH
-- Solana/SOL → SOL
-- Fetch.ai/Fetch → FET
-- Bittensor → TAO
-- Render/RNDR → RENDER
-- Chainlink → LINK
-- World Liberty Financial/WLFI → WLFI
-- Dogecoin → DOGE
-- Nvidia → NVDA
-- Coinbase → COIN
+## STOCK SECTORS (stockSector field, null if not stock sector):
+- "tech": Technology, software, semiconductors (NVDA, AAPL, MSFT, GOOG, META, AMD, INTC)
+- "healthcare": Pharmaceuticals, biotech, medical (LLY, UNH, JNJ, PFE, ABBV, MRK)
+- "finance": Banks, insurance, fintech (JPM, BAC, GS, V, MA, COIN)
+- "energy": Oil, gas, energy (XOM, CVX, COP, SLB)
+- "retail": Retail, e-commerce (AMZN, WMT, COST, TGT, HD)
+- "auto": Automotive (TSLA, F, GM, RIVN)
+- "aerospace": Aerospace, defense (BA, LMT, RTX, NOC)
+- "utilities": Electric, utilities (NEE, DUK, SO)
+- "communications": Telecom, media (VZ, T, CMCSA, DIS)
+
+## ASSET TYPE (assetType field - REQUIRED):
+- "crypto": Question is about cryptocurrency (BTC, ETH, SOL, etc.)
+- "stock": Question is about stocks (NVDA, AAPL, TSLA, etc.)
+- "mixed": Question involves both or is unclear
+
+## COMMON STOCK SYMBOLS (recognize these as stocks):
+- Apple/AAPL → AAPL (stock)
+- Nvidia/NVDA → NVDA (stock)
+- Tesla/TSLA → TSLA (stock)
+- Microsoft/MSFT → MSFT (stock)
+- Google/Alphabet/GOOG/GOOGL → GOOG (stock)
+- Amazon/AMZN → AMZN (stock)
+- Meta/Facebook/META → META (stock)
+- Coinbase/COIN → COIN (stock)
+- AMD → AMD (stock)
+- Intel/INTC → INTC (stock)
+
+## COMMON CRYPTO SYMBOLS (recognize these as crypto):
+- Bitcoin/BTC → BTC (crypto)
+- Ethereum/ETH → ETH (crypto)
+- Solana/SOL → SOL (crypto)
+- Dogecoin/DOGE → DOGE (crypto)
 
 ## TIMEFRAME: now, today, 24h (default), week, month
 
-## ACTION (for trending/sector intent):
-- "gainers": up, green, pumping, ripping, mooning
-- "losers": down, red, dumping, crashing, bleeding, rekt
-- "movers": moving, volatile, action
-- "volume": volume, trading, liquidity
+## ACTION (for trending/sector):
+- "gainers": up, green, pumping, mooning
+- "losers": down, red, dumping, crashing
+- "movers": moving, volatile
+- "volume": volume, trading
 
 ## RULES:
-1. Return ONLY valid JSON - no markdown, no backticks, no explanation
-2. If intent is unclear, default to "market_overview"
-3. Be liberal with sector detection - "AI crypto", "artificial intelligence tokens", "ML coins" all = "ai"
-4. Crypto slang counts: "pumping" = gainers, "dumping" = losers, "rekt" = losers
-5. Include a brief "summary" field explaining your interpretation
+1. Return ONLY valid JSON - no markdown, no backticks
+2. ALWAYS include assetType field ("crypto", "stock", or "mixed")
+3. Use stock_lookup for stock questions, token_lookup for crypto
+4. If unclear whether crypto or stock, use assetType: "mixed"
+5. Include brief "summary" explaining interpretation
 
 ## EXAMPLES:
-"How is the AI crypto market today?" → {"intent":"sector_analysis","sector":"ai","tickers":[],"timeframe":"today","action":null,"summary":"User asking about AI sector performance today"}
-"What's BTC doing?" → {"intent":"token_lookup","sector":null,"tickers":["BTC"],"timeframe":"24h","action":null,"summary":"User asking about Bitcoin price/status"}
-"Top gainers" → {"intent":"trending","sector":null,"tickers":[],"timeframe":"24h","action":"gainers","summary":"User wants top performing tokens"}
-"What meme coins are pumping?" → {"intent":"sector_analysis","sector":"meme","tickers":[],"timeframe":"24h","action":"gainers","summary":"User wants top gaining meme coins"}
-"Compare SOL and AVAX" → {"intent":"comparison","sector":null,"tickers":["SOL","AVAX"],"timeframe":"24h","action":null,"summary":"User wants comparison of Solana vs Avalanche"}
-"Yo what's good" → {"intent":"general_chat","sector":null,"tickers":[],"timeframe":"24h","action":null,"summary":"Casual greeting"}
-"What's happening with artificial intelligence tokens?" → {"intent":"sector_analysis","sector":"ai","tickers":[],"timeframe":"24h","action":null,"summary":"User asking about AI sector"}
-"Give me the rundown on Fetch and Bittensor" → {"intent":"token_lookup","sector":"ai","tickers":["FET","TAO"],"timeframe":"24h","action":null,"summary":"User wants info on specific AI tokens"}
-"What AI coins are pumping today?" → {"intent":"sector_analysis","sector":"ai","tickers":[],"timeframe":"today","action":"gainers","summary":"User wants top AI sector gainers today"}`;
+"How's NVDA doing?" → {"intent":"stock_lookup","sector":null,"stockSector":"tech","tickers":["NVDA"],"assetType":"stock","timeframe":"24h","action":null,"summary":"User asking about Nvidia stock"}
+"What's Tesla's price?" → {"intent":"stock_lookup","sector":null,"stockSector":"auto","tickers":["TSLA"],"assetType":"stock","timeframe":"24h","action":null,"summary":"User asking about Tesla stock price"}
+"Compare AAPL and MSFT" → {"intent":"comparison","sector":null,"stockSector":"tech","tickers":["AAPL","MSFT"],"assetType":"stock","timeframe":"24h","action":null,"summary":"Comparing Apple and Microsoft stocks"}
+"Top tech stocks" → {"intent":"stock_lookup","sector":null,"stockSector":"tech","tickers":[],"assetType":"stock","timeframe":"24h","action":"gainers","summary":"User wants top tech stocks"}
+"How's BTC doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["BTC"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User asking about Bitcoin"}
+"What meme coins are pumping?" → {"intent":"sector_analysis","sector":"meme","stockSector":null,"tickers":[],"assetType":"crypto","timeframe":"24h","action":"gainers","summary":"User wants top meme coins"}
+"How's the market?" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":[],"assetType":"mixed","timeframe":"24h","action":null,"summary":"General market overview"}`;
 
 const DEFAULT_INTENT: ParsedIntent = {
   intent: 'market_overview',
   sector: null,
+  stockSector: null,
   tickers: [],
+  assetType: 'crypto',
   timeframe: '24h',
   action: null,
   summary: 'Fallback to market overview'
@@ -137,13 +161,15 @@ export async function parseIntent(query: string): Promise<ParsedIntent> {
     const result: ParsedIntent = {
       intent: parsed.intent || 'market_overview',
       sector: parsed.sector || null,
+      stockSector: parsed.stockSector || null,
       tickers: (parsed.tickers || []).map((t: string) => t.toUpperCase()),
+      assetType: parsed.assetType || 'crypto',
       timeframe: parsed.timeframe || '24h',
       action: parsed.action || null,
       summary: parsed.summary || 'Parsed successfully'
     };
     
-    console.log(`[intent-parser] Result (${latencyMs}ms): intent=${result.intent}, sector=${result.sector}, tickers=[${result.tickers.join(',')}], action=${result.action}`);
+    console.log(`[intent-parser] Result (${latencyMs}ms): intent=${result.intent}, sector=${result.sector}, stockSector=${result.stockSector}, tickers=[${result.tickers.join(',')}], assetType=${result.assetType}, action=${result.action}`);
     console.log(`[intent-parser] Summary: ${result.summary}`);
     
     return result;
