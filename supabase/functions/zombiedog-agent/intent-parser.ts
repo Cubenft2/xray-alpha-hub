@@ -1,16 +1,31 @@
 // LLM-based Intent Parser for ZombieDog
-// Replaces regex-based routing with OpenAI understanding
+// Uses Zod for strict validation of AI responses
 
-export interface ParsedIntent {
-  intent: 'market_overview' | 'sector_analysis' | 'token_lookup' | 'stock_lookup' | 'comparison' | 'trending' | 'news' | 'general_chat';
-  sector: 'ai' | 'defi' | 'meme' | 'gaming' | 'l1' | 'l2' | 'nft' | 'privacy' | 'storage' | 'rwa' | 'btc_eco' | null;
-  stockSector: 'tech' | 'healthcare' | 'finance' | 'energy' | 'retail' | 'auto' | 'aerospace' | 'utilities' | 'communications' | null;
-  tickers: string[];
-  assetType: 'crypto' | 'stock' | 'mixed';
-  timeframe: 'now' | 'today' | '24h' | 'week' | 'month';
-  action: 'gainers' | 'losers' | 'movers' | 'volume' | null;
-  summary: string;
-}
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+
+// ============= Zod Schema for ParsedIntent =============
+export const ParsedIntentSchema = z.object({
+  intent: z.enum([
+    'market_overview', 'sector_analysis', 'token_lookup', 
+    'stock_lookup', 'comparison', 'trending', 'news', 'general_chat'
+  ]),
+  sector: z.enum([
+    'ai', 'defi', 'meme', 'gaming', 'l1', 'l2', 
+    'nft', 'privacy', 'storage', 'rwa', 'btc_eco'
+  ]).nullable().default(null),
+  stockSector: z.enum([
+    'tech', 'healthcare', 'finance', 'energy', 'retail', 
+    'auto', 'aerospace', 'utilities', 'communications'
+  ]).nullable().default(null),
+  tickers: z.array(z.string()).default([]),
+  assetType: z.enum(['crypto', 'stock', 'mixed']).default('crypto'),
+  timeframe: z.enum(['now', 'today', '24h', 'week', 'month']).default('24h'),
+  action: z.enum(['gainers', 'losers', 'movers', 'volume']).nullable().default(null),
+  summary: z.string().default('Parsed successfully'),
+});
+
+// Derive TypeScript type from schema (single source of truth)
+export type ParsedIntent = z.infer<typeof ParsedIntentSchema>;
 
 const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto AND stock market assistant. Analyze the user's question and return JSON only.
 
@@ -156,17 +171,23 @@ export async function parseIntent(query: string): Promise<ParsedIntent> {
       jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
     }
     
-    const parsed = JSON.parse(jsonStr);
+    const rawParsed = JSON.parse(jsonStr);
     
+    // Validate with Zod - safeParse won't throw
+    const validation = ParsedIntentSchema.safeParse(rawParsed);
+    
+    if (!validation.success) {
+      console.error(`[intent-parser] Zod validation failed:`, {
+        rawResponse: jsonStr.slice(0, 500),
+        issues: validation.error.issues.map(i => `${i.path.join('.')}: ${i.message}`),
+      });
+      return DEFAULT_INTENT;
+    }
+    
+    // Normalize tickers to uppercase
     const result: ParsedIntent = {
-      intent: parsed.intent || 'market_overview',
-      sector: parsed.sector || null,
-      stockSector: parsed.stockSector || null,
-      tickers: (parsed.tickers || []).map((t: string) => t.toUpperCase()),
-      assetType: parsed.assetType || 'crypto',
-      timeframe: parsed.timeframe || '24h',
-      action: parsed.action || null,
-      summary: parsed.summary || 'Parsed successfully'
+      ...validation.data,
+      tickers: validation.data.tickers.map(t => t.toUpperCase()),
     };
     
     console.log(`[intent-parser] Result (${latencyMs}ms): intent=${result.intent}, sector=${result.sector}, stockSector=${result.stockSector}, tickers=[${result.tickers.join(',')}], assetType=${result.assetType}, action=${result.action}`);
