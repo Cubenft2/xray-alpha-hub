@@ -6,8 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Process 25 tokens per run, 4 runs covers 100 tokens
-const TOKENS_PER_RUN = 25;
+// Process all 100 tokens per run (4x daily = 400 calls/day)
 const MAX_TOKENS = 100;
 
 // LunarCrush AI API endpoint
@@ -36,21 +35,6 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get current offset from cache
-    const { data: cacheData } = await supabase
-      .from('cache_kv')
-      .select('v')
-      .eq('k', 'lunarcrush_ai_sync_offset')
-      .single();
-
-    let currentOffset = cacheData?.v?.offset || 0;
-
-    // Reset offset if we've processed all tokens
-    if (currentOffset >= MAX_TOKENS) {
-      currentOffset = 0;
-      log(`🔄 Resetting offset to 0 (completed full cycle)`);
-    }
-
     // Fetch top 100 tokens by market cap rank
     const { data: tokens, error: fetchError } = await supabase
       .from('token_cards')
@@ -58,30 +42,21 @@ serve(async (req) => {
       .lte('market_cap_rank', MAX_TOKENS)
       .not('canonical_symbol', 'is', null)
       .order('market_cap_rank', { ascending: true, nullsFirst: false })
-      .range(currentOffset, currentOffset + TOKENS_PER_RUN - 1);
+      .limit(MAX_TOKENS);
 
     if (fetchError) {
       throw new Error(`Failed to fetch tokens: ${fetchError.message}`);
     }
 
     if (!tokens || tokens.length === 0) {
-      // Reset offset if no tokens found
-      await supabase
-        .from('cache_kv')
-        .upsert({
-          k: 'lunarcrush_ai_sync_offset',
-          v: { offset: 0, updated_at: new Date().toISOString() },
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-        }, { onConflict: 'k' });
-
       return new Response(JSON.stringify({
         success: true,
-        message: 'No tokens to process, reset offset',
+        message: 'No tokens to process',
         logs
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    log(`📊 Processing ${tokens.length} tokens (offset: ${currentOffset})`);
+    log(`📊 Processing ${tokens.length} tokens (all top 100)`);
 
     let updated = 0;
     let errors = 0;
@@ -109,7 +84,6 @@ serve(async (req) => {
         const data = await response.json();
         
         // Extract AI summary from response
-        // The AI endpoint returns narrative/summary content
         const aiSummary = data.summary || data.narrative || data.content || data.text || null;
         const tokenCost = data.tokens_used || data.token_count || 5000; // Estimate if not provided
 
@@ -144,35 +118,10 @@ serve(async (req) => {
       }
     }
 
-    // Update offset for next run
-    const newOffset = currentOffset + TOKENS_PER_RUN;
-    await supabase
-      .from('cache_kv')
-      .upsert({
-        k: 'lunarcrush_ai_sync_offset',
-        v: { 
-          offset: newOffset >= MAX_TOKENS ? 0 : newOffset, 
-          updated_at: new Date().toISOString(),
-          last_processed: tokens.map(t => t.canonical_symbol)
-        },
-        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-      }, { onConflict: 'k' });
-
     // Track AI token usage
     const today = new Date().toISOString().split('T')[0];
-    await supabase
-      .from('lunarcrush_ai_usage')
-      .upsert({
-        date: today,
-        source: 'sync-token-cards-lunarcrush-ai',
-        tokens_used: totalTokenCost,
-        calls_made: updated
-      }, { 
-        onConflict: 'date,source',
-        ignoreDuplicates: false 
-      });
-
-    // Also update with increment for existing records
+    
+    // Get existing usage for today
     const { data: existingUsage } = await supabase
       .from('lunarcrush_ai_usage')
       .select('tokens_used, calls_made')
@@ -181,6 +130,7 @@ serve(async (req) => {
       .single();
 
     if (existingUsage) {
+      // Update existing record
       await supabase
         .from('lunarcrush_ai_usage')
         .update({
@@ -190,6 +140,16 @@ serve(async (req) => {
         })
         .eq('date', today)
         .eq('source', 'sync-token-cards-lunarcrush-ai');
+    } else {
+      // Insert new record
+      await supabase
+        .from('lunarcrush_ai_usage')
+        .insert({
+          date: today,
+          source: 'sync-token-cards-lunarcrush-ai',
+          tokens_used: totalTokenCost,
+          calls_made: updated
+        });
     }
 
     const duration = Date.now() - startTime;
@@ -201,8 +161,6 @@ serve(async (req) => {
       updated,
       errors,
       tokensUsed: totalTokenCost,
-      currentOffset,
-      nextOffset: newOffset >= MAX_TOKENS ? 0 : newOffset,
       durationMs: duration,
       logs
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
