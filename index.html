@@ -86,6 +86,41 @@
     }
     </script>
     
+    <!-- WebSite schema with search action -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "XRayCrypto",
+      "url": "https://xraycrypto.io",
+      "description": "All your data sources unified into one clean, live experience",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://xraycrypto.io/screener?search={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    
+    <!-- Organization schema -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "XRayCrypto",
+      "url": "https://xraycrypto.io",
+      "logo": "https://xraycrypto.io/zoobie-pfp.webp",
+      "sameAs": [
+        "https://x.com/xrayzone"
+      ],
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer support",
+        "url": "https://x.com/xrayzone"
+      }
+    }
+    </script>
+    
     <!-- Preconnect to Google Fonts for faster loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
