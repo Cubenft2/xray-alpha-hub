@@ -26,7 +26,7 @@ export default function AuthorXRay() {
       "@type": "Person",
       "name": "XRay",
       "url": "https://xraycrypto.io/author/xray",
-      "sameAs": ["https://x.com/XRayMarkets"],
+      "sameAs": ["https://x.com/xrayzone"],
       "jobTitle": "Founder & Market Analyst",
       "worksFor": {
         "@type": "Organization",
@@ -126,7 +126,7 @@ export default function AuthorXRay() {
                 className="group"
               >
                 <a
-                  href="https://x.com/XRayMarkets"
+                  href="https://x.com/xrayzone"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -137,7 +137,7 @@ export default function AuthorXRay() {
                   >
                     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                   </svg>
-                  Follow @XRayMarkets
+                  Follow @xrayzone
                   <ExternalLink className="w-3 h-3 ml-2 group-hover:animate-wiggle" />
                 </a>
               </Button>

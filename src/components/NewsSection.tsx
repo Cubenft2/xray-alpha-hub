@@ -235,7 +235,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       
       // Build tweet text with title and cashtags
       const cashtags = item.tickers?.slice(0, 3).map(t => `$${t}`).join(' ') || '';
-      const tweetText = `${item.title}${cashtags ? ' ' + cashtags : ''}\n\n${item.url}\n\n#XRayCrypto #Crypto via @XRayMarkets`;
+      const tweetText = `${item.title}${cashtags ? ' ' + cashtags : ''}\n\n${item.url}\n\n#XRayCrypto #Crypto via @xrayzone`;
       
       const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
       window.open(shareUrl, '_blank', 'width=550,height=420,noopener,noreferrer');

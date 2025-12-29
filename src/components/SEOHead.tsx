@@ -48,7 +48,7 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
         "author": {
           "@type": "Person",
           "name": "XRay",
-          "url": "https://x.com/XRayMarkets"
+          "url": "https://x.com/xrayzone"
         },
         "publisher": {
           "@type": "Organization",
@@ -83,7 +83,8 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
       setMetaTag('name', 'author', 'XRay');
       setMetaTag('property', 'article:author', 'XRay');
       setMetaTag('property', 'article:published_time', isoDate);
-      setMetaTag('property', 'twitter:creator', '@XRayMarkets');
+      setMetaTag('property', 'twitter:creator', '@xrayzone');
+      setMetaTag('name', 'twitter:site', '@xrayzone');
       setMetaTag('property', 'og:type', 'article');
       setMetaTag('property', 'og:url', pageUrl);
       
