@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useLayoutSearch } from '@/components/Layout';
+import { SEOHead } from '@/components/SEOHead';
 import { TradingViewChart } from '@/components/TradingViewChart';
 import { StocksScreener } from '@/components/StocksScreener';
 import { StocksHeatmap } from '@/components/StocksHeatmap';
@@ -87,7 +88,13 @@ export default function Markets() {
     // Register search handler with layout
     setSearchHandler(handleSearch);
   }, [setSearchHandler]);
+
   return (
+    <>
+      <SEOHead
+        title="Live Stock Markets - Real-Time Prices & Charts"
+        description="Track live stock prices, charts, and market data. Real-time updates for SPY, QQQ, and thousands of stocks with TradingView integration."
+      />
     <div className="py-6 space-y-6">
       <div className="w-full">
         <div className="container mx-auto">
@@ -125,5 +132,6 @@ export default function Markets() {
         </div>
       </div>
     </div>
+    </>
   );
 }
