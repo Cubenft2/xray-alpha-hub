@@ -30,7 +30,7 @@ interface NewsItem {
   };
 }
 
-// Format for token_cards.top_news column
+// Format for token_cards.lc_top_news column
 interface TokenNewsItem {
   title: string;
   url?: string;
@@ -47,9 +47,11 @@ interface TokenNewsItem {
 
 const CACHE_KEY = 'lunarcrush_news_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const THROTTLE_DELAY_MS = 500; // 500ms between API calls to prevent burst rate limiting
 
-// Base topics that always get fetched
+// Reduced topics: top 4 tokens + crypto + stocks = 6 topics
 const BASE_TOPICS = ['crypto', 'stocks'];
+const MAX_TOKEN_TOPICS = 4;
 
 function convertSentiment(score: number): 'positive' | 'negative' | 'neutral' {
   if (score >= 3.5) return 'positive';
@@ -62,56 +64,117 @@ function convertSentimentToNumber(score: number): number {
   return (score - 1) / 4;
 }
 
-async function fetchTopicNews(topic: string, apiKey: string): Promise<NewsItem[]> {
+// Throttled delay helper
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Log API call to external_api_calls table
+async function logApiCall(
+  supabase: ReturnType<typeof createClient>,
+  functionName: string,
+  apiName: string,
+  success: boolean,
+  errorMessage?: string,
+  callCount: number = 1
+): Promise<void> {
   try {
-    console.log(`📰 Fetching LunarCrush news for topic: ${topic}`);
-    
-    const response = await fetch(
-      `https://lunarcrush.com/api4/public/topic/${topic}/news/v1`,
-      {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    if (!response.ok) {
-      console.error(`❌ LunarCrush API error for ${topic}: ${response.status}`);
-      return [];
-    }
-
-    const result = await response.json();
-    const rawPosts = result.data || [];
-    
-    // Validate with Zod - skip invalid posts
-    const posts = safeParseArray(LunarCrushNewsPostSchema, rawPosts, `lunarcrush-news/${topic}`);
-    
-    console.log(`✅ Validated ${posts.length}/${rawPosts.length} news items for ${topic}`);
-
-    return posts.map((post): NewsItem => ({
-      title: post.post_title,
-      description: post.post_title,
-      url: post.post_link,
-      publishedAt: new Date(post.post_created * 1000).toISOString(),
-      source: post.creator_display_name || post.creator_name,
-      sourceType: 'lunarcrush',
-      sentiment: convertSentiment(post.post_sentiment),
-      imageUrl: post.post_image,
-      socialEngagement: {
-        interactions24h: post.interactions_24h,
-        interactionsTotal: post.interactions_total,
-        creatorFollowers: post.creator_followers,
-        creatorName: post.creator_name,
-        creatorDisplayName: post.creator_display_name,
-        creatorAvatar: post.creator_avatar,
-        postSentiment: post.post_sentiment,
-      },
-    }));
-  } catch (error) {
-    console.error(`❌ Error fetching LunarCrush news for ${topic}:`, error);
-    return [];
+    await supabase.from('external_api_calls').insert({
+      function_name: functionName,
+      api_name: apiName,
+      success,
+      error_message: errorMessage || null,
+      call_count: callCount,
+    });
+  } catch (err) {
+    console.error('Failed to log API call:', err);
   }
+}
+
+async function fetchTopicNewsWithRetry(
+  topic: string, 
+  apiKey: string,
+  supabase: ReturnType<typeof createClient>,
+  maxRetries: number = 2
+): Promise<NewsItem[]> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        // Exponential backoff on retry
+        const backoffMs = Math.min(1000 * Math.pow(2, attempt), 5000);
+        console.log(`⏳ Retry ${attempt}/${maxRetries} for topic "${topic}" after ${backoffMs}ms`);
+        await delay(backoffMs);
+      }
+      
+      console.log(`📰 Fetching LunarCrush news for topic: ${topic}`);
+      
+      const response = await fetch(
+        `https://lunarcrush.com/api4/public/topic/${topic}/news/v1`,
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      // Log the API call
+      await logApiCall(
+        supabase,
+        'lunarcrush-news',
+        'lunarcrush',
+        response.ok,
+        response.ok ? undefined : `HTTP ${response.status}`
+      );
+
+      if (response.status === 429) {
+        console.warn(`⚠️ Rate limited (429) for topic "${topic}", will retry...`);
+        lastError = new Error('Rate limited');
+        continue; // retry
+      }
+
+      if (!response.ok) {
+        console.error(`❌ LunarCrush API error for ${topic}: ${response.status}`);
+        return [];
+      }
+
+      const result = await response.json();
+      const rawPosts = result.data || [];
+      
+      // Validate with Zod - skip invalid posts
+      const posts = safeParseArray(LunarCrushNewsPostSchema, rawPosts, `lunarcrush-news/${topic}`);
+      
+      console.log(`✅ Validated ${posts.length}/${rawPosts.length} news items for ${topic}`);
+
+      return posts.map((post): NewsItem => ({
+        title: post.post_title,
+        description: post.post_title,
+        url: post.post_link,
+        publishedAt: new Date(post.post_created * 1000).toISOString(),
+        source: post.creator_display_name || post.creator_name,
+        sourceType: 'lunarcrush',
+        sentiment: convertSentiment(post.post_sentiment),
+        imageUrl: post.post_image,
+        socialEngagement: {
+          interactions24h: post.interactions_24h,
+          interactionsTotal: post.interactions_total,
+          creatorFollowers: post.creator_followers,
+          creatorName: post.creator_name,
+          creatorDisplayName: post.creator_display_name,
+          creatorAvatar: post.creator_avatar,
+          postSentiment: post.post_sentiment,
+        },
+      }));
+    } catch (error) {
+      console.error(`❌ Error fetching LunarCrush news for ${topic}:`, error);
+      lastError = error as Error;
+    }
+  }
+  
+  console.error(`❌ All retries exhausted for topic "${topic}"`);
+  return [];
 }
 
 function transformToTokenNews(newsItems: NewsItem[]): TokenNewsItem[] {
@@ -162,15 +225,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch top 10 tokens by market cap from token_cards
-    console.log('🔍 Fetching top 10 tokens by market cap...');
+    // Fetch top tokens by market cap from token_cards (reduced to MAX_TOKEN_TOPICS)
+    console.log(`🔍 Fetching top ${MAX_TOKEN_TOPICS} tokens by market cap...`);
     const { data: topTokens, error: tokenError } = await supabase
       .from('token_cards')
       .select('canonical_symbol, coingecko_id, name')
       .eq('is_active', true)
       .not('market_cap_rank', 'is', null)
       .order('market_cap_rank', { ascending: true })
-      .limit(10);
+      .limit(MAX_TOKEN_TOPICS);
 
     if (tokenError) {
       console.error('❌ Error fetching top tokens:', tokenError);
@@ -179,26 +242,29 @@ Deno.serve(async (req) => {
 
     console.log(`✅ Found ${topTokens?.length || 0} top tokens:`, topTokens?.map(t => t.canonical_symbol).join(', '));
 
-    // Build topics: top 10 token symbols (lowercase) + base topics
+    // Build topics: top N token symbols (lowercase) + base topics
     const tokenTopics = (topTokens || []).map(t => 
       (t.coingecko_id || t.canonical_symbol).toLowerCase()
     );
     const allTopics = [...tokenTopics, ...BASE_TOPICS];
     
-    console.log(`🎯 Fetching news for ${allTopics.length} topics: ${allTopics.join(', ')}`);
+    console.log(`🎯 Fetching news for ${allTopics.length} topics SEQUENTIALLY with ${THROTTLE_DELAY_MS}ms throttle: ${allTopics.join(', ')}`);
 
-    // Fetch news for all topics in parallel
-    const newsPromises = allTopics.map(topic => fetchTopicNews(topic, apiKey));
-    const allNewsArrays = await Promise.all(newsPromises);
-
-    // Build a map of topic -> news for token updates
+    // Fetch news for all topics SEQUENTIALLY with throttling to prevent burst rate limiting
     const newsMap: Record<string, NewsItem[]> = {};
-    allTopics.forEach((topic, idx) => {
-      newsMap[topic] = allNewsArrays[idx];
-    });
+    const allNewsArrays: NewsItem[][] = [];
+    
+    for (const topic of allTopics) {
+      const news = await fetchTopicNewsWithRetry(topic, apiKey, supabase);
+      newsMap[topic] = news;
+      allNewsArrays.push(news);
+      
+      // Throttle between calls to prevent burst rate limiting
+      await delay(THROTTLE_DELAY_MS);
+    }
 
-    // Update token_cards with news for each top token
-    console.log('💾 Storing news in token_cards.top_news...');
+    // Update token_cards with news for each top token - write to lc_top_news column
+    console.log('💾 Storing news in token_cards.lc_top_news...');
     let tokensUpdated = 0;
     
     for (const token of (topTokens || [])) {
@@ -211,17 +277,17 @@ Deno.serve(async (req) => {
         const { error: updateError } = await supabase
           .from('token_cards')
           .update({
-            top_news: transformedNews,
-            top_news_count: tokenNews.length,
-            news_updated_at: new Date().toISOString(),
+            lc_top_news: transformedNews,
+            lc_news_updated_at: new Date().toISOString(),
+            news_source: 'lunarcrush',
           })
           .eq('canonical_symbol', token.canonical_symbol);
 
         if (updateError) {
-          console.error(`❌ Error updating news for ${token.canonical_symbol}:`, updateError);
+          console.error(`❌ Error updating lc_top_news for ${token.canonical_symbol}:`, updateError);
         } else {
           tokensUpdated++;
-          console.log(`✅ Updated ${token.canonical_symbol} with ${transformedNews.length} news items`);
+          console.log(`✅ Updated ${token.canonical_symbol} lc_top_news with ${transformedNews.length} items`);
         }
       }
     }
@@ -271,6 +337,7 @@ Deno.serve(async (req) => {
         total_items: allNews.length,
         topics_fetched: allTopics.length,
         tokens_updated: tokensUpdated,
+        api_calls_made: allTopics.length,
         cached: false,
       },
     };
@@ -284,7 +351,7 @@ Deno.serve(async (req) => {
         expires_at: new Date(Date.now() + CACHE_DURATION).toISOString(),
       });
 
-    console.log(`✅ Cached ${allNews.length} LunarCrush news items, updated ${tokensUpdated} token cards`);
+    console.log(`✅ Cached ${allNews.length} LunarCrush news items, updated ${tokensUpdated} token cards, made ${allTopics.length} API calls`);
 
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -2460,6 +2460,8 @@ export type Database = {
           key_themes: string[] | null
           large_trades_24h: Json | null
           large_trades_count: number | null
+          lc_news_updated_at: string | null
+          lc_top_news: Json | null
           liquidity_change_24h_pct: number | null
           liquidity_updated_at: string | null
           logo_url: string | null
@@ -2488,6 +2490,7 @@ export type Database = {
           metadata_updated_at: string | null
           name: string | null
           news_sentiment: number | null
+          news_source: string | null
           news_updated_at: string | null
           news_volume_24h: number | null
           notable_events: string[] | null
@@ -2739,6 +2742,8 @@ export type Database = {
           key_themes?: string[] | null
           large_trades_24h?: Json | null
           large_trades_count?: number | null
+          lc_news_updated_at?: string | null
+          lc_top_news?: Json | null
           liquidity_change_24h_pct?: number | null
           liquidity_updated_at?: string | null
           logo_url?: string | null
@@ -2767,6 +2772,7 @@ export type Database = {
           metadata_updated_at?: string | null
           name?: string | null
           news_sentiment?: number | null
+          news_source?: string | null
           news_updated_at?: string | null
           news_volume_24h?: number | null
           notable_events?: string[] | null
@@ -3018,6 +3024,8 @@ export type Database = {
           key_themes?: string[] | null
           large_trades_24h?: Json | null
           large_trades_count?: number | null
+          lc_news_updated_at?: string | null
+          lc_top_news?: Json | null
           liquidity_change_24h_pct?: number | null
           liquidity_updated_at?: string | null
           logo_url?: string | null
@@ -3046,6 +3054,7 @@ export type Database = {
           metadata_updated_at?: string | null
           name?: string | null
           news_sentiment?: number | null
+          news_source?: string | null
           news_updated_at?: string | null
           news_volume_24h?: number | null
           notable_events?: string[] | null
