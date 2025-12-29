@@ -132,6 +132,25 @@ serve(async (req) => {
     const titleY = 260;
     const lineHeight = 58;
 
+    // Fetch ZombieDog mascot image and convert to base64
+    let mascotBase64 = "";
+    try {
+      const mascotUrl = "https://xraycrypto.io/zombiedog-og-mascot.webp";
+      const mascotResponse = await fetch(mascotUrl);
+      if (mascotResponse.ok) {
+        const mascotBuffer = await mascotResponse.arrayBuffer();
+        const bytes = new Uint8Array(mascotBuffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        mascotBase64 = btoa(binary);
+        console.log("Successfully fetched ZombieDog mascot image");
+      }
+    } catch (e) {
+      console.log("Could not fetch mascot image, using fallback emoji:", e);
+    }
+
     // Generate SVG with ZombieDog design
     const svg = `<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -171,9 +190,12 @@ serve(async (req) => {
   <rect x="0" y="0" width="1200" height="5" fill="#00b300"/>
   
   <!-- ZombieDog mascot area -->
-  <circle cx="150" cy="300" r="100" fill="#0d0518" stroke="#00b300" stroke-width="3" filter="url(#glow)"/>
-  <text x="150" y="320" font-family="Arial, sans-serif" font-size="70" fill="#00b300" text-anchor="middle" filter="url(#textGlow)">🐕</text>
-  <text x="150" y="375" font-family="Arial, sans-serif" font-size="14" fill="#00b300" text-anchor="middle" font-weight="bold">ZOMBIEDOG</text>
+  <rect x="50" y="200" width="200" height="200" rx="20" fill="#0d0518" stroke="#00b300" stroke-width="3" filter="url(#glow)"/>
+  ${mascotBase64 
+    ? `<image x="55" y="205" width="190" height="190" href="data:image/webp;base64,${mascotBase64}" preserveAspectRatio="xMidYMid meet"/>`
+    : `<text x="150" y="320" font-family="Arial, sans-serif" font-size="70" fill="#00b300" text-anchor="middle" filter="url(#textGlow)">🐕</text>`
+  }
+  <text x="150" y="435" font-family="Arial, sans-serif" font-size="14" fill="#00b300" text-anchor="middle" font-weight="bold">ZOMBIEDOG</text>
   
   <!-- Brief type badge -->
   <rect x="300" y="170" rx="18" ry="18" width="${briefTypeLabel.length * 13 + 36}" height="36" fill="rgba(0,179,0,0.2)" stroke="#00b300" stroke-width="2"/>
