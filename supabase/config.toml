@@ -141,12 +141,12 @@ verify_jwt = false
 [functions.lunarcrush-social]
 verify_jwt = false
 
-# LunarCrush news - runs every 30 min via cron
+# LunarCrush news - runs every 30 min (staggered to :12/:42 to avoid collisions)
 [functions.lunarcrush-news]
 verify_jwt = false
 
 [[functions.lunarcrush-news.cron]]
-schedule = "*/30 * * * *"
+schedule = "12,42 * * * *"
 
 # LunarCrush universe - reads from token_cards (no API calls)
 [functions.lunarcrush-universe]
@@ -265,19 +265,19 @@ verify_jwt = false
 [[functions.sync-token-cards-lunarcrush-tier1.cron]]
 schedule = "*/10 * * * *"
 
-# TIER 2: Tokens 1001-2000 - every 30 min (48 calls/day)
+# TIER 2: Tokens 1001-2000 - every 30 min (staggered to :04/:34)
 [functions.sync-token-cards-lunarcrush-tier2]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush-tier2.cron]]
-schedule = "5,35 * * * *"
+schedule = "4,34 * * * *"
 
-# FULL SYNC: All 3000 tokens - every 2 hours (36 calls/day = 12 runs × 3 pages)
+# FULL SYNC: All 3000 tokens - every 2 hours (staggered to :59 to avoid minute-0 collisions)
 [functions.sync-token-cards-lunarcrush]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush.cron]]
-schedule = "0 */2 * * *"
+schedule = "59 1,3,5,7,9,11,13,15,17,19,21,23 * * *"
 
 # Sync token_cards prices from Polygon.io (every minute - no stagger needed)
 [functions.sync-token-cards-polygon]
@@ -311,12 +311,12 @@ schedule = "7,22,37,52 * * * *"
 
 # ENABLED: Tier 1 tokens only (~53 tokens) - AI summaries, posts, news, creators
 # Budget: 48 runs/day × 8 calls/run = 384 LunarCrush API calls/day
-# Each token refreshed ~2x/day
+# Each token refreshed ~2x/day (staggered to :18/:48 to avoid collisions)
 [functions.sync-token-cards-lunarcrush-enhanced]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush-enhanced.cron]]
-schedule = "15,45 * * * *"
+schedule = "18,48 * * * *"
 
 # Sync CoinGecko IDs and contract addresses to token_cards
 # Daily at 2:05 AM UTC (staggered)
