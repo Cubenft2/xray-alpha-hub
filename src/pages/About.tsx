@@ -115,14 +115,14 @@ export default function About() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-2">
-              <span className="font-medium">Twitter:</span>
+              <span className="font-medium">X (Twitter):</span>
               <a 
-                href="https://x.com/XRayMarkets" 
+                href="https://x.com/xrayzone" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-primary hover:underline flex items-center gap-1"
               >
-                @XRayMarkets <ExternalLink className="w-3 h-3" />
+                @xrayzone <ExternalLink className="w-3 h-3" />
               </a>
             </div>
             <div className="flex items-center gap-2">

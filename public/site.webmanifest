@@ -1,11 +1,15 @@
 {
-  "name": "XRayCrypto™",
+  "name": "XRayCrypto™ - Crypto & Stock Dashboard",
   "short_name": "XRayCrypto",
-  "description": "Educational crypto & stock dashboard with ZombieDog AI chat assistant",
+  "description": "Educational crypto & stock dashboard with ZombieDog AI assistant. Real-time market data, token screener, market briefs, and AI-powered insights.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0A0A0A",
   "theme_color": "#FFD700",
+  "categories": ["finance", "education", "news"],
+  "lang": "en-US",
+  "dir": "ltr",
+  "orientation": "any",
   "icons": [
     {
       "src": "/favicon-16x16.png",
@@ -28,6 +32,29 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Crypto Universe",
+      "short_name": "Screener",
+      "description": "Browse 3000+ cryptocurrencies",
+      "url": "/screener",
+      "icons": [{ "src": "/favicon-32x32.png", "sizes": "32x32" }]
+    },
+    {
+      "name": "Market Briefs",
+      "short_name": "Briefs",
+      "description": "AI-generated market analysis",
+      "url": "/marketbrief",
+      "icons": [{ "src": "/favicon-32x32.png", "sizes": "32x32" }]
+    },
+    {
+      "name": "Watchlist",
+      "short_name": "Watchlist",
+      "description": "Your tracked assets",
+      "url": "/watchlist",
+      "icons": [{ "src": "/favicon-32x32.png", "sizes": "32x32" }]
     }
   ]
 }
