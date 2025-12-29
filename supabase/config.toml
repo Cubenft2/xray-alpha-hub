@@ -423,14 +423,15 @@ verify_jwt = false
 schedule = "0 4 * * *"
 
 # ============================================
-# LUNARCRUSH AI SYNC (Uses 1M free AI tokens/day)
+# LUNARCRUSH AI SYNC (Local generation - zero API cost)
 # ============================================
 
-# Sync LunarCrush AI summaries for top 100 tokens
-# Runs 4x daily (every 6 hours) - 25 tokens per run = 100 tokens/day
-# Uses AI tokens (1M free/day), NOT REST API quota
+# Generate AI summaries for all tokens with social data
+# Runs every 2 hours, 5 min AFTER LunarCrush full sync completes
+# This ensures summaries always use fresh LunarCrush data
+# 12x daily - processes ~500 tokens/run = full coverage every ~4 runs
 [functions.sync-token-cards-lunarcrush-ai]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush-ai.cron]]
-schedule = "0 0,6,12,18 * * *"
+schedule = "5 */2 * * *"
