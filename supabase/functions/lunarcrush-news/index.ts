@@ -47,7 +47,7 @@ interface TokenNewsItem {
 
 const CACHE_KEY = 'lunarcrush_news_cache';
 const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
-const THROTTLE_DELAY_MS = 500; // 500ms between API calls to prevent burst rate limiting
+const THROTTLE_DELAY_MS = 7000; // 7 seconds between API calls to stay under 10 calls/min burst limit
 
 // Reduced topics: top 4 tokens + crypto + stocks = 6 topics
 const BASE_TOPICS = ['crypto', 'stocks'];
