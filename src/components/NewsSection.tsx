@@ -58,7 +58,7 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const { toast } = useToast();
   const newsTopRef = useRef<HTMLDivElement>(null);
 
-  // Enhanced news fetching with live updates
+  // Enhanced news fetching with live updates - merges Polygon + LunarCrush sources
   const fetchNews = async () => {
     console.log('🐕 XRay: Starting fetchNews function...');
     setIsLoading(true);
@@ -82,26 +82,28 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         throw new Error('No data from news-fetch');
       }
 
-      const cryptoItems: NewsItem[] = Array.isArray(regularNewsResult.data.crypto) ? regularNewsResult.data.crypto : [];
-      const stocksItems: NewsItem[] = Array.isArray(regularNewsResult.data.stocks) ? regularNewsResult.data.stocks : [];
+      let cryptoItems: NewsItem[] = Array.isArray(regularNewsResult.data.crypto) ? regularNewsResult.data.crypto : [];
+      let stocksItems: NewsItem[] = Array.isArray(regularNewsResult.data.stocks) ? regularNewsResult.data.stocks : [];
       const trumpItems: NewsItem[] = Array.isArray(regularNewsResult.data.trump) ? regularNewsResult.data.trump : [];
 
       // Merge with LunarCrush social news if available
+      // Multi-source merge: deduplicate by URL, prioritize LunarCrush (has social engagement)
       if (socialNewsResult.data && !socialNewsResult.error) {
         const socialCrypto: NewsItem[] = Array.isArray(socialNewsResult.data.crypto) ? socialNewsResult.data.crypto : [];
         const socialStocks: NewsItem[] = Array.isArray(socialNewsResult.data.stocks) ? socialNewsResult.data.stocks : [];
         
-        // Merge by URL to avoid duplicates, prioritize social news
-        const mergeNews = (regular: NewsItem[], social: NewsItem[]) => {
-          const urlSet = new Set(social.map(item => item.url));
-          const uniqueRegular = regular.filter(item => !urlSet.has(item.url));
-          return [...social, ...uniqueRegular];
+        // Merge by URL to avoid duplicates, prioritize social news (LunarCrush first)
+        const mergeNewsSources = (polygon: NewsItem[], lunarcrush: NewsItem[]): NewsItem[] => {
+          const urlSet = new Set(lunarcrush.map(item => item.url?.toLowerCase()));
+          const uniquePolygon = polygon.filter(item => !urlSet.has(item.url?.toLowerCase()));
+          // LunarCrush items first (have social engagement), then Polygon
+          return [...lunarcrush, ...uniquePolygon];
         };
 
-        cryptoItems.push(...mergeNews([], socialCrypto));
-        stocksItems.push(...mergeNews([], socialStocks));
+        cryptoItems = mergeNewsSources(cryptoItems, socialCrypto);
+        stocksItems = mergeNewsSources(stocksItems, socialStocks);
         
-        console.log(`✅ Merged LunarCrush social news: ${socialCrypto.length} crypto, ${socialStocks.length} stocks`);
+        console.log(`✅ Merged multi-source news: ${socialCrypto.length} LC crypto + ${cryptoItems.length - socialCrypto.length} Polygon crypto, ${socialStocks.length} LC stocks + ${stocksItems.length - socialStocks.length} Polygon stocks`);
       }
 
       console.log('🐕 XRay: Parsed news items:', {
