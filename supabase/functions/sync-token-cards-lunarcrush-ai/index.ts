@@ -6,8 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Process tokens per batch
-const BATCH_SIZE = 50;
+// Default batch size - can be overridden via request body
+const DEFAULT_BATCH_SIZE = 500;
+const DEFAULT_MAX_RANK = 3000;
+const CACHE_KEY = 'ai_summary_cursor';
 
 // Generate AI-style summary from existing token card data
 function generateAISummary(token: any): { summary: string; shortSummary: string; themes: string[] } {
@@ -108,18 +110,49 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Parse optional parameters
-    let offset = 0;
-    let maxRank = 100;
+    let batchSize = DEFAULT_BATCH_SIZE;
+    let maxRank = DEFAULT_MAX_RANK;
+    let resetCursor = false;
+    let manualOffset: number | null = null;
+    
     try {
       const body = await req.json();
-      offset = body?.offset || 0;
-      maxRank = body?.maxRank || 100;
+      batchSize = body?.batchSize || DEFAULT_BATCH_SIZE;
+      maxRank = body?.maxRank || DEFAULT_MAX_RANK;
+      resetCursor = body?.resetCursor || false;
+      manualOffset = body?.offset ?? null;
     } catch {
       // No body, use defaults
     }
 
+    // Get cursor from cache_kv for auto-progress
+    let offset = 0;
+    
+    if (manualOffset !== null) {
+      // Manual offset takes priority
+      offset = manualOffset;
+      log(`📍 Using manual offset: ${offset}`);
+    } else if (!resetCursor) {
+      // Try to get stored cursor
+      const { data: cursorData } = await supabase
+        .from('cache_kv')
+        .select('v')
+        .eq('k', CACHE_KEY)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+      
+      if (cursorData?.v?.offset) {
+        offset = cursorData.v.offset;
+        log(`📍 Resuming from cursor offset: ${offset}`);
+      } else {
+        log(`📍 Starting fresh (no valid cursor found)`);
+      }
+    } else {
+      log(`📍 Cursor reset requested, starting from 0`);
+    }
+
     // Fetch tokens that need AI summary updates
-    // Get tokens with social data that haven't been summarized recently
+    // Get tokens with social data (galaxy_score) ordered by market cap rank
     const { data: tokens, error: fetchError } = await supabase
       .from('token_cards')
       .select(`
@@ -133,22 +166,34 @@ serve(async (req) => {
       .not('canonical_symbol', 'is', null)
       .not('galaxy_score', 'is', null)
       .order('market_cap_rank', { ascending: true })
-      .range(offset, offset + BATCH_SIZE - 1);
+      .range(offset, offset + batchSize - 1);
 
     if (fetchError) {
       throw new Error(`Failed to fetch tokens: ${fetchError.message}`);
     }
 
     if (!tokens || tokens.length === 0) {
+      // No more tokens to process - reset cursor for next cycle
+      await supabase
+        .from('cache_kv')
+        .upsert({
+          k: CACHE_KEY,
+          v: { offset: 0, completedAt: new Date().toISOString() },
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+        }, { onConflict: 'k' });
+      
+      log(`✅ Completed full cycle - cursor reset to 0`);
+      
       return new Response(JSON.stringify({
         success: true,
-        message: 'No tokens to process',
+        message: 'Completed full cycle - all tokens processed',
+        cycleComplete: true,
         offset,
         logs
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    log(`📊 Processing ${tokens.length} tokens (offset: ${offset}, batch: ${BATCH_SIZE})`);
+    log(`📊 Processing ${tokens.length} tokens (offset: ${offset}, batch: ${batchSize}, maxRank: ${maxRank})`);
 
     let updated = 0;
     let errors = 0;
@@ -191,6 +236,24 @@ serve(async (req) => {
       }
     }
 
+    // Calculate next offset
+    const nextOffset = offset + tokens.length;
+    const hasMore = tokens.length === batchSize;
+
+    // Store cursor progress for auto-resume
+    await supabase
+      .from('cache_kv')
+      .upsert({
+        k: CACHE_KEY,
+        v: { 
+          offset: hasMore ? nextOffset : 0, // Reset to 0 when complete
+          lastRunAt: new Date().toISOString(),
+          lastBatchSize: tokens.length,
+          totalProcessedThisCycle: offset + tokens.length
+        },
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+      }, { onConflict: 'k' });
+
     // Track usage (no tokens used since we're generating locally)
     const today = new Date().toISOString().split('T')[0];
     const { data: existingUsage } = await supabase
@@ -221,8 +284,8 @@ serve(async (req) => {
     }
 
     const duration = Date.now() - startTime;
-    const nextOffset = offset + tokens.length;
     log(`\n📈 Summary: ${updated} summaries generated, ${errors} errors in ${duration}ms`);
+    log(`📍 Cursor saved: ${hasMore ? nextOffset : '0 (cycle complete)'}`);
 
     return new Response(JSON.stringify({
       success: true,
@@ -231,8 +294,9 @@ serve(async (req) => {
       errors,
       durationMs: duration,
       currentOffset: offset,
-      nextOffset,
-      hasMore: tokens.length === BATCH_SIZE,
+      nextOffset: hasMore ? nextOffset : 0,
+      hasMore,
+      cycleComplete: !hasMore,
       logs
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
