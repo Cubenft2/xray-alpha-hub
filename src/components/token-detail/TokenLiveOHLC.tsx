@@ -22,6 +22,15 @@ export function TokenLiveOHLC({ livePrice, symbol }: TokenLiveOHLCProps) {
     return `$${value.toFixed(4)}`;
   };
 
+  // Compact format for bid/ask - no decimals for large prices to prevent mobile jumping
+  const formatPriceCompact = (value: number | null | undefined) => {
+    if (value === null || value === undefined || isNaN(value)) return 'N/A';
+    if (value >= 1000) return `$${Math.round(value).toLocaleString()}`;
+    if (value >= 1) return `$${value.toFixed(2)}`;
+    if (value < 0.0001) return `$${value.toFixed(6)}`;
+    return `$${value.toFixed(4)}`;
+  };
+
   const formatVolume = (value: number | null | undefined) => {
     if (value === null || value === undefined) return 'N/A';
     if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
@@ -97,9 +106,9 @@ export function TokenLiveOHLC({ livePrice, symbol }: TokenLiveOHLCProps) {
           </div>
         </div>
 
-        <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Bid: {formatPrice(livePrice.bid)} | Ask: {formatPrice(livePrice.ask)}</span>
-          <span>
+        <div className="mt-3 pt-3 border-t border-border/50 flex flex-col sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground gap-1">
+          <span className="truncate">Bid: {formatPriceCompact(livePrice.bid)} | Ask: {formatPriceCompact(livePrice.ask)}</span>
+          <span className="truncate">
             Last update: {livePrice.timestamp 
               ? new Date(livePrice.timestamp).toLocaleTimeString() 
               : 'N/A'}
