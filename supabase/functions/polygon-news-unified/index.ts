@@ -38,15 +38,6 @@ interface NewsItem {
   description?: string;
 }
 
-// Known crypto tickers that might not have X: prefix
-const CRYPTO_SYMBOLS = new Set([
-  'BTC', 'ETH', 'SOL', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC', 'LINK',
-  'SHIB', 'UNI', 'LTC', 'BCH', 'XLM', 'ATOM', 'FIL', 'NEAR', 'APT', 'ARB',
-  'OP', 'IMX', 'INJ', 'SUI', 'SEI', 'TIA', 'PEPE', 'WIF', 'BONK', 'FLOKI',
-  'TRUMP', 'MELANIA', 'RENDER', 'FET', 'TAO', 'RNDR', 'GRT', 'AAVE', 'MKR',
-  'CRV', 'SNX', 'COMP', 'YFI', 'SUSHI', 'CAKE', 'JUP', 'RAY', 'ORCA'
-]);
-
 // Trump-related keywords
 const TRUMP_KEYWORDS = ['trump', 'melania', 'maga', 'potus', 'donald'];
 
@@ -86,6 +77,22 @@ Deno.serve(async (req) => {
     }
 
     console.log('🚀 polygon-news-unified: Starting unified news sync...');
+
+    // Load ALL crypto symbols from token_cards (instead of hardcoded list)
+    const { data: cryptoTokens, error: tokenError } = await supabase
+      .from('token_cards')
+      .select('canonical_symbol')
+      .eq('is_active', true);
+
+    if (tokenError) {
+      console.error('⚠️ Failed to load crypto symbols from token_cards:', tokenError);
+    }
+
+    const CRYPTO_SYMBOLS = new Set(
+      cryptoTokens?.map(t => t.canonical_symbol?.toUpperCase()).filter(Boolean) || []
+    );
+    
+    console.log(`📋 Loaded ${CRYPTO_SYMBOLS.size} crypto symbols from token_cards`);
 
     // ONE API call to fetch all news
     const newsUrl = `https://api.polygon.io/v2/reference/news?limit=1000&order=desc&apiKey=${polygonKey}`;
