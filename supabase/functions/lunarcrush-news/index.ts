@@ -340,15 +340,35 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Sort by engagement
-    const sortByEngagement = (a: NewsItem, b: NewsItem) => {
+    // Hybrid sort: balance freshness and engagement with time decay
+    // Fresh articles need less engagement to rank high; older articles need more
+    const sortByFreshnessAndEngagement = (a: NewsItem, b: NewsItem) => {
+      const now = Date.now();
+      
+      // Age in hours
+      const aAgeHours = (now - new Date(a.publishedAt).getTime()) / (1000 * 60 * 60);
+      const bAgeHours = (now - new Date(b.publishedAt).getTime()) / (1000 * 60 * 60);
+      
+      // Engagement score
       const aEng = a.socialEngagement?.interactions24h || 0;
       const bEng = b.socialEngagement?.interactions24h || 0;
-      return bEng - aEng;
+      
+      // Time decay: articles lose 50% score per hour
+      // A 1-hour-old article needs 2x engagement to beat a fresh one
+      const decayFactor = 0.5;
+      const aScore = aEng * Math.pow(decayFactor, aAgeHours);
+      const bScore = bEng * Math.pow(decayFactor, bAgeHours);
+      
+      // Freshness boost: articles < 30 min old get 2x boost
+      const freshnessBoost = (ageHours: number) => ageHours < 0.5 ? 2 : 1;
+      const aFinalScore = aScore * freshnessBoost(aAgeHours);
+      const bFinalScore = bScore * freshnessBoost(bAgeHours);
+      
+      return bFinalScore - aFinalScore;
     };
 
-    cryptoNews.sort(sortByEngagement);
-    stocksNews.sort(sortByEngagement);
+    cryptoNews.sort(sortByFreshnessAndEngagement);
+    stocksNews.sort(sortByFreshnessAndEngagement);
 
     // Calculate metadata
     const totalInteractions = allNews.reduce(
