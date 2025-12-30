@@ -257,7 +257,7 @@ Deno.serve(async (req) => {
               open_price: update.day_open,
               high_price: update.day_high,
               low_price: update.day_low,
-              volume: update.volume,
+              volume: update.volume ? Math.round(update.volume) : null,
               price_updated_at: new Date().toISOString()
             })),
             { onConflict: 'symbol', ignoreDuplicates: false }
