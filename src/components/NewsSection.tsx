@@ -432,9 +432,19 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   // Apply view mode filter (trending, polygon premium, or all with priority)
   const applyViewModeFilter = (news: NewsItem[]) => {
     if (viewMode === 'trending') {
-      // Show only items with social engagement and sort by interactions
+      // Show only items from last 7 days with social engagement, sorted by interactions
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      
       return news
-        .filter(item => item.socialEngagement && item.socialEngagement.interactions24h > 0)
+        .filter(item => {
+          // Must have social engagement
+          if (!item.socialEngagement || item.socialEngagement.interactions24h <= 0) {
+            return false;
+          }
+          // Must be from last 7 days
+          const publishedTime = new Date(item.publishedAt || 0).getTime();
+          return publishedTime > sevenDaysAgo;
+        })
         .sort((a, b) => 
           (b.socialEngagement?.interactions24h || 0) - (a.socialEngagement?.interactions24h || 0)
         );
