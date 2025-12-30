@@ -82,25 +82,12 @@ Deno.serve(async (req) => {
     }
 
     console.log('🚀 polygon-news-unified: Starting unified news sync...');
-
-    // Load ALL crypto symbols from token_cards (instead of hardcoded list)
-    const { data: cryptoTokens, error: tokenError } = await supabase
-      .from('token_cards')
-      .select('canonical_symbol')
-      .eq('is_active', true);
-
-    if (tokenError) {
-      console.error('⚠️ Failed to load crypto symbols from token_cards:', tokenError);
-    }
-
-    const CRYPTO_SYMBOLS = new Set(
-      cryptoTokens?.map(t => t.canonical_symbol?.toUpperCase()).filter(Boolean) || []
-    );
     
-    console.log(`📋 Loaded ${CRYPTO_SYMBOLS.size} crypto symbols from token_cards`);
+    // NOTE: Polygon only provides STOCK news, NOT crypto news
+    // Crypto news comes from LunarCrush via lunarcrush-news function
+    // We set crypto array to empty and only classify stocks
 
-    // Load ALL stock symbols from stock_cards to prevent misclassification
-    // Use pagination to avoid 1000 row limit
+    // Load ALL stock symbols from stock_cards using pagination
     const allStockSymbols: string[] = [];
     let stockOffset = 0;
     const stockBatchSize = 1000;
@@ -127,10 +114,6 @@ Deno.serve(async (req) => {
 
     const STOCK_SYMBOLS = new Set(allStockSymbols);
     console.log(`📋 Loaded ${STOCK_SYMBOLS.size} stock symbols from stock_cards`);
-    
-    // Debug: Log some sample stock symbols
-    const stockSamples = Array.from(STOCK_SYMBOLS).slice(0, 10);
-    console.log(`📋 Sample stock symbols: ${stockSamples.join(', ')}`);
 
     // ONE API call to fetch all news
     const newsUrl = `https://api.polygon.io/v2/reference/news?limit=1000&order=desc&apiKey=${polygonKey}`;
@@ -145,10 +128,8 @@ Deno.serve(async (req) => {
     
     console.log(`📰 Fetched ${articles.length} news articles from Polygon`);
 
-    // Categorize articles
+    // Categorize articles - STOCKS ONLY (no crypto from Polygon)
     const stockNews = new Map<string, NewsItem[]>();
-    const cryptoNews = new Map<string, NewsItem[]>();
-    const globalCrypto: NewsItem[] = [];
     const globalStocks: NewsItem[] = [];
     const globalTrump: NewsItem[] = [];
 
@@ -157,7 +138,7 @@ Deno.serve(async (req) => {
       const titleLower = (article.title || '').toLowerCase();
       const descLower = (article.description || '').toLowerCase();
       
-      // Check if Trump-related (independent category, can overlap)
+      // Check if Trump-related (independent category)
       const isTrumpRelated = TRUMP_KEYWORDS.some(kw => 
         titleLower.includes(kw) || descLower.includes(kw) ||
         tickers.some(t => t.toUpperCase().includes('TRUMP') || t.toUpperCase().includes('MELANIA'))
@@ -178,70 +159,22 @@ Deno.serve(async (req) => {
         keywords: article.keywords || [],
       };
 
-      // Add to global trump feed (independent category)
+      // Add to global trump feed
       if (isTrumpRelated && globalTrump.length < 50) {
         globalTrump.push(newsItem);
       }
 
-      // ========== MUTUALLY EXCLUSIVE CLASSIFICATION ==========
-      // Analyze ALL tickers FIRST to determine the article's PRIMARY category
-      // An article goes to ONLY crypto OR stocks, never both
-      
-      let hasStockTicker = false;
-      let hasCryptoTicker = false;
-      const cryptoSymbolsForArticle: string[] = [];
+      // Classify as stock if ANY ticker is a known stock
       const stockSymbolsForArticle: string[] = [];
-
       for (const ticker of tickers) {
         const upperTicker = ticker.toUpperCase();
-        
-        // X: prefix is authoritative crypto
-        const isAuthoritativeCrypto = ticker.startsWith('X:');
-        
-        // Check if it's a known stock from stock_cards
-        const isKnownStock = STOCK_SYMBOLS.has(upperTicker);
-        
-        // Crypto = authoritative OR (not known stock AND in crypto list)
-        const isCrypto = isAuthoritativeCrypto || (!isKnownStock && CRYPTO_SYMBOLS.has(upperTicker));
-        
-        if (isKnownStock) {
-          hasStockTicker = true;
+        if (STOCK_SYMBOLS.has(upperTicker)) {
           stockSymbolsForArticle.push(upperTicker);
         }
-        if (isCrypto) {
-          hasCryptoTicker = true;
-          const symbol = upperTicker.replace('X:', '').replace('USD', '').replace('USDT', '');
-          cryptoSymbolsForArticle.push(symbol);
-        }
       }
 
-      // DECISION: Stock takes priority - if ANY stock ticker exists, it's a stock article
-      // This prevents crypto pollution from overlapping symbols
-      const articleCategory = hasStockTicker ? 'stock' : (hasCryptoTicker ? 'crypto' : 'none');
-      
-      // Debug logging for crypto classification to trace misclassification
-      if (articleCategory === 'crypto' && globalCrypto.length < 10) {
-        console.log(`🔍 CRYPTO: "${article.title.substring(0, 50)}..." | tickers: [${tickers.join(',')}] | crypto: [${cryptoSymbolsForArticle.join(',')}]`);
-      }
-
-      if (articleCategory === 'crypto') {
-        // Add to crypto feeds ONLY
-        for (const symbol of cryptoSymbolsForArticle) {
-          if (!cryptoNews.has(symbol)) {
-            cryptoNews.set(symbol, []);
-          }
-          const existing = cryptoNews.get(symbol)!;
-          if (existing.length < 5) {
-            existing.push(newsItem);
-          }
-        }
-        
-        // Add to global crypto feed (dedupe by URL)
-        if (globalCrypto.length < 100 && !globalCrypto.some(n => n.url === newsItem.url)) {
-          globalCrypto.push(newsItem);
-        }
-      } else if (articleCategory === 'stock') {
-        // Add to stock feeds ONLY
+      if (stockSymbolsForArticle.length > 0) {
+        // Add to per-symbol stock feeds
         for (const symbol of stockSymbolsForArticle) {
           if (!stockNews.has(symbol)) {
             stockNews.set(symbol, []);
@@ -257,39 +190,10 @@ Deno.serve(async (req) => {
           globalStocks.push(newsItem);
         }
       }
-      // articleCategory === 'none' means no recognized tickers, skip
     }
 
-    console.log(`📊 Categorized: ${cryptoNews.size} crypto tickers, ${stockNews.size} stock tickers`);
-    console.log(`📊 Global feeds: ${globalCrypto.length} crypto, ${globalStocks.length} stocks, ${globalTrump.length} trump`);
-
-    // Update token_cards with crypto news
-    let tokensUpdated = 0;
-    const cryptoSymbols = Array.from(cryptoNews.keys());
-    
-    if (cryptoSymbols.length > 0) {
-      const { data: existingTokens } = await supabase
-        .from('token_cards')
-        .select('canonical_symbol')
-        .in('canonical_symbol', cryptoSymbols);
-
-      const existingSymbols = new Set(existingTokens?.map(t => t.canonical_symbol) || []);
-
-      for (const [symbol, news] of cryptoNews) {
-        if (!existingSymbols.has(symbol)) continue;
-        
-        const { error } = await supabase
-          .from('token_cards')
-          .update({
-            top_news: news,
-            top_news_count: news.length,
-            news_updated_at: new Date().toISOString(),
-          })
-          .eq('canonical_symbol', symbol);
-
-        if (!error) tokensUpdated++;
-      }
-    }
+    console.log(`📊 Categorized: ${stockNews.size} stock tickers`);
+    console.log(`📊 Global feeds: 0 crypto (Polygon stocks-only), ${globalStocks.length} stocks, ${globalTrump.length} trump`);
 
     // Update stock_cards with stock news
     let stocksUpdated = 0;
@@ -323,8 +227,9 @@ Deno.serve(async (req) => {
     const cacheTTL = 20 * 60 * 1000; // 20 minutes
     const expiresAt = new Date(Date.now() + cacheTTL).toISOString();
 
+    // Polygon = stocks only, crypto array is empty (LunarCrush provides crypto news)
     const cacheData = {
-      crypto: globalCrypto,
+      crypto: [], // Always empty - Polygon doesn't have crypto news
       stocks: globalStocks,
       trump: globalTrump,
       fetched_at: new Date().toISOString(),
@@ -354,18 +259,15 @@ Deno.serve(async (req) => {
 
     const duration = Date.now() - startTime;
     console.log(`✅ polygon-news-unified complete in ${duration}ms`);
-    console.log(`   - Tokens updated: ${tokensUpdated}`);
     console.log(`   - Stocks updated: ${stocksUpdated}`);
-    console.log(`   - Cache refreshed with ${globalCrypto.length + globalStocks.length + globalTrump.length} articles`);
+    console.log(`   - Cache refreshed with ${globalStocks.length + globalTrump.length} articles`);
 
     return new Response(JSON.stringify({
       success: true,
       articles_fetched: articles.length,
-      crypto_tickers: cryptoNews.size,
       stock_tickers: stockNews.size,
-      tokens_updated: tokensUpdated,
       stocks_updated: stocksUpdated,
-      global_crypto: globalCrypto.length,
+      global_crypto: 0, // Polygon = stocks only
       global_stocks: globalStocks.length,
       global_trump: globalTrump.length,
       duration_ms: duration,
