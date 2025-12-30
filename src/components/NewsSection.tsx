@@ -79,7 +79,9 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       }
 
       // Data is already merged by get-cached-news function
-      let cryptoItems: NewsItem[] = Array.isArray(cachedNewsResult.data.crypto) ? cachedNewsResult.data.crypto : [];
+      // Filter out Polygon from crypto - crypto news comes from LunarCrush only
+      let cryptoItems: NewsItem[] = (Array.isArray(cachedNewsResult.data.crypto) ? cachedNewsResult.data.crypto : [])
+        .filter((item: NewsItem) => item.sourceType !== 'polygon');
       let stocksItems: NewsItem[] = Array.isArray(cachedNewsResult.data.stocks) ? cachedNewsResult.data.stocks : [];
       const trumpItems: NewsItem[] = Array.isArray(cachedNewsResult.data.trump) ? cachedNewsResult.data.trump : [];
 
@@ -96,62 +98,41 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
       stocksItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
       trumpItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
-      if (isFirstLoad) {
-        setCryptoNews(cryptoItems.slice(0, 50));
-        setStocksNews(stocksItems.slice(0, 50));
-        setTrumpNews(trumpItems.slice(0, 50));
-        setIsFirstLoad(false);
-      } else {
-        // Collect all new Polygon articles before updating state
-        let allNewPolygonItems: NewsItem[] = [];
+      // Compute new items for toast/alert before replacing state
+      const prevCryptoKeys = new Set(cryptoNews.map((i) => i.url || i.title));
+      const prevStocksKeys = new Set(stocksNews.map((i) => i.url || i.title));
+      const prevTrumpKeys = new Set(trumpNews.map((i) => i.url || i.title));
 
-        // Merge by URL or title, prepend new, keep max 50
-        setCryptoNews((prev) => {
-          const prevKeys = new Set(prev.map((i) => i.url || i.title));
-          const incoming = cryptoItems.filter((i) => i.url || i.title);
-          const newOnes = incoming.filter((i) => !prevKeys.has(i.url || i.title));
-          
-          // Track new Polygon items
-          const newPolygon = newOnes.filter((i) => i.sourceType === 'polygon');
-          allNewPolygonItems.push(...newPolygon);
-          
-          if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, crypto: newOnes.length }));
-          return [...newOnes, ...prev].slice(0, 50);
-        });
+      const newCrypto = cryptoItems.filter((i) => !prevCryptoKeys.has(i.url || i.title));
+      const newStocks = stocksItems.filter((i) => !prevStocksKeys.has(i.url || i.title));
+      const newTrump = trumpItems.filter((i) => !prevTrumpKeys.has(i.url || i.title));
 
-        setStocksNews((prev) => {
-          const prevKeys = new Set(prev.map((i) => i.url || i.title));
-          const incoming = stocksItems.filter((i) => i.url || i.title);
-          const newOnes = incoming.filter((i) => !prevKeys.has(i.url || i.title));
-          
-          // Track new Polygon items (avoid duplicates by URL)
-          const newPolygon = newOnes.filter((i) => 
-            i.sourceType === 'polygon' && 
-            !allNewPolygonItems.some(existing => existing.url === i.url)
-          );
-          allNewPolygonItems.push(...newPolygon);
-          
-          if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, stocks: newOnes.length }));
-          return [...newOnes, ...prev].slice(0, 50);
-        });
+      // Track new Polygon items for alert (only from stocks since crypto excludes Polygon)
+      const newPolygonItems = newStocks.filter((i) => i.sourceType === 'polygon');
 
-        setTrumpNews((prev) => {
-          const prevKeys = new Set(prev.map((i) => i.url || i.title));
-          const incoming = trumpItems.filter((i) => i.url || i.title);
-          const newOnes = incoming.filter((i) => !prevKeys.has(i.url || i.title));
-          if (newOnes.length > 0) setNewItemsCount((p) => ({ ...p, trump: newOnes.length }));
-          return [...newOnes, ...prev].slice(0, 50);
+      // Replace state with latest server data (authoritative)
+      setCryptoNews(cryptoItems.slice(0, 50));
+      setStocksNews(stocksItems.slice(0, 50));
+      setTrumpNews(trumpItems.slice(0, 50));
+
+      if (!isFirstLoad) {
+        setNewItemsCount({
+          crypto: newCrypto.length,
+          stocks: newStocks.length,
+          trump: newTrump.length
         });
 
         // Show Polygon alert if there are new items
-        if (allNewPolygonItems.length > 0) {
+        if (newPolygonItems.length > 0) {
           setPolygonAlert({
-            count: allNewPolygonItems.length,
-            latestHeadline: allNewPolygonItems[0]?.title || '',
+            count: newPolygonItems.length,
+            latestHeadline: newPolygonItems[0]?.title || '',
             show: true
           });
         }
       }
+
+      setIsFirstLoad(false);
 
       setLastUpdated(new Date());
 
