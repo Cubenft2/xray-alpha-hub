@@ -100,20 +100,37 @@ Deno.serve(async (req) => {
     console.log(`📋 Loaded ${CRYPTO_SYMBOLS.size} crypto symbols from token_cards`);
 
     // Load ALL stock symbols from stock_cards to prevent misclassification
-    const { data: stockCards, error: stockError } = await supabase
-      .from('stock_cards')
-      .select('symbol')
-      .eq('is_active', true);
+    // Use pagination to avoid 1000 row limit
+    const allStockSymbols: string[] = [];
+    let stockOffset = 0;
+    const stockBatchSize = 1000;
+    
+    while (true) {
+      const { data: stockBatch, error: stockError } = await supabase
+        .from('stock_cards')
+        .select('symbol')
+        .eq('is_active', true)
+        .range(stockOffset, stockOffset + stockBatchSize - 1);
 
-    if (stockError) {
-      console.error('⚠️ Failed to load stock symbols from stock_cards:', stockError);
+      if (stockError) {
+        console.error('⚠️ Failed to load stock symbols:', stockError);
+        break;
+      }
+      
+      if (!stockBatch || stockBatch.length === 0) break;
+      
+      allStockSymbols.push(...stockBatch.map(s => s.symbol?.toUpperCase()).filter(Boolean));
+      stockOffset += stockBatchSize;
+      
+      if (stockBatch.length < stockBatchSize) break;
     }
 
-    const STOCK_SYMBOLS = new Set(
-      stockCards?.map(s => s.symbol?.toUpperCase()).filter(Boolean) || []
-    );
-    
+    const STOCK_SYMBOLS = new Set(allStockSymbols);
     console.log(`📋 Loaded ${STOCK_SYMBOLS.size} stock symbols from stock_cards`);
+    
+    // Debug: Log some sample stock symbols
+    const stockSamples = Array.from(STOCK_SYMBOLS).slice(0, 10);
+    console.log(`📋 Sample stock symbols: ${stockSamples.join(', ')}`);
 
     // ONE API call to fetch all news
     const newsUrl = `https://api.polygon.io/v2/reference/news?limit=1000&order=desc&apiKey=${polygonKey}`;
@@ -201,6 +218,11 @@ Deno.serve(async (req) => {
       // DECISION: Stock takes priority - if ANY stock ticker exists, it's a stock article
       // This prevents crypto pollution from overlapping symbols
       const articleCategory = hasStockTicker ? 'stock' : (hasCryptoTicker ? 'crypto' : 'none');
+      
+      // Debug logging for crypto classification to trace misclassification
+      if (articleCategory === 'crypto' && globalCrypto.length < 10) {
+        console.log(`🔍 CRYPTO: "${article.title.substring(0, 50)}..." | tickers: [${tickers.join(',')}] | crypto: [${cryptoSymbolsForArticle.join(',')}]`);
+      }
 
       if (articleCategory === 'crypto') {
         // Add to crypto feeds ONLY
