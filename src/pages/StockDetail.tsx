@@ -84,20 +84,51 @@ export default function StockDetail() {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
 
-  const { data: stock, isLoading, error } = useQuery({
+  // Map Polygon MIC codes to TradingView exchange prefixes
+  const exchangeMap: Record<string, string> = {
+    'XNYS': 'NYSE',
+    'XNAS': 'NASDAQ',
+    'XASE': 'AMEX',
+    'ARCX': 'NYSEARCA',
+    'BATS': 'BATS',
+    'XNMS': 'NASDAQ',
+    'XNCM': 'NASDAQ',
+    'XNGS': 'NASDAQ',
+  };
+
+  const { data: stockData, isLoading, error } = useQuery({
     queryKey: ['stock-detail', symbol],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_cards')
-        .select('*')
-        .eq('symbol', symbol?.toUpperCase())
-        .maybeSingle();
+      // Fetch stock card and exchange info in parallel
+      const [stockResult, exchangeResult] = await Promise.all([
+        supabase
+          .from('stock_cards')
+          .select('*')
+          .eq('symbol', symbol?.toUpperCase())
+          .maybeSingle(),
+        supabase
+          .from('poly_tickers')
+          .select('primary_exchange')
+          .eq('market', 'stocks')
+          .eq('ticker', symbol?.toUpperCase())
+          .maybeSingle()
+      ]);
 
-      if (error) throw error;
-      return data;
+      if (stockResult.error) throw stockResult.error;
+      
+      const primaryExchange = exchangeResult.data?.primary_exchange;
+      const tvExchange = primaryExchange ? exchangeMap[primaryExchange] : null;
+      
+      return {
+        ...stockResult.data,
+        derivedExchange: tvExchange,
+        tradingViewSymbol: tvExchange ? `${tvExchange}:${symbol?.toUpperCase()}` : symbol?.toUpperCase()
+      };
     },
     enabled: !!symbol,
   });
+
+  const stock = stockData;
 
   if (isLoading) {
     return (
@@ -157,8 +188,8 @@ export default function StockDetail() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl md:text-3xl font-bold">{stock.symbol}</h1>
-                {stock.exchange && (
-                  <Badge variant="outline" className="text-xs">{stock.exchange}</Badge>
+                {(stock.exchange || stock.derivedExchange) && (
+                  <Badge variant="outline" className="text-xs">{stock.exchange || stock.derivedExchange}</Badge>
                 )}
               </div>
               <p className="text-muted-foreground">{stock.name}</p>
@@ -182,7 +213,7 @@ export default function StockDetail() {
         <Card>
           <CardContent className="p-0 overflow-hidden rounded-lg">
             <TradingViewChart 
-              symbol={`NASDAQ:${stock.symbol}`} 
+              symbol={stock.tradingViewSymbol || stock.symbol} 
               height="400px"
             />
           </CardContent>
