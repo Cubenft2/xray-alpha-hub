@@ -50,12 +50,10 @@ schedule = "5,20,35,50 * * * *"
 [functions.enhance-ticker-data]
 verify_jwt = true
 
+# DEPRECATED: Replaced by polygon-news-unified
+# Keep function for backwards compatibility but remove cron
 [functions.news-fetch]
 verify_jwt = false
-
-# Every 15 min - offset to 8,23,38,53 (keeps news + sentiment fresh)
-[[functions.news-fetch.cron]]
-schedule = "8,23,38,53 * * * *"
 
 [functions.symbol-validation]
 verify_jwt = false
@@ -220,13 +218,15 @@ verify_jwt = false
 [[functions.warm-derivs-cache.cron]]
 schedule = "4-59/5 * * * *"
 
-# Sync Polygon news to token_cards (FREE - unlimited)
-# Every 15 min - offset to 10,25,40,55
-[functions.sync-token-news-polygon]
+# ============================================
+# UNIFIED POLYGON NEWS SYNC (replaces sync-token-news-polygon + sync-stock-news-polygon)
+# ONE API call → updates token_cards, stock_cards, AND cache_kv for widget
+# ============================================
+[functions.polygon-news-unified]
 verify_jwt = false
 
-[[functions.sync-token-news-polygon.cron]]
-schedule = "10,25,40,55 * * * *"
+[[functions.polygon-news-unified.cron]]
+schedule = "8,23,38,53 * * * *"
 
 # Every 2 min - offset to odd minutes 1,3,5,7...
 [functions.massive-crypto-snapshot]
@@ -399,14 +399,6 @@ verify_jwt = false
 
 [[functions.sync-stock-cards-technicals.cron]]
 schedule = "3-58/5 * * * *"
-
-# Sync stock news from Polygon (FREE - unlimited)
-# Every 15 min - offset to 12,27,42,57
-[functions.sync-stock-news-polygon]
-verify_jwt = false
-
-[[functions.sync-stock-news-polygon.cron]]
-schedule = "12,27,42,57 * * * *"
 
 # ============================================
 # WEBSOCKET SYNC FUNCTION
