@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
       const titleLower = (article.title || '').toLowerCase();
       const descLower = (article.description || '').toLowerCase();
       
-      // Check if Trump-related
+      // Check if Trump-related (independent category, can overlap)
       const isTrumpRelated = TRUMP_KEYWORDS.some(kw => 
         titleLower.includes(kw) || descLower.includes(kw) ||
         tickers.some(t => t.toUpperCase().includes('TRUMP') || t.toUpperCase().includes('MELANIA'))
@@ -161,33 +161,50 @@ Deno.serve(async (req) => {
         keywords: article.keywords || [],
       };
 
-      // Add to global trump feed
+      // Add to global trump feed (independent category)
       if (isTrumpRelated && globalTrump.length < 50) {
         globalTrump.push(newsItem);
       }
 
+      // ========== MUTUALLY EXCLUSIVE CLASSIFICATION ==========
+      // Analyze ALL tickers FIRST to determine the article's PRIMARY category
+      // An article goes to ONLY crypto OR stocks, never both
+      
+      let hasStockTicker = false;
+      let hasCryptoTicker = false;
+      const cryptoSymbolsForArticle: string[] = [];
+      const stockSymbolsForArticle: string[] = [];
+
       for (const ticker of tickers) {
         const upperTicker = ticker.toUpperCase();
         
-        // IMPROVED CLASSIFICATION: Stock symbols take priority to prevent misclassification
-        // Many stock tickers overlap with crypto symbols (e.g., RARE, ATOM, etc.)
-        
-        // 1) X: prefix is authoritative crypto
+        // X: prefix is authoritative crypto
         const isAuthoritativeCrypto = ticker.startsWith('X:');
         
-        // 2) If it's a known stock symbol (from stock_cards), treat as stock FIRST
+        // Check if it's a known stock from stock_cards
         const isKnownStock = STOCK_SYMBOLS.has(upperTicker);
         
-        // 3) Only treat as crypto if NOT a known stock and IS in crypto list
+        // Crypto = authoritative OR (not known stock AND in crypto list)
         const isCrypto = isAuthoritativeCrypto || (!isKnownStock && CRYPTO_SYMBOLS.has(upperTicker));
         
-        // 4) Stock = known stock OR (looks like stock ticker AND not crypto)
-        const isStock = isKnownStock || (/^[A-Z]{1,5}$/.test(upperTicker) && !isCrypto);
-
+        if (isKnownStock) {
+          hasStockTicker = true;
+          stockSymbolsForArticle.push(upperTicker);
+        }
         if (isCrypto) {
-          // Normalize crypto symbol (remove X: prefix if present)
+          hasCryptoTicker = true;
           const symbol = upperTicker.replace('X:', '').replace('USD', '').replace('USDT', '');
-          
+          cryptoSymbolsForArticle.push(symbol);
+        }
+      }
+
+      // DECISION: Stock takes priority - if ANY stock ticker exists, it's a stock article
+      // This prevents crypto pollution from overlapping symbols
+      const articleCategory = hasStockTicker ? 'stock' : (hasCryptoTicker ? 'crypto' : 'none');
+
+      if (articleCategory === 'crypto') {
+        // Add to crypto feeds ONLY
+        for (const symbol of cryptoSymbolsForArticle) {
           if (!cryptoNews.has(symbol)) {
             cryptoNews.set(symbol, []);
           }
@@ -195,28 +212,30 @@ Deno.serve(async (req) => {
           if (existing.length < 5) {
             existing.push(newsItem);
           }
-          
-          // Add to global crypto feed (dedupe by URL)
-          if (globalCrypto.length < 100 && !globalCrypto.some(n => n.url === newsItem.url)) {
-            globalCrypto.push(newsItem);
-          }
         }
         
-        if (isStock) {
-          if (!stockNews.has(upperTicker)) {
-            stockNews.set(upperTicker, []);
+        // Add to global crypto feed (dedupe by URL)
+        if (globalCrypto.length < 100 && !globalCrypto.some(n => n.url === newsItem.url)) {
+          globalCrypto.push(newsItem);
+        }
+      } else if (articleCategory === 'stock') {
+        // Add to stock feeds ONLY
+        for (const symbol of stockSymbolsForArticle) {
+          if (!stockNews.has(symbol)) {
+            stockNews.set(symbol, []);
           }
-          const existing = stockNews.get(upperTicker)!;
+          const existing = stockNews.get(symbol)!;
           if (existing.length < 5) {
             existing.push(newsItem);
           }
-          
-          // Add to global stocks feed (dedupe by URL)
-          if (globalStocks.length < 100 && !globalStocks.some(n => n.url === newsItem.url)) {
-            globalStocks.push(newsItem);
-          }
+        }
+        
+        // Add to global stocks feed (dedupe by URL)
+        if (globalStocks.length < 100 && !globalStocks.some(n => n.url === newsItem.url)) {
+          globalStocks.push(newsItem);
         }
       }
+      // articleCategory === 'none' means no recognized tickers, skip
     }
 
     console.log(`📊 Categorized: ${cryptoNews.size} crypto tickers, ${stockNews.size} stock tickers`);
