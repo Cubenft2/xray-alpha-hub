@@ -306,28 +306,59 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  const { limit } = await (async () => {
+  const body = await (async () => {
     try { return await req.json(); } catch { return {}; }
-  })() as { limit?: number };
+  })() as { limit?: number; cronSecret?: string };
 
-  const max = Math.min(Math.max(limit ?? 100, 10), 200);
+  const max = Math.min(Math.max(body.limit ?? 100, 10), 200);
+  
+  // CRON_SECRET check: Non-cron requests only return cached data, never refresh
+  const cronSecret = Deno.env.get('CRON_SECRET');
+  const isCronAuthorized = cronSecret && body.cronSecret === cronSecret;
   
   // Parameterized cache keys by limit
   const cacheKey = getCacheKey(max);
   const lockKey = getLockKey(max);
   const now = new Date();
   
-  // Lift cached to outer scope for catch block access
-  let cached: { v: unknown; expires_at: string; created_at: string } | null = null;
-
-  // Step 1: Check cache first
+  // Always try to return cache first
   const cachedRes = await supabase
     .from('cache_kv')
     .select('v, expires_at, created_at')
     .eq('k', cacheKey)
     .single();
   
-  cached = cachedRes.data;
+  const cached = cachedRes.data;
+
+  // Non-cron requests: ONLY return cached data, never refresh
+  if (!isCronAuthorized) {
+    console.log('📦 Non-cron request - returning cache only (no API refresh)');
+    if (cached?.v) {
+      const cachedData = cached.v as { crypto: NewsItem[]; stocks: NewsItem[]; trump: NewsItem[] };
+      const response: CachedNewsResponse = {
+        ...cachedData,
+        cached: true,
+        cached_at: cached.created_at,
+        cache_expires_at: cached.expires_at
+      };
+      return new Response(JSON.stringify(response), {
+        headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS },
+      });
+    }
+    // No cache exists - return empty (cron will populate it)
+    return new Response(JSON.stringify({
+      crypto: [],
+      stocks: [],
+      trump: [],
+      cached: true,
+      message: 'Cache empty - awaiting cron refresh'
+    }), {
+      headers: { "content-type": "application/json; charset=utf-8", ...CORS_HEADERS },
+    });
+  }
+
+  // Cron-authorized request continues below...
+  // Cache already checked above, use the same cached value
 
   if (cached) {
     const expiresAt = new Date(cached.expires_at);
