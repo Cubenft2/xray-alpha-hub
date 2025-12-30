@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, TrendingUp, TrendingDown, ExternalLink, Building2, Users, Globe, Calendar } from 'lucide-react';
 import { SEOHead } from '@/components/SEOHead';
 import { getSimplifiedSector } from '@/hooks/useStockCards';
+import { TradingViewChart } from '@/components/TradingViewChart';
 
 function formatNumber(num: number | null, options?: { prefix?: string; suffix?: string; decimals?: number }): string {
   if (num === null || num === undefined) return 'N/A';
@@ -176,6 +177,16 @@ export default function StockDetail() {
             <TechnicalSignalBadge signal={stock.technical_signal} />
           </div>
         </div>
+
+        {/* TradingView Chart */}
+        <Card>
+          <CardContent className="p-0 overflow-hidden rounded-lg">
+            <TradingViewChart 
+              symbol={`NASDAQ:${stock.symbol}`} 
+              height="400px"
+            />
+          </CardContent>
+        </Card>
 
         {/* Tabs */}
         <Tabs defaultValue="summary" className="w-full">
