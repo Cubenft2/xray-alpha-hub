@@ -142,6 +142,7 @@ verify_jwt = false
 verify_jwt = false
 
 # LunarCrush news - runs every 30 min (staggered to :12/:42 to avoid collisions)
+# CRON_SECRET required for API refresh - frontend calls return cache only
 [functions.lunarcrush-news]
 verify_jwt = false
 
@@ -150,6 +151,11 @@ schedule = "12,42 * * * *"
 
 # LunarCrush universe - reads from token_cards (no API calls)
 [functions.lunarcrush-universe]
+verify_jwt = false
+
+# Read-only news cache function - serves merged news from cache, ZERO API calls
+# Frontend calls this instead of news-fetch/lunarcrush-news directly
+[functions.get-cached-news]
 verify_jwt = false
 
 [functions.lunarcrush-coin-detail]

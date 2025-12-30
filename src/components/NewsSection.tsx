@@ -58,53 +58,32 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
   const { toast } = useToast();
   const newsTopRef = useRef<HTMLDivElement>(null);
 
-  // Enhanced news fetching with live updates - merges Polygon + LunarCrush sources
+  // Read-only news fetching - reads from cache only, NEVER triggers API calls
+  // News is populated by crons: news-fetch (Polygon/RSS) and lunarcrush-news
   const fetchNews = async () => {
-    console.log('🐕 XRay: Starting fetchNews function...');
+    console.log('🐕 XRay: Starting fetchNews function (cache-only)...');
     setIsLoading(true);
-    console.log('🐕 XRay: Fetching news via edge functions...');
 
     try {
-      // Fetch both regular news and LunarCrush social news in parallel
-      const [regularNewsResult, socialNewsResult] = await Promise.all([
-        supabase.functions.invoke('news-fetch', { body: { limit: 100 } }),
-        supabase.functions.invoke('lunarcrush-news', { body: {} })
-      ]);
+      // Call read-only cache function - ZERO external API calls
+      const cachedNewsResult = await supabase.functions.invoke('get-cached-news', { body: {} });
 
-      console.log('🐕 XRay: Regular news response:', regularNewsResult);
-      console.log('🐕 XRay: LunarCrush news response:', socialNewsResult);
+      console.log('🐕 XRay: Cached news response:', cachedNewsResult);
 
-      if (regularNewsResult.error) {
-        console.error('🐕 XRay: Regular news error:', regularNewsResult.error);
-        throw regularNewsResult.error;
+      if (cachedNewsResult.error) {
+        console.error('🐕 XRay: Cached news error:', cachedNewsResult.error);
+        throw cachedNewsResult.error;
       }
-      if (!regularNewsResult.data) {
-        throw new Error('No data from news-fetch');
+      if (!cachedNewsResult.data) {
+        throw new Error('No data from get-cached-news');
       }
 
-      let cryptoItems: NewsItem[] = Array.isArray(regularNewsResult.data.crypto) ? regularNewsResult.data.crypto : [];
-      let stocksItems: NewsItem[] = Array.isArray(regularNewsResult.data.stocks) ? regularNewsResult.data.stocks : [];
-      const trumpItems: NewsItem[] = Array.isArray(regularNewsResult.data.trump) ? regularNewsResult.data.trump : [];
+      // Data is already merged by get-cached-news function
+      let cryptoItems: NewsItem[] = Array.isArray(cachedNewsResult.data.crypto) ? cachedNewsResult.data.crypto : [];
+      let stocksItems: NewsItem[] = Array.isArray(cachedNewsResult.data.stocks) ? cachedNewsResult.data.stocks : [];
+      const trumpItems: NewsItem[] = Array.isArray(cachedNewsResult.data.trump) ? cachedNewsResult.data.trump : [];
 
-      // Merge with LunarCrush social news if available
-      // Multi-source merge: deduplicate by URL, prioritize LunarCrush (has social engagement)
-      if (socialNewsResult.data && !socialNewsResult.error) {
-        const socialCrypto: NewsItem[] = Array.isArray(socialNewsResult.data.crypto) ? socialNewsResult.data.crypto : [];
-        const socialStocks: NewsItem[] = Array.isArray(socialNewsResult.data.stocks) ? socialNewsResult.data.stocks : [];
-        
-        // Merge by URL to avoid duplicates, prioritize social news (LunarCrush first)
-        const mergeNewsSources = (polygon: NewsItem[], lunarcrush: NewsItem[]): NewsItem[] => {
-          const urlSet = new Set(lunarcrush.map(item => item.url?.toLowerCase()));
-          const uniquePolygon = polygon.filter(item => !urlSet.has(item.url?.toLowerCase()));
-          // LunarCrush items first (have social engagement), then Polygon
-          return [...lunarcrush, ...uniquePolygon];
-        };
-
-        cryptoItems = mergeNewsSources(cryptoItems, socialCrypto);
-        stocksItems = mergeNewsSources(stocksItems, socialStocks);
-        
-        console.log(`✅ Merged multi-source news: ${socialCrypto.length} LC crypto + ${cryptoItems.length - socialCrypto.length} Polygon crypto, ${socialStocks.length} LC stocks + ${stocksItems.length - socialStocks.length} Polygon stocks`);
-      }
+      console.log(`✅ Got cached news: ${cryptoItems.length} crypto, ${stocksItems.length} stocks, ${trumpItems.length} trump`);
 
       console.log('🐕 XRay: Parsed news items:', {
         cryptoCount: cryptoItems.length,
