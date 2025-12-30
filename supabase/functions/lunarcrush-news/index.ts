@@ -199,30 +199,62 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get('LUNARCRUSH_API_KEY');
-    if (!apiKey) {
-      throw new Error('LUNARCRUSH_API_KEY not configured');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check cache first
+    // Parse request body for cronSecret
+    const body = await req.json().catch(() => ({}));
+    const cronSecret = Deno.env.get('CRON_SECRET');
+
+    // Check cache first using expires_at (not created_at which never updates on upsert!)
     const { data: cachedData } = await supabase
       .from('cache_kv')
-      .select('v, created_at')
+      .select('v, expires_at')
       .eq('k', CACHE_KEY)
       .single();
 
-    if (cachedData && cachedData.v) {
-      const cacheAge = Date.now() - new Date(cachedData.created_at).getTime();
-      if (cacheAge < CACHE_DURATION) {
-        console.log('📦 Returning cached LunarCrush news');
+    // CRON_SECRET check: Non-cron requests only return cached data, never refresh
+    const isCronAuthorized = cronSecret && body.cronSecret === cronSecret;
+    
+    if (!isCronAuthorized) {
+      console.log('📦 Non-cron request - returning cache only (no API refresh)');
+      if (cachedData?.v) {
+        return new Response(JSON.stringify({ 
+          ...cachedData.v, 
+          cached: true,
+          message: 'Cache-only response (cron refresh required)',
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      // No cache exists - return empty (cron will populate it)
+      return new Response(JSON.stringify({
+        crypto: [],
+        stocks: [],
+        metadata: { cached: true, message: 'Cache empty - awaiting cron refresh' },
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Cron-authorized request: check if cache is still valid
+    if (cachedData?.v && cachedData.expires_at) {
+      const expiresAt = new Date(cachedData.expires_at);
+      if (expiresAt > new Date()) {
+        console.log('📦 Cache still valid (expires_at in future), returning cached');
         return new Response(JSON.stringify({ ...cachedData.v, cached: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+    }
+
+    // Cache expired or missing - proceed with API refresh
+    console.log('🔄 Cron-authorized refresh: cache expired, fetching from LunarCrush API');
+
+    const apiKey = Deno.env.get('LUNARCRUSH_API_KEY');
+    if (!apiKey) {
+      throw new Error('LUNARCRUSH_API_KEY not configured');
     }
 
     // Fetch top tokens by market cap from token_cards (reduced to MAX_TOKEN_TOPICS)
