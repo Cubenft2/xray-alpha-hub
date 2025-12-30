@@ -47,11 +47,39 @@ const POLYGON_UNIFIED_CACHE_KEY = 'polygon_news_unified_cache';
 const LUNARCRUSH_CACHE_KEY = 'lunarcrush_news_cache';
 
 // Normalize news items to consistent format
-const normalizeNewsItem = (item: NewsItem): NewsItem => ({
+const normalizeNewsItem = (item: NewsItem, defaultSourceType?: string): NewsItem => ({
   ...item,
   publishedAt: item.publishedAt || item.published_at,
   imageUrl: item.imageUrl || item.image_url,
+  sourceType: item.sourceType || defaultSourceType,
 });
+
+// Canonicalize URL for deduplication
+const canonicalizeUrl = (url: string): string => {
+  try {
+    const u = new URL(url);
+    // Remove common tracking params
+    u.searchParams.delete('utm_source');
+    u.searchParams.delete('utm_medium');
+    u.searchParams.delete('utm_campaign');
+    u.searchParams.delete('ref');
+    // Lowercase and remove trailing slash
+    return u.toString().toLowerCase().replace(/\/$/, '');
+  } catch {
+    return (url || '').toLowerCase().trim();
+  }
+};
+
+// Dedupe array of news items by URL
+const dedupeByUrl = (items: NewsItem[]): NewsItem[] => {
+  const seen = new Set<string>();
+  return items.filter(item => {
+    const key = canonicalizeUrl(item.url);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -103,19 +131,32 @@ Deno.serve(async (req) => {
     console.log(`📦 Cache status - polygon_unified: ${polygonAge}, lunarcrush: ${lunarCrushAge}`);
 
     // Get arrays from caches (empty if missing)
-    const polygonCrypto: NewsItem[] = (polygonData?.crypto || []).map(normalizeNewsItem);
-    const polygonStocks: NewsItem[] = (polygonData?.stocks || []).map(normalizeNewsItem);
-    const trumpNews: NewsItem[] = (polygonData?.trump || []).map(normalizeNewsItem);
+    // Force sourceType: 'polygon' on Polygon items (fallback for older cache entries)
+    const polygonCrypto: NewsItem[] = dedupeByUrl(
+      (polygonData?.crypto || []).map(item => normalizeNewsItem(item, 'polygon'))
+    );
+    const polygonStocks: NewsItem[] = dedupeByUrl(
+      (polygonData?.stocks || []).map(item => normalizeNewsItem(item, 'polygon'))
+    );
+    const trumpNews: NewsItem[] = dedupeByUrl(
+      (polygonData?.trump || []).map(item => normalizeNewsItem(item, 'polygon'))
+    );
     
-    const lcCrypto: NewsItem[] = (lunarCrushData?.crypto || []).map(normalizeNewsItem);
-    const lcStocks: NewsItem[] = (lunarCrushData?.stocks || []).map(normalizeNewsItem);
+    // LunarCrush items keep their sourceType (usually 'lunarcrush' or social)
+    const lcCrypto: NewsItem[] = dedupeByUrl(
+      (lunarCrushData?.crypto || []).map(item => normalizeNewsItem(item))
+    );
+    const lcStocks: NewsItem[] = dedupeByUrl(
+      (lunarCrushData?.stocks || []).map(item => normalizeNewsItem(item))
+    );
 
     // Merge news sources: deduplicate by URL, prioritize LunarCrush (has social engagement)
     const mergeNewsSources = (polygon: NewsItem[], lunarcrush: NewsItem[]): NewsItem[] => {
-      const urlSet = new Set(lunarcrush.map(item => item.url?.toLowerCase()));
-      const uniquePolygon = polygon.filter(item => !urlSet.has(item.url?.toLowerCase()));
+      const urlSet = new Set(lunarcrush.map(item => canonicalizeUrl(item.url)));
+      const uniquePolygon = polygon.filter(item => !urlSet.has(canonicalizeUrl(item.url)));
       // LunarCrush items first (have social engagement), then Polygon
-      return [...lunarcrush, ...uniquePolygon];
+      // Final dedupe to be safe
+      return dedupeByUrl([...lunarcrush, ...uniquePolygon]);
     };
 
     const mergedCrypto = mergeNewsSources(polygonCrypto, lcCrypto);
