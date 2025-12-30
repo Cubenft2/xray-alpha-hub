@@ -31,11 +31,16 @@ interface PolygonArticle {
 interface NewsItem {
   title: string;
   source: string;
+  sourceType: 'polygon';
   url: string;
   published_at: string;
   image_url?: string;
   sentiment?: string;
+  sentimentReasoning?: string;
   description?: string;
+  author?: string;
+  tickers?: string[];
+  keywords?: string[];
 }
 
 // Trump-related keywords
@@ -94,6 +99,22 @@ Deno.serve(async (req) => {
     
     console.log(`📋 Loaded ${CRYPTO_SYMBOLS.size} crypto symbols from token_cards`);
 
+    // Load ALL stock symbols from stock_cards to prevent misclassification
+    const { data: stockCards, error: stockError } = await supabase
+      .from('stock_cards')
+      .select('symbol')
+      .eq('is_active', true);
+
+    if (stockError) {
+      console.error('⚠️ Failed to load stock symbols from stock_cards:', stockError);
+    }
+
+    const STOCK_SYMBOLS = new Set(
+      stockCards?.map(s => s.symbol?.toUpperCase()).filter(Boolean) || []
+    );
+    
+    console.log(`📋 Loaded ${STOCK_SYMBOLS.size} stock symbols from stock_cards`);
+
     // ONE API call to fetch all news
     const newsUrl = `https://api.polygon.io/v2/reference/news?limit=1000&order=desc&apiKey=${polygonKey}`;
     const response = await fetch(newsUrl);
@@ -128,11 +149,16 @@ Deno.serve(async (req) => {
       const newsItem: NewsItem = {
         title: article.title,
         source: article.publisher?.name || 'Unknown',
+        sourceType: 'polygon',
         url: article.article_url,
         published_at: article.published_utc,
         image_url: article.image_url,
         sentiment: article.insights?.[0]?.sentiment || null,
-        description: article.description,
+        sentimentReasoning: article.insights?.[0]?.sentiment_reasoning || '',
+        description: article.description || '',
+        author: article.author || '',
+        tickers: tickers.map(t => t.toUpperCase()),
+        keywords: article.keywords || [],
       };
 
       // Add to global trump feed
@@ -143,11 +169,20 @@ Deno.serve(async (req) => {
       for (const ticker of tickers) {
         const upperTicker = ticker.toUpperCase();
         
-        // Check if crypto (X: prefix or known crypto symbol)
-        const isCrypto = ticker.startsWith('X:') || CRYPTO_SYMBOLS.has(upperTicker);
+        // IMPROVED CLASSIFICATION: Stock symbols take priority to prevent misclassification
+        // Many stock tickers overlap with crypto symbols (e.g., RARE, ATOM, etc.)
         
-        // Check if stock (1-5 uppercase letters, no special chars)
-        const isStock = /^[A-Z]{1,5}$/.test(upperTicker) && !CRYPTO_SYMBOLS.has(upperTicker);
+        // 1) X: prefix is authoritative crypto
+        const isAuthoritativeCrypto = ticker.startsWith('X:');
+        
+        // 2) If it's a known stock symbol (from stock_cards), treat as stock FIRST
+        const isKnownStock = STOCK_SYMBOLS.has(upperTicker);
+        
+        // 3) Only treat as crypto if NOT a known stock and IS in crypto list
+        const isCrypto = isAuthoritativeCrypto || (!isKnownStock && CRYPTO_SYMBOLS.has(upperTicker));
+        
+        // 4) Stock = known stock OR (looks like stock ticker AND not crypto)
+        const isStock = isKnownStock || (/^[A-Z]{1,5}$/.test(upperTicker) && !isCrypto);
 
         if (isCrypto) {
           // Normalize crypto symbol (remove X: prefix if present)
