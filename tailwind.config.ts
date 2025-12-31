@@ -17,6 +17,7 @@ export default {
         'pixel': ['Orbitron', 'Space Mono', 'monospace'],
         'mono': ['Space Mono', 'monospace'],
         'sans': ['Orbitron', 'system-ui', 'sans-serif'],
+        'chat': ['Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",

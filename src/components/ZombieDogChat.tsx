@@ -329,7 +329,7 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
   };
 
   // Dynamic sizing based on full-screen mode
-  const textSize = isFullScreen ? 'text-sm' : 'text-xs';
+  const textSize = isFullScreen ? 'text-base' : 'text-sm';
   const avatarSize = isFullScreen ? 'w-8 h-8' : 'w-6 h-6';
   const inputHeight = isFullScreen ? 'h-10' : 'h-8';
   const inputTextSize = isFullScreen ? 'text-sm' : 'text-xs';
@@ -367,7 +367,7 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
                   : 'bg-[hsl(120_100%_35%/0.15)] border border-[hsl(120_100%_35%/0.3)] text-foreground'
               }`}
             >
-              <p className={`${textSize} whitespace-pre-wrap`}>{message.content}</p>
+              <p className={`${textSize} whitespace-pre-wrap font-chat leading-relaxed`}>{message.content}</p>
             </div>
           </div>
         ))}
@@ -380,7 +380,7 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
               className={`${avatarSize} mr-2 flex-shrink-0 pixel-border object-cover rounded-sm animate-pulse`} 
             />
             <div className={`bg-[hsl(120_100%_35%/0.15)] border border-[hsl(120_100%_35%/0.3)] rounded-lg ${messagePadding}`}>
-              <p className={`${textSize} text-muted-foreground animate-pulse`}>
+              <p className={`${textSize} text-muted-foreground animate-pulse font-chat`}>
                 Sniffing the data...
               </p>
             </div>
@@ -436,7 +436,7 @@ export const ZombieDogChat = ({ compact = false, isFullScreen = false, className
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask ZombieDog anything (any language!)..."
-              className={`flex-1 ${inputHeight} ${inputTextSize} bg-background/50 border-primary/30 focus:border-primary`}
+              className={`flex-1 ${inputHeight} ${inputTextSize} font-chat bg-background/50 border-primary/30 focus:border-primary`}
               disabled={isLoading}
             />
             <Button
