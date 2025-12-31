@@ -3392,6 +3392,57 @@ export type Database = {
           },
         ]
       }
+      trending_topics: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          interactions_24h: number | null
+          momentum_1h: number | null
+          momentum_24h: number | null
+          num_contributors: number | null
+          num_posts: number | null
+          rank_1h_ago: number | null
+          rank_24h_ago: number | null
+          snapshot_at: string
+          title: string
+          topic: string
+          topic_rank: number
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          interactions_24h?: number | null
+          momentum_1h?: number | null
+          momentum_24h?: number | null
+          num_contributors?: number | null
+          num_posts?: number | null
+          rank_1h_ago?: number | null
+          rank_24h_ago?: number | null
+          snapshot_at?: string
+          title: string
+          topic: string
+          topic_rank: number
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          interactions_24h?: number | null
+          momentum_1h?: number | null
+          momentum_24h?: number | null
+          num_contributors?: number | null
+          num_posts?: number | null
+          rank_1h_ago?: number | null
+          rank_24h_ago?: number | null
+          snapshot_at?: string
+          title?: string
+          topic?: string
+          topic_rank?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
