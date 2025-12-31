@@ -47,9 +47,6 @@ verify_jwt = false
 [[functions.exchange-data-aggregator.cron]]
 schedule = "5,20,35,50 * * * *"
 
-[functions.enhance-ticker-data]
-verify_jwt = true
-
 # DEPRECATED: Replaced by polygon-news-unified
 # Keep function for backwards compatibility but remove cron
 [functions.news-fetch]
@@ -75,15 +72,6 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.quotes]
-verify_jwt = false
-
-[functions.sync-ticker-mappings]
-verify_jwt = false
-
-[functions.map-polygon-tickers]
-verify_jwt = false
-
-[functions.polygon-rest-poller]
 verify_jwt = false
 
 # Every 5 min - offset to 1,6,11,16...
@@ -162,12 +150,6 @@ verify_jwt = false
 [functions.backfill-crypto-history]
 verify_jwt = true
 
-[functions.coingecko-enrich]
-verify_jwt = false
-
-[functions.coingecko-logos]
-verify_jwt = false
-
 [functions.calculate-asset-sentiment]
 verify_jwt = false
 
@@ -180,19 +162,10 @@ verify_jwt = false
 [functions.generate-og-image]
 verify_jwt = false
 
-[functions.sync-stock-mappings]
-verify_jwt = false
-
-[functions.sync-crypto-mappings]
-verify_jwt = false
-
 [functions.coingecko-chart-data]
 verify_jwt = false
 
 [functions.polygon-crypto-prices]
-verify_jwt = false
-
-[functions.migrate-ticker-data]
 verify_jwt = false
 
 # Every 5 min - offset to 3,8,13,18...
@@ -203,9 +176,6 @@ verify_jwt = false
 schedule = "3-58/5 * * * *"
 
 [functions.polygon-sparkline-data]
-verify_jwt = false
-
-[functions.fix-coingecko-mappings]
 verify_jwt = false
 
 [functions.asset-details]
@@ -228,25 +198,12 @@ verify_jwt = false
 [[functions.polygon-news-unified.cron]]
 schedule = "8,23,38,53 * * * *"
 
-# Every 2 min - offset to odd minutes 1,3,5,7...
-[functions.massive-crypto-snapshot]
-verify_jwt = false
-
-[[functions.massive-crypto-snapshot.cron]]
-schedule = "1-59/2 * * * *"
-
 # Daily at 3:25 AM UTC (staggered)
 [functions.massive-forex-sync]
 verify_jwt = false
 
 [[functions.massive-forex-sync.cron]]
 schedule = "25 3 * * *"
-
-[functions.market-data]
-verify_jwt = false
-
-[functions.polygon-raw-preview]
-verify_jwt = false
 
 # Sync technical indicators to token_cards from Polygon OHLCV (local calculation)
 # Every 3 min - offset to 1,4,7,10...
