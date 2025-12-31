@@ -433,3 +433,16 @@ verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush-ai.cron]]
 schedule = "5 */2 * * *"
+
+# ============================================
+# LUNARCRUSH TOPICS SYNC
+# ============================================
+
+# Sync trending topics from LunarCrush Topics API
+# Every 30 min at :15/:45 (48 calls/day)
+# Returns up to 500 topics per call (narratives, sectors, tickers)
+[functions.sync-lunarcrush-topics]
+verify_jwt = false
+
+[[functions.sync-lunarcrush-topics.cron]]
+schedule = "15,45 * * * *"
