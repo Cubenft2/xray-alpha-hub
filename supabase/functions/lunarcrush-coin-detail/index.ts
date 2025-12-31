@@ -5,6 +5,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper to log API calls for rate limit tracking
+async function logApiCall(supabase: any, success: boolean, errorMessage?: string) {
+  try {
+    await supabase.from('external_api_calls').insert({
+      api_name: 'lunarcrush',
+      function_name: 'lunarcrush-coin-detail',
+      call_count: 1,
+      success,
+      error_message: errorMessage || null,
+    });
+  } catch (e) {
+    console.error('Failed to log API call:', e);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -85,6 +100,9 @@ Deno.serve(async (req) => {
         },
       }
     );
+
+    // Log API call for rate limit tracking
+    await logApiCall(supabase, response.ok, response.ok ? undefined : `${response.status}`);
 
     if (!response.ok) {
       // If rate limited and we have expired cache, return that instead

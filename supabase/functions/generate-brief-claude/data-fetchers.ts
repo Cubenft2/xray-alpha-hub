@@ -1,4 +1,24 @@
 import { MarketData, CoinData, SocialData, StockData } from './types.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+
+// Helper to log API calls for rate limit tracking
+async function logApiCall(apiName: string, functionName: string, success: boolean, errorMessage?: string) {
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    await supabase.from('external_api_calls').insert({
+      api_name: apiName,
+      function_name: functionName,
+      call_count: 1,
+      success,
+      error_message: errorMessage || null,
+    });
+  } catch (e) {
+    console.error('Failed to log API call:', e);
+  }
+}
 
 export async function fetchComprehensiveMarketData(): Promise<MarketData> {
   const [
@@ -128,6 +148,9 @@ async function fetchLunarCrushSocial(): Promise<SocialData[]> {
       }
     );
 
+    // Log API call for rate limit tracking
+    await logApiCall('lunarcrush', 'generate-brief-claude', response.ok, response.ok ? undefined : `${response.status}`);
+
     if (!response.ok) {
       throw new Error(`LunarCrush API error: ${response.status}`);
     }
@@ -136,6 +159,7 @@ async function fetchLunarCrushSocial(): Promise<SocialData[]> {
     return data.data || [];
   } catch (error) {
     console.error('❌ LunarCrush fetch failed:', error);
+    await logApiCall('lunarcrush', 'generate-brief-claude', false, error.message);
     return [];
   }
 }
