@@ -23,6 +23,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { APIRateLimitMonitor } from '@/components/admin/APIRateLimitMonitor';
 import { CryptoPipelineHealth } from '@/components/admin/CryptoPipelineHealth';
+import { LunarCrushCallBreakdown } from '@/components/admin/LunarCrushCallBreakdown';
 
 interface QuickHealthStatus {
   name: string;
@@ -159,6 +160,8 @@ export function SystemHealth() {
       {/* API Rate Limit Monitor */}
       <APIRateLimitMonitor />
 
+      {/* LunarCrush Call Breakdown */}
+      <LunarCrushCallBreakdown />
       {/* Pipeline Health - Tabbed View */}
       <Card>
         <CardHeader className="pb-3">

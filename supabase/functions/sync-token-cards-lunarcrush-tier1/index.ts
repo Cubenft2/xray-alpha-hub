@@ -66,10 +66,42 @@ function getPrimaryChain(contracts: Record<string, any>): string | null {
   return chains[0];
 }
 
-// Fetch with exponential backoff retry for rate limiting
-async function fetchWithRetry(url: string, headers: Record<string, string>, maxRetries = 3): Promise<Response | null> {
+// Helper to log API call - logs each attempt for accurate rate limit tracking
+async function logApiCall(supabase: any, apiName: string, functionName: string, success: boolean, errorMessage?: string, callCount: number = 1) {
+  try {
+    await supabase.from('external_api_calls').insert({
+      api_name: apiName,
+      function_name: functionName,
+      call_count: callCount,
+      success,
+      error_message: errorMessage || null,
+    });
+  } catch (e) {
+    console.error('[tier1] Failed to log API call:', e);
+  }
+}
+
+// Fetch with exponential backoff retry for rate limiting - logs each attempt
+async function fetchWithRetry(
+  url: string, 
+  headers: Record<string, string>, 
+  supabase: any,
+  maxRetries = 3
+): Promise<{ response: Response | null; totalAttempts: number }> {
+  let totalAttempts = 0;
+  
   for (let attempt = 0; attempt < maxRetries; attempt++) {
+    totalAttempts++;
     const response = await fetch(url, { headers });
+    
+    // Log each attempt for accurate rate limit tracking
+    await logApiCall(
+      supabase, 
+      'lunarcrush', 
+      'sync-token-cards-lunarcrush-tier1', 
+      response.ok,
+      response.ok ? undefined : `HTTP ${response.status} (attempt ${attempt + 1})`
+    );
     
     if (response.status === 429) {
       const waitTime = Math.pow(2, attempt) * 5000;
@@ -78,26 +110,11 @@ async function fetchWithRetry(url: string, headers: Record<string, string>, maxR
       continue;
     }
     
-    return response;
+    return { response, totalAttempts };
   }
   
-  console.error(`[tier1] Max retries exceeded for rate limiting`);
-  return null;
-}
-
-// Helper to log API call
-async function logApiCall(supabase: any, apiName: string, functionName: string, success: boolean, errorMessage?: string) {
-  try {
-    await supabase.from('external_api_calls').insert({
-      api_name: apiName,
-      function_name: functionName,
-      call_count: 1,
-      success,
-      error_message: errorMessage || null,
-    });
-  } catch (e) {
-    console.error('[tier1] Failed to log API call:', e);
-  }
+  console.error(`[tier1] Max retries exceeded for rate limiting after ${totalAttempts} attempts`);
+  return { response: null, totalAttempts };
 }
 
 serve(async (req) => {
@@ -121,10 +138,9 @@ serve(async (req) => {
     const headers: Record<string, string> = { 'Accept': 'application/json' };
     if (lunarcrushKey) headers['Authorization'] = `Bearer ${lunarcrushKey}`;
 
-    const response = await fetchWithRetry(url, headers);
+    const { response, totalAttempts } = await fetchWithRetry(url, headers, supabase);
     
-    await logApiCall(supabase, 'lunarcrush', 'sync-token-cards-lunarcrush-tier1', response?.ok ?? false, 
-      response?.ok ? undefined : `HTTP ${response?.status || 'no response'}`);
+    console.log(`[tier1] Fetch completed with ${totalAttempts} attempt(s)`);
     
     if (!response || !response.ok) {
       console.error(`[tier1] LunarCrush API error: ${response?.status || 'no response'}`);

@@ -48,26 +48,46 @@ function getPrimaryChain(contracts: Record<string, any>): string | null {
   return chains[0];
 }
 
-async function fetchWithRetry(url: string, headers: Record<string, string>, maxRetries = 3): Promise<Response | null> {
+// Helper to log API call - logs each attempt for accurate rate limit tracking
+async function logApiCall(supabase: any, apiName: string, functionName: string, success: boolean, errorMessage?: string, callCount: number = 1) {
+  try {
+    await supabase.from('external_api_calls').insert({
+      api_name: apiName, function_name: functionName, call_count: callCount, success, error_message: errorMessage || null,
+    });
+  } catch (e) { console.error('[tier2] Failed to log API call:', e); }
+}
+
+// Fetch with exponential backoff retry for rate limiting - logs each attempt
+async function fetchWithRetry(
+  url: string, 
+  headers: Record<string, string>, 
+  supabase: any,
+  maxRetries = 3
+): Promise<{ response: Response | null; totalAttempts: number }> {
+  let totalAttempts = 0;
+  
   for (let attempt = 0; attempt < maxRetries; attempt++) {
+    totalAttempts++;
     const response = await fetch(url, { headers });
+    
+    // Log each attempt for accurate rate limit tracking
+    await logApiCall(
+      supabase, 
+      'lunarcrush', 
+      'sync-token-cards-lunarcrush-tier2', 
+      response.ok,
+      response.ok ? undefined : `HTTP ${response.status} (attempt ${attempt + 1})`
+    );
+    
     if (response.status === 429) {
       const waitTime = Math.pow(2, attempt) * 5000;
       console.log(`[tier2] Rate limited, waiting ${waitTime/1000}s...`);
       await new Promise(r => setTimeout(r, waitTime));
       continue;
     }
-    return response;
+    return { response, totalAttempts };
   }
-  return null;
-}
-
-async function logApiCall(supabase: any, apiName: string, functionName: string, success: boolean, errorMessage?: string) {
-  try {
-    await supabase.from('external_api_calls').insert({
-      api_name: apiName, function_name: functionName, call_count: 1, success, error_message: errorMessage || null,
-    });
-  } catch (e) { console.error('[tier2] Failed to log API call:', e); }
+  return { response: null, totalAttempts };
 }
 
 serve(async (req) => {
@@ -88,9 +108,8 @@ serve(async (req) => {
     const headers: Record<string, string> = { 'Accept': 'application/json' };
     if (lunarcrushKey) headers['Authorization'] = `Bearer ${lunarcrushKey}`;
 
-    const response = await fetchWithRetry(url, headers);
-    await logApiCall(supabase, 'lunarcrush', 'sync-token-cards-lunarcrush-tier2', response?.ok ?? false, 
-      response?.ok ? undefined : `HTTP ${response?.status || 'no response'}`);
+    const { response, totalAttempts } = await fetchWithRetry(url, headers, supabase);
+    console.log(`[tier2] Fetch completed with ${totalAttempts} attempt(s)`);
     
     if (!response || !response.ok) {
       console.error(`[tier2] LunarCrush API error: ${response?.status || 'no response'}`);
