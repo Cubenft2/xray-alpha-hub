@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
   try {
     // Fetch topics list (1 API call = up to 1000 topics!)
     const response = await fetch(
-      'https://lunarcrush.com/api4/public/topics/list/v1?limit=500',
+      'https://lunarcrush.com/api4/public/topics/list/v1',
       {
         headers: { 'Authorization': `Bearer ${lunarCrushApiKey}` },
       }
