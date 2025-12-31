@@ -278,6 +278,14 @@ verify_jwt = false
 [[functions.sync-token-cards-lunarcrush-tier2.cron]]
 schedule = "4,34 * * * *"
 
+# TIER 3: Tokens 2001-3000 - every 60 min (staggered to :45)
+# 24 API calls/day - ensures no token more than 60 min stale
+[functions.sync-token-cards-lunarcrush-tier3]
+verify_jwt = false
+
+[[functions.sync-token-cards-lunarcrush-tier3.cron]]
+schedule = "45 * * * *"
+
 # FULL SYNC: All 3000 tokens - every 2 hours (staggered to :59 to avoid minute-0 collisions)
 [functions.sync-token-cards-lunarcrush]
 verify_jwt = false
