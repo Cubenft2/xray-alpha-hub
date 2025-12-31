@@ -13,7 +13,22 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const TOKENS_PER_RUN = 2; // 2 tokens × 4 endpoints = 8 calls (under 10/min limit)
 const CACHE_KEY = 'lunarcrush_enhanced_offset';
 
-async function fetchLunarCrush(endpoint: string, symbol: string): Promise<any> {
+// Helper to log API calls for rate limit tracking
+async function logApiCall(supabase: any, success: boolean, errorMessage?: string) {
+  try {
+    await supabase.from('external_api_calls').insert({
+      api_name: 'lunarcrush',
+      function_name: 'sync-token-cards-lunarcrush-enhanced',
+      call_count: 1,
+      success,
+      error_message: errorMessage || null,
+    });
+  } catch (e) {
+    console.error('Failed to log API call:', e);
+  }
+}
+
+async function fetchLunarCrush(endpoint: string, symbol: string, supabase: any): Promise<any> {
   // LunarCrush API v4 uses lowercase symbols and /v1 suffix
   const lowerSymbol = symbol.toLowerCase();
   const url = `https://lunarcrush.com/api4/public/topic/${lowerSymbol}/${endpoint}/v1`;
@@ -25,6 +40,9 @@ async function fetchLunarCrush(endpoint: string, symbol: string): Promise<any> {
       },
     });
     
+    // Log API call for rate limit tracking
+    await logApiCall(supabase, response.ok, response.ok ? undefined : `${response.status}`);
+    
     if (!response.ok) {
       console.log(`LunarCrush ${endpoint} for ${symbol}: ${response.status}`);
       return null;
@@ -35,6 +53,7 @@ async function fetchLunarCrush(endpoint: string, symbol: string): Promise<any> {
     return data;
   } catch (error) {
     console.error(`Error fetching ${endpoint} for ${symbol}:`, error);
+    await logApiCall(supabase, false, error.message);
     return null;
   }
 }
@@ -111,10 +130,10 @@ serve(async (req) => {
       try {
         // Fetch all 4 endpoints for this token
         const [whatsupData, postsData, newsData, creatorsData] = await Promise.all([
-          fetchLunarCrush('whatsup', symbol),
-          fetchLunarCrush('posts', symbol),
-          fetchLunarCrush('news', symbol),
-          fetchLunarCrush('creators', symbol),
+          fetchLunarCrush('whatsup', symbol, supabase),
+          fetchLunarCrush('posts', symbol, supabase),
+          fetchLunarCrush('news', symbol, supabase),
+          fetchLunarCrush('creators', symbol, supabase),
         ]);
         
         const now = new Date().toISOString();
