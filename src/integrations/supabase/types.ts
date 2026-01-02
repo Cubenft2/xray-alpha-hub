@@ -1058,6 +1058,84 @@ export type Database = {
           },
         ]
       }
+      lunarcrush_ai_summaries: {
+        Row: {
+          about: string | null
+          alt_rank: number | null
+          canonical_symbol: string
+          created_at: string | null
+          creators_24h: number | null
+          critical_themes: Json | null
+          engagements_24h: number | null
+          fetched_at: string | null
+          galaxy_score: number | null
+          headline: string | null
+          id: string
+          insights: Json | null
+          mentions_24h: number | null
+          name: string | null
+          price_analysis: string | null
+          raw_markdown: string | null
+          sentiment_pct: number | null
+          social_dominance_pct: number | null
+          supportive_themes: Json | null
+          top_creators: Json | null
+          top_news: Json | null
+          top_posts: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          about?: string | null
+          alt_rank?: number | null
+          canonical_symbol: string
+          created_at?: string | null
+          creators_24h?: number | null
+          critical_themes?: Json | null
+          engagements_24h?: number | null
+          fetched_at?: string | null
+          galaxy_score?: number | null
+          headline?: string | null
+          id?: string
+          insights?: Json | null
+          mentions_24h?: number | null
+          name?: string | null
+          price_analysis?: string | null
+          raw_markdown?: string | null
+          sentiment_pct?: number | null
+          social_dominance_pct?: number | null
+          supportive_themes?: Json | null
+          top_creators?: Json | null
+          top_news?: Json | null
+          top_posts?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          about?: string | null
+          alt_rank?: number | null
+          canonical_symbol?: string
+          created_at?: string | null
+          creators_24h?: number | null
+          critical_themes?: Json | null
+          engagements_24h?: number | null
+          fetched_at?: string | null
+          galaxy_score?: number | null
+          headline?: string | null
+          id?: string
+          insights?: Json | null
+          mentions_24h?: number | null
+          name?: string | null
+          price_analysis?: string | null
+          raw_markdown?: string | null
+          sentiment_pct?: number | null
+          social_dominance_pct?: number | null
+          supportive_themes?: Json | null
+          top_creators?: Json | null
+          top_news?: Json | null
+          top_posts?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       lunarcrush_ai_usage: {
         Row: {
           calls_made: number

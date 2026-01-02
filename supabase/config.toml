@@ -411,3 +411,16 @@ verify_jwt = false
 
 [[functions.sync-lunarcrush-topics.cron]]
 schedule = "15,45 * * * *"
+
+# ============================================
+# REAL LUNARCRUSH AI SUMMARIES (Top 25 tokens)
+# ============================================
+
+# Fetch REAL AI summaries from LunarCrush AI Topic API for top 25 tokens
+# Budget: 600 calls/day (25 tokens × 24 hours) = 30% of 2,000 daily limit
+# Hourly at :50 (staggered from other LunarCrush functions)
+[functions.sync-lunarcrush-ai-top25]
+verify_jwt = false
+
+[[functions.sync-lunarcrush-ai-top25.cron]]
+schedule = "50 * * * *"
