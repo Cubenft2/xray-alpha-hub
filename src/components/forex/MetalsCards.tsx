@@ -48,7 +48,9 @@ export function MetalsCards({ onSelectSymbol }: MetalsCardsProps) {
     
     const change = metal.change_24h_pct || 0;
     const isPositive = change >= 0;
-    const tradingViewSymbol = metal.pair === 'XAUUSD' ? 'OANDA:XAUUSD' : 'OANDA:XAGUSD';
+    // USD-denominated metals use OANDA, others use FX_IDC
+    const isUsdPair = metal.pair.endsWith('USD');
+    const tradingViewSymbol = isUsdPair ? `OANDA:${metal.pair}` : `FX_IDC:${metal.pair}`;
 
     return (
       <Card 

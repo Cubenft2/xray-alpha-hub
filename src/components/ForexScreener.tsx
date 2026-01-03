@@ -18,20 +18,14 @@ type SortDirection = 'asc' | 'desc';
 
 const MAJOR_PAIRS = ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'USDCAD', 'NZDUSD'];
 
-// TradingView symbol mappings
-const TV_MAPPINGS: Record<string, string> = {
-  'XAUUSD': 'OANDA:XAUUSD',
-  'XAGUSD': 'OANDA:XAGUSD',
-  'XPTUSD': 'OANDA:XPTUSD',
-  'XPDUSD': 'OANDA:XPDUSD',
-  'EURUSD': 'OANDA:EURUSD',
-  'GBPUSD': 'OANDA:GBPUSD',
-  'USDJPY': 'OANDA:USDJPY',
-  'USDCHF': 'OANDA:USDCHF',
-  'AUDUSD': 'OANDA:AUDUSD',
-  'USDCAD': 'OANDA:USDCAD',
-  'NZDUSD': 'OANDA:NZDUSD',
-};
+// Pairs that work best on OANDA (majors, minors, USD-denominated metals)
+const OANDA_PAIRS = new Set([
+  'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'USDCAD', 'NZDUSD',
+  'EURGBP', 'EURJPY', 'GBPJPY', 'AUDNZD', 'AUDCAD', 'AUDCHF', 'AUDJPY',
+  'CADCHF', 'CADJPY', 'CHFJPY', 'EURCHF', 'EURAUD', 'EURCAD', 'EURNZD',
+  'GBPAUD', 'GBPCAD', 'GBPCHF', 'GBPNZD', 'NZDCAD', 'NZDCHF', 'NZDJPY',
+  'XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'
+]);
 
 export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
   const [activeTab, setActiveTab] = useState('metals');
@@ -108,7 +102,12 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
   };
 
   const getTradingViewSymbol = (pair: string): string => {
-    return TV_MAPPINGS[pair] || `OANDA:${pair}`;
+    // Major/minor pairs and USD-denominated metals work best on OANDA
+    if (OANDA_PAIRS.has(pair)) {
+      return `OANDA:${pair}`;
+    }
+    // All other pairs (exotic, cross-currency metals) use FX_IDC
+    return `FX_IDC:${pair}`;
   };
 
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
