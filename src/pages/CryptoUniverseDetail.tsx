@@ -11,6 +11,7 @@ import { ExchangePriceComparison } from '@/components/ExchangePriceComparison';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useLivePrice } from '@/contexts/WebSocketContext';
+import { SEOHead } from '@/components/SEOHead';
 import { TokenLiveOHLC } from '@/components/token-detail/TokenLiveOHLC';
 import {
   TokenHeader,
@@ -143,8 +144,23 @@ export default function CryptoUniverseDetail() {
     return `CRYPTO:${tokenCard.canonical_symbol}USD`;
   };
 
+  // Format price for SEO
+  const formatSeoPrice = (price: number | null) => {
+    if (!price) return '';
+    if (price >= 1) return `$${price.toFixed(2)}`;
+    return `$${price.toFixed(6)}`;
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
+    <>
+      <SEOHead
+        title={`${tokenCard.name} (${tokenCard.canonical_symbol}) - Price & Analysis`}
+        description={`${tokenCard.canonical_symbol} live price ${formatSeoPrice(tokenCard.price_usd)}, technical indicators, social sentiment, and market analysis. Galaxy Score: ${tokenCard.galaxy_score?.toFixed(1) || 'N/A'}.`}
+        canonicalUrl={`https://xraycrypto.io/crypto-universe/${tokenCard.canonical_symbol}`}
+        ogImageUrl={tokenCard.logo_url || undefined}
+        keywords={`${tokenCard.canonical_symbol}, ${tokenCard.name}, crypto price, cryptocurrency, market cap, galaxy score`}
+      />
+      <div className="container mx-auto px-4 py-8 space-y-6">
       {/* Live WebSocket OHLC Data (if available) */}
       {livePrice && (
         <TokenLiveOHLC livePrice={livePrice} symbol={tokenCard.canonical_symbol} />
@@ -351,6 +367,7 @@ export default function CryptoUniverseDetail() {
         hasCoingeckoData={hasCoingeckoData}
         hasSecurityData={hasSecurityData}
       />
-    </div>
+      </div>
+    </>
   );
 }

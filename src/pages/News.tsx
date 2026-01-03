@@ -10,6 +10,8 @@ export default function News() {
       <SEOHead
         title="Crypto & Market News - Latest Headlines"
         description="Stay updated with the latest cryptocurrency and stock market news. Aggregated headlines from top financial news sources with sentiment analysis."
+        canonicalUrl="https://xraycrypto.io/news"
+        keywords="crypto news, bitcoin news, stock market news, financial news, market analysis"
       />
       <div className="container mx-auto py-6 space-y-8">
       <div className="text-center space-y-2">

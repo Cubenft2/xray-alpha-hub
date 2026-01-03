@@ -15,6 +15,7 @@ export default function Watchlist() {
       <SEOHead
         title="Your Watchlist - Track Favorite Tokens"
         description="Create and manage your personal cryptocurrency watchlist. Track prices and metrics for your favorite tokens and stocks in real-time."
+        noIndex={true}
       />
       <div className="container mx-auto py-6">
         <WatchlistManager />

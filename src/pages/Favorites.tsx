@@ -39,6 +39,7 @@ export default function Favorites() {
       <SEOHead 
         title="Favorites | XRay Crypto"
         description="Your starred cryptocurrency tokens"
+        noIndex={true}
       />
 
       <div className="container mx-auto px-4 py-8">
