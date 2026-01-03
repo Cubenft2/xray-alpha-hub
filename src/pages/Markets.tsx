@@ -93,9 +93,9 @@ export default function Markets() {
     <>
       <SEOHead
         title="Live Stock Markets - Real-Time Prices & Charts"
-        description="Track live stock prices, charts, and market data. Real-time updates for SPY, QQQ, and thousands of stocks with TradingView integration."
+        description="Track live stock prices, charts, and market data with ZombieDog AI analysis. Real-time updates for SPY, QQQ, and thousands of stocks."
         canonicalUrl="https://xraycrypto.io/markets"
-        keywords="stock market, live prices, SPY, QQQ, NASDAQ, NYSE, stock charts, market analysis"
+        keywords="stock market, live prices, SPY, QQQ, NASDAQ, NYSE, stock charts, market analysis, ZombieDog AI"
       />
     <div className="py-6 space-y-6">
       <div className="w-full">
