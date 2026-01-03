@@ -5,9 +5,10 @@ interface SEOHeadProps {
   slug?: string;
   publishedDate?: string;
   description?: string;
+  ogImageUrl?: string;
 }
 
-export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProps) {
+export function SEOHead({ title, slug, publishedDate, description, ogImageUrl }: SEOHeadProps) {
   useEffect(() => {
     // Helper to create/update meta tags
     const setMetaTag = (attribute: string, value: string, content: string) => {
@@ -33,11 +34,21 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
     setMetaTag('property', 'og:title', title);
     setMetaTag('name', 'twitter:title', title);
 
+    // If custom OG image is provided, use it
+    if (ogImageUrl) {
+      setMetaTag('property', 'og:image', ogImageUrl);
+      setMetaTag('property', 'og:image:width', '1200');
+      setMetaTag('property', 'og:image:height', '630');
+      setMetaTag('property', 'og:image:type', 'image/png');
+      setMetaTag('name', 'twitter:card', 'summary_large_image');
+      setMetaTag('name', 'twitter:image', ogImageUrl);
+    }
+
     // Only add article schema if we have slug and publishedDate (for market briefs)
     if (slug && publishedDate) {
       const isoDate = new Date(publishedDate).toISOString();
       const pageUrl = `https://xraycrypto.io/marketbrief/${slug}`;
-      const ogImageUrl = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/generate-og-image?slug=${slug}`;
+      const briefOgImageUrl = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/generate-og-image?slug=${slug}`;
 
       const articleSchema = {
         "@context": "https://schema.org",
@@ -63,7 +74,7 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
           "@type": "WebPage",
           "@id": pageUrl
         },
-        "image": ogImageUrl
+        "image": briefOgImageUrl
       };
 
       // Create and inject JSON-LD script
@@ -88,13 +99,15 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
       setMetaTag('property', 'og:type', 'article');
       setMetaTag('property', 'og:url', pageUrl);
       
-      // Dynamic OG image for social sharing
-      setMetaTag('property', 'og:image', ogImageUrl);
-      setMetaTag('property', 'og:image:width', '1200');
-      setMetaTag('property', 'og:image:height', '630');
-      setMetaTag('property', 'og:image:type', 'image/png');
-      setMetaTag('name', 'twitter:card', 'summary_large_image');
-      setMetaTag('name', 'twitter:image', ogImageUrl);
+      // Only set brief OG image if no custom ogImageUrl provided
+      if (!ogImageUrl) {
+        setMetaTag('property', 'og:image', briefOgImageUrl);
+        setMetaTag('property', 'og:image:width', '1200');
+        setMetaTag('property', 'og:image:height', '630');
+        setMetaTag('property', 'og:image:type', 'image/png');
+        setMetaTag('name', 'twitter:card', 'summary_large_image');
+        setMetaTag('name', 'twitter:image', briefOgImageUrl);
+      }
     }
 
     // Cleanup on unmount
@@ -105,7 +118,7 @@ export function SEOHead({ title, slug, publishedDate, description }: SEOHeadProp
       }
       document.title = originalTitle;
     };
-  }, [title, slug, publishedDate, description]);
+  }, [title, slug, publishedDate, description, ogImageUrl]);
 
   return null;
 }

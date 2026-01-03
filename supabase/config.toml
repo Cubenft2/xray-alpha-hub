@@ -437,3 +437,7 @@ verify_jwt = false
 
 [[functions.sync-cot-reports.cron]]
 schedule = "0 4 * * 6"
+
+# Generate dynamic OG images for Forex Deep Dive pages (Gold/Silver)
+[functions.generate-forex-og-image]
+verify_jwt = false
