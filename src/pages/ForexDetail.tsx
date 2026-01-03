@@ -10,7 +10,8 @@ import {
   MetalPriceHero, 
   KeyStatsGrid, 
   MarketVerdict, 
-  ChartToggle 
+  ChartToggle,
+  ShareButtons
 } from '@/components/forex-detail';
 
 type MetalType = 'silver' | 'gold';
@@ -133,11 +134,12 @@ export default function ForexDetail() {
       <div className="py-6 space-y-6">
         {/* Header */}
         <div className="container mx-auto">
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center justify-between mb-6">
             <Button variant="ghost" size="sm" onClick={() => navigate('/forex')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Forex
             </Button>
+            <ShareButtons metal={validMetal} price={forexData?.rate} metalName={config.name} />
           </div>
 
           <div className="flex items-center gap-3 mb-2">
