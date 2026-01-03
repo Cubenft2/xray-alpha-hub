@@ -119,11 +119,15 @@ export default function ForexDetail() {
     );
   }
 
+  // Dynamic OG image for social sharing
+  const ogImageUrl = `https://odncvfiuzliyohxrsigc.supabase.co/functions/v1/generate-forex-og-image?metal=${validMetal}`;
+
   return (
     <>
       <SEOHead
         title={`${config.name} Deep Dive - COT Positioning & Analysis`}
         description={`Comprehensive ${config.name.toLowerCase()} market analysis with CFTC Commitment of Traders positioning data, bank shorts, speculator longs, and technical indicators.`}
+        ogImageUrl={ogImageUrl}
       />
       
       <div className="py-6 space-y-6">
