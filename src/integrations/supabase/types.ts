@@ -504,6 +504,93 @@ export type Database = {
         }
         Relationships: []
       }
+      cot_reports: {
+        Row: {
+          as_of_date: string
+          commodity: string
+          created_at: string | null
+          id: string
+          managed_long: number | null
+          managed_net: number | null
+          managed_net_change: number | null
+          managed_short: number | null
+          managed_spreading: number | null
+          nonreportable_long: number | null
+          nonreportable_net: number | null
+          nonreportable_short: number | null
+          open_interest: number | null
+          other_long: number | null
+          other_net: number | null
+          other_short: number | null
+          other_spreading: number | null
+          producer_long: number | null
+          producer_net: number | null
+          producer_short: number | null
+          report_date: string
+          swap_long: number | null
+          swap_net: number | null
+          swap_net_change: number | null
+          swap_short: number | null
+          swap_spreading: number | null
+        }
+        Insert: {
+          as_of_date: string
+          commodity: string
+          created_at?: string | null
+          id?: string
+          managed_long?: number | null
+          managed_net?: number | null
+          managed_net_change?: number | null
+          managed_short?: number | null
+          managed_spreading?: number | null
+          nonreportable_long?: number | null
+          nonreportable_net?: number | null
+          nonreportable_short?: number | null
+          open_interest?: number | null
+          other_long?: number | null
+          other_net?: number | null
+          other_short?: number | null
+          other_spreading?: number | null
+          producer_long?: number | null
+          producer_net?: number | null
+          producer_short?: number | null
+          report_date: string
+          swap_long?: number | null
+          swap_net?: number | null
+          swap_net_change?: number | null
+          swap_short?: number | null
+          swap_spreading?: number | null
+        }
+        Update: {
+          as_of_date?: string
+          commodity?: string
+          created_at?: string | null
+          id?: string
+          managed_long?: number | null
+          managed_net?: number | null
+          managed_net_change?: number | null
+          managed_short?: number | null
+          managed_spreading?: number | null
+          nonreportable_long?: number | null
+          nonreportable_net?: number | null
+          nonreportable_short?: number | null
+          open_interest?: number | null
+          other_long?: number | null
+          other_net?: number | null
+          other_short?: number | null
+          other_spreading?: number | null
+          producer_long?: number | null
+          producer_net?: number | null
+          producer_short?: number | null
+          report_date?: string
+          swap_long?: number | null
+          swap_net?: number | null
+          swap_net_change?: number | null
+          swap_short?: number | null
+          swap_spreading?: number | null
+        }
+        Relationships: []
+      }
       crypto_details: {
         Row: {
           categories: string[] | null
@@ -902,6 +989,10 @@ export type Database = {
       forex_cards: {
         Row: {
           ask: number | null
+          ath_date: string | null
+          ath_price: number | null
+          atl_date: string | null
+          atl_price: number | null
           base_currency: string
           base_flag: string | null
           bid: number | null
@@ -930,9 +1021,15 @@ export type Database = {
           technical_signal: string | null
           technicals_updated_at: string | null
           updated_at: string | null
+          ytd_change_pct: number | null
+          ytd_open: number | null
         }
         Insert: {
           ask?: number | null
+          ath_date?: string | null
+          ath_price?: number | null
+          atl_date?: string | null
+          atl_price?: number | null
           base_currency: string
           base_flag?: string | null
           bid?: number | null
@@ -961,9 +1058,15 @@ export type Database = {
           technical_signal?: string | null
           technicals_updated_at?: string | null
           updated_at?: string | null
+          ytd_change_pct?: number | null
+          ytd_open?: number | null
         }
         Update: {
           ask?: number | null
+          ath_date?: string | null
+          ath_price?: number | null
+          atl_date?: string | null
+          atl_price?: number | null
           base_currency?: string
           base_flag?: string | null
           bid?: number | null
@@ -992,6 +1095,95 @@ export type Database = {
           technical_signal?: string | null
           technicals_updated_at?: string | null
           updated_at?: string | null
+          ytd_change_pct?: number | null
+          ytd_open?: number | null
+        }
+        Relationships: []
+      }
+      futures_cards: {
+        Row: {
+          ath_date: string | null
+          ath_price: number | null
+          change_24h: number | null
+          change_24h_pct: number | null
+          contract_size: number | null
+          created_at: string | null
+          exchange: string | null
+          high_24h: number | null
+          id: string
+          is_active: boolean | null
+          low_24h: number | null
+          name: string | null
+          open_24h: number | null
+          open_interest: number | null
+          price: number | null
+          price_updated_at: string | null
+          rsi_14: number | null
+          sma_20: number | null
+          sma_200: number | null
+          sma_50: number | null
+          symbol: string
+          technical_signal: string | null
+          underlying: string | null
+          updated_at: string | null
+          volume: number | null
+          ytd_change_pct: number | null
+        }
+        Insert: {
+          ath_date?: string | null
+          ath_price?: number | null
+          change_24h?: number | null
+          change_24h_pct?: number | null
+          contract_size?: number | null
+          created_at?: string | null
+          exchange?: string | null
+          high_24h?: number | null
+          id?: string
+          is_active?: boolean | null
+          low_24h?: number | null
+          name?: string | null
+          open_24h?: number | null
+          open_interest?: number | null
+          price?: number | null
+          price_updated_at?: string | null
+          rsi_14?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          symbol: string
+          technical_signal?: string | null
+          underlying?: string | null
+          updated_at?: string | null
+          volume?: number | null
+          ytd_change_pct?: number | null
+        }
+        Update: {
+          ath_date?: string | null
+          ath_price?: number | null
+          change_24h?: number | null
+          change_24h_pct?: number | null
+          contract_size?: number | null
+          created_at?: string | null
+          exchange?: string | null
+          high_24h?: number | null
+          id?: string
+          is_active?: boolean | null
+          low_24h?: number | null
+          name?: string | null
+          open_24h?: number | null
+          open_interest?: number | null
+          price?: number | null
+          price_updated_at?: string | null
+          rsi_14?: number | null
+          sma_20?: number | null
+          sma_200?: number | null
+          sma_50?: number | null
+          symbol?: string
+          technical_signal?: string | null
+          underlying?: string | null
+          updated_at?: string | null
+          volume?: number | null
+          ytd_change_pct?: number | null
         }
         Relationships: []
       }
