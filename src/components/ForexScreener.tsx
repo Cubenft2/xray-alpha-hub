@@ -16,7 +16,6 @@ interface ForexScreenerProps {
 type SortField = 'pair' | 'rate' | 'change_24h_pct' | 'rsi_14';
 type SortDirection = 'asc' | 'desc';
 
-const METALS_PAIRS = ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'];
 const MAJOR_PAIRS = ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'AUDUSD', 'USDCAD', 'NZDUSD'];
 
 // TradingView symbol mappings
@@ -39,8 +38,26 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
   const [sortField, setSortField] = useState<SortField>('pair');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
-  const { data: forexPairs, isLoading } = useQuery({
-    queryKey: ['forex-screener'],
+  // Direct query for metals - bypasses client-side filtering entirely
+  const { data: metalsPairs, isLoading: metalsLoading } = useQuery({
+    queryKey: ['forex-screener-metals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('forex_cards')
+        .select('*')
+        .eq('is_active', true)
+        .in('base_currency', ['XAU', 'XAG', 'XPT', 'XPD']);
+      
+      if (error) throw error;
+      console.log('[ForexScreener] Metals query returned:', data?.length, 'pairs', data?.map(p => p.pair));
+      return data || [];
+    },
+    refetchInterval: 30000,
+  });
+
+  // Query for all pairs (used by Major and All tabs)
+  const { data: allPairs, isLoading: allLoading } = useQuery({
+    queryKey: ['forex-screener-all'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('forex_cards')
@@ -63,22 +80,10 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
     }
   };
 
-  const filterAndSortPairs = (pairs: typeof forexPairs, filter: 'metals' | 'major' | 'all') => {
+  const sortPairs = (pairs: typeof allPairs) => {
     if (!pairs) return [];
     
-    let filtered = pairs;
-    if (filter === 'metals') {
-      // Check both pair name and base_currency for robustness
-      const metalsBases = ['XAU', 'XAG', 'XPT', 'XPD'];
-      filtered = pairs.filter(p => 
-        METALS_PAIRS.includes(p.pair) || 
-        metalsBases.includes(p.base_currency)
-      );
-    } else if (filter === 'major') {
-      filtered = pairs.filter(p => MAJOR_PAIRS.includes(p.pair) || p.is_major === true);
-    }
-
-    return filtered.sort((a, b) => {
+    return [...pairs].sort((a, b) => {
       let aVal = a[sortField];
       let bVal = b[sortField];
       
@@ -95,6 +100,11 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
         ? (aVal as number) - (bVal as number)
         : (bVal as number) - (aVal as number);
     });
+  };
+
+  const getMajorPairs = () => {
+    if (!allPairs) return [];
+    return allPairs.filter(p => MAJOR_PAIRS.includes(p.pair) || p.is_major === true);
   };
 
   const getTradingViewSymbol = (pair: string): string => {
@@ -114,9 +124,24 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
   );
 
   const ForexTable = ({ filter }: { filter: 'metals' | 'major' | 'all' }) => {
-    const pairs = filterAndSortPairs(forexPairs, filter);
+    // Get the right data source based on filter
+    let rawPairs: typeof allPairs = [];
+    let loading = false;
+    
+    if (filter === 'metals') {
+      rawPairs = metalsPairs || [];
+      loading = metalsLoading;
+    } else if (filter === 'major') {
+      rawPairs = getMajorPairs();
+      loading = allLoading;
+    } else {
+      rawPairs = allPairs || [];
+      loading = allLoading;
+    }
+    
+    const pairs = sortPairs(rawPairs);
 
-    if (isLoading) {
+    if (loading) {
       return (
         <div className="space-y-2">
           {[...Array(5)].map((_, i) => (
