@@ -457,17 +457,10 @@ export function NewsSection({ searchTerm = '', defaultTab = 'crypto' }: NewsSect
         .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
     }
     
-    // 'all' mode: prioritize Polygon news from last 2 hours, then rest by recency
-    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
-    const recentPolygon = news.filter(item => 
-      item.sourceType === 'polygon' && 
-      new Date(item.publishedAt).getTime() > twoHoursAgo
+    // 'all' mode: sort by publishedAt desc (newest first)
+    return [...news].sort((a, b) => 
+      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
-    const rest = news.filter(item => 
-      !(item.sourceType === 'polygon' && new Date(item.publishedAt).getTime() > twoHoursAgo)
-    );
-    
-    return [...recentPolygon, ...rest];
   };
 
   const displayCryptoNews = applyViewModeFilter(filteredCryptoNews);
