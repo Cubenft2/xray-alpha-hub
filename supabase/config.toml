@@ -424,3 +424,16 @@ verify_jwt = false
 
 [[functions.sync-lunarcrush-ai-top25.cron]]
 schedule = "50 * * * *"
+
+# ============================================
+# CFTC COT REPORTS SYNC
+# ============================================
+
+# Sync Commitment of Traders reports from CFTC Socrata API
+# Weekly on Saturdays at 4:00 AM UTC (data released Friday ~3:30pm ET)
+# Fetches Silver and Gold disaggregated futures positioning
+[functions.sync-cot-reports]
+verify_jwt = false
+
+[[functions.sync-cot-reports.cron]]
+schedule = "0 4 * * 6"
