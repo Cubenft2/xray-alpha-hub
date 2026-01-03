@@ -427,9 +427,38 @@ async function fetchTokens(supabase: any, tickers: string[]): Promise<FetchedDat
     return { type: 'token_lookup', tokens: [], error: error.message };
   }
 
+  const tokens = data || [];
+  
+  // Enrich with premium LunarCrush AI summaries if available (top 25)
+  if (tokens.length > 0) {
+    const { data: premiumAI } = await supabase
+      .from('lunarcrush_ai_summaries')
+      .select('canonical_symbol, headline, insights, price_analysis, supportive_themes, critical_themes, sentiment_pct, about')
+      .in('canonical_symbol', tickers);
+    
+    if (premiumAI && premiumAI.length > 0) {
+      console.log(`[data-fetcher] Found ${premiumAI.length} premium AI summaries`);
+      const premiumMap = new Map(premiumAI.map((p: any) => [p.canonical_symbol, p]));
+      
+      for (const token of tokens) {
+        const premium = premiumMap.get(token.canonical_symbol);
+        if (premium) {
+          // Enhance AI summary with premium data
+          token.ai_summary = premium.headline || token.ai_summary;
+          (token as any).premium_insights = premium.insights;
+          (token as any).premium_price_analysis = premium.price_analysis;
+          (token as any).premium_supportive_themes = premium.supportive_themes;
+          (token as any).premium_critical_themes = premium.critical_themes;
+          (token as any).premium_sentiment_pct = premium.sentiment_pct;
+          (token as any).premium_about = premium.about;
+        }
+      }
+    }
+  }
+
   return {
     type: 'token_lookup',
-    tokens: data || [],
+    tokens,
   };
 }
 

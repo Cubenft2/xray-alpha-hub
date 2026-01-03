@@ -27,6 +27,12 @@ import {
   TokenCreators,
   TokenPosts,
   TokenThemes,
+  // Premium LunarCrush AI cards
+  TokenAIHeadline,
+  TokenAIInsights,
+  TokenPriceAnalysis,
+  TokenSentimentThemes,
+  TokenAbout,
 } from '@/components/token-detail';
 
 export default function CryptoUniverseDetail() {
@@ -55,6 +61,22 @@ export default function CryptoUniverseDetail() {
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
+    enabled: !!symbol,
+  });
+
+  // Query premium LunarCrush AI summaries (top 25 tokens only)
+  const { data: premiumAI } = useQuery({
+    queryKey: ['premium-ai', symbol],
+    queryFn: async () => {
+      if (!symbol) return null;
+      const { data } = await supabase
+        .from('lunarcrush_ai_summaries')
+        .select('*')
+        .eq('canonical_symbol', symbol.toUpperCase())
+        .maybeSingle();
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
     enabled: !!symbol,
   });
 
@@ -190,15 +212,44 @@ export default function CryptoUniverseDetail() {
 
         {/* Summary Tab */}
         <TabsContent value="summary" className="space-y-6 mt-6">
-          {/* AI Summary - "What's Up" */}
-          <TokenAISummary
-            aiSummary={tokenCard.ai_summary}
-            aiSummaryShort={tokenCard.ai_summary_short}
-            keyThemes={tokenCard.key_themes}
-            notableEvents={tokenCard.notable_events}
-            aiUpdatedAt={tokenCard.ai_updated_at}
-            tier={tokenCard.tier}
-          />
+          {/* Premium AI Cards (top 25 tokens) or fallback to template summary */}
+          {premiumAI ? (
+            <>
+              {/* Hero Headline */}
+              <TokenAIHeadline 
+                headline={premiumAI.headline} 
+                fetchedAt={premiumAI.fetched_at} 
+              />
+              
+              {/* Sentiment Themes (Bullish vs Bearish) */}
+              <TokenSentimentThemes
+                supportiveThemes={premiumAI.supportive_themes as any}
+                criticalThemes={premiumAI.critical_themes as any}
+              />
+              
+              {/* AI Insights */}
+              <TokenAIInsights insights={premiumAI.insights as string[] | null} />
+              
+              {/* Price Analysis with Sentiment Gauge */}
+              <TokenPriceAnalysis 
+                priceAnalysis={premiumAI.price_analysis}
+                sentimentPct={premiumAI.sentiment_pct}
+              />
+              
+              {/* About Section */}
+              <TokenAbout about={premiumAI.about} />
+            </>
+          ) : (
+            /* Fallback: Template-based AI Summary */
+            <TokenAISummary
+              aiSummary={tokenCard.ai_summary}
+              aiSummaryShort={tokenCard.ai_summary_short}
+              keyThemes={tokenCard.key_themes}
+              notableEvents={tokenCard.notable_events}
+              aiUpdatedAt={tokenCard.ai_updated_at}
+              tier={tokenCard.tier}
+            />
+          )}
 
           {/* Key Themes / Mindshare */}
           <TokenThemes keyThemes={tokenCard.key_themes} />
