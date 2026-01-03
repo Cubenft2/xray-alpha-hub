@@ -68,9 +68,14 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
     
     let filtered = pairs;
     if (filter === 'metals') {
-      filtered = pairs.filter(p => METALS_PAIRS.includes(p.pair));
+      // Check both pair name and base_currency for robustness
+      const metalsBases = ['XAU', 'XAG', 'XPT', 'XPD'];
+      filtered = pairs.filter(p => 
+        METALS_PAIRS.includes(p.pair) || 
+        metalsBases.includes(p.base_currency)
+      );
     } else if (filter === 'major') {
-      filtered = pairs.filter(p => MAJOR_PAIRS.includes(p.pair));
+      filtered = pairs.filter(p => MAJOR_PAIRS.includes(p.pair) || p.is_major === true);
     }
 
     return filtered.sort((a, b) => {
