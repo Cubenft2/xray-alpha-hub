@@ -32,6 +32,7 @@ import Screener from "./pages/Screener";
 import Favorites from "./pages/Favorites";
 import StockScreener from "./pages/StockScreener";
 import StockDetail from "./pages/StockDetail";
+import Forex from "./pages/Forex";
 import WebSocketTest from "./pages/test/WebSocketTest";
 import { Navigate } from "react-router-dom";
 const queryClient = new QueryClient();
@@ -60,6 +61,7 @@ const App = () => (
                     <Route path="/markets" element={<Markets />} />
                     <Route path="/stocks" element={<StockScreener />} />
                     <Route path="/stock/:symbol" element={<StockDetail />} />
+                    <Route path="/forex" element={<Forex />} />
                     <Route path="/watchlist" element={<Watchlist />} />
                     <Route path="/news" element={<News />} />
                     <Route path="/store" element={<Store />} />
