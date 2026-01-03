@@ -57,7 +57,7 @@ export default function ForexDetail() {
         .from('forex_cards')
         .select('*')
         .eq('pair', config.forexPair)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
