@@ -42,9 +42,10 @@ interface NewsItem {
   };
 }
 
-// Unified cache key from polygon-news-unified
+// Cache keys for all news sources
 const POLYGON_UNIFIED_CACHE_KEY = 'polygon_news_unified_cache';
 const LUNARCRUSH_CACHE_KEY = 'lunarcrush_news_cache';
+const RSS_CACHE_KEY = 'news_fetch:v1:limit=100';
 
 // Normalize news items to consistent format
 const normalizeNewsItem = (item: NewsItem, defaultSourceType?: string): NewsItem => ({
@@ -93,8 +94,8 @@ Deno.serve(async (req) => {
 
     console.log('📰 get-cached-news: Reading from cache only (no API calls)');
 
-    // Read both caches in parallel
-    const [polygonResult, lunarCrushResult] = await Promise.all([
+    // Read all three caches in parallel
+    const [polygonResult, lunarCrushResult, rssResult] = await Promise.all([
       supabase
         .from('cache_kv')
         .select('v, expires_at, created_at')
@@ -104,6 +105,11 @@ Deno.serve(async (req) => {
         .from('cache_kv')
         .select('v, expires_at, created_at')
         .eq('k', LUNARCRUSH_CACHE_KEY)
+        .single(),
+      supabase
+        .from('cache_kv')
+        .select('v, expires_at, created_at')
+        .eq('k', RSS_CACHE_KEY)
         .single(),
     ]);
 
@@ -120,6 +126,12 @@ Deno.serve(async (req) => {
       stocks?: NewsItem[] 
     } | null;
 
+    const rssData = rssResult.data?.v as { 
+      crypto?: NewsItem[]; 
+      stocks?: NewsItem[];
+      trump?: NewsItem[];
+    } | null;
+
     // Log cache status
     const polygonAge = polygonResult.data?.expires_at 
       ? new Date(polygonResult.data.expires_at) > new Date() ? 'valid' : 'expired'
@@ -127,11 +139,14 @@ Deno.serve(async (req) => {
     const lunarCrushAge = lunarCrushResult.data?.expires_at
       ? new Date(lunarCrushResult.data.expires_at) > new Date() ? 'valid' : 'expired'
       : 'missing';
+    const rssAge = rssResult.data?.expires_at
+      ? new Date(rssResult.data.expires_at) > new Date() ? 'valid' : 'expired'
+      : 'missing';
 
-    console.log(`📦 Cache status - polygon_unified: ${polygonAge}, lunarcrush: ${lunarCrushAge}`);
+    console.log(`📦 Cache status - polygon_unified: ${polygonAge}, lunarcrush: ${lunarCrushAge}, rss: ${rssAge}`);
 
     // Get arrays from caches (empty if missing)
-    // Force sourceType: 'polygon' on Polygon items (fallback for older cache entries)
+    // Force sourceType on items (fallback for older cache entries)
     const polygonCrypto: NewsItem[] = dedupeByUrl(
       (polygonData?.crypto || []).map(item => normalizeNewsItem(item, 'polygon'))
     );
@@ -150,17 +165,35 @@ Deno.serve(async (req) => {
       (lunarCrushData?.stocks || []).map(item => normalizeNewsItem(item))
     );
 
-    // Merge news sources: deduplicate by URL, prioritize LunarCrush (has social engagement)
-    const mergeNewsSources = (polygon: NewsItem[], lunarcrush: NewsItem[]): NewsItem[] => {
-      const urlSet = new Set(lunarcrush.map(item => canonicalizeUrl(item.url)));
-      const uniquePolygon = polygon.filter(item => !urlSet.has(canonicalizeUrl(item.url)));
-      // LunarCrush items first (have social engagement), then Polygon
-      // Final dedupe to be safe
-      return dedupeByUrl([...lunarcrush, ...uniquePolygon]);
+    // RSS items (lowest priority)
+    const rssCrypto: NewsItem[] = dedupeByUrl(
+      (rssData?.crypto || []).map(item => normalizeNewsItem(item, 'rss'))
+    );
+    const rssStocks: NewsItem[] = dedupeByUrl(
+      (rssData?.stocks || []).map(item => normalizeNewsItem(item, 'rss'))
+    );
+    const rssTrump: NewsItem[] = dedupeByUrl(
+      (rssData?.trump || []).map(item => normalizeNewsItem(item, 'rss'))
+    );
+
+    // Merge news sources: deduplicate by URL
+    // Priority: LunarCrush (social engagement) > Polygon (sentiment) > RSS (fills gaps)
+    const mergeAllSources = (lunarcrush: NewsItem[], polygon: NewsItem[], rss: NewsItem[]): NewsItem[] => {
+      const lcUrls = new Set(lunarcrush.map(item => canonicalizeUrl(item.url)));
+      const polyUrls = new Set(polygon.map(item => canonicalizeUrl(item.url)));
+      
+      const uniquePolygon = polygon.filter(item => !lcUrls.has(canonicalizeUrl(item.url)));
+      const uniqueRss = rss.filter(item => 
+        !lcUrls.has(canonicalizeUrl(item.url)) && 
+        !polyUrls.has(canonicalizeUrl(item.url))
+      );
+      
+      return dedupeByUrl([...lunarcrush, ...uniquePolygon, ...uniqueRss]);
     };
 
-    const mergedCrypto = mergeNewsSources(polygonCrypto, lcCrypto);
-    const mergedStocks = mergeNewsSources(polygonStocks, lcStocks);
+    const mergedCrypto = mergeAllSources(lcCrypto, polygonCrypto, rssCrypto);
+    const mergedStocks = mergeAllSources(lcStocks, polygonStocks, rssStocks);
+    const mergedTrump = mergeAllSources([], trumpNews, rssTrump);
 
     // Sort by publishedAt desc
     const sortByDate = (items: NewsItem[]) => 
@@ -172,20 +205,22 @@ Deno.serve(async (req) => {
 
     sortByDate(mergedCrypto);
     sortByDate(mergedStocks);
-    sortByDate(trumpNews);
+    sortByDate(mergedTrump);
 
-    console.log(`✅ Returning merged news: ${mergedCrypto.length} crypto, ${mergedStocks.length} stocks, ${trumpNews.length} trump`);
+    console.log(`✅ Returning merged news: ${mergedCrypto.length} crypto, ${mergedStocks.length} stocks, ${mergedTrump.length} trump`);
 
     return new Response(JSON.stringify({
       crypto: mergedCrypto.slice(0, 50),
       stocks: mergedStocks.slice(0, 50),
-      trump: trumpNews.slice(0, 50),
+      trump: mergedTrump.slice(0, 50),
       metadata: {
         source: 'cache_only',
         polygon_unified_cache: polygonAge,
         polygon_fetched_at: polygonData?.fetched_at,
         polygon_articles_count: polygonData?.articles_count,
         lunarcrush_cache: lunarCrushAge,
+        rss_cache: rssAge,
+        rss_articles_count: (rssData?.crypto?.length || 0) + (rssData?.stocks?.length || 0) + (rssData?.trump?.length || 0),
         api_calls_made: 0,
       },
     }), {
