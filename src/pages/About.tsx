@@ -9,9 +9,9 @@ export default function About() {
     <>
       <SEOHead
         title="About XRayCrypto - Real-Time Market Data Platform"
-        description="XRayCrypto provides professional-grade cryptocurrency and stock market data. Built by passionate developers for the trading community with transparency and education in mind."
+        description="XRayCrypto provides professional-grade cryptocurrency and stock market data featuring ZombieDog AI assistant. Built by passionate developers for the trading community."
         canonicalUrl="https://xraycrypto.io/about"
-        keywords="about XRayCrypto, crypto platform, market data, trading tools, cryptocurrency"
+        keywords="about XRayCrypto, crypto platform, market data, trading tools, cryptocurrency, ZombieDog AI"
       />
       <div className="container mx-auto py-6 space-y-8">
       <div className="text-center space-y-4">

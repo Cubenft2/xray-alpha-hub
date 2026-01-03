@@ -69,9 +69,9 @@ export default function Screener() {
     <>
       <SEOHead
         title="Crypto Universe - 7,500+ Tokens"
-        description="Explore 7,500+ cryptocurrencies with real-time prices, market cap, volume, Galaxy Score, and social sentiment data from Polygon and LunarCrush."
+        description="Explore 7,500+ cryptocurrencies with real-time prices, market cap, volume, Galaxy Score, social sentiment, and ZombieDog AI insights for smarter research."
         canonicalUrl="https://xraycrypto.io/crypto-universe"
-        keywords="crypto screener, cryptocurrency prices, bitcoin, ethereum, altcoins, market cap, galaxy score"
+        keywords="crypto screener, cryptocurrency prices, bitcoin, ethereum, altcoins, market cap, galaxy score, ZombieDog AI"
       />
 
       <div className="w-full px-4 py-4 space-y-4">

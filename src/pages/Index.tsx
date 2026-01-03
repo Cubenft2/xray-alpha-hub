@@ -127,9 +127,9 @@ const Index = () => {
     <>
       <SEOHead
         title="XRayCrypto - Real-Time Crypto & Stock Dashboard"
-        description="Your ultimate crypto and stocks dashboard. Real-time charts, live news, market analysis, and community support. Track Bitcoin, Ethereum, and 7,500+ cryptocurrencies."
+        description="Your ultimate crypto & stocks dashboard with ZombieDog AI assistant. Real-time charts, live news, market analysis, and 7,500+ cryptocurrencies."
         canonicalUrl="https://xraycrypto.io/"
-        keywords="cryptocurrency, bitcoin, ethereum, crypto dashboard, stock market, real-time prices, trading"
+        keywords="cryptocurrency, bitcoin, ethereum, crypto dashboard, stock market, real-time prices, trading, ZombieDog AI"
       />
       <div className="py-6">
         <FinancialDisclaimer />
