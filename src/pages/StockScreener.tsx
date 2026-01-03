@@ -25,8 +25,10 @@ export default function StockScreener() {
   return (
     <>
       <SEOHead 
-        title="Stock Screener | XRayCrypto"
+        title="Stock Screener - Technical & Fundamental Analysis"
         description="Screen and filter stocks with real-time prices, technical indicators (RSI, MACD), fundamentals (P/E ratio, dividend yield), and 52-week range analysis."
+        canonicalUrl="https://xraycrypto.io/stocks"
+        keywords="stock screener, stock analysis, NYSE, NASDAQ, technical indicators, RSI, MACD, P/E ratio"
       />
       
       <div className="container mx-auto px-4 py-6 space-y-6">

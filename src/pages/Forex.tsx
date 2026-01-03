@@ -18,6 +18,8 @@ export default function Forex() {
       <SEOHead
         title="Forex & Precious Metals - Live Gold, Silver & Currency Prices"
         description="Track live gold, silver, and forex prices. Real-time XAU/USD, XAG/USD, and major currency pair data with charts and technical analysis."
+        canonicalUrl="https://xraycrypto.io/forex"
+        keywords="gold price, silver price, forex, currency trading, XAU/USD, XAG/USD, precious metals"
       />
       <div className="py-6 space-y-6">
         {/* Header */}

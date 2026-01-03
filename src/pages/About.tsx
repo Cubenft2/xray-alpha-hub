@@ -2,10 +2,18 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Shield, Users, TrendingUp, Heart } from 'lucide-react';
+import { SEOHead } from '@/components/SEOHead';
 
 export default function About() {
   return (
-    <div className="container mx-auto py-6 space-y-8">
+    <>
+      <SEOHead
+        title="About XRayCrypto - Real-Time Market Data Platform"
+        description="XRayCrypto provides professional-grade cryptocurrency and stock market data. Built by passionate developers for the trading community with transparency and education in mind."
+        canonicalUrl="https://xraycrypto.io/about"
+        keywords="about XRayCrypto, crypto platform, market data, trading tools, cryptocurrency"
+      />
+      <div className="container mx-auto py-6 space-y-8">
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center mb-4">
           <img 
@@ -156,6 +164,7 @@ export default function About() {
         <p>XRayCrypto™ is an independent platform not affiliated with any cryptocurrency exchange or financial institution.</p>
         <p>We are committed to providing accurate, up-to-date information while maintaining transparency about our data sources and limitations.</p>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

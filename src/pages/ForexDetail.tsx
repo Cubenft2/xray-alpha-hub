@@ -129,6 +129,8 @@ export default function ForexDetail() {
         title={`${config.name} Deep Dive - COT Positioning & Analysis`}
         description={`Comprehensive ${config.name.toLowerCase()} market analysis with CFTC Commitment of Traders positioning data, bank shorts, speculator longs, and technical indicators.`}
         ogImageUrl={ogImageUrl}
+        canonicalUrl={`https://xraycrypto.io/forex/${validMetal}`}
+        keywords={`${config.name.toLowerCase()} price, ${config.forexPair}, COT report, precious metals, CFTC positioning, bank shorts`}
       />
       
       <div className="py-6 space-y-6">

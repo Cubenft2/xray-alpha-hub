@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useLayoutSearch } from '@/components/Layout';
+import { SEOHead } from '@/components/SEOHead';
 import { TradingViewChart } from '@/components/TradingViewChart';
 import { CryptoScreener } from '@/components/CryptoScreener';
 import { CryptoHeatmap } from '@/components/CryptoHeatmap';
@@ -123,8 +124,15 @@ const Index = () => {
     setSearchHandler(handleSearch);
   }, [setSearchHandler]);
   return (
-    <div className="py-6">
-      <FinancialDisclaimer />
+    <>
+      <SEOHead
+        title="XRayCrypto - Real-Time Crypto & Stock Dashboard"
+        description="Your ultimate crypto and stocks dashboard. Real-time charts, live news, market analysis, and community support. Track Bitcoin, Ethereum, and 7,500+ cryptocurrencies."
+        canonicalUrl="https://xraycrypto.io/"
+        keywords="cryptocurrency, bitcoin, ethereum, crypto dashboard, stock market, real-time prices, trading"
+      />
+      <div className="py-6">
+        <FinancialDisclaimer />
       
       <div className="w-full">
         <div className="container mx-auto">
@@ -180,7 +188,8 @@ const Index = () => {
           <NewsSection searchTerm={searchTerm} defaultTab="crypto" />
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
