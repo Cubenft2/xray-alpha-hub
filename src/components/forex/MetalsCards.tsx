@@ -1,10 +1,11 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
 
 interface MetalsCardsProps {
   onSelectSymbol?: (symbol: string) => void;
@@ -106,6 +107,15 @@ export function MetalsCards({ onSelectSymbol }: MetalsCardsProps) {
             )}
           </div>
         </div>
+
+        <Link 
+          to={`/forex/${metal.pair === 'XAUUSD' ? 'gold' : 'silver'}`}
+          className="mt-4 flex items-center justify-center gap-2 text-sm text-primary hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ExternalLink className="w-4 h-4" />
+          View Deep Dive
+        </Link>
       </Card>
     );
   };
