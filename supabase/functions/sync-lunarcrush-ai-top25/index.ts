@@ -238,12 +238,12 @@ Deno.serve(async (req) => {
       log(`Processing ${symbol} (rank ${token.market_cap_rank})`);
 
       try {
-        // Call LunarCrush AI Topic API
-        const apiUrl = `https://lunarcrush.com/api4/public/topic/${symbol}/v1`;
+        // Call LunarCrush AI Topic API (Premium endpoint with 30M token budget)
+        const apiUrl = `https://lunarcrush.com/api4/public/ai/topic/${symbol}`;
         const response = await fetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${lunarcrushApiKey}`,
-            Accept: "text/plain",
+            Accept: "text/markdown",
           },
         });
 
