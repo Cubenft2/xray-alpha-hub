@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -123,21 +123,55 @@ export default function CryptoUniverseDetail() {
 
   // Parse JSON fields
   const contracts = tokenCard.contracts as Record<string, string> | null;
-  const topNews = tokenCard.top_news as Array<{
+  
+  // Merge lc_top_news (fresh LunarCrush) with top_news (Polygon fallback)
+  const lcNews = tokenCard.lc_top_news as Array<{
+    title: string;
+    url?: string;
+    source?: string;
+    published_at?: string;
+    sentiment?: number;
+    image_url?: string;
+  }> | null;
+  const polyNews = tokenCard.top_news as Array<{
     title: string;
     url?: string;
     source?: string;
     published_at?: string;
     sentiment?: number;
   }> | null;
+
+  const mergedNews = useMemo(() => {
+    const all = [...(lcNews || []), ...(polyNews || [])];
+    const seen = new Set<string>();
+    return all
+      .filter(n => {
+        if (!n.url || seen.has(n.url.toLowerCase())) return false;
+        seen.add(n.url.toLowerCase());
+        return true;
+      })
+      .sort((a, b) => {
+        const dateA = a.published_at ? new Date(a.published_at).getTime() : 0;
+        const dateB = b.published_at ? new Date(b.published_at).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 10);
+  }, [lcNews, polyNews]);
+
+  // Use fresher news timestamp
+  const newsTimestamp = tokenCard.lc_news_updated_at || tokenCard.news_updated_at;
+
   const topCreators = tokenCard.top_creators as Array<{
     name?: string;
     handle?: string;
+    avatar?: string;
     avatar_url?: string;
     platform?: string;
     followers?: number;
     engagement?: number;
+    interactions?: number;
     profile_url?: string;
+    url?: string;
   }> | null;
   const topPosts = tokenCard.top_posts as Array<{
     text?: string;
@@ -399,8 +433,8 @@ export default function CryptoUniverseDetail() {
         {/* News Tab */}
         <TabsContent value="news" className="space-y-6 mt-6">
           <TokenNews
-            topNews={topNews}
-            newsUpdatedAt={tokenCard.news_updated_at}
+            topNews={mergedNews}
+            newsUpdatedAt={newsTimestamp}
           />
         </TabsContent>
 
