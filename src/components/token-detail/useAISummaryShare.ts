@@ -74,45 +74,84 @@ export function useAISummaryShare(
     // Build share URLs immediately (synchronous)
     const shareUrl = `${window.location.origin}/crypto-universe/${options.symbol}`;
     const shareText = `${options.text} | @XRayMarkets ${shareUrl}`;
-    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+    const xUrl = `https://x.com/intent/post?text=${encodeURIComponent(shareText)}`;
     
-    // Open popup IMMEDIATELY before any async work (preserves user gesture)
-    let popup: Window | null = null;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     
-    if (!isMobile) {
-      popup = window.open('about:blank', '_blank', 'width=550,height=420');
-      if (!popup) {
-        // Popup blocked - fallback to same-tab navigation
-        toast.info('Opening X in this tab...');
-        window.location.href = twitterUrl;
-        setIsExporting(false);
-        return;
+    // Detect if we're in an iframe (preview environment)
+    let isInIframe = false;
+    try {
+      isInIframe = window.self !== window.top;
+    } catch {
+      isInIframe = true; // Cross-origin iframe
+    }
+    
+    // Helper to open X immediately with multiple fallback strategies
+    const openXNow = (url: string): boolean => {
+      // Try 1: window.open with popup dimensions
+      const popup = window.open(url, '_blank', 'noopener,noreferrer,width=550,height=420');
+      if (popup) return true;
+      
+      // Try 2: window.open without dimensions (new tab)
+      const tab = window.open(url, '_blank', 'noopener,noreferrer');
+      if (tab) return true;
+      
+      // Try 3: Anchor click trick
+      try {
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        anchor.style.display = 'none';
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+        // Can't verify if this worked, assume success
+        return true;
+      } catch {
+        // Anchor trick failed
       }
+      
+      // Try 4: Same-tab navigation (last resort)
+      try {
+        window.location.assign(url);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    
+    // MOBILE: Open X immediately, then try native share
+    if (isMobile) {
+      const opened = openXNow(xUrl);
+      if (opened) {
+        toast.success('Opening X...');
+      } else if (isInIframe) {
+        toast.info('Share blocked in preview. Open in new tab to share.');
+      } else {
+        toast.error('Could not open X. Check popup settings.');
+      }
+      setIsExporting(false);
+      return;
+    }
+    
+    // DESKTOP: Open X immediately FIRST, then do image/clipboard work
+    const opened = openXNow(xUrl);
+    
+    if (!opened) {
+      if (isInIframe) {
+        toast.info('Share blocked in preview. Open app in new tab to share.');
+      } else {
+        toast.error('Popup blocked. Allow popups for this site.');
+      }
+      setIsExporting(false);
+      return;
     }
 
+    // X is now opening - do best-effort image generation + clipboard
     try {
       const blob = await generateImage();
-
-      // Mobile: Try native share with image
-      if (isMobile && blob && navigator.share) {
-        try {
-          const file = new File([blob], `${options.symbol}-ai-${options.type}.png`, { type: 'image/png' });
-          if (navigator.canShare?.({ files: [file] })) {
-            await navigator.share({ text: shareText, files: [file] });
-            toast.success('Shared!');
-            return;
-          }
-        } catch {
-          // Native share failed, fallback to opening Twitter
-        }
-        // Fallback: open Twitter on mobile
-        window.open(twitterUrl, '_blank');
-        toast.success('Opening X...');
-        return;
-      }
-
-      // Desktop: Copy image to clipboard (best-effort)
+      
       let clipboardSuccess = false;
       if (blob && navigator.clipboard?.write) {
         try {
@@ -125,24 +164,14 @@ export function useAISummaryShare(
         }
       }
 
-      // Navigate the already-opened popup to Twitter
-      if (popup) {
-        popup.location.href = twitterUrl;
-        if (clipboardSuccess) {
-          toast.success('Opening X... Image copied - paste it in your tweet!');
-        } else {
-          toast.success('Opening X... Use Download to save the image.');
-        }
+      if (clipboardSuccess) {
+        toast.success('X opened! Image copied - paste it in your tweet!');
+      } else {
+        toast.success('X opened! Use Download to save the image.');
       }
     } catch (error) {
       console.error('Share error:', error);
-      // Still navigate popup if it exists
-      if (popup) {
-        popup.location.href = twitterUrl;
-        toast.info('Opening X... Image generation failed.');
-      } else {
-        toast.error('Failed to share');
-      }
+      toast.info('X opened! Image generation failed.');
     } finally {
       setIsExporting(false);
     }
