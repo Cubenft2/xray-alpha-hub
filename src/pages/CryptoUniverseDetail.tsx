@@ -218,7 +218,8 @@ export default function CryptoUniverseDetail() {
               {/* Hero Headline */}
               <TokenAIHeadline 
                 headline={premiumAI.headline} 
-                fetchedAt={premiumAI.fetched_at} 
+                fetchedAt={premiumAI.fetched_at}
+                symbol={tokenCard.canonical_symbol}
               />
               
               {/* Sentiment Themes (Bullish vs Bearish) */}
@@ -228,7 +229,10 @@ export default function CryptoUniverseDetail() {
               />
               
               {/* AI Insights */}
-              <TokenAIInsights insights={premiumAI.insights as string[] | null} />
+              <TokenAIInsights 
+                insights={premiumAI.insights as string[] | null}
+                symbol={tokenCard.canonical_symbol}
+              />
               
               {/* Price Analysis with Sentiment Gauge */}
               <TokenPriceAnalysis 
@@ -248,6 +252,7 @@ export default function CryptoUniverseDetail() {
               notableEvents={tokenCard.notable_events}
               aiUpdatedAt={tokenCard.ai_updated_at}
               tier={tokenCard.tier}
+              symbol={tokenCard.canonical_symbol}
             />
           )}
 
