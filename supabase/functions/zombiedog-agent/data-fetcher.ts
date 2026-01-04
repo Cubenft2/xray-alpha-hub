@@ -103,10 +103,29 @@ export interface RichStock {
   exchange: string | null;
 }
 
+export interface RichForex {
+  pair: string;
+  display_name: string | null;
+  base_currency: string;
+  quote_currency: string;
+  rate: number | null;
+  change_24h_pct: number | null;
+  high_24h: number | null;
+  low_24h: number | null;
+  open_24h: number | null;
+  rsi_14: number | null;
+  sma_20: number | null;
+  sma_50: number | null;
+  sma_200: number | null;
+  technical_signal: string | null;
+  updated_at: string | null;
+}
+
 export interface FetchedData {
   type: string;
   tokens: RichToken[];
   stocks?: RichStock[];
+  forex?: RichForex[];
   gainers?: RichToken[];
   losers?: RichToken[];
   stockGainers?: RichStock[];
@@ -230,6 +249,11 @@ export async function fetchDataForIntent(supabase: any, intent: ParsedIntent): P
     // Route based on asset type and intent
     if (intent.assetType === 'stock' || intent.intent === 'stock_lookup') {
       return await fetchStockData(supabase, intent);
+    }
+    
+    // Handle forex/precious metals
+    if (intent.assetType === 'forex') {
+      return await fetchForexData(supabase, intent.tickers);
     }
     
     switch (intent.intent) {
@@ -643,5 +667,59 @@ async function fetchTopStocks(supabase: any, action: string | null): Promise<Fet
     type: 'stock_lookup',
     tokens: [],
     stocks,
+  };
+}
+
+// ============= FOREX / PRECIOUS METALS FETCHER =============
+
+const RICH_FOREX_SELECT = `
+  pair,
+  display_name,
+  base_currency,
+  quote_currency,
+  rate,
+  change_24h_pct,
+  high_24h,
+  low_24h,
+  open_24h,
+  rsi_14,
+  sma_20,
+  sma_50,
+  sma_200,
+  technical_signal,
+  updated_at
+`;
+
+async function fetchForexData(supabase: any, tickers: string[]): Promise<FetchedData> {
+  console.log(`[data-fetcher] Fetching forex data for: [${tickers.join(',')}]`);
+  
+  // Normalize tickers - handle formats like GOLD, XAU, XAUUSD
+  const normalizedPairs = tickers.map(t => {
+    const upper = t.toUpperCase();
+    // Handle common aliases
+    if (upper === 'GOLD' || upper === 'XAU') return 'XAUUSD';
+    if (upper === 'SILVER' || upper === 'XAG') return 'XAGUSD';
+    // Already a pair format
+    return upper;
+  });
+  
+  // Query forex_cards for the requested pairs
+  const { data: forexData, error } = await supabase
+    .from('forex_cards')
+    .select(RICH_FOREX_SELECT)
+    .in('pair', normalizedPairs);
+  
+  if (error) {
+    console.error(`[data-fetcher] Forex query error: ${error.message}`);
+    return { type: 'forex_lookup', tokens: [], forex: [], error: error.message };
+  }
+  
+  const forex = forexData || [];
+  console.log(`[data-fetcher] Found ${forex.length} forex pairs`);
+  
+  return {
+    type: 'forex_lookup',
+    tokens: [],
+    forex,
   };
 }

@@ -45,7 +45,14 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto A
 ## ASSET TYPE (assetType field - REQUIRED):
 - "crypto": Question is about cryptocurrency (BTC, ETH, SOL, etc.)
 - "stock": Question is about stocks (NVDA, AAPL, TSLA, etc.)
-- "mixed": Question involves both or is unclear
+- "forex": Question is about forex pairs or precious metals (gold, silver, EUR/USD, XAU, XAG)
+- "mixed": Question involves multiple types or is unclear
+
+## FOREX/COMMODITY KEYWORDS (recognize as assetType: "forex"):
+- Gold/XAU/XAUUSD → ticker: "XAUUSD"
+- Silver/XAG/XAGUSD → ticker: "XAGUSD"
+- EUR/USD, GBP/USD, USD/JPY → forex pairs
+- Precious metals, commodities, forex, currency pairs → assetType: "forex"
 
 ## COMMON STOCK SYMBOLS (recognize these as stocks):
 - Apple/AAPL → AAPL (stock)
@@ -87,7 +94,10 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto A
 "Top tech stocks" → {"intent":"stock_lookup","sector":null,"stockSector":"tech","tickers":[],"assetType":"stock","timeframe":"24h","action":"gainers","summary":"User wants top tech stocks"}
 "How's BTC doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["BTC"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User asking about Bitcoin"}
 "What meme coins are pumping?" → {"intent":"sector_analysis","sector":"meme","stockSector":null,"tickers":[],"assetType":"crypto","timeframe":"24h","action":"gainers","summary":"User wants top meme coins"}
-"How's the market?" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":[],"assetType":"mixed","timeframe":"24h","action":null,"summary":"General market overview"}`;
+"How's the market?" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":[],"assetType":"mixed","timeframe":"24h","action":null,"summary":"General market overview"}
+"What's gold doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAUUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about gold price"}
+"How's silver?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAGUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about silver price"}
+"EUR/USD price" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["EURUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about EUR/USD forex pair"}`;
 
 const DEFAULT_INTENT: ParsedIntent = {
   intent: 'market_overview',

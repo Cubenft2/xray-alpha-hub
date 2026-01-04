@@ -21,7 +21,7 @@ export const ParsedIntentSchema = z.object({
     'auto', 'aerospace', 'utilities', 'communications'
   ]).nullable().default(null),
   tickers: z.array(z.string()).default([]),
-  assetType: z.enum(['crypto', 'stock', 'mixed']).default('crypto'),
+  assetType: z.enum(['crypto', 'stock', 'forex', 'mixed']).default('crypto'),
   timeframe: z.enum(['now', 'today', '24h', 'week', 'month']).default('24h'),
   action: z.enum(['gainers', 'losers', 'movers', 'volume']).nullable().default(null),
   summary: z.string().default('Parsed successfully'),
