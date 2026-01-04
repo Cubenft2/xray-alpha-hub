@@ -676,6 +676,9 @@ async function fetchTopStocks(supabase: any, action: string | null): Promise<Fet
 // Default precious metals tickers - used when no specific tickers provided
 const DEFAULT_METALS = ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'];
 
+// Major forex pairs - used when asking about "forex market" in general
+const DEFAULT_MAJOR_FOREX = ['EURUSD', 'GBPUSD', 'USDJPY', 'USDCAD', 'AUDUSD', 'NZDUSD', 'USDCHF'];
+
 const RICH_FOREX_SELECT = `
   pair,
   display_name,
@@ -698,25 +701,41 @@ const RICH_FOREX_SELECT = `
 async function fetchForexData(supabase: any, tickers: string[]): Promise<FetchedData> {
   console.log(`[data-fetcher] Fetching forex data for: [${tickers.join(',')}] (raw input)`);
   
-  // If no tickers provided, default to all precious metals
-  const tickersToUse = tickers.length === 0 ? DEFAULT_METALS : tickers;
+  // If no tickers provided, default to major forex + precious metals
+  const tickersToUse = tickers.length === 0 ? [...DEFAULT_MAJOR_FOREX, ...DEFAULT_METALS] : tickers;
   
-  // Normalize tickers - handle formats like GOLD, XAU, XAUUSD, PLATINUM, etc.
+  // Normalize tickers - handle formats like GOLD, XAU, EUR/USD, EURUSD, EURO, etc.
   const normalizedPairs = tickersToUse.map(t => {
-    const upper = t.toUpperCase().replace(/\s+/g, '');
+    const upper = t.toUpperCase().replace(/[\s\-\/]+/g, ''); // Remove spaces, dashes, slashes
+    
     // Handle common metal aliases
     if (upper === 'GOLD' || upper === 'XAU') return 'XAUUSD';
     if (upper === 'SILVER' || upper === 'XAG') return 'XAGUSD';
     if (upper === 'PLATINUM' || upper === 'XPT') return 'XPTUSD';
     if (upper === 'PALLADIUM' || upper === 'XPD') return 'XPDUSD';
-    // Handle "PRECIOUSMETALS" or "METALS" keyword
-    if (upper === 'PRECIOUSMETALS' || upper === 'METALS') return null; // Will be filtered out, triggers default
-    // Already a pair format
+    
+    // Handle "PRECIOUSMETALS" or "METALS" keyword → return null to trigger default
+    if (upper === 'PRECIOUSMETALS' || upper === 'METALS') return null;
+    
+    // Handle forex market keywords → return null to trigger default (all forex + metals)
+    if (upper === 'FOREX' || upper === 'FOREXMARKET' || upper === 'MAJORS' || upper === 'CURRENCYPAIRS') return null;
+    
+    // Handle currency aliases (single currency → most common pair)
+    if (upper === 'EURO' || upper === 'EUR') return 'EURUSD';
+    if (upper === 'POUND' || upper === 'GBP' || upper === 'STERLING') return 'GBPUSD';
+    if (upper === 'YEN' || upper === 'JPY') return 'USDJPY';
+    if (upper === 'LOONIE' || upper === 'CAD') return 'USDCAD';
+    if (upper === 'AUSSIE' || upper === 'AUD') return 'AUDUSD';
+    if (upper === 'KIWI' || upper === 'NZD') return 'NZDUSD';
+    if (upper === 'SWISSY' || upper === 'CHF') return 'USDCHF';
+    if (upper === 'DOLLAR' || upper === 'USD') return 'EURUSD'; // Default dollar pair
+    
+    // Already a normalized pair format (e.g., EURUSD from EUR/USD)
     return upper;
   }).filter(Boolean) as string[];
   
-  // If all tickers were keywords (like "METALS"), use default metals
-  const finalPairs = normalizedPairs.length === 0 ? DEFAULT_METALS : normalizedPairs;
+  // If all tickers were keywords (like "FOREX" or "METALS"), use default (all forex + metals)
+  const finalPairs = normalizedPairs.length === 0 ? [...DEFAULT_MAJOR_FOREX, ...DEFAULT_METALS] : normalizedPairs;
   
   console.log(`[data-fetcher] Normalized forex pairs: [${finalPairs.join(',')}]`);
   

@@ -49,12 +49,22 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto A
 - "mixed": Question involves multiple types or is unclear
 
 ## FOREX/COMMODITY KEYWORDS (recognize as assetType: "forex"):
+### Precious Metals:
 - Gold/XAU/XAUUSD → ticker: "XAUUSD"
 - Silver/XAG/XAGUSD → ticker: "XAGUSD"
 - Platinum/XPT/XPTUSD → ticker: "XPTUSD"
 - Palladium/XPD/XPDUSD → ticker: "XPDUSD"
 - "precious metals" / "metals" → tickers: ["XAUUSD", "XAGUSD", "XPTUSD", "XPDUSD"] (ALL 4 metals)
-- EUR/USD, GBP/USD, USD/JPY → forex pairs
+
+### Major Currency Pairs:
+- EUR/USD, EURUSD, Euro → ticker: "EURUSD"
+- GBP/USD, GBPUSD, Pound, Sterling → ticker: "GBPUSD"
+- USD/JPY, USDJPY, Yen → ticker: "USDJPY"
+- USD/CAD, USDCAD, Loonie → ticker: "USDCAD"
+- AUD/USD, AUDUSD, Aussie → ticker: "AUDUSD"
+- NZD/USD, NZDUSD, Kiwi → ticker: "NZDUSD"
+- USD/CHF, USDCHF, Swissy → ticker: "USDCHF"
+- "forex market" / "major forex" / "currency pairs" / "majors" → tickers: ["EURUSD", "GBPUSD", "USDJPY", "USDCAD", "AUDUSD"]
 - Precious metals, commodities, forex, currency pairs → assetType: "forex"
 
 ## COMMON STOCK SYMBOLS (recognize these as stocks):
@@ -102,7 +112,12 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto A
 "How's silver?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAGUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about silver price"}
 "How's platinum?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XPTUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about platinum price"}
 "Precious metals update" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAUUSD","XAGUSD","XPTUSD","XPDUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User wants all precious metals"}
-"EUR/USD price" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["EURUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about EUR/USD forex pair"}`;
+"EUR/USD price" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["EURUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about EUR/USD forex pair"}
+"How's EUR/USD?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["EURUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about EUR/USD"}
+"What's the dollar doing against yen?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["USDJPY"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about USD/JPY"}
+"Forex market update" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":["EURUSD","GBPUSD","USDJPY","USDCAD","AUDUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User wants forex market overview"}
+"How's the pound doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["GBPUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about GBP/USD"}
+"Give me a forex update" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":["EURUSD","GBPUSD","USDJPY","USDCAD","AUDUSD","XAUUSD","XAGUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User wants forex and metals overview"}`;
 
 const DEFAULT_INTENT: ParsedIntent = {
   intent: 'market_overview',

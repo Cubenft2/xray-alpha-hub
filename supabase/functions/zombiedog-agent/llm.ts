@@ -641,11 +641,14 @@ export function buildIntentBasedPrompt(
   if (intent.assetType === 'forex') {
     base.push(``);
     base.push(`## FOREX/PRECIOUS METALS HANDLING:`);
-    base.push(`- For gold (XAUUSD) and silver (XAGUSD), show spot price, 24h change, and technical signals`);
+    base.push(`- For precious metals (XAUUSD, XAGUSD, XPTUSD, XPDUSD), show spot price, 24h change, and technical signals`);
+    base.push(`- For forex pairs (EURUSD, GBPUSD, etc.), show the exchange rate and 24h change`);
     base.push(`- This is OANDA spot price data (real-time forex market)`);
     base.push(`- Include: Rate, 24h change %, High/Low, RSI if available, SMA position`);
     base.push(`- For metals, mention they're quoted in USD per troy ounce`);
+    base.push(`- For currency pairs, explain the rate (e.g., "1 EUR = X USD")`);
     base.push(`- Keep it concise: price + change + one technical insight`);
+    base.push(`- **Note: Forex markets are closed on weekends. Friday close data is normal on Sat/Sun.**`);
   }
   
   // Add the RICH token data with all available fields
