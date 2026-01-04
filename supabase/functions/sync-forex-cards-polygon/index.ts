@@ -95,18 +95,48 @@ serve(async (req) => {
     
     console.log(`[sync-forex-cards-polygon] Polygon returned ${tickers.length} forex tickers`);
 
-    // Handle empty response (markets closed)
+    // Handle empty response (markets closed) - but still try metals
     if (tickers.length === 0) {
       console.log('[sync-forex-cards-polygon] No ticker data - forex markets likely closed');
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'No data available - markets may be closed (weekend)',
-        stats: { updated: 0, market_status: 'closed', is_weekend: isWeekend }
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     // Build lookup map (C:EURUSD -> data)
     const polygonMap = new Map<string, any>();
+    
+    // Special handling for precious metals - query individually since they're not in forex snapshot
+    const METAL_PAIRS = ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'];
+    for (const metalPair of METAL_PAIRS) {
+      try {
+        const prevDayUrl = `https://api.polygon.io/v2/aggs/ticker/C:${metalPair}/prev?apiKey=${polygonKey}`;
+        const metalResponse = await fetch(prevDayUrl);
+        
+        if (metalResponse.ok) {
+          const metalData = await metalResponse.json();
+          if (metalData.results && metalData.results.length > 0) {
+            const result = metalData.results[0];
+            // Format it like the snapshot data
+            polygonMap.set(metalPair, {
+              ticker: `C:${metalPair}`,
+              day: {
+                o: result.o,
+                h: result.h,
+                l: result.l,
+                c: result.c,
+                v: result.v,
+                vw: result.vw
+              },
+              lastQuote: {
+                a: result.c, // Use close as ask approximation
+                b: result.c * 0.9999 // Approximate bid
+              }
+            });
+            console.log(`[sync-forex-cards-polygon] Fetched ${metalPair}: ${result.c}`);
+          }
+        }
+      } catch (metalErr) {
+        console.error(`[sync-forex-cards-polygon] Failed to fetch ${metalPair}:`, metalErr);
+      }
+    }
     for (const t of tickers) {
       if (t.ticker) {
         // Store both with and without C: prefix
