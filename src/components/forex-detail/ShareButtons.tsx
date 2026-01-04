@@ -4,17 +4,24 @@ import { Twitter, Link2, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ShareButtonsProps {
-  metal: 'silver' | 'gold';
+  metal: 'silver' | 'gold' | 'platinum' | 'palladium';
   price?: number | null;
   metalName: string;
 }
+
+const metalIcons: Record<string, string> = {
+  gold: '🥇',
+  silver: '🥈',
+  platinum: '⚪',
+  palladium: '🔘'
+};
 
 export function ShareButtons({ metal, price, metalName }: ShareButtonsProps) {
   const { toast } = useToast();
   const pageUrl = `https://xraycrypto.io/forex/${metal}`;
   
   const getShareText = () => {
-    const icon = metal === 'gold' ? '🥇' : '🥈';
+    const icon = metalIcons[metal] || '🥇';
     const priceText = price ? `$${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '';
     return `${icon} ${metalName} Deep Dive${priceText ? ` | ${priceText}` : ''} | Live price & CFTC bank positioning data on XRayCrypto`;
   };

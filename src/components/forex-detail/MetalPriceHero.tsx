@@ -19,13 +19,18 @@ interface ForexCard {
 interface MetalPriceHeroProps {
   forexData: ForexCard | null;
   isLoading: boolean;
-  metal: 'silver' | 'gold';
+  metal: 'silver' | 'gold' | 'platinum' | 'palladium';
 }
 
+const metalInfo: Record<string, { icon: string; name: string; gradientClass: string }> = {
+  gold: { icon: '🥇', name: 'Gold', gradientClass: 'gold-price-gradient' },
+  silver: { icon: '🥈', name: 'Silver', gradientClass: 'silver-price-gradient' },
+  platinum: { icon: '⚪', name: 'Platinum', gradientClass: 'platinum-price-gradient' },
+  palladium: { icon: '🔘', name: 'Palladium', gradientClass: 'palladium-price-gradient' }
+};
+
 export function MetalPriceHero({ forexData, isLoading, metal }: MetalPriceHeroProps) {
-  const icon = metal === 'gold' ? '🥇' : '🥈';
-  const name = metal === 'gold' ? 'Gold' : 'Silver';
-  const gradientClass = metal === 'gold' ? 'gold-price-gradient' : 'silver-price-gradient';
+  const { icon, name, gradientClass } = metalInfo[metal] || metalInfo.gold;
 
   if (isLoading) {
     return (

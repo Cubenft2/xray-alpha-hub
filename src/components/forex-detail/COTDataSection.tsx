@@ -27,7 +27,7 @@ interface COTReport {
 interface COTDataSectionProps {
   cotData: COTReport[] | null;
   isLoading: boolean;
-  metal: 'silver' | 'gold';
+  metal: 'silver' | 'gold' | 'platinum' | 'palladium';
 }
 
 interface PositionBarProps {

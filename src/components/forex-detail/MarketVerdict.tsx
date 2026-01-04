@@ -17,7 +17,7 @@ interface ForexCard {
 interface MarketVerdictProps {
   cotData: COTReport | null;
   forexData: ForexCard | null;
-  metal: 'silver' | 'gold';
+  metal: 'silver' | 'gold' | 'platinum' | 'palladium';
 }
 
 interface VerdictItem {

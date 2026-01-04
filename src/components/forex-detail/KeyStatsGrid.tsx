@@ -17,8 +17,15 @@ interface KeyStatsGridProps {
   cotData: COTReport | null;
   futuresData: FuturesCard | null;
   isLoading: boolean;
-  metal: 'silver' | 'gold';
+  metal: 'silver' | 'gold' | 'platinum' | 'palladium';
 }
+
+const contractInfo: Record<string, { size: number; dollarMove: string; exchange: string }> = {
+  gold: { size: 100, dollarMove: '$100', exchange: 'COMEX GC' },
+  silver: { size: 5000, dollarMove: '$5,000', exchange: 'COMEX SI' },
+  platinum: { size: 50, dollarMove: '$50', exchange: 'NYMEX PL' },
+  palladium: { size: 100, dollarMove: '$100', exchange: 'NYMEX PA' }
+};
 
 interface StatCardProps {
   label: string;
@@ -45,9 +52,7 @@ function StatCard({ label, value, subtext, icon }: StatCardProps) {
 }
 
 export function KeyStatsGrid({ cotData, futuresData, isLoading, metal }: KeyStatsGridProps) {
-  // Contract sizes: Silver = 5,000 oz, Gold = 100 oz
-  const contractSize = metal === 'silver' ? 5000 : 100;
-  const dollarMoveImpact = metal === 'silver' ? '$5,000' : '$100';
+  const { size: contractSize, dollarMove: dollarMoveImpact, exchange } = contractInfo[metal] || contractInfo.gold;
 
   if (isLoading) {
     return (
@@ -110,7 +115,7 @@ export function KeyStatsGrid({ cotData, futuresData, isLoading, metal }: KeyStat
         icon="📦"
         label="Contract Size"
         value={`${contractSize.toLocaleString()} oz`}
-        subtext={metal === 'silver' ? 'COMEX SI' : 'COMEX GC'}
+        subtext={exchange}
       />
     </div>
   );

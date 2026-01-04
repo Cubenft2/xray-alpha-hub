@@ -18,7 +18,7 @@ export function MetalsCards({ onSelectSymbol }: MetalsCardsProps) {
       const { data, error } = await supabase
         .from('forex_cards')
         .select('*')
-        .in('pair', ['XAUUSD', 'XAGUSD'])
+        .in('pair', ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'])
         .eq('is_active', true);
       
       if (error) throw error;
@@ -29,7 +29,9 @@ export function MetalsCards({ onSelectSymbol }: MetalsCardsProps) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Skeleton className="h-40" />
+        <Skeleton className="h-40" />
         <Skeleton className="h-40" />
         <Skeleton className="h-40" />
       </div>
@@ -38,6 +40,18 @@ export function MetalsCards({ onSelectSymbol }: MetalsCardsProps) {
 
   const gold = metals?.find(m => m.pair === 'XAUUSD');
   const silver = metals?.find(m => m.pair === 'XAGUSD');
+  const platinum = metals?.find(m => m.pair === 'XPTUSD');
+  const palladium = metals?.find(m => m.pair === 'XPDUSD');
+
+  const getMetalSlug = (pair: string) => {
+    const slugMap: Record<string, string> = {
+      'XAUUSD': 'gold',
+      'XAGUSD': 'silver',
+      'XPTUSD': 'platinum',
+      'XPDUSD': 'palladium'
+    };
+    return slugMap[pair] || pair.toLowerCase();
+  };
 
   const MetalCard = ({ metal, icon, name, gradientClass }: { 
     metal: typeof gold; 
@@ -109,7 +123,7 @@ export function MetalsCards({ onSelectSymbol }: MetalsCardsProps) {
         </div>
 
         <Link 
-          to={`/forex/${metal.pair === 'XAUUSD' ? 'gold' : 'silver'}`}
+          to={`/forex/${getMetalSlug(metal.pair)}`}
           className="mt-4 flex items-center justify-center gap-2 text-sm text-primary hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
@@ -121,9 +135,11 @@ export function MetalsCards({ onSelectSymbol }: MetalsCardsProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <MetalCard metal={gold} icon="🥇" name="Gold" gradientClass="gold-price-gradient" />
       <MetalCard metal={silver} icon="🥈" name="Silver" gradientClass="silver-price-gradient" />
+      <MetalCard metal={platinum} icon="⚪" name="Platinum" gradientClass="platinum-price-gradient" />
+      <MetalCard metal={palladium} icon="🔘" name="Palladium" gradientClass="palladium-price-gradient" />
     </div>
   );
 }

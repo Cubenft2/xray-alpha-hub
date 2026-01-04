@@ -519,6 +519,34 @@
     background-clip: text;
   }
 
+  .platinum-price-gradient {
+    background: linear-gradient(135deg, hsl(200 10% 75%), hsl(200 15% 60%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .dark .platinum-price-gradient {
+    background: linear-gradient(135deg, hsl(200 15% 85%), hsl(200 20% 70%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .palladium-price-gradient {
+    background: linear-gradient(135deg, hsl(35 20% 70%), hsl(25 25% 55%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .dark .palladium-price-gradient {
+    background: linear-gradient(135deg, hsl(35 25% 80%), hsl(25 30% 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
   /* Custom Animations */
   @keyframes woof-shake {
     0%, 100% { transform: translateX(0); }

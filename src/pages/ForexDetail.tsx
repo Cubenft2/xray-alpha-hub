@@ -14,7 +14,7 @@ import {
   ShareButtons
 } from '@/components/forex-detail';
 
-type MetalType = 'silver' | 'gold';
+type MetalType = 'silver' | 'gold' | 'platinum' | 'palladium';
 
 interface MetalConfig {
   forexPair: string;
@@ -38,6 +38,20 @@ const METAL_CONFIG: Record<MetalType, MetalConfig> = {
     futuresUnderlying: 'XAU',
     name: 'Gold',
     icon: '🥇'
+  },
+  platinum: {
+    forexPair: 'XPTUSD',
+    cotCommodity: 'PLATINUM',
+    futuresUnderlying: 'XPT',
+    name: 'Platinum',
+    icon: '⚪'
+  },
+  palladium: {
+    forexPair: 'XPDUSD',
+    cotCommodity: 'PALLADIUM',
+    futuresUnderlying: 'XPD',
+    name: 'Palladium',
+    icon: '🔘'
   }
 };
 
@@ -46,7 +60,8 @@ export default function ForexDetail() {
   const navigate = useNavigate();
 
   // Validate metal parameter
-  const validMetal = (metal === 'silver' || metal === 'gold') ? metal as MetalType : null;
+  const validMetals = ['silver', 'gold', 'platinum', 'palladium'];
+  const validMetal = validMetals.includes(metal || '') ? metal as MetalType : null;
   const config = validMetal ? METAL_CONFIG[validMetal] : null;
 
   // Fetch spot price from forex_cards
@@ -108,8 +123,11 @@ export default function ForexDetail() {
         <div className="py-12 text-center">
           <h1 className="text-2xl font-bold mb-4">Metal Not Found</h1>
           <p className="text-muted-foreground mb-6">
-            Valid options are <Link to="/forex/silver" className="text-primary hover:underline">silver</Link> or{' '}
-            <Link to="/forex/gold" className="text-primary hover:underline">gold</Link>.
+            Valid options are{' '}
+            <Link to="/forex/gold" className="text-primary hover:underline">gold</Link>,{' '}
+            <Link to="/forex/silver" className="text-primary hover:underline">silver</Link>,{' '}
+            <Link to="/forex/platinum" className="text-primary hover:underline">platinum</Link>, or{' '}
+            <Link to="/forex/palladium" className="text-primary hover:underline">palladium</Link>.
           </p>
           <Button onClick={() => navigate('/forex')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
