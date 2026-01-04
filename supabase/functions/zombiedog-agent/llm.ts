@@ -792,26 +792,36 @@ export function buildIntentBasedPrompt(
   
   // Add FOREX data (for forex/metals queries)
   if (data.forex && data.forex.length > 0) {
+    const now = Date.now();
     base.push(``);
     base.push(`## Forex/Precious Metals Data:`);
+    base.push(`**CRITICAL: Use ONLY these prices from the database. Do NOT use training data for precious metals prices.**`);
     base.push('```json');
-    base.push(JSON.stringify(data.forex.map((f: any) => ({
-      pair: f.pair,
-      display_name: f.display_name,
-      base_currency: f.base_currency,
-      quote_currency: f.quote_currency,
-      rate: f.rate,
-      change_24h_pct: f.change_24h_pct,
-      high_24h: f.high_24h,
-      low_24h: f.low_24h,
-      rsi_14: f.rsi_14,
-      sma_20: f.sma_20,
-      sma_50: f.sma_50,
-      sma_200: f.sma_200,
-      technical_signal: f.technical_signal,
-      updated_at: f.updated_at,
-    })), null, 2));
+    base.push(JSON.stringify(data.forex.map((f: any) => {
+      const updateTime = f.price_updated_at || f.updated_at;
+      const ageSeconds = updateTime ? Math.round((now - new Date(updateTime).getTime()) / 1000) : null;
+      const ageLabel = ageSeconds !== null 
+        ? (ageSeconds < 60 ? `${ageSeconds}s ago` : `${Math.round(ageSeconds / 60)}m ago`)
+        : 'unknown';
+      
+      return {
+        pair: f.pair,
+        display_name: f.display_name,
+        rate: f.rate,
+        change_24h_pct: f.change_24h_pct,
+        high_24h: f.high_24h,
+        low_24h: f.low_24h,
+        rsi_14: f.rsi_14,
+        sma_20: f.sma_20,
+        sma_50: f.sma_50,
+        sma_200: f.sma_200,
+        technical_signal: f.technical_signal,
+        data_freshness: ageLabel,
+        price_updated_at: updateTime,
+      };
+    }), null, 2));
     base.push('```');
+    base.push(`**When responding about precious metals, always mention the current rate from above and the data freshness.**`);
   }
   
   const hasTokens = data.tokens.length > 0;

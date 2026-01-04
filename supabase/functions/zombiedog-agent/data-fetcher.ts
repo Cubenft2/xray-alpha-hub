@@ -118,6 +118,7 @@ export interface RichForex {
   sma_50: number | null;
   sma_200: number | null;
   technical_signal: string | null;
+  price_updated_at: string | null;
   updated_at: string | null;
 }
 
@@ -672,6 +673,9 @@ async function fetchTopStocks(supabase: any, action: string | null): Promise<Fet
 
 // ============= FOREX / PRECIOUS METALS FETCHER =============
 
+// Default precious metals tickers - used when no specific tickers provided
+const DEFAULT_METALS = ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'];
+
 const RICH_FOREX_SELECT = `
   pair,
   display_name,
@@ -687,27 +691,40 @@ const RICH_FOREX_SELECT = `
   sma_50,
   sma_200,
   technical_signal,
+  price_updated_at,
   updated_at
 `;
 
 async function fetchForexData(supabase: any, tickers: string[]): Promise<FetchedData> {
-  console.log(`[data-fetcher] Fetching forex data for: [${tickers.join(',')}]`);
+  console.log(`[data-fetcher] Fetching forex data for: [${tickers.join(',')}] (raw input)`);
   
-  // Normalize tickers - handle formats like GOLD, XAU, XAUUSD
-  const normalizedPairs = tickers.map(t => {
-    const upper = t.toUpperCase();
-    // Handle common aliases
+  // If no tickers provided, default to all precious metals
+  const tickersToUse = tickers.length === 0 ? DEFAULT_METALS : tickers;
+  
+  // Normalize tickers - handle formats like GOLD, XAU, XAUUSD, PLATINUM, etc.
+  const normalizedPairs = tickersToUse.map(t => {
+    const upper = t.toUpperCase().replace(/\s+/g, '');
+    // Handle common metal aliases
     if (upper === 'GOLD' || upper === 'XAU') return 'XAUUSD';
     if (upper === 'SILVER' || upper === 'XAG') return 'XAGUSD';
+    if (upper === 'PLATINUM' || upper === 'XPT') return 'XPTUSD';
+    if (upper === 'PALLADIUM' || upper === 'XPD') return 'XPDUSD';
+    // Handle "PRECIOUSMETALS" or "METALS" keyword
+    if (upper === 'PRECIOUSMETALS' || upper === 'METALS') return null; // Will be filtered out, triggers default
     // Already a pair format
     return upper;
-  });
+  }).filter(Boolean) as string[];
+  
+  // If all tickers were keywords (like "METALS"), use default metals
+  const finalPairs = normalizedPairs.length === 0 ? DEFAULT_METALS : normalizedPairs;
+  
+  console.log(`[data-fetcher] Normalized forex pairs: [${finalPairs.join(',')}]`);
   
   // Query forex_cards for the requested pairs
   const { data: forexData, error } = await supabase
     .from('forex_cards')
     .select(RICH_FOREX_SELECT)
-    .in('pair', normalizedPairs);
+    .in('pair', finalPairs);
   
   if (error) {
     console.error(`[data-fetcher] Forex query error: ${error.message}`);
@@ -715,7 +732,13 @@ async function fetchForexData(supabase: any, tickers: string[]): Promise<Fetched
   }
   
   const forex = forexData || [];
-  console.log(`[data-fetcher] Found ${forex.length} forex pairs`);
+  console.log(`[data-fetcher] Found ${forex.length} forex pairs with freshness data`);
+  
+  // Log freshness for debugging
+  for (const f of forex) {
+    const age = f.price_updated_at ? Math.round((Date.now() - new Date(f.price_updated_at).getTime()) / 1000) : 'unknown';
+    console.log(`[data-fetcher] ${f.pair}: $${f.rate} (updated ${age}s ago)`);
+  }
   
   return {
     type: 'forex_lookup',
