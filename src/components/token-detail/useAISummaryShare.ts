@@ -70,45 +70,79 @@ export function useAISummaryShare(
 
   const handleShare = async () => {
     setIsExporting(true);
+    
+    // Build share URLs immediately (synchronous)
+    const shareUrl = `${window.location.origin}/crypto-universe/${options.symbol}`;
+    const shareText = `${options.text} | @XRayMarkets ${shareUrl}`;
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
+    
+    // Open popup IMMEDIATELY before any async work (preserves user gesture)
+    let popup: Window | null = null;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (!isMobile) {
+      popup = window.open('about:blank', '_blank', 'width=550,height=420');
+      if (!popup) {
+        // Popup blocked - fallback to same-tab navigation
+        toast.info('Opening X in this tab...');
+        window.location.href = twitterUrl;
+        setIsExporting(false);
+        return;
+      }
+    }
+
     try {
       const blob = await generateImage();
-      const shareUrl = `${window.location.origin}/crypto-universe/${options.symbol}`;
-      const shareText = `${options.text} | @XRayMarkets ${shareUrl}`;
 
-      // Try native share with image (mobile)
-      if (blob && navigator.share && navigator.canShare?.({ files: [new File([blob], 'share.png', { type: 'image/png' })] })) {
-        const file = new File([blob], `${options.symbol}-ai-${options.type}.png`, { type: 'image/png' });
-        await navigator.share({
-          text: shareText,
-          files: [file],
-        });
-        toast.success('Shared!');
+      // Mobile: Try native share with image
+      if (isMobile && blob && navigator.share) {
+        try {
+          const file = new File([blob], `${options.symbol}-ai-${options.type}.png`, { type: 'image/png' });
+          if (navigator.canShare?.({ files: [file] })) {
+            await navigator.share({ text: shareText, files: [file] });
+            toast.success('Shared!');
+            return;
+          }
+        } catch {
+          // Native share failed, fallback to opening Twitter
+        }
+        // Fallback: open Twitter on mobile
+        window.open(twitterUrl, '_blank');
+        toast.success('Opening X...');
         return;
       }
 
-      // Desktop: Copy image to clipboard silently, then open Twitter
+      // Desktop: Copy image to clipboard (best-effort)
+      let clipboardSuccess = false;
       if (blob && navigator.clipboard?.write) {
         try {
           await navigator.clipboard.write([
             new ClipboardItem({ 'image/png': blob })
           ]);
+          clipboardSuccess = true;
         } catch {
-          // Clipboard failed, continue anyway
+          // Clipboard failed silently
         }
       }
 
-      // Always open Twitter intent on desktop
-      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
-      window.open(twitterUrl, '_blank', 'width=550,height=420');
-      
-      if (blob) {
-        toast.success('Opening Twitter... Image copied - paste it in your tweet!');
-      } else {
-        toast.success('Opening Twitter...');
+      // Navigate the already-opened popup to Twitter
+      if (popup) {
+        popup.location.href = twitterUrl;
+        if (clipboardSuccess) {
+          toast.success('Opening X... Image copied - paste it in your tweet!');
+        } else {
+          toast.success('Opening X... Use Download to save the image.');
+        }
       }
     } catch (error) {
       console.error('Share error:', error);
-      toast.error('Failed to share');
+      // Still navigate popup if it exists
+      if (popup) {
+        popup.location.href = twitterUrl;
+        toast.info('Opening X... Image generation failed.');
+      } else {
+        toast.error('Failed to share');
+      }
     } finally {
       setIsExporting(false);
     }
