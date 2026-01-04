@@ -51,6 +51,9 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto A
 ## FOREX/COMMODITY KEYWORDS (recognize as assetType: "forex"):
 - Gold/XAU/XAUUSD → ticker: "XAUUSD"
 - Silver/XAG/XAGUSD → ticker: "XAGUSD"
+- Platinum/XPT/XPTUSD → ticker: "XPTUSD"
+- Palladium/XPD/XPDUSD → ticker: "XPDUSD"
+- "precious metals" / "metals" → tickers: ["XAUUSD", "XAGUSD", "XPTUSD", "XPDUSD"] (ALL 4 metals)
 - EUR/USD, GBP/USD, USD/JPY → forex pairs
 - Precious metals, commodities, forex, currency pairs → assetType: "forex"
 
@@ -97,6 +100,8 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto A
 "How's the market?" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":[],"assetType":"mixed","timeframe":"24h","action":null,"summary":"General market overview"}
 "What's gold doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAUUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about gold price"}
 "How's silver?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAGUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about silver price"}
+"How's platinum?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XPTUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about platinum price"}
+"Precious metals update" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAUUSD","XAGUSD","XPTUSD","XPDUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User wants all precious metals"}
 "EUR/USD price" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["EURUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about EUR/USD forex pair"}`;
 
 const DEFAULT_INTENT: ParsedIntent = {
