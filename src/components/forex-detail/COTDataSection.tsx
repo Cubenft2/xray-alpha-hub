@@ -137,12 +137,28 @@ export function COTDataSection({ cotData, isLoading, metal }: COTDataSectionProp
   const maxValue = Math.max(...allValues, 1);
 
   const asOfDate = new Date(latest.as_of_date);
+  
+  // Calculate data freshness
+  const daysSinceReport = Math.floor(
+    (Date.now() - asOfDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const freshnessText = daysSinceReport <= 7 
+    ? 'Current week' 
+    : daysSinceReport <= 14 
+      ? 'Last week' 
+      : `${daysSinceReport} days ago`;
+  const freshnessVariant = daysSinceReport <= 7 ? 'default' : daysSinceReport <= 14 ? 'secondary' : 'outline';
 
   return (
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-bold">📊 CFTC Positioning Data</h3>
         <div className="text-right">
+          <div className="flex items-center gap-2 justify-end mb-1">
+            <Badge variant={freshnessVariant as 'default' | 'secondary' | 'outline'} className="text-xs">
+              {freshnessText}
+            </Badge>
+          </div>
           <p className="text-xs text-muted-foreground">As of</p>
           <p className="text-sm font-mono">{format(asOfDate, 'MMM d, yyyy')}</p>
         </div>
@@ -202,6 +218,24 @@ export function COTDataSection({ cotData, isLoading, metal }: COTDataSectionProp
           <div className="w-3 h-3 bg-red-500/80 rounded" />
           <span>Short</span>
         </div>
+      </div>
+
+      {/* Data explanation */}
+      <div className="mt-4 pt-4 border-t border-border">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          <span className="font-medium">About this data:</span> The CFTC releases 
+          Commitment of Traders reports every <span className="font-medium">Friday 
+          at ~3:30pm ET</span>, reflecting futures positions as of the prior Tuesday. 
+          During holidays, releases may be delayed.
+        </p>
+        <a 
+          href="https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-xs text-muted-foreground underline hover:text-foreground transition-colors mt-1 inline-block"
+        >
+          Source: CFTC Disaggregated COT Report
+        </a>
       </div>
     </Card>
   );
