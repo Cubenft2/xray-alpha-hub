@@ -75,7 +75,7 @@ export function useAISummaryShare(
       const shareUrl = `${window.location.origin}/crypto-universe/${options.symbol}`;
       const shareText = `${options.text} | @XRayMarkets ${shareUrl}`;
 
-      // Try native share with image
+      // Try native share with image (mobile)
       if (blob && navigator.share && navigator.canShare?.({ files: [new File([blob], 'share.png', { type: 'image/png' })] })) {
         const file = new File([blob], `${options.symbol}-ai-${options.type}.png`, { type: 'image/png' });
         await navigator.share({
@@ -86,23 +86,26 @@ export function useAISummaryShare(
         return;
       }
 
-      // Try clipboard with image
+      // Desktop: Copy image to clipboard silently, then open Twitter
       if (blob && navigator.clipboard?.write) {
         try {
           await navigator.clipboard.write([
             new ClipboardItem({ 'image/png': blob })
           ]);
-          toast.success('Image copied to clipboard!');
-          return;
         } catch {
-          // Fall through to text fallback
+          // Clipboard failed, continue anyway
         }
       }
 
-      // Fallback: Open Twitter intent with text
+      // Always open Twitter intent on desktop
       const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}`;
       window.open(twitterUrl, '_blank', 'width=550,height=420');
-      toast.success('Opening Twitter...');
+      
+      if (blob) {
+        toast.success('Opening Twitter... Image copied - paste it in your tweet!');
+      } else {
+        toast.success('Opening Twitter...');
+      }
     } catch (error) {
       console.error('Share error:', error);
       toast.error('Failed to share');
