@@ -4,26 +4,50 @@ import { TradingViewChart } from '@/components/TradingViewChart';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface ChartToggleProps {
-  metal: 'silver' | 'gold';
+  metal: 'silver' | 'gold' | 'platinum' | 'palladium';
 }
+
+const spotSymbols: Record<string, string> = {
+  gold: 'OANDA:XAUUSD',
+  silver: 'OANDA:XAGUSD',
+  platinum: 'OANDA:XPTUSD',
+  palladium: 'OANDA:XPDUSD'
+};
+
+const futuresSymbols: Record<string, string> = {
+  gold: 'COMEX:GC1!',
+  silver: 'COMEX:SI1!',
+  platinum: 'NYMEX:PL1!',
+  palladium: 'NYMEX:PA1!'
+};
+
+const spotLabels: Record<string, string> = {
+  gold: 'XAU/USD Spot',
+  silver: 'XAG/USD Spot',
+  platinum: 'XPT/USD Spot',
+  palladium: 'XPD/USD Spot'
+};
+
+const futuresLabels: Record<string, string> = {
+  gold: 'Gold Futures (GC1!)',
+  silver: 'Silver Futures (SI1!)',
+  platinum: 'Platinum Futures (PL1!)',
+  palladium: 'Palladium Futures (PA1!)'
+};
 
 export function ChartToggle({ metal }: ChartToggleProps) {
   const [chartType, setChartType] = useState<'spot' | 'futures'>('spot');
 
   const getSymbol = () => {
-    if (chartType === 'spot') {
-      return metal === 'gold' ? 'OANDA:XAUUSD' : 'OANDA:XAGUSD';
-    } else {
-      return metal === 'gold' ? 'COMEX:GC1!' : 'COMEX:SI1!';
-    }
+    return chartType === 'spot' 
+      ? spotSymbols[metal] || spotSymbols.gold
+      : futuresSymbols[metal] || futuresSymbols.gold;
   };
 
   const getLabel = () => {
-    if (chartType === 'spot') {
-      return metal === 'gold' ? 'XAU/USD Spot' : 'XAG/USD Spot';
-    } else {
-      return metal === 'gold' ? 'Gold Futures (GC1!)' : 'Silver Futures (SI1!)';
-    }
+    return chartType === 'spot'
+      ? spotLabels[metal] || spotLabels.gold
+      : futuresLabels[metal] || futuresLabels.gold;
   };
 
   return (

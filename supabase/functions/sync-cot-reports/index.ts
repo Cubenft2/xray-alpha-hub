@@ -8,10 +8,12 @@ const corsHeaders = {
 // CFTC Socrata API - Disaggregated Futures Only
 const CFTC_API_URL = "https://publicreporting.cftc.gov/resource/72hh-3qpy.json";
 
-// Commodity codes for Silver and Gold in CFTC data
+// Commodity codes for precious metals in CFTC data
 const COMMODITY_FILTERS = [
   { name: "SILVER", cftc_code: "084691" },
   { name: "GOLD", cftc_code: "088691" },
+  { name: "PLATINUM", cftc_code: "076651" },
+  { name: "PALLADIUM", cftc_code: "075651" },
 ];
 
 interface CFTCRecord {
