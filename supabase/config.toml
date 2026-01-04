@@ -280,14 +280,14 @@ verify_jwt = false
 [[functions.sync-forex-cards-technicals.cron]]
 schedule = "7,22,37,52 * * * *"
 
-# ENABLED: Tier 1 tokens only (~53 tokens) - AI summaries, posts, news, creators
-# Budget: 48 runs/day × 8 calls/run = 384 LunarCrush API calls/day
-# Each token refreshed ~2x/day (staggered to :18/:48 to avoid collisions)
+# ENABLED: Top 25 tokens - posts, news, creators, summaries
+# Budget: 6 runs/day × 100 calls/run = 600 LunarCrush API calls/day
+# Every 4 hours at minute 7 (staggered to avoid collisions)
 [functions.sync-token-cards-lunarcrush-enhanced]
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush-enhanced.cron]]
-schedule = "18,48 * * * *"
+schedule = "7 */4 * * *"
 
 # Sync CoinGecko IDs and contract addresses to token_cards
 # Daily at 2:05 AM UTC (staggered)
