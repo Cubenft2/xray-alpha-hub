@@ -6,11 +6,14 @@ import { Badge } from '@/components/ui/badge';
 interface Creator {
   name?: string;
   handle?: string;
+  avatar?: string;
   avatar_url?: string;
   platform?: string;
   followers?: number;
   engagement?: number;
+  interactions?: number;
   profile_url?: string;
+  url?: string;
 }
 
 interface TokenCreatorsProps {
@@ -81,14 +84,17 @@ export function TokenCreators({ topCreators }: TokenCreatorsProps) {
       <CardContent className="space-y-3">
         {topCreators.slice(0, 10).map((creator, i) => {
           const PlatformIcon = getPlatformIcon(creator.platform);
+          const avatarUrl = creator.avatar_url || creator.avatar;
+          const profileUrl = creator.profile_url || creator.url;
+          const engagementValue = creator.engagement || creator.interactions;
           return (
             <div 
               key={i}
               className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
-              onClick={() => creator.profile_url && window.open(creator.profile_url, '_blank')}
+              onClick={() => profileUrl && window.open(profileUrl, '_blank')}
             >
               <Avatar className="h-10 w-10 border border-border">
-                <AvatarImage src={creator.avatar_url} alt={creator.name} />
+                <AvatarImage src={avatarUrl} alt={creator.name} />
                 <AvatarFallback className="text-xs">
                   {creator.name?.slice(0, 2).toUpperCase() || '??'}
                 </AvatarFallback>
@@ -112,13 +118,13 @@ export function TokenCreators({ topCreators }: TokenCreatorsProps) {
                 </div>
               </div>
 
-              {creator.engagement && (
+              {engagementValue && (
                 <Badge variant="outline" className="shrink-0 text-xs">
-                  {formatNumber(creator.engagement)} eng
+                  {formatNumber(engagementValue)} eng
                 </Badge>
               )}
 
-              {creator.profile_url && (
+              {profileUrl && (
                 <ExternalLink className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
               )}
             </div>

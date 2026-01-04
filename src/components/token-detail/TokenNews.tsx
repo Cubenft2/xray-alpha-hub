@@ -9,6 +9,7 @@ interface NewsItem {
   source?: string;
   published_at?: string;
   sentiment?: number;
+  image_url?: string;
 }
 
 interface TokenNewsProps {
@@ -56,14 +57,22 @@ export function TokenNews({ topNews, newsUpdatedAt }: TokenNewsProps) {
         )}
       </CardHeader>
       <CardContent className="space-y-3">
-        {topNews.slice(0, 5).map((news, i) => (
+        {topNews.slice(0, 8).map((news, i) => (
           <div 
             key={i} 
             className="border-b last:border-0 pb-3 last:pb-0 hover:bg-muted/30 rounded p-2 -mx-2 cursor-pointer transition-colors"
             onClick={() => news.url && window.open(news.url, '_blank')}
           >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1">
+            <div className="flex items-start gap-3">
+              {news.image_url && (
+                <img 
+                  src={news.image_url} 
+                  alt="" 
+                  className="w-16 h-12 object-cover rounded shrink-0"
+                  onError={(e) => (e.currentTarget.style.display = 'none')}
+                />
+              )}
+              <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-medium line-clamp-2">{news.title}</h4>
                 <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                   {news.source && <span>{news.source}</span>}
