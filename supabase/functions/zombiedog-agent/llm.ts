@@ -598,22 +598,13 @@ export function buildIntentBasedPrompt(
     case 'news':
       base.push(`## NEWS/SENTIMENT TASK:`);
       base.push(`Summarize the latest sentiment for ${intent.tickers.length > 0 ? intent.tickers.join(', ') : 'the market'}.`);
-      base.push(``);
-      base.push(`**Use these data sources:**`);
-      base.push(`- ai_summary: LunarCrush AI analysis of what's happening`);
-      base.push(`- key_themes: Main topics being discussed`);
-      base.push(`- sentiment: Overall crowd mood %`);
-      base.push(`- top_posts: What influencers are saying`);
-      base.push(`- top_news: Recent headlines`);
-      base.push(``);
-      base.push(`Synthesize into a narrative: What's the story? Why are people talking?`);
       break;
       
     case 'general_chat':
       base.push(`## GENERAL CHAT MODE:`);
       base.push(`Respond casually and friendly, staying in character as ZombieDog.`);
-      base.push(`If greeting, say hi and mention you can help with crypto/stock prices, market analysis, safety checks, etc.`);
-      base.push(`If asking what you can do, list: price checks, market overviews, token analysis, safety scans, news/sentiment, comparisons.`);
+      base.push(`If greeting, say hi and mention you can help with crypto/stock/forex prices, market analysis, safety checks, etc.`);
+      base.push(`If asking what you can do, list: price checks, market overviews, token analysis, safety scans, news/sentiment, comparisons, forex/gold/silver prices.`);
       base.push(`Keep it to 2-3 sentences. Skip the "Not financial advice" footer for greetings.`);
       break;
       
@@ -644,6 +635,17 @@ export function buildIntentBasedPrompt(
         base.push(`Focus on the BIGGEST LOSERS in this sector.`);
       }
       break;
+  }
+  
+  // Add forex/metals handling if asset type is forex
+  if (intent.assetType === 'forex') {
+    base.push(``);
+    base.push(`## FOREX/PRECIOUS METALS HANDLING:`);
+    base.push(`- For gold (XAUUSD) and silver (XAGUSD), show spot price, 24h change, and technical signals`);
+    base.push(`- This is OANDA spot price data (real-time forex market)`);
+    base.push(`- Include: Rate, 24h change %, High/Low, RSI if available, SMA position`);
+    base.push(`- For metals, mention they're quoted in USD per troy ounce`);
+    base.push(`- Keep it concise: price + change + one technical insight`);
   }
   
   // Add the RICH token data with all available fields
@@ -788,10 +790,35 @@ export function buildIntentBasedPrompt(
     base.push('```');
   }
   
+  // Add FOREX data (for forex/metals queries)
+  if (data.forex && data.forex.length > 0) {
+    base.push(``);
+    base.push(`## Forex/Precious Metals Data:`);
+    base.push('```json');
+    base.push(JSON.stringify(data.forex.map((f: any) => ({
+      pair: f.pair,
+      display_name: f.display_name,
+      base_currency: f.base_currency,
+      quote_currency: f.quote_currency,
+      rate: f.rate,
+      change_24h_pct: f.change_24h_pct,
+      high_24h: f.high_24h,
+      low_24h: f.low_24h,
+      rsi_14: f.rsi_14,
+      sma_20: f.sma_20,
+      sma_50: f.sma_50,
+      sma_200: f.sma_200,
+      technical_signal: f.technical_signal,
+      updated_at: f.updated_at,
+    })), null, 2));
+    base.push('```');
+  }
+  
   const hasTokens = data.tokens.length > 0;
   const hasStocks = data.stocks && data.stocks.length > 0;
+  const hasForex = data.forex && data.forex.length > 0;
   
-  if (!hasTokens && !hasStocks && intent.intent !== 'general_chat') {
+  if (!hasTokens && !hasStocks && !hasForex && intent.intent !== 'general_chat') {
     base.push(``);
     base.push(`## Data Status: No data available for this query.`);
     base.push(`Acknowledge this and offer to help with something else.`);

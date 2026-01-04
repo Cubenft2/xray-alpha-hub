@@ -100,7 +100,7 @@ function isAmbiguousQuery(query: string, explicit: string[], candidates: string[
 
 export interface ResolvedAsset {
   symbol: string;
-  type: 'crypto' | 'stock' | 'unknown';
+  type: 'crypto' | 'stock' | 'forex' | 'unknown';
   coingeckoId?: string;
   polygonTicker?: string;
   source: 'context' | 'alias' | 'database' | 'explicit';
@@ -139,6 +139,13 @@ const TICKER_ALIASES: Record<string, string> = {
   // Project names (multi-word)
   'WORLDLIBERTYFINANCE': 'WLFI', 'WORLDLIBERTY': 'WLFI',
   'PEPECOIN': 'PEPE', 'PEPEMEME': 'PEPE',
+  // Forex / Precious Metals aliases
+  'GOLD': 'XAUUSD', 'XAU': 'XAUUSD',
+  'SILVER': 'XAGUSD', 'XAG': 'XAGUSD',
+  'EURUSD': 'EURUSD', 'EUR/USD': 'EURUSD',
+  'GBPUSD': 'GBPUSD', 'GBP/USD': 'GBPUSD',
+  'USDJPY': 'USDJPY', 'USD/JPY': 'USDJPY',
+  'AUDUSD': 'AUDUSD', 'AUD/USD': 'AUDUSD',
 };
 
 // Top cryptos by market cap - these are trusted even without DB lookup
@@ -417,7 +424,7 @@ async function resolveSingleTicker(
   // Query DB for matches
   const candidates: Array<{
     symbol: string;
-    type: 'crypto' | 'stock';
+    type: 'crypto' | 'stock' | 'forex';
     coingeckoId?: string;
     polygonTicker?: string;
     marketCap?: number;
@@ -487,6 +494,27 @@ async function resolveSingleTicker(
           polygonTicker: s.symbol,
           marketCap: s.market_cap,
           matchType: 'exact',
+        });
+      }
+    }
+  }
+
+  // Try forex_cards for forex/metals pairs
+  const { data: forexData } = await supabase
+    .from('forex_cards')
+    .select('pair, display_name, rate')
+    .or(`pair.ilike.%${normalized}%,base_currency.ilike.${normalized}`)
+    .limit(5);
+
+  if (forexData) {
+    for (const f of forexData) {
+      const existing = candidates.find(x => x.symbol === f.pair);
+      if (!existing) {
+        candidates.push({
+          symbol: f.pair,
+          type: 'forex',
+          polygonTicker: `C:${f.pair}`,
+          matchType: f.pair.toUpperCase() === normalized ? 'exact' : 'alias',
         });
       }
     }
