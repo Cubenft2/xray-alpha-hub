@@ -1,7 +1,10 @@
-import { Bot, Sparkles, Clock } from 'lucide-react';
+import { useRef } from 'react';
+import { Bot, Sparkles, Clock, Download, Share2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatDistanceToNow } from 'date-fns';
+import { useAISummaryShare } from './useAISummaryShare';
 
 interface TokenAISummaryProps {
   aiSummary: string | null;
@@ -10,6 +13,7 @@ interface TokenAISummaryProps {
   notableEvents: string[] | null;
   aiUpdatedAt: string | null;
   tier: number | null;
+  symbol?: string;
 }
 
 export function TokenAISummary({ 
@@ -18,8 +22,17 @@ export function TokenAISummary({
   keyThemes, 
   notableEvents,
   aiUpdatedAt,
-  tier 
+  tier,
+  symbol = ''
 }: TokenAISummaryProps) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const summaryText = aiSummary || aiSummaryShort || '';
+  const { isExporting, handleExportImage, handleShare } = useAISummaryShare(cardRef, {
+    symbol,
+    type: 'summary',
+    text: `🤖 ${symbol} AI Analysis: ${summaryText.slice(0, 80)}${summaryText.length > 80 ? '...' : ''}`,
+  });
+
   const hasContent = aiSummary || aiSummaryShort || (keyThemes && keyThemes.length > 0);
 
   if (!hasContent) {
@@ -43,7 +56,7 @@ export function TokenAISummary({
   }
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+    <Card ref={cardRef} className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
@@ -51,11 +64,21 @@ export function TokenAISummary({
             <span className="text-primary">AI Summary</span>
             <Sparkles className="h-3 w-3 text-yellow-500" />
           </CardTitle>
-          {tier && (
-            <Badge variant="outline" className="text-xs">
-              Tier {tier}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {tier && (
+              <Badge variant="outline" className="text-xs">
+                Tier {tier}
+              </Badge>
+            )}
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleExportImage} disabled={isExporting}>
+                <Download className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleShare} disabled={isExporting}>
+                <Share2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
         </div>
         {aiUpdatedAt && (
           <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -101,6 +124,12 @@ export function TokenAISummary({
             </div>
           </div>
         )}
+
+        {/* Watermark - hidden until export */}
+        <div data-watermark className="hidden items-center justify-between pt-3 mt-3 border-t border-border/50 text-xs text-muted-foreground">
+          <span className="font-semibold">XRayCrypto</span>
+          <span>xraycrypto.io/{symbol}</span>
+        </div>
       </CardContent>
     </Card>
   );
