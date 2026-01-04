@@ -64,23 +64,34 @@ function parseMarkdownResponse(markdown: string): {
 
   const lines = markdown.split("\n");
   let currentSection = "";
+  let currentSubsection = ""; // Track supportive vs critical themes
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
 
-    // Detect section headers
+    // Detect section headers and extract sentiment from "### Sentiment: 74%"
     if (line.startsWith("### ")) {
-      currentSection = line.replace("### ", "").toLowerCase();
+      const headerContent = line.replace("### ", "");
+      currentSection = headerContent.toLowerCase().split(":")[0].trim();
+      currentSubsection = ""; // Reset subsection on new section
+      
+      // Extract sentiment percentage from header like "Sentiment: 74%"
+      if (currentSection === "sentiment") {
+        const pctMatch = headerContent.match(/(\d+(?:\.\d+)?)\s*%/);
+        if (pctMatch) {
+          result.sentimentPct = parseFloat(pctMatch[1]);
+        }
+      }
       continue;
     }
 
     // Extract headline - usually the first paragraph after the title
-    if (!result.headline && line.length > 50 && !line.startsWith("#") && !line.startsWith("|") && !line.startsWith("-")) {
+    if (!result.headline && line.length > 50 && !line.startsWith("#") && !line.startsWith("|") && !line.startsWith("-") && !line.startsWith("!") && !line.startsWith("[")) {
       result.headline = line.slice(0, 500);
     }
 
-    // Parse About section
-    if (currentSection === "about" && line.length > 0 && !line.startsWith("#")) {
+    // Parse About section - header includes token name like "### About Ethereum"
+    if (currentSection.startsWith("about") && line.length > 0 && !line.startsWith("#") && !line.startsWith("!") && !line.startsWith("[")) {
       result.about = (result.about || "") + line + " ";
     }
 
@@ -93,38 +104,36 @@ function parseMarkdownResponse(markdown: string): {
     }
 
     // Parse Price Analysis
-    if (currentSection.includes("price") && line.length > 0 && !line.startsWith("#")) {
+    if (currentSection.includes("price") && line.length > 0 && !line.startsWith("#") && !line.startsWith("!") && !line.startsWith("[")) {
       result.priceAnalysis = (result.priceAnalysis || "") + line + " ";
     }
 
-    // Parse Sentiment percentage
+    // Parse Sentiment section themes
     if (currentSection === "sentiment") {
-      const pctMatch = line.match(/(\d+(?:\.\d+)?)\s*%/);
-      if (pctMatch && !result.sentimentPct) {
-        result.sentimentPct = parseFloat(pctMatch[1]);
+      // Detect "Most Supportive Themes:" and "Most Critical Themes:" subsection markers
+      if (line.toLowerCase().includes("most supportive themes")) {
+        currentSubsection = "supportive";
+        continue;
       }
-
-      // Parse supportive themes
-      if (line.toLowerCase().includes("supportive") || line.toLowerCase().includes("bullish")) {
-        const themeMatch = line.match(/\*\*(.+?)\*\*.*?(\d+(?:\.\d+)?)\s*%/);
-        if (themeMatch) {
-          result.supportiveThemes.push({
-            theme: themeMatch[1],
-            percentage: parseFloat(themeMatch[2]),
-            description: line.replace(/\*\*/g, "").trim(),
-          });
-        }
+      if (line.toLowerCase().includes("most critical themes")) {
+        currentSubsection = "critical";
+        continue;
       }
-
-      // Parse critical themes
-      if (line.toLowerCase().includes("critical") || line.toLowerCase().includes("bearish")) {
-        const themeMatch = line.match(/\*\*(.+?)\*\*.*?(\d+(?:\.\d+)?)\s*%/);
+      
+      // Parse theme lines: "- Theme Name: (percentage%) Description..."
+      if (line.startsWith("-") && currentSubsection) {
+        const themeMatch = line.match(/^-\s*(.+?):\s*\((\d+(?:\.\d+)?)\s*%\)\s*(.*)$/);
         if (themeMatch) {
-          result.criticalThemes.push({
-            theme: themeMatch[1],
+          const themeData = {
+            theme: themeMatch[1].trim(),
             percentage: parseFloat(themeMatch[2]),
-            description: line.replace(/\*\*/g, "").trim(),
-          });
+            description: themeMatch[3].trim(),
+          };
+          if (currentSubsection === "supportive") {
+            result.supportiveThemes.push(themeData);
+          } else if (currentSubsection === "critical") {
+            result.criticalThemes.push(themeData);
+          }
         }
       }
     }
@@ -261,7 +270,7 @@ Deno.serve(async (req) => {
           log(`API error for ${symbol}: ${response.status} - ${errorText}`);
           errors.push(`${symbol}: ${response.status}`);
           errorCount++;
-          await sleep(3000); // Still wait to respect rate limits
+          await sleep(6000); // Wait 6 seconds to respect rate limits (10/min burst)
           continue;
         }
 
@@ -307,16 +316,16 @@ Deno.serve(async (req) => {
           successCount++;
         }
 
-        // Wait 3 seconds between calls to respect rate limits (10/min burst)
+        // Wait 6 seconds between calls to respect rate limits (10/min burst)
         if (tokens.indexOf(token) < tokens.length - 1) {
-          await sleep(3000);
+          await sleep(6000);
         }
       } catch (tokenError) {
         const errMsg = tokenError instanceof Error ? tokenError.message : String(tokenError);
         log(`Error processing ${symbol}: ${errMsg}`);
         errors.push(`${symbol}: ${errMsg}`);
         errorCount++;
-        await sleep(3000);
+        await sleep(6000);
       }
     }
 
