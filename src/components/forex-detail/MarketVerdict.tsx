@@ -33,8 +33,8 @@ export function MarketVerdict({ cotData, forexData, metal }: MarketVerdictProps)
   const verdicts: VerdictItem[] = [];
 
   // Analyze bank positioning
-  if (cotData?.swap_net !== null) {
-    const bankNet = cotData.swap_net!;
+  if (cotData?.swap_net != null) {
+    const bankNet = cotData.swap_net;
     if (bankNet < -50000) {
       verdicts.push({
         type: 'bullish',
@@ -54,8 +54,8 @@ export function MarketVerdict({ cotData, forexData, metal }: MarketVerdictProps)
   }
 
   // Analyze speculator positioning
-  if (cotData?.managed_net !== null) {
-    const specNet = cotData.managed_net!;
+  if (cotData?.managed_net != null) {
+    const specNet = cotData.managed_net;
     if (specNet > 80000) {
       verdicts.push({
         type: 'bearish',
@@ -70,8 +70,8 @@ export function MarketVerdict({ cotData, forexData, metal }: MarketVerdictProps)
   }
 
   // Analyze week-over-week changes
-  if (cotData?.swap_net_change !== null) {
-    const change = cotData.swap_net_change!;
+  if (cotData?.swap_net_change != null) {
+    const change = cotData.swap_net_change;
     if (change > 10000) {
       verdicts.push({
         type: 'bearish',
@@ -86,8 +86,8 @@ export function MarketVerdict({ cotData, forexData, metal }: MarketVerdictProps)
   }
 
   // RSI analysis
-  if (forexData?.rsi_14 !== null) {
-    const rsi = forexData.rsi_14!;
+  if (forexData?.rsi_14 != null) {
+    const rsi = forexData.rsi_14;
     if (rsi > 70) {
       verdicts.push({
         type: 'bearish',
@@ -102,8 +102,8 @@ export function MarketVerdict({ cotData, forexData, metal }: MarketVerdictProps)
   }
 
   // Price momentum
-  if (forexData?.change_24h_pct !== null) {
-    const change = forexData.change_24h_pct!;
+  if (forexData?.change_24h_pct != null) {
+    const change = forexData.change_24h_pct;
     if (change > 2) {
       verdicts.push({
         type: 'bullish',
