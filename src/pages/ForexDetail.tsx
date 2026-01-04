@@ -172,10 +172,12 @@ export default function ForexDetail() {
           />
         </div>
 
-        {/* Chart with Spot/Futures Toggle */}
-        <div className="container mx-auto">
-          <ChartToggle metal={validMetal} />
-        </div>
+        {/* Chart with Spot/Futures Toggle - defer until forex data ready */}
+        {!forexLoading && (
+          <div className="container mx-auto">
+            <ChartToggle metal={validMetal} />
+          </div>
+        )}
 
         {/* COT Positioning Data */}
         <div className="container mx-auto">

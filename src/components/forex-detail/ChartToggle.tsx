@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { TradingViewChart } from '@/components/TradingViewChart';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ChartToggleProps {
   metal: 'silver' | 'gold';
@@ -54,7 +55,9 @@ export function ChartToggle({ metal }: ChartToggleProps) {
         Viewing: {getLabel()}
       </p>
 
-      <TradingViewChart symbol={getSymbol()} height="500px" />
+      <Suspense fallback={<Skeleton className="h-[500px] w-full rounded-lg" />}>
+        <TradingViewChart symbol={getSymbol()} height="500px" />
+      </Suspense>
     </div>
   );
 }

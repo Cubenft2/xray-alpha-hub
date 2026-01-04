@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -29,18 +29,25 @@ export function TradingViewChart({
   className = ""
 }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
     if (!containerRef.current) return;
 
     setIsLoading(true);
     
-    // Clear previous widget
-    containerRef.current.innerHTML = '';
+    // Clear previous widget safely
+    try {
+      containerRef.current.innerHTML = '';
+    } catch (e) {
+      // Ignore cleanup errors
+    }
 
     const init = () => {
       if (!containerRef.current) return;
@@ -95,19 +102,25 @@ export function TradingViewChart({
       script.onload = () => {
         const start = Date.now();
         const checkWidget = setInterval(() => {
+          if (!isMountedRef.current) {
+            clearInterval(checkWidget);
+            return;
+          }
           const iframe = widgetDiv.querySelector('iframe');
           if (iframe) {
             clearInterval(checkWidget);
-            setTimeout(() => setIsLoading(false), 500);
+            setTimeout(() => {
+              if (isMountedRef.current) setIsLoading(false);
+            }, 500);
           } else if (Date.now() - start > 3000) {
             clearInterval(checkWidget);
-            setIsLoading(false);
+            if (isMountedRef.current) setIsLoading(false);
           }
         }, 100);
       };
 
       script.onerror = () => {
-        setIsLoading(false);
+        if (isMountedRef.current) setIsLoading(false);
         console.error('TradingView widget failed to load');
       };
 
@@ -141,10 +154,15 @@ export function TradingViewChart({
     tryStart();
 
     return () => {
+      isMountedRef.current = false;
       clearInterval(visibleCheck);
       clearTimeout(safetyTimeout);
       if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+        try {
+          containerRef.current.innerHTML = '';
+        } catch (e) {
+          // Silently handle cleanup errors during unmount
+        }
       }
     };
   }, [symbol, theme, interval, style, hideTopToolbar, hideSideToolbar, allowSymbolChange, isFullscreen, reloadToken]);
