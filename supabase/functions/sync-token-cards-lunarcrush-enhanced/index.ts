@@ -10,8 +10,22 @@ const LUNARCRUSH_API_KEY = Deno.env.get('LUNARCRUSH_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-const TOKENS_PER_RUN = 2; // 2 tokens × 4 endpoints = 8 calls (under 10/min limit)
-const CACHE_KEY = 'lunarcrush_enhanced_offset';
+// Hardcoded Top 25 tokens by market cap - no database queries for selection
+// Source: top100MarketCap.ts - updated Dec 2024
+const TOP_25_SYMBOLS = [
+  'BTC', 'ETH', 'XRP', 'USDT', 'SOL',
+  'BNB', 'DOGE', 'USDC', 'ADA', 'TRX',
+  'HYPE', 'AVAX', 'LINK', 'SUI', 'XLM',
+  'SHIB', 'TON', 'HBAR', 'BCH', 'DOT',
+  'LTC', 'UNI', 'LEO', 'PEPE', 'NEAR'
+];
+
+// 6 second delay between tokens to respect rate limits
+const DELAY_BETWEEN_TOKENS_MS = 6000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // Helper to log API calls for rate limit tracking
 async function logApiCall(supabase: any, success: boolean, errorMessage?: string) {
@@ -29,7 +43,6 @@ async function logApiCall(supabase: any, success: boolean, errorMessage?: string
 }
 
 async function fetchLunarCrush(endpoint: string, symbol: string, supabase: any): Promise<any> {
-  // LunarCrush API v4 uses lowercase symbols and /v1 suffix
   const lowerSymbol = symbol.toLowerCase();
   const url = `https://lunarcrush.com/api4/public/topic/${lowerSymbol}/${endpoint}/v1`;
   
@@ -40,7 +53,6 @@ async function fetchLunarCrush(endpoint: string, symbol: string, supabase: any):
       },
     });
     
-    // Log API call for rate limit tracking
     await logApiCall(supabase, response.ok, response.ok ? undefined : `${response.status}`);
     
     if (!response.ok) {
@@ -72,60 +84,18 @@ serve(async (req) => {
       throw new Error('LUNARCRUSH_API_KEY not configured');
     }
 
-    // Get current offset from cache
-    const { data: cacheData } = await supabase
-      .from('cache_kv')
-      .select('v')
-      .eq('k', CACHE_KEY)
-      .single();
-    
-    let currentOffset = cacheData?.v?.offset || 0;
-    
-    // Fetch Tier 1 tokens only (top ~50 by market cap rank)
-    // Budget: 2 tokens/run × 4 endpoints = 8 API calls/run
-    // At 48 runs/day = 384 LunarCrush API calls/day
-    const { data: tokens, error: fetchError } = await supabase
-      .from('token_cards')
-      .select('canonical_symbol, tier, market_cap_rank')
-      .eq('tier', 1)
-      .not('canonical_symbol', 'is', null)
-      .order('market_cap_rank', { ascending: true, nullsFirst: false })
-      .range(currentOffset, currentOffset + TOKENS_PER_RUN - 1);
-    
-    if (fetchError) {
-      throw new Error(`Failed to fetch tokens: ${fetchError.message}`);
-    }
-    
-    if (!tokens || tokens.length === 0) {
-      // Reset offset and start over
-      await supabase
-        .from('cache_kv')
-        .upsert({
-          k: CACHE_KEY,
-          v: { offset: 0, lastReset: new Date().toISOString() },
-          expires_at: new Date(Date.now() + 86400000).toISOString(),
-        }, { onConflict: 'k' });
-      
-      console.log('Completed full cycle, resetting offset to 0');
-      return new Response(JSON.stringify({
-        success: true,
-        message: 'Cycle complete, reset to beginning',
-        tokensProcessed: 0,
-        nextOffset: 0,
-      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    console.log(`Processing ${tokens.length} tokens starting at offset ${currentOffset}`);
+    console.log(`Processing all ${TOP_25_SYMBOLS.length} top tokens with ${DELAY_BETWEEN_TOKENS_MS}ms delay between each`);
     
     const results = {
       processed: 0,
       updated: 0,
+      skipped: 0,
       errors: [] as string[],
     };
 
-    for (const token of tokens) {
-      const symbol = token.canonical_symbol;
-      console.log(`Fetching enhanced data for ${symbol} (rank ${token.market_cap_rank})`);
+    for (let i = 0; i < TOP_25_SYMBOLS.length; i++) {
+      const symbol = TOP_25_SYMBOLS[i];
+      console.log(`[${i + 1}/${TOP_25_SYMBOLS.length}] Fetching enhanced data for ${symbol}`);
       
       try {
         // Fetch all 4 endpoints for this token
@@ -204,6 +174,9 @@ serve(async (req) => {
             results.updated++;
             console.log(`Updated ${symbol} with ${Object.keys(updateData).length} fields`);
           }
+        } else {
+          results.skipped++;
+          console.log(`Skipped ${symbol} - no data returned`);
         }
         
         results.processed++;
@@ -212,33 +185,27 @@ serve(async (req) => {
         console.error(`Error processing ${symbol}:`, error);
         results.errors.push(`${symbol}: ${error.message}`);
       }
+      
+      // Add delay between tokens (except after the last one)
+      if (i < TOP_25_SYMBOLS.length - 1) {
+        console.log(`Waiting ${DELAY_BETWEEN_TOKENS_MS}ms before next token...`);
+        await sleep(DELAY_BETWEEN_TOKENS_MS);
+      }
     }
 
-    // Update offset for next run
-    const nextOffset = currentOffset + tokens.length;
-    await supabase
-      .from('cache_kv')
-      .upsert({
-        k: CACHE_KEY,
-        v: { 
-          offset: nextOffset, 
-          lastProcessed: tokens.map(t => t.canonical_symbol),
-          lastRun: new Date().toISOString(),
-        },
-        expires_at: new Date(Date.now() + 86400000).toISOString(),
-      }, { onConflict: 'k' });
-
     const duration = Date.now() - startTime;
-    console.log(`Completed in ${duration}ms: ${results.processed} processed, ${results.updated} updated, ${results.errors.length} errors`);
+    const durationMinutes = (duration / 60000).toFixed(1);
+    console.log(`Completed in ${durationMinutes} minutes: ${results.processed} processed, ${results.updated} updated, ${results.skipped} skipped, ${results.errors.length} errors`);
 
     return new Response(JSON.stringify({
       success: true,
       tokensProcessed: results.processed,
       tokensUpdated: results.updated,
+      tokensSkipped: results.skipped,
       errors: results.errors,
-      currentOffset,
-      nextOffset,
+      totalTokens: TOP_25_SYMBOLS.length,
       durationMs: duration,
+      durationMinutes: parseFloat(durationMinutes),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
