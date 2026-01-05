@@ -248,7 +248,7 @@ schedule = "45 * * * *"
 verify_jwt = false
 
 [[functions.sync-token-cards-lunarcrush.cron]]
-schedule = "59 1,3,5,7,9,11,13,15,17,19,21,23 * * *"
+schedule = "59 */2 * * *"
 
 # Sync token_cards prices from Polygon.io (every minute - no stagger needed)
 [functions.sync-token-cards-polygon]
@@ -310,7 +310,7 @@ schedule = "20 6 * * *"
 verify_jwt = false
 
 [[functions.sync-top500-technicals.cron]]
-schedule = "*/30 * * * *"
+schedule = "15,45 * * * *"
 
 # Sync technical indicators for non-Polygon tokens via CoinGecko historical data
 # Handles ranks 501+ (Top 500 handled by sync-top500-technicals)
@@ -383,7 +383,7 @@ schedule = "*/1 * * * *"
 verify_jwt = false
 
 [[functions.mark-polygon-tokens.cron]]
-schedule = "0 4 * * *"
+schedule = "10 4 * * *"
 
 # ============================================
 # LUNARCRUSH AI SYNC (Local generation - zero API cost)
