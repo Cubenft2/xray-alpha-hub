@@ -73,8 +73,8 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
   };
 
   return (
-    <div className="w-full rounded-md border bg-card overflow-hidden">
-      <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
+    <div className="w-full rounded-md border bg-card">
+      <div className="overflow-x-auto">
         <Table className="min-w-[1000px]">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
