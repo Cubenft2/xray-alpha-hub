@@ -73,7 +73,6 @@ export interface RichToken {
   top_news: any[] | null;
   
   // Social enrichment (for deep analysis)
-  creators_24h?: number | null;
   top_creators?: any[] | null;
   top_creators_count?: number | null;
   
@@ -215,7 +214,6 @@ const RICH_TOKEN_SELECT = `
   key_themes,
   top_posts,
   top_news,
-  creators_24h,
   top_creators,
   top_creators_count,
   circulating_supply,
