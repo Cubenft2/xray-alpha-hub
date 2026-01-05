@@ -546,18 +546,71 @@ export function buildIntentBasedPrompt(
       
     case 'token_lookup':
       base.push(`## TOKEN LOOKUP TASK:`);
-      base.push(`Give a COMPREHENSIVE analysis of these specific tokens.`);
-      base.push(``);
-      base.push(`**For each token include:**`);
-      base.push(`1. **Header**: Name (Symbol) #Rank`);
-      base.push(`2. **Price**: Current price, 24h change %, 7d change if available`);
-      base.push(`3. **Market**: Market cap, Volume 24h, ATH info if relevant`);
-      base.push(`4. **Technicals**: RSI (overbought/oversold/neutral), MACD trend, SMA position`);
-      base.push(`5. **Social**: Galaxy Score, Sentiment %, Social Dominance, Social Volume`);
-      base.push(`6. **Narrative**: If ai_summary exists, use it. If not, synthesize your own from price+technicals+social.`);
-      base.push(`7. **Your Take**: 1-2 sentence interpretation`);
-      base.push(``);
-      base.push(`NOTE: Never mention if AI summary is missing - just provide your synthesized analysis.`);
+      
+      // Check for deep analysis mode
+      if ((intent as any).depth === 'deep') {
+        base.push(`🔬 **DEEP ANALYSIS MODE ACTIVATED** - Provide comprehensive report with ALL data sources.`);
+        base.push(``);
+        base.push(`**COMPREHENSIVE REPORT STRUCTURE:**`);
+        base.push(``);
+        base.push(`### 📊 PRICE & MARKET POSITION`);
+        base.push(`- Current price with 24h/7d % change`);
+        base.push(`- Market cap, rank, fully diluted valuation`);
+        base.push(`- Volume 24h, VWAP, bid/ask spread if available`);
+        base.push(`- ATH/ATL with dates and distance %`);
+        base.push(``);
+        base.push(`### 📈 TECHNICAL ANALYSIS`);
+        base.push(`- RSI with interpretation (overbought >70, oversold <30)`);
+        base.push(`- MACD: line value, signal value, histogram, trend direction`);
+        base.push(`- SMAs: 20/50/200 with price position (above/below)`);
+        base.push(`- EMAs: 12/26 if available`);
+        base.push(`- Overall technical signal (bullish/bearish/neutral)`);
+        base.push(``);
+        base.push(`### 🔥 SOCIAL INTELLIGENCE`);
+        base.push(`- Galaxy Score (0-100) with interpretation`);
+        base.push(`- AltRank position`);
+        base.push(`- Sentiment % (bullish vs bearish)`);
+        base.push(`- Social volume, dominance %, engagements`);
+        base.push(`- Top creators/influencers if available`);
+        base.push(``);
+        base.push(`### 💡 PREMIUM AI NARRATIVE (if available)`);
+        base.push(`- Headline insight`);
+        base.push(`- Key insights array`);
+        base.push(`- Price analysis`);
+        base.push(`- Supportive themes with percentages`);
+        base.push(`- Critical themes/risks with percentages`);
+        base.push(``);
+        base.push(`### 📊 DERIVATIVES DATA (if available for major tokens)`);
+        base.push(`- Funding rate (positive = longs paying shorts)`);
+        base.push(`- Open interest`);
+        base.push(`- 24h liquidations (long vs short breakdown)`);
+        base.push(``);
+        base.push(`### 💰 SUPPLY & TOKENOMICS`);
+        base.push(`- Circulating supply`);
+        base.push(`- Total supply, max supply if capped`);
+        base.push(`- Fully diluted valuation`);
+        base.push(``);
+        base.push(`### 🎯 VERDICT`);
+        base.push(`- Overall assessment (1-2 sentences)`);
+        base.push(`- Key opportunities and risks`);
+        base.push(`- What to watch for next`);
+        base.push(``);
+        base.push(`Use all available data. If any section has no data, skip it silently.`);
+        base.push(`Format with emojis for easy scanning.`);
+      } else {
+        base.push(`Give a COMPREHENSIVE analysis of these specific tokens.`);
+        base.push(``);
+        base.push(`**For each token include:**`);
+        base.push(`1. **Header**: Name (Symbol) #Rank`);
+        base.push(`2. **Price**: Current price, 24h change %, 7d change if available`);
+        base.push(`3. **Market**: Market cap, Volume 24h, ATH info if relevant`);
+        base.push(`4. **Technicals**: RSI (overbought/oversold/neutral), MACD trend, SMA position`);
+        base.push(`5. **Social**: Galaxy Score, Sentiment %, Social Dominance, Social Volume`);
+        base.push(`6. **Narrative**: If ai_summary exists, use it. If not, synthesize your own from price+technicals+social.`);
+        base.push(`7. **Your Take**: 1-2 sentence interpretation`);
+        base.push(``);
+        base.push(`NOTE: Never mention if AI summary is missing - just provide your synthesized analysis.`);
+      }
       break;
       
     case 'comparison':
@@ -651,52 +704,101 @@ export function buildIntentBasedPrompt(
     base.push(`- **Note: Forex markets are closed on weekends. Friday close data is normal on Sat/Sun.**`);
   }
   
-  // Add the RICH token data with all available fields
+  // Add the RICH token data with all available fields including premium data
   if (data.tokens.length > 0) {
+    const isDeepAnalysis = (intent as any).depth === 'deep';
     base.push(``);
     base.push(`## Token Data (RICH - use ALL of this):`);
     base.push('```json');
-    base.push(JSON.stringify(data.tokens.slice(0, 15).map((t: any) => ({
-      symbol: t.canonical_symbol,
-      name: t.name,
-      rank: t.market_cap_rank,
-      // Price data
-      price_usd: t.price_usd,
-      change_24h_pct: t.change_24h_pct,
-      change_7d_pct: t.change_7d_pct,
-      high_24h: t.high_24h,
-      low_24h: t.low_24h,
-      volume_24h_usd: t.volume_24h_usd,
-      market_cap: t.market_cap,
-      // Technicals (Polygon - include ALL numeric values)
-      rsi_14: t.rsi_14,
-      rsi_signal: t.rsi_signal,
-      macd_line: t.macd_line,
-      macd_signal: t.macd_signal,
-      macd_histogram: t.macd_histogram,
-      macd_trend: t.macd_trend,
-      sma_20: t.sma_20,
-      sma_50: t.sma_50,
-      sma_200: t.sma_200,
-      ema_12: t.ema_12,
-      ema_26: t.ema_26,
-      price_vs_sma_50: t.price_vs_sma_50,
-      price_vs_sma_200: t.price_vs_sma_200,
-      technical_signal: t.technical_signal,
-      // Social (LunarCrush)
-      galaxy_score: t.galaxy_score,
-      alt_rank: t.alt_rank,
-      sentiment: t.sentiment,
-      sentiment_label: t.sentiment_label,
-      social_volume_24h: t.social_volume_24h,
-      social_dominance: t.social_dominance,
-      // AI Summary (THE GOLD)
-      ai_summary: t.ai_summary?.slice?.(0, 300) || t.ai_summary_short,
-      key_themes: t.key_themes,
-      // ATH data
-      ath_price: t.ath_price,
-      ath_change_pct: t.ath_change_pct,
-    })), null, 2));
+    base.push(JSON.stringify(data.tokens.slice(0, 15).map((t: any) => {
+      const tokenData: any = {
+        symbol: t.canonical_symbol,
+        name: t.name,
+        rank: t.market_cap_rank,
+        description: isDeepAnalysis ? t.description?.slice?.(0, 500) : undefined,
+        // Price data
+        price_usd: t.price_usd,
+        change_24h_pct: t.change_24h_pct,
+        change_7d_pct: t.change_7d_pct,
+        high_24h: t.high_24h,
+        low_24h: t.low_24h,
+        volume_24h_usd: t.volume_24h_usd,
+        vwap_24h: t.vwap_24h,
+        market_cap: t.market_cap,
+        // Technicals (Polygon - include ALL numeric values)
+        rsi_14: t.rsi_14,
+        rsi_signal: t.rsi_signal,
+        macd_line: t.macd_line,
+        macd_signal: t.macd_signal,
+        macd_histogram: t.macd_histogram,
+        macd_trend: t.macd_trend,
+        sma_20: t.sma_20,
+        sma_50: t.sma_50,
+        sma_200: t.sma_200,
+        ema_12: t.ema_12,
+        ema_26: t.ema_26,
+        price_vs_sma_50: t.price_vs_sma_50,
+        price_vs_sma_200: t.price_vs_sma_200,
+        technical_signal: t.technical_signal,
+        // Social (LunarCrush)
+        galaxy_score: t.galaxy_score,
+        alt_rank: t.alt_rank,
+        sentiment: t.sentiment,
+        sentiment_label: t.sentiment_label,
+        social_volume_24h: t.social_volume_24h,
+        social_dominance: t.social_dominance,
+        interactions_24h: t.interactions_24h,
+        // AI Summary (template-based for all tokens)
+        ai_summary: isDeepAnalysis ? t.ai_summary : t.ai_summary?.slice?.(0, 300) || t.ai_summary_short,
+        key_themes: t.key_themes,
+        // ATH/ATL data
+        ath_price: t.ath_price,
+        ath_date: t.ath_date,
+        ath_change_pct: t.ath_change_pct,
+        atl_price: t.atl_price,
+        atl_date: t.atl_date,
+        // Supply data
+        circulating_supply: t.circulating_supply,
+        total_supply: t.total_supply,
+        max_supply: t.max_supply,
+        fully_diluted_valuation: t.fully_diluted_valuation,
+      };
+      
+      // Add premium LunarCrush AI data if available (top 25 tokens)
+      if (t.premium_headline || t.premium_insights) {
+        tokenData.premium_ai = {
+          headline: t.premium_headline,
+          about: t.premium_about,
+          insights: t.premium_insights,
+          price_analysis: t.premium_price_analysis,
+          supportive_themes: t.premium_supportive_themes,
+          critical_themes: t.premium_critical_themes,
+          sentiment_pct: t.premium_sentiment_pct,
+        };
+      }
+      
+      // Add derivatives data if available (major tokens only)
+      if (t.funding_rate !== undefined || t.open_interest !== undefined || t.liquidations_24h) {
+        tokenData.derivatives = {
+          funding_rate: t.funding_rate,
+          open_interest: t.open_interest,
+          liquidations_24h: t.liquidations_24h,
+        };
+      }
+      
+      // Add social enrichment for deep analysis
+      if (isDeepAnalysis) {
+        tokenData.social_enrichment = {
+          creators_24h: t.lc_creators_24h,
+          engagements_24h: t.lc_engagements_24h,
+          mentions_24h: t.lc_mentions_24h,
+          top_creators: t.lc_top_creators?.slice?.(0, 5),
+        };
+      }
+      
+      // Clean up undefined values
+      return Object.fromEntries(Object.entries(tokenData).filter(([_, v]) => v !== undefined));
+    }), null, 2));
     base.push('```');
   }
   

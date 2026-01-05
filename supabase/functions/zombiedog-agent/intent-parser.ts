@@ -93,31 +93,37 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto A
 - "movers": moving, volatile
 - "volume": volume, trading
 
+## DEPTH (for analysis detail level):
+- "normal": Standard response (default)
+- "deep": Comprehensive analysis with ALL data sources
+
+**Deep analysis triggers** (set depth: "deep"):
+- "full analysis", "complete analysis", "comprehensive analysis"
+- "deep dive", "detailed analysis", "everything about"
+- "tell me everything", "full report", "breakdown"
+- "liquidations", "derivatives", "funding rate" (specific data requests)
+
 ## RULES:
 1. Return ONLY valid JSON - no markdown, no backticks
 2. ALWAYS include assetType field ("crypto", "stock", or "mixed")
 3. Use stock_lookup for stock questions, token_lookup for crypto
 4. If unclear whether crypto or stock, use assetType: "mixed"
 5. Include brief "summary" explaining interpretation
+6. Set depth: "deep" when user wants comprehensive analysis
 
 ## EXAMPLES:
-"How's NVDA doing?" → {"intent":"stock_lookup","sector":null,"stockSector":"tech","tickers":["NVDA"],"assetType":"stock","timeframe":"24h","action":null,"summary":"User asking about Nvidia stock"}
-"What's Tesla's price?" → {"intent":"stock_lookup","sector":null,"stockSector":"auto","tickers":["TSLA"],"assetType":"stock","timeframe":"24h","action":null,"summary":"User asking about Tesla stock price"}
-"Compare AAPL and MSFT" → {"intent":"comparison","sector":null,"stockSector":"tech","tickers":["AAPL","MSFT"],"assetType":"stock","timeframe":"24h","action":null,"summary":"Comparing Apple and Microsoft stocks"}
-"Top tech stocks" → {"intent":"stock_lookup","sector":null,"stockSector":"tech","tickers":[],"assetType":"stock","timeframe":"24h","action":"gainers","summary":"User wants top tech stocks"}
-"How's BTC doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["BTC"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User asking about Bitcoin"}
-"What meme coins are pumping?" → {"intent":"sector_analysis","sector":"meme","stockSector":null,"tickers":[],"assetType":"crypto","timeframe":"24h","action":"gainers","summary":"User wants top meme coins"}
-"How's the market?" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":[],"assetType":"mixed","timeframe":"24h","action":null,"summary":"General market overview"}
-"What's gold doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAUUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about gold price"}
-"How's silver?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAGUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about silver price"}
-"How's platinum?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XPTUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about platinum price"}
-"Precious metals update" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAUUSD","XAGUSD","XPTUSD","XPDUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User wants all precious metals"}
-"EUR/USD price" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["EURUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about EUR/USD forex pair"}
-"How's EUR/USD?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["EURUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about EUR/USD"}
-"What's the dollar doing against yen?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["USDJPY"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about USD/JPY"}
-"Forex market update" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":["EURUSD","GBPUSD","USDJPY","USDCAD","AUDUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User wants forex market overview"}
-"How's the pound doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["GBPUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about GBP/USD"}
-"Give me a forex update" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":["EURUSD","GBPUSD","USDJPY","USDCAD","AUDUSD","XAUUSD","XAGUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User wants forex and metals overview"}`;
+"How's NVDA doing?" → {"intent":"stock_lookup","sector":null,"stockSector":"tech","tickers":["NVDA"],"assetType":"stock","timeframe":"24h","action":null,"summary":"User asking about Nvidia stock","depth":"normal"}
+"What's Tesla's price?" → {"intent":"stock_lookup","sector":null,"stockSector":"auto","tickers":["TSLA"],"assetType":"stock","timeframe":"24h","action":null,"summary":"User asking about Tesla stock price","depth":"normal"}
+"Compare AAPL and MSFT" → {"intent":"comparison","sector":null,"stockSector":"tech","tickers":["AAPL","MSFT"],"assetType":"stock","timeframe":"24h","action":null,"summary":"Comparing Apple and Microsoft stocks","depth":"normal"}
+"Top tech stocks" → {"intent":"stock_lookup","sector":null,"stockSector":"tech","tickers":[],"assetType":"stock","timeframe":"24h","action":"gainers","summary":"User wants top tech stocks","depth":"normal"}
+"How's BTC doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["BTC"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User asking about Bitcoin","depth":"normal"}
+"What meme coins are pumping?" → {"intent":"sector_analysis","sector":"meme","stockSector":null,"tickers":[],"assetType":"crypto","timeframe":"24h","action":"gainers","summary":"User wants top meme coins","depth":"normal"}
+"How's the market?" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":[],"assetType":"mixed","timeframe":"24h","action":null,"summary":"General market overview","depth":"normal"}
+"What's gold doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAUUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about gold price","depth":"normal"}
+"Give me a full analysis of ZEC" → {"intent":"token_lookup","sector":"privacy","stockSector":null,"tickers":["ZEC"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User wants comprehensive ZEC analysis","depth":"deep"}
+"Deep dive on ETH with liquidation data" → {"intent":"token_lookup","sector":"l1","stockSector":null,"tickers":["ETH"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User wants deep ETH analysis with derivatives","depth":"deep"}
+"Tell me everything about Solana" → {"intent":"token_lookup","sector":"l1","stockSector":null,"tickers":["SOL"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User wants full Solana report","depth":"deep"}
+"Give me a forex update" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":["EURUSD","GBPUSD","USDJPY","USDCAD","AUDUSD","XAUUSD","XAGUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User wants forex and metals overview","depth":"normal"}`;
 
 const DEFAULT_INTENT: ParsedIntent = {
   intent: 'market_overview',

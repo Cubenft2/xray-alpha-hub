@@ -28,6 +28,7 @@ export interface RichToken {
   canonical_symbol: string;
   name: string;
   market_cap_rank: number | null;
+  description?: string | null;
   
   // Price data (Polygon)
   price_usd: number | null;
@@ -44,10 +45,13 @@ export interface RichToken {
   rsi_signal: string | null;
   macd_line: number | null;
   macd_signal: number | null;
+  macd_histogram: number | null;
   macd_trend: string | null;
   sma_20: number | null;
   sma_50: number | null;
   sma_200: number | null;
+  ema_12: number | null;
+  ema_26: number | null;
   price_vs_sma_50: string | null;
   price_vs_sma_200: string | null;
   technical_signal: string | null;
@@ -68,11 +72,36 @@ export interface RichToken {
   top_posts: any[] | null;
   top_news: any[] | null;
   
+  // Social enrichment (for deep analysis)
+  lc_creators_24h?: number | null;
+  lc_engagements_24h?: number | null;
+  lc_mentions_24h?: number | null;
+  lc_top_creators?: any[] | null;
+  
   // Market data (CoinGecko)
   circulating_supply: number | null;
+  total_supply?: number | null;
+  max_supply?: number | null;
+  fully_diluted_valuation?: number | null;
   ath_price: number | null;
   ath_date: string | null;
   ath_change_pct: number | null;
+  atl_price?: number | null;
+  atl_date?: string | null;
+  
+  // Derivatives data (CoinGlass - for major tokens)
+  funding_rate?: number | null;
+  open_interest?: number | null;
+  liquidations_24h?: { long: number; short: number; total: number } | null;
+  
+  // Premium LunarCrush AI (for top 25 tokens)
+  premium_headline?: string | null;
+  premium_about?: string | null;
+  premium_insights?: any[] | null;
+  premium_price_analysis?: string | null;
+  premium_supportive_themes?: any[] | null;
+  premium_critical_themes?: any[] | null;
+  premium_sentiment_pct?: number | null;
 }
 
 // Rich stock data interface matching stock_cards schema
@@ -147,11 +176,12 @@ export interface FetchedData {
 
 const MIN_MARKET_CAP = 5000000; // $5M minimum
 
-// Full select for rich token data
+// Full select for rich token data - comprehensive for deep analysis
 const RICH_TOKEN_SELECT = `
   canonical_symbol,
   name,
   market_cap_rank,
+  description,
   price_usd,
   change_24h_pct,
   change_7d_pct,
@@ -164,10 +194,13 @@ const RICH_TOKEN_SELECT = `
   rsi_signal,
   macd_line,
   macd_signal,
+  macd_histogram,
   macd_trend,
   sma_20,
   sma_50,
   sma_200,
+  ema_12,
+  ema_26,
   price_vs_sma_50,
   price_vs_sma_200,
   technical_signal,
@@ -183,10 +216,19 @@ const RICH_TOKEN_SELECT = `
   key_themes,
   top_posts,
   top_news,
+  lc_creators_24h,
+  lc_engagements_24h,
+  lc_mentions_24h,
+  lc_top_creators,
   circulating_supply,
+  total_supply,
+  max_supply,
+  fully_diluted_valuation,
   ath_price,
   ath_date,
-  ath_change_pct
+  ath_change_pct,
+  atl_price,
+  atl_date
 `;
 
 // Stock select for rich stock data
@@ -458,7 +500,7 @@ async function fetchTokens(supabase: any, tickers: string[]): Promise<FetchedDat
   if (tokens.length > 0) {
     const { data: premiumAI } = await supabase
       .from('lunarcrush_ai_summaries')
-      .select('canonical_symbol, headline, insights, price_analysis, supportive_themes, critical_themes, sentiment_pct, about')
+      .select('canonical_symbol, headline, insights, price_analysis, supportive_themes, critical_themes, sentiment_pct, about, top_creators, top_news, top_posts')
       .in('canonical_symbol', tickers);
     
     if (premiumAI && premiumAI.length > 0) {
@@ -468,15 +510,48 @@ async function fetchTokens(supabase: any, tickers: string[]): Promise<FetchedDat
       for (const token of tokens) {
         const premium = premiumMap.get(token.canonical_symbol);
         if (premium) {
-          // Enhance AI summary with premium data
-          token.ai_summary = premium.headline || token.ai_summary;
+          // Enhance with premium data (headline is separate from regular ai_summary)
+          (token as any).premium_headline = premium.headline;
+          (token as any).premium_about = premium.about;
           (token as any).premium_insights = premium.insights;
           (token as any).premium_price_analysis = premium.price_analysis;
           (token as any).premium_supportive_themes = premium.supportive_themes;
           (token as any).premium_critical_themes = premium.critical_themes;
           (token as any).premium_sentiment_pct = premium.sentiment_pct;
-          (token as any).premium_about = premium.about;
+          // Premium creators/posts if available
+          if (premium.top_creators) (token as any).lc_top_creators = premium.top_creators;
         }
+      }
+    }
+    
+    // Fetch derivatives data for major tokens
+    const majorDerivTokens = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE', 'ADA', 'AVAX', 'DOT', 'LINK', 'MATIC', 'ZEC', 'LTC', 'XMR', 'ETC', 'ATOM', 'APT', 'NEAR', 'ARB', 'OP', 'SUI'];
+    const derivSymbols = tickers.filter(t => majorDerivTokens.includes(t.toUpperCase()));
+    
+    if (derivSymbols.length > 0) {
+      try {
+        // Fetch from derivatives_cache table first (if populated by sync job)
+        const { data: derivsCache } = await supabase
+          .from('derivatives_cache')
+          .select('symbol, funding_rate, open_interest, liquidations_24h')
+          .in('symbol', derivSymbols);
+        
+        if (derivsCache && derivsCache.length > 0) {
+          console.log(`[data-fetcher] Found ${derivsCache.length} derivatives from cache`);
+          const derivsMap = new Map(derivsCache.map((d: any) => [d.symbol, d]));
+          
+          for (const token of tokens) {
+            const deriv = derivsMap.get(token.canonical_symbol);
+            if (deriv) {
+              (token as any).funding_rate = deriv.funding_rate;
+              (token as any).open_interest = deriv.open_interest;
+              (token as any).liquidations_24h = deriv.liquidations_24h;
+            }
+          }
+        }
+      } catch (derivErr) {
+        console.warn(`[data-fetcher] Derivatives fetch failed:`, derivErr);
+        // Continue without derivatives - don't fail the whole request
       }
     }
   }
