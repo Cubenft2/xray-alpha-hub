@@ -789,10 +789,9 @@ export function buildIntentBasedPrompt(
       // Add social enrichment for deep analysis
       if (isDeepAnalysis) {
         tokenData.social_enrichment = {
-          creators_24h: t.lc_creators_24h,
-          engagements_24h: t.lc_engagements_24h,
-          mentions_24h: t.lc_mentions_24h,
-          top_creators: t.lc_top_creators?.slice?.(0, 5),
+          creators_24h: t.creators_24h,
+          top_creators: t.top_creators?.slice?.(0, 5),
+          top_creators_count: t.top_creators_count,
         };
       }
       

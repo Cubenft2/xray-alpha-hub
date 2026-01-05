@@ -73,10 +73,9 @@ export interface RichToken {
   top_news: any[] | null;
   
   // Social enrichment (for deep analysis)
-  lc_creators_24h?: number | null;
-  lc_engagements_24h?: number | null;
-  lc_mentions_24h?: number | null;
-  lc_top_creators?: any[] | null;
+  creators_24h?: number | null;
+  top_creators?: any[] | null;
+  top_creators_count?: number | null;
   
   // Market data (CoinGecko)
   circulating_supply: number | null;
@@ -216,10 +215,9 @@ const RICH_TOKEN_SELECT = `
   key_themes,
   top_posts,
   top_news,
-  lc_creators_24h,
-  lc_engagements_24h,
-  lc_mentions_24h,
-  lc_top_creators,
+  creators_24h,
+  top_creators,
+  top_creators_count,
   circulating_supply,
   total_supply,
   max_supply,
@@ -519,7 +517,7 @@ async function fetchTokens(supabase: any, tickers: string[]): Promise<FetchedDat
           (token as any).premium_critical_themes = premium.critical_themes;
           (token as any).premium_sentiment_pct = premium.sentiment_pct;
           // Premium creators/posts if available
-          if (premium.top_creators) (token as any).lc_top_creators = premium.top_creators;
+          if (premium.top_creators) (token as any).top_creators = premium.top_creators;
         }
       }
     }
