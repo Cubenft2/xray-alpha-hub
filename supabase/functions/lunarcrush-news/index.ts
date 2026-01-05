@@ -46,7 +46,8 @@ interface TokenNewsItem {
 }
 
 const CACHE_KEY = 'lunarcrush_news_cache';
-const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
+const CACHE_DURATION = 29 * 60 * 1000; // 29 minutes - ensures cache expires before next cron run at :12/:42
+const CACHE_BUFFER_MS = 60 * 1000; // 1 minute buffer to prevent race conditions
 const THROTTLE_DELAY_MS = 7000; // 7 seconds between API calls to stay under 10 calls/min burst limit
 
 // Reduced topics: top 4 tokens + crypto + stocks = 6 topics
@@ -239,18 +240,25 @@ Deno.serve(async (req) => {
     }
 
     // Cron-authorized request: check if cache is still valid
+    // Add buffer: if cache expires within 60 seconds, treat it as expired to prevent race conditions
     if (cachedData?.v && cachedData.expires_at) {
       const expiresAt = new Date(cachedData.expires_at);
-      if (expiresAt > new Date()) {
-        console.log('📦 Cache still valid (expires_at in future), returning cached');
+      const bufferTime = new Date(Date.now() + CACHE_BUFFER_MS);
+      
+      if (expiresAt > bufferTime) {
+        const remainingMinutes = Math.round((expiresAt.getTime() - Date.now()) / 60000);
+        console.log(`📦 Cache still valid (expires in ~${remainingMinutes} min), returning cached`);
         return new Response(JSON.stringify({ ...cachedData.v, cached: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+      
+      console.log(`⏰ Cache expires soon or expired (at ${expiresAt.toISOString()}), will refresh`);
     }
 
     // Cache expired or missing - proceed with API refresh
-    console.log('🔄 Cron-authorized refresh: cache expired, fetching from LunarCrush API');
+    const cacheStatus = cachedData?.expires_at ? `expired at ${cachedData.expires_at}` : 'missing';
+    console.log(`🔄 Cron-authorized refresh: cache ${cacheStatus}, fetching from LunarCrush API at ${new Date().toISOString()}`);
 
     const apiKey = Deno.env.get('LUNARCRUSH_API_KEY');
     if (!apiKey) {
