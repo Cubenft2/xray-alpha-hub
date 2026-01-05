@@ -63,16 +63,16 @@ function GalaxyScoreBar({ score }: { score: number | null }) {
 }
 
 function SentimentBar({ sentiment }: { sentiment: number | null }) {
-  if (sentiment === null || sentiment === undefined) return <span className="text-muted-foreground">-</span>;
+  if (sentiment === null || sentiment === undefined) return <span className="text-muted-foreground text-xs">-</span>;
   
   const isBullish = sentiment >= 50;
   const width = Math.min(100, Math.max(0, sentiment));
   const emoji = sentiment >= 60 ? '😊' : sentiment >= 40 ? '😐' : '😞';
   
   return (
-    <div className="flex items-center gap-1.5 min-w-[80px]">
-      <span className="text-sm">{emoji}</span>
-      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+    <div className="flex items-center gap-1">
+      <span className="text-xs">{emoji}</span>
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[40px]">
         <div 
           className={cn(
             "h-full rounded-full transition-all",
@@ -82,7 +82,7 @@ function SentimentBar({ sentiment }: { sentiment: number | null }) {
         />
       </div>
       <span className={cn(
-        "text-xs font-medium min-w-[32px]",
+        "text-[10px] font-medium",
         isBullish ? "text-green-500" : "text-red-500"
       )}>
         {sentiment.toFixed(0)}%
@@ -116,18 +116,17 @@ function AltRankBadge({ rank }: { rank: number | null }) {
 }
 
 function PercentChange({ value, compact, flash }: { value: number | null; compact?: boolean; flash?: 'up' | 'down' | null }) {
-  if (value === null || value === undefined) return <span className="text-muted-foreground tabular-nums min-w-[52px] inline-block text-right">-</span>;
+  if (value === null || value === undefined) return <span className="text-muted-foreground tabular-nums text-xs">-</span>;
   
   const isPositive = value >= 0;
   return (
     <span className={cn(
-      "font-mono tabular-nums transition-colors duration-300 px-1 rounded min-w-[52px] inline-block text-right",
-      compact ? "text-xs" : "text-sm",
+      "font-mono tabular-nums transition-colors duration-300 px-0.5 rounded text-xs",
       isPositive ? "text-green-500" : "text-red-500",
       flash === 'up' && "bg-green-500/20",
       flash === 'down' && "bg-red-500/20"
     )}>
-      {isPositive ? '+' : ''}{value.toFixed(2)}%
+      {isPositive ? '+' : ''}{value.toFixed(1)}%
     </span>
   );
 }
@@ -225,44 +224,44 @@ export function TokenScreenerTableRow({ token, livePrice }: TokenScreenerTableRo
   }, [livePrice?.price, token.price_usd]);
 
   return (
-    <TableRow className="hover:bg-muted/50 transition-colors group">
-      <TableCell className="font-medium text-muted-foreground text-xs sticky left-0 bg-card">
+    <TableRow className="hover:bg-muted/50 transition-colors group h-10">
+      <TableCell className="font-medium text-muted-foreground text-xs sticky left-0 bg-card w-[36px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           {token.market_cap_rank || '-'}
         </Link>
       </TableCell>
-      <TableCell className="sticky left-[40px] bg-card">
-        <Link to={`/token/${token.canonical_symbol}`} className="flex items-center gap-2">
+      <TableCell className="sticky left-[36px] bg-card w-[150px] py-1.5">
+        <Link to={`/token/${token.canonical_symbol}`} className="flex items-center gap-1.5">
           {token.logo_url ? (
             <img
               src={token.logo_url}
               alt={token.canonical_symbol}
-              className="w-6 h-6 rounded-full"
+              className="w-5 h-5 rounded-full flex-shrink-0"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
           ) : (
-            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
+            <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium flex-shrink-0">
               {token.canonical_symbol?.charAt(0)}
             </div>
           )}
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1">
-              <span className="font-semibold">{token.canonical_symbol}</span>
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-center gap-0.5">
+              <span className="font-semibold text-xs">{token.canonical_symbol}</span>
               <DataSourceBadge polygonSupported={token.polygon_supported} isLive={isLive} />
               <LiquidityWarningBadge marketCap={token.market_cap} volume={token.volume_24h_usd} polygonSupported={token.polygon_supported} />
             </div>
-            <span className="text-muted-foreground text-xs truncate max-w-[80px]">
+            <span className="text-muted-foreground text-[10px] truncate max-w-[70px]">
               {token.name}
             </span>
           </div>
         </Link>
       </TableCell>
-      <TableCell className="text-right font-mono">
+      <TableCell className="text-right font-mono w-[85px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           <span className={cn(
-            "tabular-nums transition-colors duration-300 px-1 rounded inline-block min-w-[70px] text-right text-sm",
+            "tabular-nums transition-colors duration-300 px-0.5 rounded inline-block text-xs",
             priceFlash === 'up' && "text-green-400 bg-green-500/20",
             priceFlash === 'down' && "text-red-400 bg-red-500/20"
           )}>
@@ -270,52 +269,52 @@ export function TokenScreenerTableRow({ token, livePrice }: TokenScreenerTableRo
           </span>
         </Link>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-right w-[58px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           <PercentChange value={token.change_1h_pct} compact />
         </Link>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-right w-[58px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           <PercentChange value={displayChange} flash={isLive ? priceFlash : null} />
         </Link>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-right w-[58px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           <PercentChange value={token.change_7d_pct} compact />
         </Link>
       </TableCell>
-      <TableCell className="text-right font-mono text-sm">
+      <TableCell className="text-right font-mono text-xs w-[90px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           {formatLargeNumber(token.market_cap)}
         </Link>
       </TableCell>
-      <TableCell className="text-right font-mono text-sm">
+      <TableCell className="text-right font-mono text-xs w-[90px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           {formatLargeNumber(token.volume_24h_usd)}
         </Link>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-right w-[75px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           <GalaxyScoreBar score={token.galaxy_score} />
         </Link>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-right w-[60px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           <AltRankBadge rank={token.alt_rank} />
         </Link>
       </TableCell>
-      <TableCell className="text-right">
+      <TableCell className="text-right w-[110px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           <SentimentBar sentiment={token.sentiment} />
         </Link>
       </TableCell>
-      <TableCell className="text-right font-mono text-sm">
+      <TableCell className="text-right font-mono text-xs w-[70px] py-1.5">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           💬 {formatSocialVolume(token.social_volume_24h)}
         </Link>
       </TableCell>
-      <TableCell className="text-center w-[50px]">
+      <TableCell className="text-center w-[40px] py-1.5">
         <TokenFlagButton symbol={token.canonical_symbol} compact />
       </TableCell>
     </TableRow>
