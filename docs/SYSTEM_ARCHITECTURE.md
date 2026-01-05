@@ -72,7 +72,7 @@ graph TB
         SU5[exchange-sync<br/>Every 6 hours]
         SU6[auto-map-polygon-tickers<br/>Daily 2:15 AM]
         SU7[auto-map-exchange-tickers<br/>Daily 2:30 AM]
-        SU8[mark-polygon-tokens<br/>Daily 4:00 AM]
+        SU8[mark-polygon-tokens<br/>Daily 4:10 AM]
         SU9[sync-lunarcrush-topics<br/>Every 30 min]
         SU10[sync-lunarcrush-ai-top25<br/>Hourly]
     end
@@ -237,11 +237,11 @@ graph TB
 | `sync-token-cards-lunarcrush-tier1` | `*/10 * * * *` | Every 10 min | LunarCrush | `token_cards.lunarcrush_*` (Top 1000) |
 | `sync-token-cards-lunarcrush-tier2` | `4,34 * * * *` | Every 30 min | LunarCrush | `token_cards.lunarcrush_*` (1001-2000) |
 | `sync-token-cards-lunarcrush-tier3` | `45 * * * *` | Every 60 min | LunarCrush | `token_cards.lunarcrush_*` (2001-3000) |
-| `sync-token-cards-lunarcrush` | `59 1,3,5,7,9,11,13,15,17,19,21,23 * * *` | Every 2 hours | LunarCrush | `token_cards.lunarcrush_*` (All 3000) |
+| `sync-token-cards-lunarcrush` | `59 */2 * * *` | Every 2 hours | LunarCrush | `token_cards.lunarcrush_*` (All 3000) |
 | `sync-token-cards-lunarcrush-enhanced` | `7 */4 * * *` | Every 4 hours | LunarCrush | `token_cards` (Top 25) |
 | `sync-token-cards-lunarcrush-ai` | `5 */2 * * *` | Every 2 hours | Local AI | `token_cards.ai_summary` |
 | `sync-polygon-crypto-technicals` | `1-58/3 * * * *` | Every 3 min | Polygon | `token_cards.polygon_rsi_*` |
-| `sync-top500-technicals` | `*/30 * * * *` | Every 30 min | Polygon | `token_cards.polygon_rsi_*` (Top 500) |
+| `sync-top500-technicals` | `15,45 * * * *` | Every 30 min | Polygon | `token_cards.polygon_rsi_*` (Top 500) |
 
 ### Stock Cards Sync Functions
 
@@ -278,7 +278,7 @@ graph TB
 | `exchange-sync` | `20 */6 * * *` | Every 6 hours | Multiple Exchanges | `exchange_pairs` |
 | `auto-map-polygon-tickers` | `15 2 * * *` | Daily 2:15 AM | DB Only | `ticker_mappings` |
 | `auto-map-exchange-tickers` | `30 2 * * *` | Daily 2:30 AM | DB Only | `token_cards` |
-| `mark-polygon-tokens` | `0 4 * * *` | Daily 4:00 AM | Polygon | `token_cards.polygon_supported` |
+| `mark-polygon-tokens` | `10 4 * * *` | Daily 4:10 AM | Polygon | `token_cards.polygon_supported` |
 | `sync-lunarcrush-topics` | `15,45 * * * *` | Every 30 min | LunarCrush | `token_cards` (Topics) |
 | `sync-lunarcrush-ai-top25` | `50 * * * *` | Hourly | LunarCrush | `lunarcrush_ai_summaries` |
 
