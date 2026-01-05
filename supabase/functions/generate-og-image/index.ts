@@ -248,7 +248,7 @@ serve(async (req) => {
       console.log(`Cached image at ${cachedPath}`);
     }
 
-    return new Response(pngBuffer, {
+    return new Response(pngBuffer.buffer, {
       headers: {
         ...corsHeaders,
         "Content-Type": "image/png",
@@ -257,7 +257,8 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Error generating OG image:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

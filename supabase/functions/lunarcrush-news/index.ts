@@ -72,7 +72,7 @@ function delay(ms: number): Promise<void> {
 
 // Log API call to external_api_calls table
 async function logApiCall(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   functionName: string,
   apiName: string,
   success: boolean,
@@ -95,7 +95,7 @@ async function logApiCall(
 async function fetchTopicNewsWithRetry(
   topic: string, 
   apiKey: string,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   maxRetries: number = 2
 ): Promise<NewsItem[]> {
   let lastError: Error | null = null;
@@ -418,9 +418,10 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     console.error('❌ LunarCrush news function error:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: message,
         crypto: [],
         stocks: [],
         metadata: { cached: false }

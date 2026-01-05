@@ -29,7 +29,7 @@ serve(async (req) => {
       for (let page = 1; page <= 12; page++) {
         const cgUrl = `${baseUrl}?vs_currency=usd&order=market_cap_desc&per_page=250&page=${page}&sparkline=false&price_change_percentage=24h`;
         const cgRes = await fetch(cgUrl, {
-          headers: { 'x-cg-pro-api-key': coingeckoKey }
+          headers: { 'x-cg-pro-api-key': coingeckoKey || '' }
         });
 
         if (!cgRes.ok) {

@@ -125,7 +125,8 @@ async function fetchCoinGeckoTickers(exchangeId: string, cgApiKey?: string): Pro
         break;
       }
     } catch (error) {
-      console.error(`❌ CoinGecko fetch error for ${exchangeId} page ${page}:`, error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`❌ CoinGecko fetch error for ${exchangeId} page ${page}:`, message);
       break;
     }
   }
@@ -224,7 +225,8 @@ Deno.serve(async (req) => {
       const binanceResult = await syncFromCoinGecko(supabase, 'binance', 'binance', cgApiKey);
       results.binance = binanceResult;
     } catch (error) {
-      console.error('❌ Error syncing Binance:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing Binance:', message);
     }
 
     // Sync Bybit via CoinGecko (direct API geo-blocked from Supabase servers)
@@ -232,7 +234,8 @@ Deno.serve(async (req) => {
       const bybitResult = await syncFromCoinGecko(supabase, 'bybit', 'bybit_spot', cgApiKey);
       results.bybit = bybitResult;
     } catch (error) {
-      console.error('❌ Error syncing Bybit:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing Bybit:', message);
     }
 
     // Sync Bitget via CoinGecko (direct API geo-blocked from Supabase servers)
@@ -240,7 +243,8 @@ Deno.serve(async (req) => {
       const bitgetResult = await syncFromCoinGecko(supabase, 'bitget', 'bitget', cgApiKey);
       results.bitget = bitgetResult;
     } catch (error) {
-      console.error('❌ Error syncing Bitget:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing Bitget:', message);
     }
 
     // ============================================
@@ -282,7 +286,8 @@ Deno.serve(async (req) => {
         console.log(`✅ Coinbase: ${results.coinbase.synced} pairs, ${results.coinbase.active} active`);
       }
     } catch (error) {
-      console.error('❌ Error syncing Coinbase:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing Coinbase:', message);
     }
 
     // Sync MEXC
@@ -305,7 +310,7 @@ Deno.serve(async (req) => {
           base_asset: s.baseAsset,
           quote_asset: s.quoteAsset,
           // MEXC uses "1" for active, or check for ENABLED/TRADING as fallback
-          is_active: s.status === '1' || s.status === 1 || ['ENABLED', 'TRADING'].includes(String(s.status).toUpperCase()),
+          is_active: s.status === '1' || String(s.status) === '1' || ['ENABLED', 'TRADING'].includes(String(s.status).toUpperCase()),
           synced_at: new Date().toISOString(),
         }));
 
@@ -329,7 +334,8 @@ Deno.serve(async (req) => {
         console.log(`✅ MEXC: ${results.mexc.synced} pairs, ${results.mexc.active} active`);
       }
     } catch (error) {
-      console.error('❌ Error syncing MEXC:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing MEXC:', message);
     }
 
     // Sync Gate.io
@@ -367,7 +373,8 @@ Deno.serve(async (req) => {
         console.log(`✅ Gate.io: ${results.gateio.synced} pairs, ${results.gateio.active} active`);
       }
     } catch (error) {
-      console.error('❌ Error syncing Gate.io:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing Gate.io:', message);
     }
 
     // Sync Kraken
@@ -406,7 +413,8 @@ Deno.serve(async (req) => {
         console.log(`✅ Kraken: ${results.kraken.synced} pairs, ${results.kraken.active} active`);
       }
     } catch (error) {
-      console.error('❌ Error syncing Kraken:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing Kraken:', message);
     }
 
     // Sync KuCoin
@@ -445,7 +453,8 @@ Deno.serve(async (req) => {
         console.log(`✅ KuCoin: ${results.kucoin.synced} pairs, ${results.kucoin.active} active`);
       }
     } catch (error) {
-      console.error('❌ Error syncing KuCoin:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing KuCoin:', message);
     }
 
     // Sync OKX
@@ -484,7 +493,8 @@ Deno.serve(async (req) => {
         console.log(`✅ OKX: ${results.okx.synced} pairs, ${results.okx.active} active`);
       }
     } catch (error) {
-      console.error('❌ Error syncing OKX:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing OKX:', message);
     }
 
     // Sync HTX (Huobi)
@@ -523,7 +533,8 @@ Deno.serve(async (req) => {
         console.log(`✅ HTX: ${results.htx.synced} pairs, ${results.htx.active} active`);
       }
     } catch (error) {
-      console.error('❌ Error syncing HTX:', error.message);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('❌ Error syncing HTX:', message);
     }
 
     console.log('🏁 Exchange sync complete:', results);
@@ -542,10 +553,11 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error in exchange-sync:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        details: error.toString(),
+        error: message,
+        details: message,
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -251,6 +251,7 @@ Deno.serve(async (req) => {
 
     // Process updates in parallel batches of 50 concurrent updates
     const PARALLEL_SIZE = 50;
+    const BATCH_SIZE = 50;
     for (let i = 0; i < updates.length; i += PARALLEL_SIZE) {
       const batch = updates.slice(i, i + PARALLEL_SIZE);
       
@@ -346,9 +347,10 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error in auto-map-exchange-tickers:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: message 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500,
