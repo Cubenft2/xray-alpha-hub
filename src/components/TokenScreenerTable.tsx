@@ -1,6 +1,7 @@
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Slider } from '@/components/ui/slider';
 import { useMemo, useRef, useState, useLayoutEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -35,48 +36,32 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
   // Subscribe to live prices for visible tokens
   const livePrices = useLivePrices(visibleSymbols);
 
-  // Refs for scroll synchronization
-  const topScrollRef = useRef<HTMLDivElement>(null);
+  // Refs and state for slider-based horizontal scroll
   const tableScrollRef = useRef<HTMLDivElement>(null);
-  const isSyncingRef = useRef(false);
-  
-  // Track table scroll width
-  const [scrollWidth, setScrollWidth] = useState(0);
+  const [maxScrollX, setMaxScrollX] = useState(0);
+  const [scrollX, setScrollX] = useState(0);
 
-  // Update scroll width on resize
+  // Measure horizontal overflow
   useLayoutEffect(() => {
-    const tableContainer = tableScrollRef.current;
-    if (!tableContainer) return;
+    const el = tableScrollRef.current;
+    if (!el) return;
 
-    const updateScrollWidth = () => {
-      setScrollWidth(tableContainer.scrollWidth);
+    const update = () => {
+      const max = Math.max(0, el.scrollWidth - el.clientWidth);
+      setMaxScrollX(max);
+      setScrollX(prev => Math.min(prev, max));
     };
 
-    updateScrollWidth();
-
-    const resizeObserver = new ResizeObserver(updateScrollWidth);
-    resizeObserver.observe(tableContainer);
+    update();
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(el);
 
     return () => resizeObserver.disconnect();
   }, [tokens]);
 
-  // Scroll sync handlers
-  const handleTopScroll = useCallback(() => {
-    if (isSyncingRef.current) return;
-    isSyncingRef.current = true;
-    if (tableScrollRef.current && topScrollRef.current) {
-      tableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
-    }
-    requestAnimationFrame(() => { isSyncingRef.current = false; });
-  }, []);
-
+  // Sync table scroll -> slider
   const handleTableScroll = useCallback(() => {
-    if (isSyncingRef.current) return;
-    isSyncingRef.current = true;
-    if (topScrollRef.current && tableScrollRef.current) {
-      topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
-    }
-    requestAnimationFrame(() => { isSyncingRef.current = false; });
+    setScrollX(tableScrollRef.current?.scrollLeft ?? 0);
   }, []);
 
   const columns: { key: SortKey; label: string; className?: string }[] = [
@@ -119,17 +104,26 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
 
   return (
     <div className="w-full rounded-md border bg-card">
-      {/* Top scrollbar - always visible when table overflows */}
-      <div
-        ref={topScrollRef}
-        onScroll={handleTopScroll}
-        className="overflow-x-auto overflow-y-hidden"
-        style={{ height: 12 }}
-      >
-        <div style={{ width: scrollWidth, height: 1 }} />
-      </div>
+      {/* Visible top scroll slider */}
+      {maxScrollX > 0 && (
+        <div className="px-3 py-2 border-b border-border/40 bg-card/80">
+          <Slider
+            min={0}
+            max={maxScrollX}
+            step={10}
+            value={[scrollX]}
+            onValueChange={([v]) => {
+              setScrollX(v);
+              if (tableScrollRef.current) {
+                tableScrollRef.current.scrollLeft = v;
+              }
+            }}
+            className="w-full"
+          />
+        </div>
+      )}
       
-      {/* Table container - hide its scrollbar since we have the top one */}
+      {/* Table container */}
       <div 
         ref={tableScrollRef}
         onScroll={handleTableScroll}
@@ -147,7 +141,7 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                   <SortIcon column="market_cap_rank" sortKey={sortKey} sortDirection={sortDirection} />
                 </button>
               </TableHead>
-              <TableHead className="w-[150px] sticky left-[36px] bg-card z-20 text-xs">Token</TableHead>
+              <TableHead className="w-[110px] sticky left-[36px] bg-card z-20 text-xs">Token</TableHead>
               {columns.slice(1).map(col => (
                 <TableHead key={col.key} className={cn("text-right whitespace-nowrap text-xs", columnWidths[col.key])}>
                   <button
