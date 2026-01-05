@@ -159,7 +159,8 @@ async function fetchLunarCrushSocial(): Promise<SocialData[]> {
     return data.data || [];
   } catch (error) {
     console.error('❌ LunarCrush fetch failed:', error);
-    await logApiCall('lunarcrush', 'generate-brief-claude', false, error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    await logApiCall('lunarcrush', 'generate-brief-claude', false, message);
     return [];
   }
 }

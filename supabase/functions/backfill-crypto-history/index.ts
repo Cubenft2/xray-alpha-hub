@@ -152,12 +152,13 @@ serve(async (req) => {
 
       } catch (error) {
         console.error(`❌ Error processing ${mapping.symbol}:`, error);
+        const message = error instanceof Error ? error.message : String(error);
         errorCount++;
         results.push({
           symbol: mapping.symbol,
           ticker: mapping.polygon_ticker,
           success: false,
-          error: error.message,
+          error: message,
         });
       }
     }
@@ -178,10 +179,11 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('❌ Backfill error:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        details: error.toString(),
+        error: message,
+        details: message,
       }),
       { 
         status: 500,

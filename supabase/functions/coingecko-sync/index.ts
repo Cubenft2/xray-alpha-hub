@@ -130,10 +130,11 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('Error in coingecko-sync:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        details: error.toString(),
+        error: message,
+        details: message,
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
