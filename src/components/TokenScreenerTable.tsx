@@ -1,12 +1,13 @@
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useLayoutEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 
 import { TokenCard, SortKey, SortDirection } from '@/hooks/useTokenCards';
 import { useLivePrices } from '@/contexts/WebSocketContext';
 import { TokenScreenerTableRow } from '@/components/TokenScreenerTableRow';
+
 interface TokenScreenerTableProps {
   tokens: TokenCard[];
   sortKey: SortKey;
@@ -33,6 +34,50 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
   
   // Subscribe to live prices for visible tokens
   const livePrices = useLivePrices(visibleSymbols);
+
+  // Refs for scroll synchronization
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const isSyncingRef = useRef(false);
+  
+  // Track table scroll width
+  const [scrollWidth, setScrollWidth] = useState(0);
+
+  // Update scroll width on resize
+  useLayoutEffect(() => {
+    const tableContainer = tableScrollRef.current;
+    if (!tableContainer) return;
+
+    const updateScrollWidth = () => {
+      setScrollWidth(tableContainer.scrollWidth);
+    };
+
+    updateScrollWidth();
+
+    const resizeObserver = new ResizeObserver(updateScrollWidth);
+    resizeObserver.observe(tableContainer);
+
+    return () => resizeObserver.disconnect();
+  }, [tokens]);
+
+  // Scroll sync handlers
+  const handleTopScroll = useCallback(() => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    if (tableScrollRef.current && topScrollRef.current) {
+      tableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    }
+    requestAnimationFrame(() => { isSyncingRef.current = false; });
+  }, []);
+
+  const handleTableScroll = useCallback(() => {
+    if (isSyncingRef.current) return;
+    isSyncingRef.current = true;
+    if (topScrollRef.current && tableScrollRef.current) {
+      topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
+    }
+    requestAnimationFrame(() => { isSyncingRef.current = false; });
+  }, []);
 
   const columns: { key: SortKey; label: string; className?: string }[] = [
     { key: 'market_cap_rank', label: '#' },
@@ -74,9 +119,23 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
 
   return (
     <div className="w-full rounded-md border bg-card">
-      <div className="overflow-x-auto [transform:scaleY(-1)]">
-        <div className="[transform:scaleY(-1)]">
-          <Table className="min-w-[1000px]">
+      {/* Top scrollbar - always visible when table overflows */}
+      <div
+        ref={topScrollRef}
+        onScroll={handleTopScroll}
+        className="overflow-x-auto overflow-y-hidden"
+        style={{ height: 12 }}
+      >
+        <div style={{ width: scrollWidth, height: 1 }} />
+      </div>
+      
+      {/* Table container - hide its scrollbar since we have the top one */}
+      <div 
+        ref={tableScrollRef}
+        onScroll={handleTableScroll}
+        className="overflow-x-auto scrollbar-hide"
+      >
+        <Table className="min-w-[1000px]">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
               <TableHead className="w-[36px] sticky left-0 bg-card z-20">
@@ -113,7 +172,6 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
             ))}
           </TableBody>
         </Table>
-        </div>
       </div>
     </div>
   );
