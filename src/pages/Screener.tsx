@@ -74,7 +74,7 @@ export default function Screener() {
         keywords="crypto screener, cryptocurrency prices, bitcoin, ethereum, altcoins, market cap, galaxy score, ZombieDog AI"
       />
 
-      <div className="w-full px-4 py-4 space-y-4">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
