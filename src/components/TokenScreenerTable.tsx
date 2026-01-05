@@ -74,8 +74,9 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
 
   return (
     <div className="w-full rounded-md border bg-card">
-      <div className="overflow-x-auto">
-        <Table className="min-w-[1000px]">
+      <div className="overflow-x-auto [transform:scaleY(-1)]">
+        <div className="[transform:scaleY(-1)]">
+          <Table className="min-w-[1000px]">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
               <TableHead className="w-[36px] sticky left-0 bg-card z-20">
@@ -112,6 +113,7 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );
