@@ -3,11 +3,11 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
 
 import { TokenCard, SortKey, SortDirection } from '@/hooks/useTokenCards';
 import { useLivePrices } from '@/contexts/WebSocketContext';
 import { TokenScreenerTableRow } from '@/components/TokenScreenerTableRow';
-
 interface TokenScreenerTableProps {
   tokens: TokenCard[];
   sortKey: SortKey;
@@ -59,34 +59,48 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
     );
   }
 
+  const columnWidths: Record<SortKey, string> = {
+    market_cap_rank: 'w-[36px]',
+    price_usd: 'w-[85px]',
+    change_1h_pct: 'w-[58px]',
+    change_24h_pct: 'w-[58px]',
+    change_7d_pct: 'w-[58px]',
+    market_cap: 'w-[90px]',
+    volume_24h_usd: 'w-[90px]',
+    galaxy_score: 'w-[75px]',
+    alt_rank: 'w-[60px]',
+    sentiment: 'w-[110px]',
+    social_volume_24h: 'w-[70px]',
+  };
+
   return (
-    <div className="w-full rounded-md border bg-card">
+    <div className="rounded-md border bg-card w-max">
       <ScrollArea className="w-full">
-        <Table className="min-w-[1100px]">
+        <Table>
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
-              <TableHead className="w-[40px] sticky left-0 bg-card z-20">
+              <TableHead className="w-[36px] sticky left-0 bg-card z-20">
                 <button
                   onClick={() => onSort('market_cap_rank')}
-                  className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  className="flex items-center gap-0.5 hover:text-foreground transition-colors text-xs"
                 >
                   #
                   <SortIcon column="market_cap_rank" sortKey={sortKey} sortDirection={sortDirection} />
                 </button>
               </TableHead>
-              <TableHead className="min-w-[130px] sticky left-[40px] bg-card z-20">Token</TableHead>
+              <TableHead className="w-[150px] sticky left-[36px] bg-card z-20 text-xs">Token</TableHead>
               {columns.slice(1).map(col => (
-                <TableHead key={col.key} className="text-right whitespace-nowrap">
+                <TableHead key={col.key} className={cn("text-right whitespace-nowrap text-xs", columnWidths[col.key])}>
                   <button
                     onClick={() => onSort(col.key)}
-                    className="flex items-center gap-1 ml-auto hover:text-foreground transition-colors"
+                    className="flex items-center gap-0.5 ml-auto hover:text-foreground transition-colors"
                   >
                     {col.label}
                     <SortIcon column={col.key} sortKey={sortKey} sortDirection={sortDirection} />
                   </button>
                 </TableHead>
               ))}
-              <TableHead className="text-center w-[50px]">Flag</TableHead>
+              <TableHead className="text-center w-[40px] text-xs">Flag</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
