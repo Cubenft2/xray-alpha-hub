@@ -1,7 +1,6 @@
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -74,9 +73,9 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
   };
 
   return (
-    <div className="rounded-md border bg-card w-max">
-      <ScrollArea className="w-full">
-        <Table>
+    <div className="w-full rounded-md border bg-card overflow-hidden">
+      <div className="overflow-x-auto overflow-y-auto max-h-[70vh]">
+        <Table className="min-w-[1000px]">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
               <TableHead className="w-[36px] sticky left-0 bg-card z-20">
@@ -113,8 +112,7 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
             ))}
           </TableBody>
         </Table>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
     </div>
   );
 }
