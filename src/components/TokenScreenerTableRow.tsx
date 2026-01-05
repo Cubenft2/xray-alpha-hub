@@ -45,19 +45,19 @@ function GalaxyScoreBar({ score }: { score: number | null }) {
   const filled = Math.round((score / 100) * segments);
   
   return (
-    <div className="flex items-center gap-1">
-      <div className="flex gap-0.5">
+    <div className="flex items-center gap-0.5">
+      <div className="flex gap-px">
         {Array.from({ length: segments }).map((_, i) => (
           <div
             key={i}
             className={cn(
-              "w-2 h-3 rounded-sm",
+              "w-1.5 h-2.5 rounded-sm",
               i < filled ? "bg-yellow-500" : "bg-muted"
             )}
           />
         ))}
       </div>
-      <span className="text-xs text-muted-foreground ml-1">{score}</span>
+      <span className="text-xs text-muted-foreground ml-0.5">{score}</span>
     </div>
   );
 }
@@ -70,7 +70,7 @@ function SentimentBar({ sentiment }: { sentiment: number | null }) {
   const emoji = sentiment >= 60 ? '😊' : sentiment >= 40 ? '😐' : '😞';
   
   return (
-    <div className="flex items-center gap-2 min-w-[100px]">
+    <div className="flex items-center gap-1.5 min-w-[80px]">
       <span className="text-sm">{emoji}</span>
       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
         <div 
@@ -116,12 +116,12 @@ function AltRankBadge({ rank }: { rank: number | null }) {
 }
 
 function PercentChange({ value, compact, flash }: { value: number | null; compact?: boolean; flash?: 'up' | 'down' | null }) {
-  if (value === null || value === undefined) return <span className="text-muted-foreground tabular-nums min-w-[60px] inline-block text-right">-</span>;
+  if (value === null || value === undefined) return <span className="text-muted-foreground tabular-nums min-w-[52px] inline-block text-right">-</span>;
   
   const isPositive = value >= 0;
   return (
     <span className={cn(
-      "font-mono tabular-nums transition-colors duration-300 px-1 rounded min-w-[60px] inline-block text-right",
+      "font-mono tabular-nums transition-colors duration-300 px-1 rounded min-w-[52px] inline-block text-right",
       compact ? "text-xs" : "text-sm",
       isPositive ? "text-green-500" : "text-red-500",
       flash === 'up' && "bg-green-500/20",
@@ -226,24 +226,24 @@ export function TokenScreenerTableRow({ token, livePrice }: TokenScreenerTableRo
 
   return (
     <TableRow className="hover:bg-muted/50 transition-colors group">
-      <TableCell className="font-medium text-muted-foreground sticky left-0 bg-card">
+      <TableCell className="font-medium text-muted-foreground text-xs sticky left-0 bg-card">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           {token.market_cap_rank || '-'}
         </Link>
       </TableCell>
-      <TableCell className="sticky left-[50px] bg-card">
+      <TableCell className="sticky left-[40px] bg-card">
         <Link to={`/token/${token.canonical_symbol}`} className="flex items-center gap-2">
           {token.logo_url ? (
             <img
               src={token.logo_url}
               alt={token.canonical_symbol}
-              className="w-8 h-8 rounded-full"
+              className="w-6 h-6 rounded-full"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+            <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-medium">
               {token.canonical_symbol?.charAt(0)}
             </div>
           )}
@@ -253,16 +253,16 @@ export function TokenScreenerTableRow({ token, livePrice }: TokenScreenerTableRo
               <DataSourceBadge polygonSupported={token.polygon_supported} isLive={isLive} />
               <LiquidityWarningBadge marketCap={token.market_cap} volume={token.volume_24h_usd} polygonSupported={token.polygon_supported} />
             </div>
-            <span className="text-muted-foreground text-xs truncate max-w-[100px]">
+            <span className="text-muted-foreground text-xs truncate max-w-[80px]">
               {token.name}
             </span>
           </div>
         </Link>
       </TableCell>
-      <TableCell className="text-right font-mono min-w-[110px]">
+      <TableCell className="text-right font-mono">
         <Link to={`/token/${token.canonical_symbol}`} className="block">
           <span className={cn(
-            "tabular-nums transition-colors duration-300 px-1 rounded inline-block min-w-[90px] text-right",
+            "tabular-nums transition-colors duration-300 px-1 rounded inline-block min-w-[70px] text-right text-sm",
             priceFlash === 'up' && "text-green-400 bg-green-500/20",
             priceFlash === 'down' && "text-red-400 bg-red-500/20"
           )}>

@@ -62,10 +62,10 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
   return (
     <div className="w-full rounded-md border bg-card">
       <ScrollArea className="w-full">
-        <Table className="min-w-[1400px]">
+        <Table className="min-w-[1100px]">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
-              <TableHead className="w-[50px] sticky left-0 bg-card z-20">
+              <TableHead className="w-[40px] sticky left-0 bg-card z-20">
                 <button
                   onClick={() => onSort('market_cap_rank')}
                   className="flex items-center gap-1 hover:text-foreground transition-colors"
@@ -74,7 +74,7 @@ export function TokenScreenerTable({ tokens, sortKey, sortDirection, onSort, isL
                   <SortIcon column="market_cap_rank" sortKey={sortKey} sortDirection={sortDirection} />
                 </button>
               </TableHead>
-              <TableHead className="min-w-[160px] sticky left-[50px] bg-card z-20">Token</TableHead>
+              <TableHead className="min-w-[130px] sticky left-[40px] bg-card z-20">Token</TableHead>
               {columns.slice(1).map(col => (
                 <TableHead key={col.key} className="text-right whitespace-nowrap">
                   <button
