@@ -230,19 +230,19 @@ export function TokenScreenerTableRow({ token, livePrice }: TokenScreenerTableRo
           {token.market_cap_rank || '-'}
         </Link>
       </TableCell>
-      <TableCell className="sticky left-[36px] bg-card w-[150px] py-1.5">
-        <Link to={`/token/${token.canonical_symbol}`} className="flex items-center gap-1.5">
+      <TableCell className="sticky left-[36px] bg-card w-[110px] py-1.5">
+        <Link to={`/token/${token.canonical_symbol}`} className="flex items-center gap-1">
           {token.logo_url ? (
             <img
               src={token.logo_url}
               alt={token.canonical_symbol}
-              className="w-5 h-5 rounded-full flex-shrink-0"
+              className="w-4 h-4 rounded-full flex-shrink-0"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
             />
           ) : (
-            <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-medium flex-shrink-0">
+            <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-[9px] font-medium flex-shrink-0">
               {token.canonical_symbol?.charAt(0)}
             </div>
           )}
@@ -250,9 +250,8 @@ export function TokenScreenerTableRow({ token, livePrice }: TokenScreenerTableRo
             <div className="flex items-center gap-0.5">
               <span className="font-semibold text-xs">{token.canonical_symbol}</span>
               <DataSourceBadge polygonSupported={token.polygon_supported} isLive={isLive} />
-              <LiquidityWarningBadge marketCap={token.market_cap} volume={token.volume_24h_usd} polygonSupported={token.polygon_supported} />
             </div>
-            <span className="text-muted-foreground text-[10px] truncate max-w-[70px]">
+            <span className="text-muted-foreground text-[10px] truncate max-w-[50px]">
               {token.name}
             </span>
           </div>
