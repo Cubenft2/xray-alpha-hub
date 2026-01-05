@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { Link } from 'react-router-dom';
 
 interface TokenScreenerInsightsProps {
   isLoading?: boolean;
@@ -59,7 +60,6 @@ function useTopGainers(limit = 5) {
   return useQuery({
     queryKey: ['token-top-gainers', limit],
     queryFn: async (): Promise<TopMover[]> => {
-      // Only show tokens updated in last 30 minutes to avoid stale data
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
       
       const { data, error } = await supabase
@@ -82,7 +82,6 @@ function useTopLosers(limit = 5) {
   return useQuery({
     queryKey: ['token-top-losers', limit],
     queryFn: async (): Promise<TopMover[]> => {
-      // Only show tokens updated in last 30 minutes to avoid stale data
       const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
       
       const { data, error } = await supabase
@@ -109,174 +108,164 @@ export function TokenScreenerInsights({ isLoading: parentLoading }: TokenScreene
   const isLoading = parentLoading || insightsLoading;
 
   const formatCurrency = (value: number) => {
-    if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
-    if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-    if (value >= 1e6) return `$${(value / 1e6).toFixed(2)}M`;
-    return `$${value.toFixed(2)}`;
+    if (value >= 1e12) return `$${(value / 1e12).toFixed(1)}T`;
+    if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B`;
+    if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
+    return `$${value.toFixed(0)}`;
   };
 
   const getSentimentLabel = (score: number) => {
-    if (score >= 60) return { label: 'Bullish', color: 'text-green-500' };
-    if (score >= 40) return { label: 'Neutral', color: 'text-yellow-500' };
-    return { label: 'Bearish', color: 'text-red-500' };
+    if (score >= 60) return { label: 'Bullish', color: 'text-green-500', emoji: '📈' };
+    if (score >= 40) return { label: 'Neutral', color: 'text-yellow-500', emoji: '➡️' };
+    return { label: 'Bearish', color: 'text-red-500', emoji: '📉' };
   };
-
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="pt-4">
-              <Skeleton className="h-4 w-20 mb-2" />
-              <Skeleton className="h-8 w-24" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
 
   const sentimentInfo = insights?.avgSentiment 
     ? getSentimentLabel(insights.avgSentiment)
-    : { label: '—', color: 'text-muted-foreground' };
+    : { label: '—', color: 'text-muted-foreground', emoji: '' };
 
   return (
-    <div className="space-y-4">
-      {/* Global Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Total Market Cap</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pb-3 px-4">
-            <div className="text-xl font-bold">
-              {insights ? formatCurrency(insights.totalMarketCap) : '—'}
-            </div>
-          </CardContent>
-        </Card>
+    <div className="space-y-3">
+      {/* Compact Stat Pills */}
+      <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-card/50 border border-border/50 rounded-md">
+          <DollarSign className="h-3 w-3 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">MCap</span>
+          {isLoading ? (
+            <Skeleton className="h-4 w-14" />
+          ) : (
+            <span className="text-sm font-bold">{formatCurrency(insights?.totalMarketCap || 0)}</span>
+          )}
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground">24h Volume</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pb-3 px-4">
-            <div className="text-xl font-bold">
-              {insights ? formatCurrency(insights.totalVolume) : '—'}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-card/50 border border-border/50 rounded-md">
+          <BarChart3 className="h-3 w-3 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Vol</span>
+          {isLoading ? (
+            <Skeleton className="h-4 w-14" />
+          ) : (
+            <span className="text-sm font-bold">{formatCurrency(insights?.totalVolume || 0)}</span>
+          )}
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Avg Galaxy Score</CardTitle>
-            <Star className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent className="pb-3 px-4">
-            <div className="text-xl font-bold">
-              {insights?.avgGalaxyScore?.toFixed(1) || '—'}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-card/50 border border-border/50 rounded-md">
+          <Star className="h-3 w-3 text-yellow-500" />
+          <span className="text-xs text-muted-foreground">Galaxy</span>
+          {isLoading ? (
+            <Skeleton className="h-4 w-8" />
+          ) : (
+            <span className="text-sm font-bold">{insights?.avgGalaxyScore?.toFixed(1) || '—'}</span>
+          )}
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Market Sentiment</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pb-3 px-4">
-            <div className={`text-xl font-bold ${sentimentInfo.color}`}>
-              {sentimentInfo.label}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-card/50 border border-border/50 rounded-md">
+          <Activity className="h-3 w-3 text-muted-foreground" />
+          {isLoading ? (
+            <Skeleton className="h-4 w-16" />
+          ) : (
+            <span className={`text-sm font-bold ${sentimentInfo.color}`}>
+              {sentimentInfo.emoji} {sentimentInfo.label}
+            </span>
+          )}
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 pt-3 px-4">
-            <CardTitle className="text-xs font-medium text-muted-foreground">Tokens Tracked</CardTitle>
-            <Coins className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent className="pb-3 px-4">
-            <div className="text-xl font-bold">
-              {insights?.totalTokens?.toLocaleString() || '—'}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-card/50 border border-border/50 rounded-md">
+          <Coins className="h-3 w-3 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Tracked</span>
+          {isLoading ? (
+            <Skeleton className="h-4 w-10" />
+          ) : (
+            <span className="text-sm font-bold">{insights?.totalTokens?.toLocaleString() || '—'}</span>
+          )}
+        </div>
       </div>
 
-      {/* Top Movers */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {/* Top Gainers */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-4">
-            <CardTitle className="text-sm font-medium">🚀 Top Gainers (24h)</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+      {/* Compact Gainers & Losers */}
+      <div className="flex flex-wrap gap-3">
+        <Card className="bg-card/50 border-border/50 w-[280px]">
+          <CardHeader className="pb-1 px-3 pt-2">
+            <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+              <TrendingUp className="h-3 w-3 text-green-500" />
+              Top Gainers
+            </CardTitle>
           </CardHeader>
-          <CardContent className="pb-3 px-4">
+          <CardContent className="px-3 pb-2">
             {gainersLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-6 w-full" />
+              <div className="space-y-1">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-5 w-full" />
                 ))}
               </div>
-            ) : (
-              <div className="space-y-2">
+            ) : topGainers.length > 0 ? (
+              <div className="space-y-0.5">
                 {topGainers.map((token) => (
-                  <div key={token.canonical_symbol} className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
+                  <Link 
+                    key={token.canonical_symbol} 
+                    to={`/crypto-universe/${token.canonical_symbol}`}
+                    className="flex items-center justify-between py-0.5 hover:bg-muted/30 rounded px-1 -mx-1 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
                       {token.logo_url ? (
-                        <img src={token.logo_url} alt={token.canonical_symbol} className="w-5 h-5 rounded-full" />
+                        <img src={token.logo_url} alt={token.canonical_symbol} className="w-4 h-4 rounded-full" />
                       ) : (
-                        <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-xs">
+                        <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-[8px]">
                           {token.canonical_symbol?.charAt(0)}
                         </div>
                       )}
-                      <span className="text-sm font-medium">{token.canonical_symbol}</span>
+                      <span className="font-medium text-xs">{token.canonical_symbol}</span>
                     </div>
-                    <span className="text-sm text-green-500 font-semibold">
-                      +{token.change_24h_pct?.toFixed(2)}%
+                    <span className="text-green-500 font-bold text-xs">
+                      +{token.change_24h_pct?.toFixed(1)}%
                     </span>
-                  </div>
+                  </Link>
                 ))}
               </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No data</p>
             )}
           </CardContent>
         </Card>
 
-        {/* Top Losers */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-4">
-            <CardTitle className="text-sm font-medium">📉 Top Losers (24h)</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
+        <Card className="bg-card/50 border-border/50 w-[280px]">
+          <CardHeader className="pb-1 px-3 pt-2">
+            <CardTitle className="text-xs font-medium flex items-center gap-1.5">
+              <TrendingDown className="h-3 w-3 text-red-500" />
+              Top Losers
+            </CardTitle>
           </CardHeader>
-          <CardContent className="pb-3 px-4">
+          <CardContent className="px-3 pb-2">
             {losersLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-6 w-full" />
+              <div className="space-y-1">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-5 w-full" />
                 ))}
               </div>
-            ) : (
-              <div className="space-y-2">
+            ) : topLosers.length > 0 ? (
+              <div className="space-y-0.5">
                 {topLosers.map((token) => (
-                  <div key={token.canonical_symbol} className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
+                  <Link 
+                    key={token.canonical_symbol} 
+                    to={`/crypto-universe/${token.canonical_symbol}`}
+                    className="flex items-center justify-between py-0.5 hover:bg-muted/30 rounded px-1 -mx-1 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
                       {token.logo_url ? (
-                        <img src={token.logo_url} alt={token.canonical_symbol} className="w-5 h-5 rounded-full" />
+                        <img src={token.logo_url} alt={token.canonical_symbol} className="w-4 h-4 rounded-full" />
                       ) : (
-                        <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-xs">
+                        <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center text-[8px]">
                           {token.canonical_symbol?.charAt(0)}
                         </div>
                       )}
-                      <span className="text-sm font-medium">{token.canonical_symbol}</span>
+                      <span className="font-medium text-xs">{token.canonical_symbol}</span>
                     </div>
-                    <span className="text-sm text-red-500 font-semibold">
-                      {token.change_24h_pct?.toFixed(2)}%
+                    <span className="text-red-500 font-bold text-xs">
+                      {token.change_24h_pct?.toFixed(1)}%
                     </span>
-                  </div>
+                  </Link>
                 ))}
               </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No data</p>
             )}
           </CardContent>
         </Card>
