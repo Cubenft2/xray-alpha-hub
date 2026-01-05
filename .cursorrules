@@ -1,0 +1,421 @@
+# XRayCrypto .cursorrules
+
+## Project Overview
+
+XRayCrypto (xraycrypto.io) is a comprehensive market data platform providing real-time crypto, stock, and forex market intelligence with social sentiment analysis. The platform uses a **Master Cards Architecture** where all market data flows into three central tables: `token_cards`, `stock_cards`, and `forex_cards`.
+
+**Key Principle**: One card per asset. All data flows INTO that card. The frontend reads FROM that card.
+
+## Architecture Patterns
+
+### Master Cards Architecture
+
+The system uses three master tables that serve as the single source of truth:
+
+1. **`token_cards`** - Every crypto token (primary key: `canonical_symbol`)
+2. **`stock_cards`** - Every stock (primary key: `symbol`)
+3. **`forex_cards`** - Every forex pair (primary key: `pair`)
+
+### Data Flow Rules
+
+**CRITICAL**: Frontend NEVER calls external APIs directly. All data flows through this pattern:
+
+```
+External APIs → Edge Functions → Database (Master Cards) → Frontend
+```
+
+**Data Flow Pattern:**
+1. Edge functions fetch data from external APIs (Polygon, CoinGecko, LunarCrush, RSS, WebSocket)
+2. Edge functions write to master cards tables using source-prefixed columns
+3. Frontend reads from master cards tables only
+4. Frontend uses React Query for data fetching and caching
+
+**Source-Prefixed Columns Pattern:**
+- Polygon data: `polygon_*` columns (e.g., `polygon_price_usd`, `polygon_rsi_14`)
+- CoinGecko data: `coingecko_*` columns (e.g., `coingecko_price_usd`, `coingecko_market_cap`)
+- LunarCrush data: `lunarcrush_*` columns (e.g., `lunarcrush_id`, `galaxy_score`)
+- Display columns: Computed from best available source (e.g., `price_usd`, `rsi_14`)
+
+**NEVER:**
+- Write to deprecated tables (`crypto_snapshot`, `polygon_crypto_cards`, `technical_indicators`)
+- Call external APIs from frontend components
+- Overwrite source-specific columns with data from other sources
+- Remove functions just because they seem to duplicate data (they serve different purposes)
+
+## File Structure
+
+### Edge Functions (`supabase/functions/`)
+- Each function has its own directory with `index.ts`
+- Shared utilities in `supabase/functions/_shared/`
+- Naming: kebab-case (e.g., `sync-token-cards-polygon`, `polygon-news-unified`)
+- Functions are scheduled in `supabase/config.toml`
+
+### Frontend Structure (`src/`)
+- **Components**: `src/components/` - React components (PascalCase, e.g., `TokenScreenerTable.tsx`)
+- **Hooks**: `src/hooks/` - Custom React hooks (camelCase with `use` prefix, e.g., `useTokenCards.ts`)
+- **Pages**: `src/pages/` - Route pages (PascalCase, e.g., `CryptoUniverseDetail.tsx`)
+- **Config**: `src/config/` - Configuration files (camelCase, e.g., `marketPresets.ts`)
+- **Integrations**: `src/integrations/supabase/` - Supabase client and types
+- **Contexts**: `src/contexts/` - React contexts (PascalCase, e.g., `WebSocketContext.tsx`)
+- **Lib**: `src/lib/` - Utility functions (camelCase, e.g., `utils.ts`)
+
+### Database Migrations (`supabase/migrations/`)
+- SQL migration files with timestamps
+- Use descriptive names for schema changes
+
+### Documentation (`docs/`)
+- Architecture docs in `docs/SYSTEM_ARCHITECTURE.md`
+- Edge function docs in `docs/EDGE_FUNCTIONS_ARCHITECTURE.md`
+- Reference these for system patterns
+
+## Naming Conventions
+
+### Edge Functions
+- Format: `verb-noun-source` or `verb-noun-action`
+- Examples:
+  - `sync-token-cards-polygon` - Syncs token cards from Polygon
+  - `sync-stock-cards-technicals` - Syncs stock technical indicators
+  - `polygon-news-unified` - Unified news sync from Polygon
+  - `get-cached-news` - Read-only cached news retrieval
+- Prefixes:
+  - `sync-*` - Write data to master cards
+  - `polygon-*` - Polygon.io data source
+  - `coingecko-*` - CoinGecko data source
+  - `lunarcrush-*` - LunarCrush data source
+  - `get-*` - Read-only functions
+  - `generate-*` - Content generation functions
+  - `zombiedog-*` - AI agent functions
+
+### Frontend Components
+- PascalCase for component files and component names
+- Examples: `TokenScreenerTable.tsx`, `CryptoUniverseDetail.tsx`
+- UI components in `src/components/ui/` (shadcn/ui pattern)
+
+### React Hooks
+- camelCase with `use` prefix
+- Examples: `useTokenCards`, `useLivePrices`, `useStockCards`
+- Hook files: `useTokenCards.ts` (no `.tsx` unless JSX is present)
+
+### Database Tables
+- snake_case
+- Master cards: `token_cards`, `stock_cards`, `forex_cards`
+- Intermediate: `live_prices`, `cache_kv`, `company_details`
+- Reference tables: `polygon_assets`, `cg_master`, `exchange_pairs`
+
+### Database Columns
+- snake_case
+- Source-prefixed: `polygon_*`, `coingecko_*`, `lunarcrush_*`
+- Display columns: no prefix (computed from best source)
+- Timestamps: `*_updated_at`, `created_at`, `updated_at`
+
+### TypeScript Types/Interfaces
+- PascalCase
+- Examples: `TokenCard`, `NewsItem`, `SortKey`
+- Export types from hook/component files
+
+## Edge Function Patterns
+
+### Standard Edge Function Structure
+
+```typescript
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const startTime = Date.now();
+  
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Function logic here
+    // Write to master cards using source-prefixed columns
+    
+    return new Response(
+      JSON.stringify({ success: true, /* results */ }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('[function-name] Error:', error);
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
+```
+
+### Writing to Master Cards
+
+- Use `upsert()` with `onConflict` on primary key
+- Update source-prefixed columns (e.g., `polygon_price_usd`, `coingecko_market_cap`)
+- Include timestamp columns (`polygon_price_updated_at`, etc.)
+- Use batch operations for performance (BATCH_SIZE = 100-1000)
+
+### Error Handling
+
+- Log errors with function name prefix: `console.error('[function-name] Error:', error)`
+- Return structured error responses
+- Never throw unhandled errors
+
+### API Rate Limiting
+
+- All cron schedules are staggered to avoid collisions
+- Check `supabase/config.toml` for schedule conflicts
+- Use tiered sync strategies for large datasets
+- Log API calls to `external_api_calls` table
+
+## Frontend Patterns
+
+### Data Fetching with React Query
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+const { data, isLoading, error } = useQuery({
+  queryKey: ['token-card', symbol],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from('token_cards')
+      .select('*')
+      .eq('canonical_symbol', symbol.toUpperCase())
+      .maybeSingle();
+    
+    if (error) throw error;
+    return data;
+  },
+  staleTime: 30 * 1000,
+  gcTime: 5 * 60 * 1000,
+});
+```
+
+### Custom Hooks Pattern
+
+- Hooks should return an object with data, loading state, error, and helper functions
+- Use React Query for server state
+- Use useState/useEffect for client state
+- Export interfaces for hook return types
+
+Example:
+```typescript
+export function useTokenCards() {
+  // State and queries
+  return {
+    tokens: data?.tokens || [],
+    isLoading,
+    error,
+    refetch,
+    // Helper functions
+  };
+}
+```
+
+### Component Structure
+
+- Use functional components with TypeScript
+- Props interfaces exported from component file
+- Use shadcn/ui components from `src/components/ui/`
+- Import Supabase client from `@/integrations/supabase/client`
+- Use hooks for data fetching, not direct Supabase calls in components
+
+### Real-time Subscriptions
+
+- Use Supabase Realtime for live updates
+- Subscribe to table changes: `supabase.channel().on('postgres_changes', ...)`
+- Clean up subscriptions in useEffect return
+- Use polling as fallback (5-30 second intervals)
+
+## Cron Job Patterns
+
+### Schedule Naming in config.toml
+
+- All schedules are staggered to avoid minute-0 collisions
+- Token syncs: Frequent (1-5 min) for active tokens
+- Stock syncs: Every 5-10 min
+- Forex syncs: Every 15 min
+- News syncs: Every 15-30 min
+- Daily jobs: Run at staggered times (2-7 AM UTC)
+
+### Staggering Rules
+
+- Avoid minute 0 (:00) for high-frequency jobs
+- Stagger similar jobs by 1-5 minutes
+- Check existing schedules in `supabase/config.toml` before adding new ones
+
+### Function Naming in config.toml
+
+```toml
+[functions.sync-token-cards-polygon]
+verify_jwt = false
+
+[[functions.sync-token-cards-polygon.cron]]
+schedule = "* * * * *"  # Every minute
+```
+
+## External Data Sources
+
+### Polygon.io
+- Unlimited API calls (paid plan)
+- Provides: Prices, OHLCV, technicals, stocks, forex, news
+- Use for: Real-time prices, technical indicators, stock data, news
+
+### CoinGecko
+- Rate limited (500/min)
+- Provides: Prices, market cap, supply, metadata, contracts, technicals
+- Use for: Comprehensive token coverage, metadata, historical data
+
+### LunarCrush
+- Rate limited
+- Provides: Social metrics, sentiment, AI summaries, topics, news
+- Use for: Social intelligence, sentiment analysis
+
+### RSS Feeds
+- 22+ feeds (crypto, stock, Trump news)
+- Fetched by `news-fetch` function
+- Updates: `cache_kv` table
+
+### Cloudflare Worker (WebSocket)
+- Real-time price updates
+- Updates: `token_cards` via `sync-token-cards-websocket`
+
+## Debugging Locations
+
+### Edge Function Debugging
+
+1. **Function Logs**: Check Supabase Edge Function logs in dashboard
+2. **Error Patterns**: Look for function name in error messages: `[function-name] Error:`
+3. **API Calls**: Check `external_api_calls` table for API usage and errors
+4. **Database Updates**: Check master cards tables for expected data
+5. **Cron Status**: Check `supabase/config.toml` for schedule correctness
+
+### Frontend Debugging
+
+1. **React Query DevTools**: Check query cache and errors
+2. **Browser Console**: Look for Supabase errors and React warnings
+3. **Network Tab**: Check Supabase API calls and responses
+4. **Component State**: Use React DevTools to inspect component state
+5. **Database**: Check if data exists in master cards tables
+
+### Common Issues
+
+- **No data showing**: Check if edge function is writing to correct table/columns
+- **Stale data**: Check `*_updated_at` timestamps in database
+- **Rate limit errors**: Check `external_api_calls` table for API usage
+- **Cron not running**: Verify schedule in `supabase/config.toml`
+- **Type errors**: Check `src/integrations/supabase/types.ts` is up to date
+
+## Key Files Reference
+
+### Architecture & Documentation
+- `docs/SYSTEM_ARCHITECTURE.md` - Complete system architecture
+- `docs/EDGE_FUNCTIONS_ARCHITECTURE.md` - Edge function patterns
+- `docs/SYSTEM_ARCHITECTURE_DIAGRAM.md` - Visual diagrams
+
+### Configuration
+- `supabase/config.toml` - Edge function cron schedules
+- `src/config/marketPresets.ts` - Market preset definitions
+- `src/config/tickerMappings.ts` - Ticker mapping config
+- `package.json` - Frontend dependencies
+
+### Core Database Types
+- `src/integrations/supabase/types.ts` - Auto-generated database types
+- `src/integrations/supabase/client.ts` - Supabase client setup
+
+### Example Edge Functions
+- `supabase/functions/sync-token-cards-polygon/index.ts` - Token sync pattern
+- `supabase/functions/sync-stock-cards/index.ts` - Stock sync pattern
+- `supabase/functions/polygon-news-unified/index.ts` - News sync pattern
+
+### Example Frontend Hooks
+- `src/hooks/useTokenCards.ts` - Token data hook pattern
+- `src/hooks/useStockCards.ts` - Stock data hook pattern
+- `src/hooks/useLivePrices.tsx` - Real-time prices hook
+
+### Example Components
+- `src/pages/CryptoUniverseDetail.tsx` - Detail page pattern
+- `src/pages/Screener.tsx` - Screener page pattern
+- `src/components/NewsSection.tsx` - Data fetching component pattern
+
+## Dependencies Between Components
+
+### Edge Functions → Database
+- All sync functions write to master cards tables
+- Use source-prefixed columns
+- Update timestamp columns
+- Batch operations for performance
+
+### Database → Frontend
+- Frontend reads from master cards only
+- Use React Query for caching
+- Subscribe to real-time updates when needed
+- Never query deprecated tables
+
+### Edge Functions → Edge Functions
+- Some functions call other functions (e.g., `generate-brief-morning` calls `generate-brief-claude`)
+- Use function invocation: `supabase.functions.invoke('function-name', { body: {} })`
+- Pass `CRON_SECRET` for authenticated calls
+
+### External APIs → Edge Functions
+- Edge functions fetch from external APIs
+- Handle rate limits and errors
+- Log API calls to `external_api_calls` table
+- Use environment variables for API keys
+
+## Code Quality Guidelines
+
+### TypeScript
+- Use strict TypeScript
+- Export interfaces for all public types
+- Use `Database` type from `src/integrations/supabase/types.ts`
+- Avoid `any` types - use proper types or `unknown`
+
+### Error Handling
+- Always handle errors gracefully
+- Log errors with context
+- Return structured error responses
+- Never expose sensitive information in errors
+
+### Performance
+- Use batch operations (100-1000 items)
+- Paginate large queries
+- Use React Query caching
+- Stagger cron schedules to avoid API rate limits
+
+### Testing
+- Test edge functions with manual invocation
+- Test frontend components with React Query mock
+- Verify database state after sync operations
+- Check API rate limits in production
+
+## When Adding New Features
+
+1. **Data Sync Function**: Create in `supabase/functions/` following naming convention
+2. **Schedule**: Add to `supabase/config.toml` with staggered schedule
+3. **Master Cards**: Write to appropriate master card table with source prefix
+4. **Frontend Hook**: Create hook in `src/hooks/` for data access
+5. **Component**: Create component in `src/components/` or `src/pages/`
+6. **Types**: Update TypeScript types if needed
+7. **Documentation**: Update architecture docs if pattern changes
+
+## Common Mistakes to Avoid
+
+1. ❌ Calling external APIs from frontend
+2. ❌ Writing to deprecated tables
+3. ❌ Overwriting source-prefixed columns
+4. ❌ Creating cron schedules that collide
+5. ❌ Not handling errors in edge functions
+6. ❌ Not cleaning up subscriptions in React
+7. ❌ Using `any` types instead of proper TypeScript types
+8. ❌ Not updating timestamp columns
+9. ❌ Not batching database operations
+10. ❌ Removing functions that seem duplicate (they serve different purposes)
