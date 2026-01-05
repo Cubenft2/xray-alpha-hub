@@ -25,6 +25,8 @@ export const ParsedIntentSchema = z.object({
   timeframe: z.enum(['now', 'today', '24h', 'week', 'month']).default('24h'),
   action: z.enum(['gainers', 'losers', 'movers', 'volume']).nullable().default(null),
   summary: z.string().default('Parsed successfully'),
+  // Deep analysis flag - triggers comprehensive report with all data sources
+  depth: z.enum(['normal', 'deep']).default('normal'),
 });
 export type ParsedIntent = z.infer<typeof ParsedIntentSchema>;
 
