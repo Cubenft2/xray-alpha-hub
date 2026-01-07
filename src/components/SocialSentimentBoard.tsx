@@ -165,7 +165,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       const date = new Date().toISOString().split('T')[0];
-      link.download = `xraycrypto-social-sentiment-${date}.png`;
+      link.download = `xraycrypto-social-sentiment-top${displayCount}-${date}.png`;
       link.href = url;
       link.click();
       URL.revokeObjectURL(url);
@@ -225,7 +225,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
           description: "Image copied! Paste it anywhere.",
         });
       } else {
-        const twitterText = encodeURIComponent('Latest crypto social sentiment rankings from @XRayMarkets 🚀');
+        const twitterText = encodeURIComponent('Latest crypto social sentiment rankings from @xrayzone 🚀');
         window.open(`https://x.com/intent/tweet?text=${twitterText}`, '_blank');
       }
     } catch (error) {
@@ -240,7 +240,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
     }
   };
 
-  const displayedAssets = isExporting ? socialAssets : socialAssets.slice(0, displayCount);
+  const displayedAssets = socialAssets.slice(0, displayCount);
 
   return (
     <div className="space-y-3">
@@ -467,7 +467,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
               <div className="text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">XRayCrypto™</span>
                 <span className="mx-1">•</span>
-                <span>@XRayMarkets</span>
+                <span>@xrayzone</span>
                 <span className="mx-1">•</span>
                 <span>{siteHost}</span>
               </div>
@@ -483,7 +483,7 @@ export function SocialSentimentBoard({ marketData }: SocialSentimentBoardProps) 
                     XRayCrypto™
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    • @XRayMarkets
+                    • @xrayzone
                   </div>
                 </div>
                 <div className="text-xs text-center text-muted-foreground mt-1">
