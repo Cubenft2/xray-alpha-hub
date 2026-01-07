@@ -9,7 +9,7 @@ export { z };
 // ============= ParsedIntent Schema (from intent-parser) =============
 export const ParsedIntentSchema = z.object({
   intent: z.enum([
-    'market_overview', 'sector_analysis', 'token_lookup', 
+    'market_overview', 'stock_market_overview', 'sector_analysis', 'token_lookup', 
     'stock_lookup', 'comparison', 'trending', 'news', 'general_chat'
   ]),
   sector: z.enum([

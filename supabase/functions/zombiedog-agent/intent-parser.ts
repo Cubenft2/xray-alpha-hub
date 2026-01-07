@@ -9,7 +9,8 @@ export { ParsedIntentSchema, type ParsedIntent };
 const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto AND stock market assistant. Analyze the user's question and return JSON only.
 
 ## INTENTS (pick one):
-- "market_overview": General market questions. Examples: "how's the market", "what's crypto doing today", "market update"
+- "market_overview": General CRYPTO market questions. Examples: "how's the market", "what's crypto doing today", "market update"
+- "stock_market_overview": General STOCK market questions (no specific tickers). Examples: "how did stocks do", "stock market today", "how's the S&P", "market close", "trading day", "equity markets"
 - "sector_analysis": Questions about a specific crypto sector. Examples: "AI coins", "meme tokens pumping", "how's DeFi"
 - "token_lookup": Questions about specific crypto token(s). Examples: "how's BTC", "tell me about Solana", "ETH price"
 - "stock_lookup": Questions about specific stock(s). Examples: "how's NVDA", "tell me about Apple", "TSLA price", "what's Tesla doing"
@@ -17,6 +18,14 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto A
 - "trending": What's hot/moving. Examples: "top gainers", "what's pumping", "biggest losers"
 - "news": News requests. Examples: "any news", "latest on Bitcoin"
 - "general_chat": Greetings, thanks, meta questions. Examples: "hi", "thanks", "who are you"
+
+## STOCK MARKET KEYWORDS (recognize as assetType: "stock", intent: "stock_market_overview"):
+- "stock market", "stocks today", "market close", "trading day", "how did stocks", "equity market", "equities"
+- "S&P 500", "S&P", "SP500", "SPX" → Default tickers: ["SPY", "QQQ", "DIA"]
+- "Nasdaq", "Nasdaq 100", "QQQ" → Default tickers: ["QQQ"]
+- "Dow Jones", "Dow", "DJI", "DIA" → Default tickers: ["DIA"]
+- "NYSE", "indices", "close bell" → Default tickers: ["SPY", "QQQ", "DIA"]
+- IMPORTANT: If query mentions "stock market" or "stocks" without crypto keywords (bitcoin, crypto, eth, token, coin, defi, web3), set assetType: "stock" and intent: "stock_market_overview"
 
 ## CRYPTO SECTORS (sector field, null if not crypto sector):
 - "ai": AI tokens (FET, TAO, RENDER, LINK, AGIX, OCEAN)
@@ -118,7 +127,10 @@ const INTENT_SYSTEM_PROMPT = `You are an intent parser for ZombieDog, a crypto A
 "Top tech stocks" → {"intent":"stock_lookup","sector":null,"stockSector":"tech","tickers":[],"assetType":"stock","timeframe":"24h","action":"gainers","summary":"User wants top tech stocks","depth":"normal"}
 "How's BTC doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["BTC"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User asking about Bitcoin","depth":"normal"}
 "What meme coins are pumping?" → {"intent":"sector_analysis","sector":"meme","stockSector":null,"tickers":[],"assetType":"crypto","timeframe":"24h","action":"gainers","summary":"User wants top meme coins","depth":"normal"}
-"How's the market?" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":[],"assetType":"mixed","timeframe":"24h","action":null,"summary":"General market overview","depth":"normal"}
+"How's the market?" → {"intent":"market_overview","sector":null,"stockSector":null,"tickers":[],"assetType":"crypto","timeframe":"24h","action":null,"summary":"General crypto market overview","depth":"normal"}
+"How did the stock market close today?" → {"intent":"stock_market_overview","sector":null,"stockSector":null,"tickers":["SPY","QQQ","DIA"],"assetType":"stock","timeframe":"24h","action":null,"summary":"User asking about stock market close","depth":"normal"}
+"What happened in stocks today?" → {"intent":"stock_market_overview","sector":null,"stockSector":null,"tickers":["SPY","QQQ","DIA","AAPL","MSFT","NVDA"],"assetType":"stock","timeframe":"24h","action":null,"summary":"User asking about stock market performance","depth":"normal"}
+"Give me a breakdown of the S&P 500, Nasdaq, and Dow" → {"intent":"stock_market_overview","sector":null,"stockSector":null,"tickers":["SPY","QQQ","DIA"],"assetType":"stock","timeframe":"24h","action":null,"summary":"User wants major indices performance","depth":"normal"}
 "What's gold doing?" → {"intent":"token_lookup","sector":null,"stockSector":null,"tickers":["XAUUSD"],"assetType":"forex","timeframe":"24h","action":null,"summary":"User asking about gold price","depth":"normal"}
 "Give me a full analysis of ZEC" → {"intent":"token_lookup","sector":"privacy","stockSector":null,"tickers":["ZEC"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User wants comprehensive ZEC analysis","depth":"deep"}
 "Deep dive on ETH with liquidation data" → {"intent":"token_lookup","sector":"l1","stockSector":null,"tickers":["ETH"],"assetType":"crypto","timeframe":"24h","action":null,"summary":"User wants deep ETH analysis with derivatives","depth":"deep"}
@@ -238,11 +250,13 @@ export function mapIntentToRouteConfig(intent: ParsedIntent): {
 
   switch (intent.intent) {
     case 'market_overview':
+    case 'stock_market_overview':
     case 'sector_analysis':
     case 'trending':
       return { ...base, fetchPrices: true, fetchSocial: true };
       
     case 'token_lookup':
+    case 'stock_lookup':
       return { ...base, fetchPrices: true, fetchSocial: true, fetchCharts: true, fetchDetails: true };
       
     case 'comparison':

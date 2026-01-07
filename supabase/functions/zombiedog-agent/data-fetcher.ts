@@ -281,10 +281,23 @@ const TOP_STOCKS_BY_SECTOR: Record<string, string[]> = {
   communications: ['VZ', 'T', 'CMCSA', 'DIS', 'NFLX', 'TMUS', 'CHTR', 'WBD', 'PARA', 'FOX'],
 };
 
+// Default major indices and mega-cap stocks for stock market overview
+const STOCK_MARKET_OVERVIEW_SYMBOLS = ['SPY', 'QQQ', 'DIA', 'AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'TSLA', 'META'];
+
 export async function fetchDataForIntent(supabase: any, intent: ParsedIntent): Promise<FetchedData> {
   console.log(`[data-fetcher] Fetching data for intent: ${intent.intent}, assetType: ${intent.assetType}, sector: ${intent.sector}, stockSector: ${intent.stockSector}, tickers: [${intent.tickers.join(',')}]`);
   
   try {
+    // Handle stock market overview FIRST (before general stock routing)
+    if (intent.intent === 'stock_market_overview') {
+      return await fetchStockMarketOverview(supabase, intent.tickers);
+    }
+    
+    // Handle market_overview with stock assetType
+    if (intent.intent === 'market_overview' && intent.assetType === 'stock') {
+      return await fetchStockMarketOverview(supabase, intent.tickers);
+    }
+    
     // Route based on asset type and intent
     if (intent.assetType === 'stock' || intent.intent === 'stock_lookup') {
       return await fetchStockData(supabase, intent);
@@ -328,6 +341,79 @@ export async function fetchDataForIntent(supabase: any, intent: ParsedIntent): P
     console.error(`[data-fetcher] Error: ${err}`);
     return { type: 'error', tokens: [], error: String(err) };
   }
+}
+
+// ============= STOCK MARKET OVERVIEW =============
+async function fetchStockMarketOverview(supabase: any, tickers: string[]): Promise<FetchedData> {
+  // Use provided tickers or default to major indices + mega-caps
+  const symbolsToFetch = tickers.length > 0 ? tickers : STOCK_MARKET_OVERVIEW_SYMBOLS;
+  
+  console.log(`[data-fetcher] Stock market overview - fetching: [${symbolsToFetch.join(',')}]`);
+  
+  const { data: stocks, error } = await supabase
+    .from('stock_cards')
+    .select(RICH_STOCK_SELECT)
+    .in('symbol', symbolsToFetch)
+    .eq('is_active', true)
+    .not('price_usd', 'is', null)
+    .order('market_cap', { ascending: false, nullsFirst: false });
+
+  if (error) {
+    console.error(`[data-fetcher] Stock market overview error: ${error.message}`);
+    return { type: 'stock_market_overview', tokens: [], stocks: [], error: error.message };
+  }
+
+  const stockList = stocks || [];
+  
+  // Also get top gainers and losers ($1B+ market cap)
+  const { data: gainers } = await supabase
+    .from('stock_cards')
+    .select(RICH_STOCK_SELECT)
+    .eq('is_active', true)
+    .not('change_pct', 'is', null)
+    .gt('market_cap', 1000000000)
+    .order('change_pct', { ascending: false })
+    .limit(5);
+
+  const { data: losers } = await supabase
+    .from('stock_cards')
+    .select(RICH_STOCK_SELECT)
+    .eq('is_active', true)
+    .not('change_pct', 'is', null)
+    .gt('market_cap', 1000000000)
+    .order('change_pct', { ascending: true })
+    .limit(5);
+
+  // Compute market summary
+  const greenCount = stockList.filter((s: any) => (s.change_pct || 0) > 0).length;
+  const redCount = stockList.filter((s: any) => (s.change_pct || 0) < 0).length;
+  const sorted = [...stockList].sort((a: any, b: any) => (b.change_pct || 0) - (a.change_pct || 0));
+
+  console.log(`[data-fetcher] Stock market overview: ${stockList.length} stocks, ${greenCount} green, ${redCount} red`);
+
+  return {
+    type: 'stock_market_overview',
+    tokens: [],
+    stocks: stockList,
+    stockGainers: gainers || [],
+    stockLosers: losers || [],
+    marketSummary: {
+      total: stockList.length,
+      greenCount,
+      redCount,
+      breadthPct: stockList.length > 0 ? Math.round((greenCount / stockList.length) * 100) : 0,
+      leaders: sorted.slice(0, 3).map((s: any) => ({ 
+        symbol: s.symbol, 
+        change: s.change_pct || 0,
+        galaxy: null
+      })),
+      laggards: sorted.slice(-3).reverse().map((s: any) => ({ 
+        symbol: s.symbol, 
+        change: s.change_pct || 0,
+        galaxy: null
+      })),
+    }
+  };
 }
 
 async function fetchMarketOverview(supabase: any): Promise<FetchedData> {
