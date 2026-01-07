@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTickerMappings } from '@/hooks/useTickerMappings';
 import { usePolygonPrices } from '@/hooks/usePolygonPrices';
 import { supabase } from '@/integrations/supabase/client';
+import { getTickerMapping } from '@/config/tickerMappings';
 
 interface EnhancedBriefRendererProps {
   content: string;
@@ -153,8 +154,15 @@ export function EnhancedBriefRenderer({ content, enhancedTickers = {}, onTickers
       // Use the TradingView symbol from database for both crypto and stocks
       chartUrl = `https://www.tradingview.com/chart/?symbol=${mapping.tradingview_symbol}`;
     } else {
-      // Fallback → TradingView general search
-      chartUrl = `https://www.tradingview.com/symbols/${upperTicker}/`;
+      // Try static fallback mappings before generic TradingView search
+      // This prevents ticker collisions (e.g., LEO crypto vs LEO NYSE stock)
+      const staticMapping = getTickerMapping(upperTicker);
+      if (staticMapping) {
+        chartUrl = `https://www.tradingview.com/chart/?symbol=${staticMapping.symbol}`;
+      } else {
+        // Final fallback → TradingView general search
+        chartUrl = `https://www.tradingview.com/symbols/${upperTicker}/`;
+      }
     }
     
     window.open(chartUrl, '_blank', 'noopener,noreferrer');
