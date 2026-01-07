@@ -203,6 +203,9 @@ export const CRYPTO_TICKERS: Record<string, TickerMapping> = {
   // PancakeSwap
   'CAKE': { symbol: 'BINANCE:CAKEUSDT', displayName: 'PancakeSwap (CAKE)', type: 'crypto' },
   'PANCAKESWAP': { symbol: 'BINANCE:CAKEUSDT', displayName: 'PancakeSwap (CAKE)', type: 'crypto' },
+  // LEO - UNUS SED LEO (Bitfinex token) - prevent NYSE stock collision
+  'LEO': { symbol: 'OKX:LEOUSD', displayName: 'UNUS SED LEO (LEO)', type: 'crypto' },
+  'UNUS SED LEO': { symbol: 'OKX:LEOUSD', displayName: 'UNUS SED LEO (LEO)', type: 'crypto' },
 };
 
 // Index and Forex tickers
