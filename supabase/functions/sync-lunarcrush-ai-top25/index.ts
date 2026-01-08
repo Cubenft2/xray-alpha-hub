@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 // Map ambiguous symbols to their LunarCrush topic names
-// These symbols have collisions with non-crypto topics (e.g., LEO → Pope Leo XIV)
+// These symbols have collisions with non-crypto topics
 const LUNARCRUSH_TOPIC_OVERRIDES: Record<string, string> = {
   'LEO': 'unus-sed-leo',      // Avoids Pope Leo XIV collision
   'SUI': 'sui-network',       // Avoids generic "sui" collisions
@@ -15,17 +15,22 @@ const LUNARCRUSH_TOPIC_OVERRIDES: Record<string, string> = {
   'USDS': 'sky-dollar',       // Avoids generic dollar references
   'OM': 'mantra-dao',         // Avoids generic "om" collision
   'PI': 'pi-network',         // Avoids math constant collision
+  'XMR': 'monero',            // Ensure Monero crypto
+  'DOT': 'polkadot',          // Avoids Dallas Stars hockey collision
+  'UNI': 'uniswap',           // Avoids university news collision
+  'NEAR': 'near-protocol',    // Ensure correct topic resolution
+  'TON': 'toncoin',           // Ensure TON blockchain
 };
 
-// Curated Top 26 tokens for premium AI summaries
+// Curated Top 27 tokens for premium AI summaries
 // Excludes wrapped tokens (WBTC, STETH, etc.) and suspicious tokens (BZR, MGC)
-const TOP_26_SYMBOLS = [
+const TOP_27_SYMBOLS = [
   'BTC', 'ETH', 'XRP', 'USDT', 'SOL',
   'BNB', 'DOGE', 'USDC', 'ADA', 'TRX',
   'HYPE', 'AVAX', 'LINK', 'SUI', 'XLM',
   'SHIB', 'TON', 'HBAR', 'BCH', 'DOT',
   'LTC', 'UNI', 'LEO', 'PEPE', 'NEAR',
-  'ZEC'
+  'ZEC', 'XMR'
 ];
 
 // Log API call to external_api_calls table
@@ -241,7 +246,7 @@ Deno.serve(async (req) => {
 
     // Use curated list instead of dynamic query
     // This excludes wrapped tokens (STETH, WBTC) and suspicious tokens (BZR, MGC)
-    const tokens = TOP_26_SYMBOLS.map((symbol, index) => ({
+    const tokens = TOP_27_SYMBOLS.map((symbol, index) => ({
       canonical_symbol: symbol,
       name: symbol, // Name will be updated from API response if available
       market_cap_rank: index + 1
