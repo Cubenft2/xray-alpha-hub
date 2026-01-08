@@ -5,6 +5,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Map ambiguous symbols to their LunarCrush topic names
+// These symbols have collisions with non-crypto topics (e.g., LEO → Pope Leo XIV)
+const LUNARCRUSH_TOPIC_OVERRIDES: Record<string, string> = {
+  'LEO': 'unus-sed-leo',      // Avoids Pope Leo XIV collision
+  'SUI': 'sui-network',       // Avoids generic "sui" collisions
+  'HYPE': 'hyperliquid',      // Uses full project name
+  'LINK': 'chainlink',        // More specific than "LINK"
+  'USDS': 'sky-dollar',       // Avoids generic dollar references
+  'OM': 'mantra-dao',         // Avoids generic "om" collision
+  'PI': 'pi-network',         // Avoids math constant collision
+};
+
 // Log API call to external_api_calls table
 async function logApiCall(
   supabase: any,
@@ -247,8 +259,14 @@ Deno.serve(async (req) => {
       log(`Processing ${symbol} (rank ${token.market_cap_rank})`);
 
       try {
+        // Resolve topic name using override map to avoid ticker collisions
+        const lunarcrushTopic = LUNARCRUSH_TOPIC_OVERRIDES[symbol] || symbol;
+        if (lunarcrushTopic !== symbol) {
+          log(`Using topic override: ${symbol} → ${lunarcrushTopic}`);
+        }
+
         // Call LunarCrush AI Topic API (lunarcrush.ai domain for AI narratives)
-        const apiUrl = `https://lunarcrush.ai/topic/${symbol}`;
+        const apiUrl = `https://lunarcrush.ai/topic/${encodeURIComponent(lunarcrushTopic)}`;
         const response = await fetch(apiUrl, {
           headers: {
             Authorization: `Bearer ${lunarcrushApiKey}`,
