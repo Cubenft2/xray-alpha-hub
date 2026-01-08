@@ -17,14 +17,15 @@ const LUNARCRUSH_TOPIC_OVERRIDES: Record<string, string> = {
   'PI': 'pi-network',         // Avoids math constant collision
 };
 
-// Curated Top 25 tokens for premium AI summaries
+// Curated Top 26 tokens for premium AI summaries
 // Excludes wrapped tokens (WBTC, STETH, etc.) and suspicious tokens (BZR, MGC)
-const TOP_25_SYMBOLS = [
+const TOP_26_SYMBOLS = [
   'BTC', 'ETH', 'XRP', 'USDT', 'SOL',
   'BNB', 'DOGE', 'USDC', 'ADA', 'TRX',
   'HYPE', 'AVAX', 'LINK', 'SUI', 'XLM',
   'SHIB', 'TON', 'HBAR', 'BCH', 'DOT',
-  'LTC', 'UNI', 'LEO', 'PEPE', 'NEAR'
+  'LTC', 'UNI', 'LEO', 'PEPE', 'NEAR',
+  'ZEC'
 ];
 
 // Log API call to external_api_calls table
@@ -240,7 +241,7 @@ Deno.serve(async (req) => {
 
     // Use curated list instead of dynamic query
     // This excludes wrapped tokens (STETH, WBTC) and suspicious tokens (BZR, MGC)
-    const tokens = TOP_25_SYMBOLS.map((symbol, index) => ({
+    const tokens = TOP_26_SYMBOLS.map((symbol, index) => ({
       canonical_symbol: symbol,
       name: symbol, // Name will be updated from API response if available
       market_cap_rank: index + 1
