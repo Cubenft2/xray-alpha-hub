@@ -17,6 +17,16 @@ const LUNARCRUSH_TOPIC_OVERRIDES: Record<string, string> = {
   'PI': 'pi-network',         // Avoids math constant collision
 };
 
+// Curated Top 25 tokens for premium AI summaries
+// Excludes wrapped tokens (WBTC, STETH, etc.) and suspicious tokens (BZR, MGC)
+const TOP_25_SYMBOLS = [
+  'BTC', 'ETH', 'XRP', 'USDT', 'SOL',
+  'BNB', 'DOGE', 'USDC', 'ADA', 'TRX',
+  'HYPE', 'AVAX', 'LINK', 'SUI', 'XLM',
+  'SHIB', 'TON', 'HBAR', 'BCH', 'DOT',
+  'LTC', 'UNI', 'LEO', 'PEPE', 'NEAR'
+];
+
 // Log API call to external_api_calls table
 async function logApiCall(
   supabase: any,
@@ -228,27 +238,15 @@ Deno.serve(async (req) => {
 
     log("Starting sync-lunarcrush-ai-top25");
 
-    // Fetch top 25 tokens by market cap rank
-    const { data: tokens, error: tokensError } = await supabase
-      .from("token_cards")
-      .select("canonical_symbol, name, market_cap_rank")
-      .not("market_cap_rank", "is", null)
-      .order("market_cap_rank", { ascending: true })
-      .limit(25);
+    // Use curated list instead of dynamic query
+    // This excludes wrapped tokens (STETH, WBTC) and suspicious tokens (BZR, MGC)
+    const tokens = TOP_25_SYMBOLS.map((symbol, index) => ({
+      canonical_symbol: symbol,
+      name: symbol, // Name will be updated from API response if available
+      market_cap_rank: index + 1
+    }));
 
-    if (tokensError) {
-      throw new Error(`Failed to fetch tokens: ${tokensError.message}`);
-    }
-
-    if (!tokens || tokens.length === 0) {
-      log("No tokens found in token_cards");
-      return new Response(
-        JSON.stringify({ success: false, error: "No tokens found", logs }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    log(`Found ${tokens.length} tokens to process`);
+    log(`Processing ${tokens.length} curated tokens`);
 
     let successCount = 0;
     let errorCount = 0;
