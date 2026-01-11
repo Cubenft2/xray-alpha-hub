@@ -10,18 +10,37 @@ const LUNARCRUSH_API_KEY = Deno.env.get('LUNARCRUSH_API_KEY');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-// Hardcoded Top 25 tokens by market cap - no database queries for selection
-// Source: top100MarketCap.ts - updated Dec 2024
-const TOP_25_SYMBOLS = [
+// Map ambiguous symbols to their LunarCrush topic names
+// These symbols have collisions with non-crypto topics
+const LUNARCRUSH_TOPIC_OVERRIDES: Record<string, string> = {
+  'LEO': 'unus-sed-leo',      // Avoids Pope Leo XIV collision
+  'SUI': 'sui-network',       // Avoids generic "sui" collisions
+  'TON': 'toncoin',           // Ensure TON blockchain
+  'USDS': 'sky-dollar',       // Avoids generic dollar references
+  'OM': 'mantra-dao',         // Avoids generic "om" collision
+  'PI': 'pi-network',         // Avoids math constant collision
+  'XMR': 'monero',            // Ensure Monero crypto
+  'DOT': 'polkadot',          // Avoids Dallas Stars hockey collision
+  'UNI': 'uniswap',           // Avoids university news collision
+  'NEAR': 'near-protocol',    // Ensure correct topic resolution
+};
+
+// Curated Top 27 tokens for enhanced data (posts, news, creators, AI summaries)
+// Synced with sync-lunarcrush-ai-top25
+const TOP_27_SYMBOLS = [
   'BTC', 'ETH', 'XRP', 'USDT', 'SOL',
   'BNB', 'DOGE', 'USDC', 'ADA', 'TRX',
   'HYPE', 'AVAX', 'LINK', 'SUI', 'XLM',
   'SHIB', 'TON', 'HBAR', 'BCH', 'DOT',
-  'LTC', 'UNI', 'LEO', 'PEPE', 'NEAR'
+  'LTC', 'UNI', 'LEO', 'PEPE', 'NEAR',
+  'ZEC', 'XMR'
 ];
 
-// 6 second delay between tokens to respect rate limits
-const DELAY_BETWEEN_TOKENS_MS = 6000;
+// Delay between tokens to respect rate limits
+const DELAY_BETWEEN_TOKENS_MS = 8000;
+
+// Delay between API endpoints for same token (sequential, not parallel)
+const DELAY_BETWEEN_ENDPOINTS_MS = 1500;
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -43,8 +62,9 @@ async function logApiCall(supabase: any, success: boolean, errorMessage?: string
 }
 
 async function fetchLunarCrush(endpoint: string, symbol: string, supabase: any): Promise<any> {
-  const lowerSymbol = symbol.toLowerCase();
-  const url = `https://lunarcrush.com/api4/public/topic/${lowerSymbol}/${endpoint}/v1`;
+  // Use topic override if available, otherwise lowercase symbol
+  const topic = LUNARCRUSH_TOPIC_OVERRIDES[symbol] || symbol.toLowerCase();
+  const url = `https://lunarcrush.com/api4/public/topic/${topic}/${endpoint}/v1`;
   
   try {
     const response = await fetch(url, {
@@ -56,16 +76,17 @@ async function fetchLunarCrush(endpoint: string, symbol: string, supabase: any):
     await logApiCall(supabase, response.ok, response.ok ? undefined : `${response.status}`);
     
     if (!response.ok) {
-      console.log(`LunarCrush ${endpoint} for ${symbol}: ${response.status}`);
+      console.log(`LunarCrush ${endpoint} for ${symbol} (topic: ${topic}): ${response.status}`);
       return null;
     }
     
     const data = await response.json();
-    console.log(`LunarCrush ${endpoint} for ${symbol}: OK`);
+    console.log(`LunarCrush ${endpoint} for ${symbol} (topic: ${topic}): OK`);
     return data;
   } catch (error) {
-    console.error(`Error fetching ${endpoint} for ${symbol}:`, error);
-    await logApiCall(supabase, false, error.message);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`Error fetching ${endpoint} for ${symbol}:`, errorMsg);
+    await logApiCall(supabase, false, errorMsg);
     return null;
   }
 }
@@ -84,7 +105,7 @@ serve(async (req) => {
       throw new Error('LUNARCRUSH_API_KEY not configured');
     }
 
-    console.log(`Processing all ${TOP_25_SYMBOLS.length} top tokens with ${DELAY_BETWEEN_TOKENS_MS}ms delay between each`);
+    console.log(`Processing ${TOP_27_SYMBOLS.length} top tokens with sequential API calls (${DELAY_BETWEEN_ENDPOINTS_MS}ms between endpoints, ${DELAY_BETWEEN_TOKENS_MS}ms between tokens)`);
     
     const results = {
       processed: 0,
@@ -93,18 +114,22 @@ serve(async (req) => {
       errors: [] as string[],
     };
 
-    for (let i = 0; i < TOP_25_SYMBOLS.length; i++) {
-      const symbol = TOP_25_SYMBOLS[i];
-      console.log(`[${i + 1}/${TOP_25_SYMBOLS.length}] Fetching enhanced data for ${symbol}`);
+    for (let i = 0; i < TOP_27_SYMBOLS.length; i++) {
+      const symbol = TOP_27_SYMBOLS[i];
+      console.log(`[${i + 1}/${TOP_27_SYMBOLS.length}] Fetching enhanced data for ${symbol}`);
       
       try {
-        // Fetch all 4 endpoints for this token
-        const [whatsupData, postsData, newsData, creatorsData] = await Promise.all([
-          fetchLunarCrush('whatsup', symbol, supabase),
-          fetchLunarCrush('posts', symbol, supabase),
-          fetchLunarCrush('news', symbol, supabase),
-          fetchLunarCrush('creators', symbol, supabase),
-        ]);
+        // Sequential API calls with delays to avoid rate limiting
+        const whatsupData = await fetchLunarCrush('whatsup', symbol, supabase);
+        await sleep(DELAY_BETWEEN_ENDPOINTS_MS);
+        
+        const postsData = await fetchLunarCrush('posts', symbol, supabase);
+        await sleep(DELAY_BETWEEN_ENDPOINTS_MS);
+        
+        const newsData = await fetchLunarCrush('news', symbol, supabase);
+        await sleep(DELAY_BETWEEN_ENDPOINTS_MS);
+        
+        const creatorsData = await fetchLunarCrush('creators', symbol, supabase);
         
         const now = new Date().toISOString();
         const updateData: Record<string, any> = {};
@@ -182,12 +207,13 @@ serve(async (req) => {
         results.processed++;
         
       } catch (error) {
-        console.error(`Error processing ${symbol}:`, error);
-        results.errors.push(`${symbol}: ${error.message}`);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(`Error processing ${symbol}:`, errorMsg);
+        results.errors.push(`${symbol}: ${errorMsg}`);
       }
       
       // Add delay between tokens (except after the last one)
-      if (i < TOP_25_SYMBOLS.length - 1) {
+      if (i < TOP_27_SYMBOLS.length - 1) {
         console.log(`Waiting ${DELAY_BETWEEN_TOKENS_MS}ms before next token...`);
         await sleep(DELAY_BETWEEN_TOKENS_MS);
       }
@@ -203,16 +229,17 @@ serve(async (req) => {
       tokensUpdated: results.updated,
       tokensSkipped: results.skipped,
       errors: results.errors,
-      totalTokens: TOP_25_SYMBOLS.length,
+      totalTokens: TOP_27_SYMBOLS.length,
       durationMs: duration,
       durationMinutes: parseFloat(durationMinutes),
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
-    console.error('sync-token-cards-lunarcrush-enhanced error:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error('sync-token-cards-lunarcrush-enhanced error:', errorMsg);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message,
+      error: errorMsg,
     }), { 
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
