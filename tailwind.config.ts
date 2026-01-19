@@ -69,6 +69,11 @@ export default {
           DEFAULT: "hsl(var(--beret-yellow))",
           foreground: "hsl(var(--beret-yellow-foreground))",
         },
+        // ZombieDog Brand Colors
+        'zombiedog-pink': '#FFB6C1',
+        'army-green': '#556B2F',
+        'dark-gray': '#4A4A4A',
+        'gold': '#DAA520',
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

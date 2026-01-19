@@ -184,9 +184,17 @@ interface ZombieDogChatProps {
   compact?: boolean;
   isFullScreen?: boolean;
   className?: string;
+  quickPrompt?: string | null;
+  onQuickPromptConsumed?: () => void;
 }
 
-export const ZombieDogChat = ({ compact = false, isFullScreen = false, className = '' }: ZombieDogChatProps) => {
+export const ZombieDogChat = ({ 
+  compact = false, 
+  isFullScreen = false, 
+  className = '',
+  quickPrompt = null,
+  onQuickPromptConsumed
+}: ZombieDogChatProps) => {
   // Load messages from localStorage on mount
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
