@@ -64,6 +64,8 @@ const Home = () => {
           <ZombieDogChat 
             isFullScreen={true} 
             className="h-full"
+            quickPrompt={quickPrompt}
+            onQuickPromptConsumed={() => setQuickPrompt(null)}
           />
         </div>
 
