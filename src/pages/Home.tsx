@@ -1,7 +1,11 @@
 import { ZombieDogChat } from '@/components/ZombieDogChat';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Session } from '@supabase/supabase-js';
+import { LogIn, Settings, LogOut } from 'lucide-react';
 
 interface QuickAction {
   label: string;
@@ -19,6 +23,44 @@ const quickActions: QuickAction[] = [
 const Home = () => {
   const [quickPrompt, setQuickPrompt] = useState<string | null>(null);
   const chatRef = useRef<{ sendMessage: (msg: string) => void } | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user?.id) {
+        setTimeout(() => checkAdminStatus(session.user.id), 0);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user?.id) {
+        setTimeout(() => checkAdminStatus(session.user.id), 0);
+      } else {
+        setIsAdmin(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAdminStatus = async (userId: string) => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', userId)
+      .eq('role', 'admin')
+      .single();
+    setIsAdmin(!!data);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setIsAdmin(false);
+  };
 
   const handleQuickAction = (prompt: string) => {
     setQuickPrompt(prompt);
@@ -38,7 +80,39 @@ const Home = () => {
             />
             <span className="font-bold text-xl tracking-wide font-pixel">ZombieDog AI</span>
           </div>
-          <ThemeToggle />
+          
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            
+            {session ? (
+              <>
+                {isAdmin && (
+                  <Link to="/admin">
+                    <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                      <Settings className="w-4 h-4 mr-1" />
+                      Admin
+                    </Button>
+                  </Link>
+                )}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleSignOut}
+                  className="text-white hover:bg-white/20"
+                >
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <Link to="/auth">
+                <Button variant="ghost" size="sm" className="text-white hover:bg-white/20">
+                  <LogIn className="w-4 h-4 mr-1" />
+                  Sign In
+                </Button>
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
