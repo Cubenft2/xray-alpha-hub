@@ -3,9 +3,6 @@ project_id = "odncvfiuzliyohxrsigc"
 [functions.zombiedog-agent]
 verify_jwt = false
 
-[functions.zombiedog-chat]
-verify_jwt = false
-
 [functions.populate-quotes-library]
 verify_jwt = false
 
@@ -47,7 +44,7 @@ verify_jwt = false
 [[functions.exchange-data-aggregator.cron]]
 schedule = "5,20,35,50 * * * *"
 
-# DEPRECATED: Replaced by polygon-news-unified
+# Replaced by polygon-news-unified
 # Keep function for backwards compatibility but remove cron
 [functions.news-fetch]
 verify_jwt = false
@@ -66,9 +63,6 @@ verify_jwt = false
 schedule = "20 */6 * * *"
 
 [functions.symbol-intelligence]
-verify_jwt = true
-
-[functions.polygon-sync]
 verify_jwt = true
 
 [functions.quotes]
