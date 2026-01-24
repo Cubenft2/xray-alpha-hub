@@ -184,17 +184,9 @@ interface ZombieDogChatProps {
   compact?: boolean;
   isFullScreen?: boolean;
   className?: string;
-  quickPrompt?: string | null;
-  onQuickPromptConsumed?: () => void;
 }
 
-export const ZombieDogChat = ({ 
-  compact = false, 
-  isFullScreen = false, 
-  className = '',
-  quickPrompt = null,
-  onQuickPromptConsumed
-}: ZombieDogChatProps) => {
+export const ZombieDogChat = ({ compact = false, isFullScreen = false, className = '' }: ZombieDogChatProps) => {
   // Load messages from localStorage on mount
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
@@ -242,9 +234,14 @@ export const ZombieDogChat = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle quick prompt from parent (Quick Action buttons)
-  const handleSendMessage = useCallback(async (messageText: string) => {
-    if (!messageText.trim() || isLoading || isLimitReached) return;
+  const clearChat = useCallback(() => {
+    localStorage.removeItem(CHAT_STORAGE_KEY);
+    setMessages([{ ...welcomeMessage, timestamp: new Date() }]);
+    toast.success('Chat history cleared');
+  }, []);
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading || isLimitReached) return;
 
     // Show warning when approaching limit (non-admin only)
     if (!isAdmin && remainingMessages === 3) {
@@ -254,11 +251,12 @@ export const ZombieDogChat = ({
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: messageText.trim(),
+      content: input.trim(),
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const userInput = input.trim();
     setInput('');
     setIsLoading(true);
 
@@ -321,26 +319,6 @@ export const ZombieDogChat = ({
       console.error('Stream error:', e);
       toast.error('Failed to connect to ZombieDog');
       setIsLoading(false);
-    }
-  }, [isLoading, isLimitReached, isAdmin, remainingMessages, messages]);
-
-  // Handle quick prompt from parent (Quick Action buttons)
-  useEffect(() => {
-    if (quickPrompt && !isLoading && !isLimitReached) {
-      handleSendMessage(quickPrompt);
-      onQuickPromptConsumed?.();
-    }
-  }, [quickPrompt]);
-
-  const clearChat = useCallback(() => {
-    localStorage.removeItem(CHAT_STORAGE_KEY);
-    setMessages([{ ...welcomeMessage, timestamp: new Date() }]);
-    toast.success('Chat history cleared');
-  }, []);
-
-  const handleSend = () => {
-    if (input.trim()) {
-      handleSendMessage(input.trim());
     }
   };
 
