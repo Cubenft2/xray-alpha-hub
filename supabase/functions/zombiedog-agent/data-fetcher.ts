@@ -149,6 +149,17 @@ export interface RichForex {
   updated_at: string | null;
 }
 
+// News article interface for structured news data
+export interface NewsArticle {
+  title: string;
+  summary?: string;
+  source?: string;
+  published_at?: string;
+  url?: string;
+  tickers?: string[];
+  sentiment?: string;
+}
+
 export interface FetchedData {
   type: string;
   tokens: RichToken[];
@@ -158,6 +169,7 @@ export interface FetchedData {
   losers?: RichToken[];
   stockGainers?: RichStock[];
   stockLosers?: RichStock[];
+  news?: NewsArticle[];
   marketSummary?: {
     total: number;
     greenCount: number;
@@ -676,20 +688,123 @@ async function fetchTrending(supabase: any, action: string | null): Promise<Fetc
 
 async function fetchNewsData(supabase: any, tickers: string[]): Promise<FetchedData> {
   const tickersToFetch = tickers.length > 0 ? tickers : ['BTC', 'ETH'];
+  console.log(`[data-fetcher] Fetching news for: [${tickersToFetch.join(',')}]`);
   
-  const { data, error } = await supabase
+  // 1. Get token data for context
+  const { data: tokens, error } = await supabase
     .from('token_cards')
     .select(RICH_TOKEN_SELECT)
     .in('canonical_symbol', tickersToFetch);
 
   if (error) {
-    console.error(`[data-fetcher] News query error: ${error.message}`);
-    return { type: 'news', tokens: [], error: error.message };
+    console.error(`[data-fetcher] News token query error: ${error.message}`);
   }
+
+  // 2. Fetch from LunarCrush news cache (full articles with sentiment)
+  let lunarcrushNews: any[] = [];
+  try {
+    const { data: lcCache } = await supabase
+      .from('cache_kv')
+      .select('v')
+      .eq('k', 'lunarcrush_news_cache')
+      .single();
+
+    if (lcCache?.v?.crypto && Array.isArray(lcCache.v.crypto)) {
+      // Get top news, optionally filter by ticker presence in title/description
+      const allNews = lcCache.v.crypto;
+      
+      if (tickers.length > 0) {
+        // Filter news that mentions any of the requested tickers
+        const tickerLower = tickersToFetch.map(t => t.toLowerCase());
+        lunarcrushNews = allNews.filter((n: any) => {
+          const titleLower = (n.title || '').toLowerCase();
+          const descLower = (n.description || '').toLowerCase();
+          return tickerLower.some(t => 
+            titleLower.includes(t) || descLower.includes(t) ||
+            titleLower.includes('bitcoin') && t === 'btc' ||
+            titleLower.includes('ethereum') && t === 'eth' ||
+            titleLower.includes('solana') && t === 'sol'
+          );
+        }).slice(0, 10);
+      } else {
+        // General crypto news - top 10
+        lunarcrushNews = allNews.slice(0, 10);
+      }
+
+      lunarcrushNews = lunarcrushNews.map((n: any) => ({
+        title: n.title || 'Untitled',
+        summary: n.description || null,
+        source: n.source || 'Unknown',
+        published_at: n.publishedAt || null,
+        url: n.url || null,
+        tickers: [],
+        sentiment: n.sentiment || null,
+      }));
+    }
+  } catch (lcErr) {
+    console.warn(`[data-fetcher] LunarCrush cache fetch warning: ${lcErr}`);
+  }
+
+  // 3. Also try polygon news cache as fallback
+  let polygonNews: any[] = [];
+  try {
+    const { data: polyCache } = await supabase
+      .from('cache_kv')
+      .select('v')
+      .eq('k', 'polygon_news_unified_cache')
+      .single();
+
+    if (polyCache?.v?.crypto && Array.isArray(polyCache.v.crypto)) {
+      const allPolyNews = polyCache.v.crypto;
+      
+      if (tickers.length > 0) {
+        polygonNews = allPolyNews.filter((n: any) => 
+          n.tickers?.some((t: string) => tickersToFetch.includes(t.toUpperCase()))
+        ).slice(0, 5);
+      } else {
+        polygonNews = allPolyNews.slice(0, 5);
+      }
+
+      polygonNews = polygonNews.map((n: any) => ({
+        title: n.title || 'Untitled',
+        summary: n.summary || n.description || null,
+        source: n.source || n.publisher?.name || 'Polygon',
+        published_at: n.published_utc || n.publishedAt || null,
+        url: n.article_url || n.url || null,
+        tickers: n.tickers || [],
+        sentiment: n.sentiment || null,
+      }));
+    }
+  } catch (polyErr) {
+    console.warn(`[data-fetcher] Polygon cache fetch warning: ${polyErr}`);
+  }
+
+  // 4. Merge and deduplicate news by title
+  const seenTitles = new Set<string>();
+  const allNews: any[] = [];
+  
+  // Prioritize LunarCrush news (more social context), then Polygon
+  for (const article of [...lunarcrushNews, ...polygonNews]) {
+    const titleKey = article.title?.toLowerCase().slice(0, 50);
+    if (titleKey && !seenTitles.has(titleKey)) {
+      seenTitles.add(titleKey);
+      allNews.push(article);
+    }
+  }
+
+  // Sort by published date (most recent first)
+  allNews.sort((a, b) => {
+    const dateA = a.published_at ? new Date(a.published_at).getTime() : 0;
+    const dateB = b.published_at ? new Date(b.published_at).getTime() : 0;
+    return dateB - dateA;
+  });
+
+  console.log(`[data-fetcher] News collected: ${lunarcrushNews.length} from LunarCrush, ${polygonNews.length} from Polygon, ${allNews.length} total after dedup`);
 
   return {
     type: 'news',
-    tokens: data || [],
+    tokens: tokens || [],
+    news: allNews.slice(0, 15),
   };
 }
 

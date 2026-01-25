@@ -650,7 +650,34 @@ export function buildIntentBasedPrompt(
       
     case 'news':
       base.push(`## NEWS/SENTIMENT TASK:`);
-      base.push(`Summarize the latest sentiment for ${intent.tickers.length > 0 ? intent.tickers.join(', ') : 'the market'}.`);
+      base.push(`Summarize the latest news and sentiment for ${intent.tickers.length > 0 ? intent.tickers.join(', ') : 'the crypto market'}.`);
+      base.push(``);
+      base.push(`**Response Structure:**`);
+      base.push(`1. **Headlines Overview** - Summarize the top 3-5 news stories`);
+      base.push(`2. **Sentiment Pulse** - Overall market/token sentiment based on news tone`);
+      base.push(`3. **Key Themes** - What narratives are dominating?`);
+      base.push(`4. **Your Take** - 1-2 sentences on what this means for the asset/market`);
+      base.push(``);
+      base.push(`Format each news item as:`);
+      base.push(`📰 **"Headline"** - Source, X hours ago`);
+      base.push(`Brief summary or key takeaway`);
+      base.push(``);
+      // Add news data if available
+      if (data.news && data.news.length > 0) {
+        base.push(`## News Data (${data.news.length} articles):`);
+        base.push('```json');
+        base.push(JSON.stringify(data.news.slice(0, 10).map((n: any) => ({
+          title: n.title,
+          summary: n.summary?.slice(0, 200),
+          source: n.source,
+          published: n.published_at,
+          tickers: n.tickers,
+          sentiment: n.sentiment,
+        })), null, 2));
+        base.push('```');
+      } else {
+        base.push(`Note: No fresh news articles found. Synthesize based on token social data (Galaxy Score, sentiment, top_posts if available).`);
+      }
       break;
       
     case 'general_chat':
