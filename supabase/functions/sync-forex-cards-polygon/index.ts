@@ -103,9 +103,12 @@ serve(async (req) => {
     // Build lookup map (C:EURUSD -> data)
     const polygonMap = new Map<string, any>();
     
-    // Special handling for precious metals - query individually since they're not in forex snapshot
-    const METAL_PAIRS = ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'];
-    for (const metalPair of METAL_PAIRS) {
+    // Precious metals - Gold/Silver use prev endpoint (working), Platinum/Palladium use last quote
+    const METAL_PAIRS_PREV = ['XAUUSD', 'XAGUSD'];  // Working fine with /prev
+    const METAL_PAIRS_QUOTE = ['XPTUSD', 'XPDUSD']; // Need real-time quote for accurate prices
+
+    // Gold and Silver - existing working logic using /prev endpoint
+    for (const metalPair of METAL_PAIRS_PREV) {
       try {
         const prevDayUrl = `https://api.polygon.io/v2/aggs/ticker/C:${metalPair}/prev?apiKey=${polygonKey}`;
         const metalResponse = await fetch(prevDayUrl);
@@ -114,7 +117,6 @@ serve(async (req) => {
           const metalData = await metalResponse.json();
           if (metalData.results && metalData.results.length > 0) {
             const result = metalData.results[0];
-            // Format it like the snapshot data
             polygonMap.set(metalPair, {
               ticker: `C:${metalPair}`,
               day: {
@@ -126,15 +128,60 @@ serve(async (req) => {
                 vw: result.vw
               },
               lastQuote: {
-                a: result.c, // Use close as ask approximation
-                b: result.c * 0.9999 // Approximate bid
+                a: result.c,
+                b: result.c * 0.9999
               }
             });
-            console.log(`[sync-forex-cards-polygon] Fetched ${metalPair}: ${result.c}`);
+            console.log(`[sync-forex-cards-polygon] Fetched ${metalPair} (prev): ${result.c}`);
           }
         }
       } catch (metalErr) {
-        console.error(`[sync-forex-cards-polygon] Failed to fetch ${metalPair}:`, metalErr);
+        const errMsg = metalErr instanceof Error ? metalErr.message : String(metalErr);
+        console.error(`[sync-forex-cards-polygon] Failed to fetch ${metalPair}:`, errMsg);
+      }
+    }
+
+    // Platinum and Palladium - use real-time last quote for accurate spot prices
+    for (const metalPair of METAL_PAIRS_QUOTE) {
+      try {
+        const from = metalPair.slice(0, 3);  // XPT or XPD
+        const to = metalPair.slice(3);        // USD
+        
+        const quoteUrl = `https://api.polygon.io/v1/last_quote/currencies/${from}/${to}?apiKey=${polygonKey}`;
+        const quoteResponse = await fetch(quoteUrl);
+        
+        if (quoteResponse.ok) {
+          const quoteData = await quoteResponse.json();
+          const lastQuote = quoteData.last;
+          
+          if (lastQuote && (lastQuote.ask || lastQuote.bid)) {
+            const midPrice = lastQuote.ask && lastQuote.bid 
+              ? (lastQuote.ask + lastQuote.bid) / 2 
+              : (lastQuote.ask || lastQuote.bid);
+            
+            polygonMap.set(metalPair, {
+              ticker: `C:${metalPair}`,
+              day: {
+                o: midPrice,
+                h: midPrice,
+                l: midPrice,
+                c: midPrice
+              },
+              lastQuote: {
+                a: lastQuote.ask,
+                b: lastQuote.bid
+              }
+            });
+            console.log(`[sync-forex-cards-polygon] Fetched ${metalPair} (quote): ask=${lastQuote.ask}, bid=${lastQuote.bid}, mid=${midPrice.toFixed(2)}`);
+          } else {
+            console.warn(`[sync-forex-cards-polygon] No quote data for ${metalPair}`);
+          }
+        } else {
+          console.warn(`[sync-forex-cards-polygon] Quote API failed for ${metalPair}: ${quoteResponse.status}`);
+        }
+      } catch (metalErr) {
+        const errMsg = metalErr instanceof Error ? metalErr.message : String(metalErr);
+        console.error(`[sync-forex-cards-polygon] Failed to fetch ${metalPair}:`, errMsg);
       }
     }
     for (const t of tickers) {
