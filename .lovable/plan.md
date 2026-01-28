@@ -1,60 +1,95 @@
 
-# Fix Platinum & Palladium Prices Only
 
-## Problem
-Only **Platinum (XPTUSD)** and **Palladium (XPDUSD)** are showing incorrect prices:
+# Remove Platinum & Palladium from Forex Metals Cards
 
-| Metal | Shows | Actual | Status |
-|-------|-------|--------|--------|
-| Gold | $5,167 | ~$5,080 | ✅ Working |
-| Silver | $112 | ~$100 | ✅ Working |
-| Platinum | **$917** | **~$2,340** | ❌ Wrong |
-| Palladium | **$965** | **~$1,900** | ❌ Wrong |
+## Summary
+Remove Platinum (XPTUSD) and Palladium (XPDUSD) cards from the forex page since Polygon's data for these metals is incorrect (~$918 vs actual ~$2,500). Keep only Gold and Silver which have accurate data.
 
-## Solution
-Keep Gold and Silver fetching as-is. Only switch Platinum and Palladium to use the real-time Last Quote endpoint.
+## File Changes
 
-## File to Modify
-`supabase/functions/sync-forex-cards-polygon/index.ts`
+### `src/components/forex/MetalsCards.tsx`
 
-## Changes
-
-**Replace lines 106-139** with logic that:
-1. Uses the existing `/prev` endpoint for Gold (XAUUSD) and Silver (XAGUSD) - **unchanged**
-2. Uses the `/v1/last_quote/currencies/{from}/{to}` endpoint for Platinum and Palladium only
-
+#### 1. Update Database Query (Line 21)
+Change the Supabase query to only fetch Gold and Silver:
 ```typescript
-// Precious metals - Gold/Silver use prev endpoint, Platinum/Palladium use last quote
-const METAL_PAIRS_PREV = ['XAUUSD', 'XAGUSD'];  // Working fine with /prev
-const METAL_PAIRS_QUOTE = ['XPTUSD', 'XPDUSD']; // Need real-time quote
+// Before
+.in('pair', ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'])
 
-// Gold and Silver - existing working logic
-for (const metalPair of METAL_PAIRS_PREV) {
-  // Keep existing /prev endpoint logic (unchanged)
-}
-
-// Platinum and Palladium - use last quote for accurate prices
-for (const metalPair of METAL_PAIRS_QUOTE) {
-  const from = metalPair.slice(0, 3);  // XPT or XPD
-  const to = metalPair.slice(3);        // USD
-  
-  const quoteUrl = `https://api.polygon.io/v1/last_quote/currencies/${from}/${to}?apiKey=${polygonKey}`;
-  // Calculate mid price from bid/ask
-  // Use that as the rate
-}
+// After
+.in('pair', ['XAUUSD', 'XAGUSD'])
 ```
 
-## Expected Results
+#### 2. Update Loading Skeleton Grid (Lines 32-37)
+Reduce from 4 skeletons to 2 and update grid layout:
+```typescript
+// Before
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+  <Skeleton className="h-40" />
+  <Skeleton className="h-40" />
+  <Skeleton className="h-40" />
+  <Skeleton className="h-40" />
+</div>
 
-| Metal | Before | After |
-|-------|--------|-------|
-| Gold | $5,167 ✅ | $5,167 ✅ (unchanged) |
-| Silver | $112 ✅ | $112 ✅ (unchanged) |
-| Platinum | $917 ❌ | ~$2,340 ✅ |
-| Palladium | $965 ❌ | ~$1,900 ✅ |
+// After
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <Skeleton className="h-40" />
+  <Skeleton className="h-40" />
+</div>
+```
 
-## Testing
-1. Deploy updated edge function
-2. Invoke `sync-forex-cards-polygon` 
-3. Verify only Platinum/Palladium prices change
-4. Confirm Gold/Silver remain accurate
+#### 3. Remove Variable Assignments (Lines 43-44)
+Delete the platinum and palladium variable declarations:
+```typescript
+// Delete these lines
+const platinum = metals?.find(m => m.pair === 'XPTUSD');
+const palladium = metals?.find(m => m.pair === 'XPDUSD');
+```
+
+#### 4. Clean Up slugMap (Lines 48-51)
+Remove platinum and palladium entries from the slug mapping:
+```typescript
+// Before
+const slugMap: Record<string, string> = {
+  'XAUUSD': 'gold',
+  'XAGUSD': 'silver',
+  'XPTUSD': 'platinum',
+  'XPDUSD': 'palladium'
+};
+
+// After
+const slugMap: Record<string, string> = {
+  'XAUUSD': 'gold',
+  'XAGUSD': 'silver'
+};
+```
+
+#### 5. Update Render Grid (Line 128)
+Change grid from 4 columns to 2 columns on large screens:
+```typescript
+// Before
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+// After
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+```
+
+#### 6. Remove Card Renders (Lines 131-132)
+Delete the Platinum and Palladium MetalCard components:
+```typescript
+// Delete these lines
+<MetalCard metal={platinum} icon="⚪" name="Platinum" gradientClass="platinum-price-gradient" />
+<MetalCard metal={palladium} icon="🔘" name="Palladium" gradientClass="palladium-price-gradient" />
+```
+
+## Result
+
+| Aspect | Before | After |
+|--------|--------|-------|
+| Metals displayed | 4 (Gold, Silver, Platinum, Palladium) | 2 (Gold, Silver) |
+| Grid columns (lg) | 4 | 2 |
+| Database query | 4 pairs | 2 pairs |
+| Loading skeletons | 4 | 2 |
+
+## Future Consideration
+When an alternative precious metals API (like Kitco, metals-api.com, or goldapi.io) is integrated, the Platinum and Palladium cards can be restored with accurate pricing data.
+
