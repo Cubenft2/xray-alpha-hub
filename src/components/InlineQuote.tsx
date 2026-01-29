@@ -298,7 +298,14 @@ export function initializeInlineQuotes() {
         return `as of ${hours}:${minutes} MT`;
       };
       
-      span.innerHTML = `(${symbol} $${formatPrice(quoteData.price)} <span style="color: ${changeColor}">${formatChange(quoteData.change24h)}</span>)`;
+      // Safe DOM manipulation - avoid innerHTML for XSS prevention
+      span.textContent = '';
+      span.appendChild(document.createTextNode(`(${symbol} $${formatPrice(quoteData.price)} `));
+      const changeSpan = document.createElement('span');
+      changeSpan.style.color = changeColor;
+      changeSpan.textContent = formatChange(quoteData.change24h);
+      span.appendChild(changeSpan);
+      span.appendChild(document.createTextNode(')'));
       span.setAttribute('title', `${formatTimestamp(quoteData.timestamp)} • source: ${quoteData.source}`);
       console.log(`✨ Updated ${symbol} with price $${quoteData.price}`);
     });
