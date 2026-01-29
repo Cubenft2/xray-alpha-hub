@@ -24,7 +24,7 @@ const OANDA_PAIRS = new Set([
   'EURGBP', 'EURJPY', 'GBPJPY', 'AUDNZD', 'AUDCAD', 'AUDCHF', 'AUDJPY',
   'CADCHF', 'CADJPY', 'CHFJPY', 'EURCHF', 'EURAUD', 'EURCAD', 'EURNZD',
   'GBPAUD', 'GBPCAD', 'GBPCHF', 'GBPNZD', 'NZDCAD', 'NZDCHF', 'NZDJPY',
-  'XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'
+  'XAUUSD', 'XAGUSD'
 ]);
 
 export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
@@ -40,7 +40,7 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
         .from('forex_cards')
         .select('*')
         .eq('is_active', true)
-        .in('base_currency', ['XAU', 'XAG', 'XPT', 'XPD']);
+        .in('pair', ['XAUUSD', 'XAGUSD']);
       
       if (error) throw error;
       console.log('[ForexScreener] Metals query returned:', data?.length, 'pairs', data?.map(p => p.pair));
@@ -57,7 +57,8 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
         .from('forex_cards')
         .select('*')
         .eq('is_active', true)
-        .order('pair', { ascending: true });
+        .order('pair', { ascending: true })
+        .limit(2000);
       
       if (error) throw error;
       return data || [];
