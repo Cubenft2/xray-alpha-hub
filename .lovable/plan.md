@@ -1,95 +1,94 @@
 
 
-# Remove Platinum & Palladium from Forex Metals Cards
+# Fix Forex Screener Query Issues
 
-## Summary
-Remove Platinum (XPTUSD) and Palladium (XPDUSD) cards from the forex page since Polygon's data for these metals is incorrect (~$918 vs actual ~$2,500). Keep only Gold and Silver which have accurate data.
+## Problem Identified
+
+The Forex Screener has two issues:
+
+| Issue | Cause | Impact |
+|-------|-------|--------|
+| **Missing pairs in "All" tab** | Supabase default limit of 1000 rows | 222 pairs are not displayed (1222 total, only 1000 shown) |
+| **Metals tab shows too many pairs** | Query uses `base_currency IN (...)` returning 33 pairs | Displays all XAU/XAG cross-pairs instead of just USD pairs |
+
+**Note:** The database data is fresh (last updated 4 minutes ago at 18:35:02 UTC). This is NOT a stale data issue.
+
+## Solution
+
+### 1. Fix the "All" Tab Row Limit
+
+Add explicit limit to fetch all 1222+ pairs:
+
+```typescript
+// In the allPairs query (line 53-66)
+const { data, error } = await supabase
+  .from('forex_cards')
+  .select('*')
+  .eq('is_active', true)
+  .order('pair', { ascending: true })
+  .limit(2000);  // Add explicit limit to get all pairs
+```
+
+### 2. Fix the Metals Tab Query
+
+Update the metals query to match the cleaned-up MetalsCards (only XAUUSD and XAGUSD):
+
+```typescript
+// In the metalsPairs query (line 36-50)
+const { data, error } = await supabase
+  .from('forex_cards')
+  .select('*')
+  .eq('is_active', true)
+  .in('pair', ['XAUUSD', 'XAGUSD']);  // Changed from base_currency filter
+```
+
+This makes the ForexScreener consistent with the MetalsCards component.
 
 ## File Changes
 
-### `src/components/forex/MetalsCards.tsx`
+### `src/components/ForexScreener.tsx`
 
-#### 1. Update Database Query (Line 21)
-Change the Supabase query to only fetch Gold and Silver:
+#### Change 1: Update Metals Query (Lines 39-43)
 ```typescript
 // Before
-.in('pair', ['XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'])
+.in('base_currency', ['XAU', 'XAG', 'XPT', 'XPD']);
 
 // After
-.in('pair', ['XAUUSD', 'XAGUSD'])
+.in('pair', ['XAUUSD', 'XAGUSD']);
 ```
 
-#### 2. Update Loading Skeleton Grid (Lines 32-37)
-Reduce from 4 skeletons to 2 and update grid layout:
+#### Change 2: Add Limit to All Pairs Query (Lines 56-60)
 ```typescript
 // Before
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-  <Skeleton className="h-40" />
-  <Skeleton className="h-40" />
-  <Skeleton className="h-40" />
-  <Skeleton className="h-40" />
-</div>
+.order('pair', { ascending: true });
 
 // After
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-  <Skeleton className="h-40" />
-  <Skeleton className="h-40" />
-</div>
+.order('pair', { ascending: true })
+.limit(2000);
 ```
 
-#### 3. Remove Variable Assignments (Lines 43-44)
-Delete the platinum and palladium variable declarations:
-```typescript
-// Delete these lines
-const platinum = metals?.find(m => m.pair === 'XPTUSD');
-const palladium = metals?.find(m => m.pair === 'XPDUSD');
-```
-
-#### 4. Clean Up slugMap (Lines 48-51)
-Remove platinum and palladium entries from the slug mapping:
+#### Change 3: Clean up OANDA_PAIRS Constant (Lines 27)
+Remove XPTUSD and XPDUSD since we removed those metals:
 ```typescript
 // Before
-const slugMap: Record<string, string> = {
-  'XAUUSD': 'gold',
-  'XAGUSD': 'silver',
-  'XPTUSD': 'platinum',
-  'XPDUSD': 'palladium'
-};
+'XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'
 
 // After
-const slugMap: Record<string, string> = {
-  'XAUUSD': 'gold',
-  'XAGUSD': 'silver'
-};
+'XAUUSD', 'XAGUSD'
 ```
 
-#### 5. Update Render Grid (Line 128)
-Change grid from 4 columns to 2 columns on large screens:
-```typescript
-// Before
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+## Expected Results
 
-// After
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-```
+| Tab | Before | After |
+|-----|--------|-------|
+| Metals | 33 pairs (all XAU/XAG crosses) | 2 pairs (XAUUSD, XAGUSD) |
+| Major | Working correctly | No change |
+| All | ~1000 pairs (limited) | All 1222+ pairs |
 
-#### 6. Remove Card Renders (Lines 131-132)
-Delete the Platinum and Palladium MetalCard components:
-```typescript
-// Delete these lines
-<MetalCard metal={platinum} icon="⚪" name="Platinum" gradientClass="platinum-price-gradient" />
-<MetalCard metal={palladium} icon="🔘" name="Palladium" gradientClass="palladium-price-gradient" />
-```
+## Technical Details
 
-## Result
-
-| Aspect | Before | After |
-|--------|--------|-------|
-| Metals displayed | 4 (Gold, Silver, Platinum, Palladium) | 2 (Gold, Silver) |
-| Grid columns (lg) | 4 | 2 |
-| Database query | 4 pairs | 2 pairs |
-| Loading skeletons | 4 | 2 |
-
-## Future Consideration
-When an alternative precious metals API (like Kitco, metals-api.com, or goldapi.io) is integrated, the Platinum and Palladium cards can be restored with accurate pricing data.
+- The `forex_cards` table has 1,222 active pairs
+- Supabase's default row limit is 1000
+- Using `.limit(2000)` ensures we fetch all pairs with room for growth
+- Changing from `base_currency` to `pair` filter aligns with MetalsCards cleanup
 
