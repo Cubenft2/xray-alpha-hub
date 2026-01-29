@@ -40,10 +40,12 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
         .from('forex_cards')
         .select('*')
         .eq('is_active', true)
-        .in('pair', ['XAUUSD', 'XAGUSD']);
+        .in('base_currency', ['XAU', 'XAG'])
+        .order('base_currency', { ascending: true })
+        .order('quote_currency', { ascending: true });
       
       if (error) throw error;
-      console.log('[ForexScreener] Metals query returned:', data?.length, 'pairs', data?.map(p => p.pair));
+      console.log('[ForexScreener] Metals query returned:', data?.length, 'pairs');
       return data || [];
     },
     refetchInterval: 30000,
@@ -182,6 +184,7 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
           <TableHeader>
             <TableRow>
               <TableHead><SortButton field="pair">Pair</SortButton></TableHead>
+              <TableHead className="hidden sm:table-cell">Quote</TableHead>
               <TableHead className="text-right"><SortButton field="rate">Rate</SortButton></TableHead>
               <TableHead className="text-right"><SortButton field="change_24h_pct">24h</SortButton></TableHead>
               <TableHead className="text-right hidden sm:table-cell">High/Low</TableHead>
@@ -206,6 +209,12 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
                       {pair.is_major && (
                         <Badge variant="outline" className="text-[10px] px-1">Major</Badge>
                       )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <div className="flex items-center gap-1">
+                      {pair.quote_flag && <span>{pair.quote_flag}</span>}
+                      <span className="text-muted-foreground text-sm">{pair.quote_currency}</span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-mono">
