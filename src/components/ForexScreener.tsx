@@ -49,19 +49,36 @@ export function ForexScreener({ onSelectSymbol }: ForexScreenerProps) {
     refetchInterval: 30000,
   });
 
-  // Query for all pairs (used by Major and All tabs)
+  // Query for all pairs (used by Major and All tabs) - uses pagination to bypass 1000 row limit
   const { data: allPairs, isLoading: allLoading } = useQuery({
     queryKey: ['forex-screener-all'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('forex_cards')
-        .select('*')
-        .eq('is_active', true)
-        .order('pair', { ascending: true })
-        .limit(2000);
+      const PAGE_SIZE = 1000;
+      let allData: any[] = [];
+      let offset = 0;
+      let hasMore = true;
       
-      if (error) throw error;
-      return data || [];
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('forex_cards')
+          .select('*')
+          .eq('is_active', true)
+          .order('pair', { ascending: true })
+          .range(offset, offset + PAGE_SIZE - 1);
+        
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          offset += PAGE_SIZE;
+          hasMore = data.length === PAGE_SIZE;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      console.log('[ForexScreener] Paginated fetch returned:', allData.length, 'total pairs');
+      return allData;
     },
     refetchInterval: 30000,
   });
