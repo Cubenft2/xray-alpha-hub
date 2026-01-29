@@ -1,94 +1,74 @@
 
+# Fix Forex Screener - Pagination Required
 
-# Fix Forex Screener Query Issues
+## What Went Wrong
 
-## Problem Identified
+The previous fix added `.limit(2000)` but this doesn't work because:
+- Supabase PostgREST enforces a **server-side maximum of 1000 rows** per query
+- The `.limit()` parameter cannot override this server limit
+- Network response confirmed: `content-range: 0-999/*` (only 1000 rows returned)
 
-The Forex Screener has two issues:
+## Correct Solution: Pagination
 
-| Issue | Cause | Impact |
-|-------|-------|--------|
-| **Missing pairs in "All" tab** | Supabase default limit of 1000 rows | 222 pairs are not displayed (1222 total, only 1000 shown) |
-| **Metals tab shows too many pairs** | Query uses `base_currency IN (...)` returning 33 pairs | Displays all XAU/XAG cross-pairs instead of just USD pairs |
+Implement pagination to fetch all 1,222+ pairs in multiple batches.
 
-**Note:** The database data is fresh (last updated 4 minutes ago at 18:35:02 UTC). This is NOT a stale data issue.
+## Implementation
 
-## Solution
+### File: `src/components/ForexScreener.tsx`
 
-### 1. Fix the "All" Tab Row Limit
-
-Add explicit limit to fetch all 1222+ pairs:
-
-```typescript
-// In the allPairs query (line 53-66)
-const { data, error } = await supabase
-  .from('forex_cards')
-  .select('*')
-  .eq('is_active', true)
-  .order('pair', { ascending: true })
-  .limit(2000);  // Add explicit limit to get all pairs
-```
-
-### 2. Fix the Metals Tab Query
-
-Update the metals query to match the cleaned-up MetalsCards (only XAUUSD and XAGUSD):
+**Replace the `allPairs` query with paginated fetch:**
 
 ```typescript
-// In the metalsPairs query (line 36-50)
-const { data, error } = await supabase
-  .from('forex_cards')
-  .select('*')
-  .eq('is_active', true)
-  .in('pair', ['XAUUSD', 'XAGUSD']);  // Changed from base_currency filter
+const { data: allPairs, isLoading: allLoading } = useQuery({
+  queryKey: ['forex-screener-all'],
+  queryFn: async () => {
+    const PAGE_SIZE = 1000;
+    let allData: any[] = [];
+    let offset = 0;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('forex_cards')
+        .select('*')
+        .eq('is_active', true)
+        .order('pair', { ascending: true })
+        .range(offset, offset + PAGE_SIZE - 1);
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        allData = [...allData, ...data];
+        offset += PAGE_SIZE;
+        hasMore = data.length === PAGE_SIZE;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    return allData;
+  },
+  refetchInterval: 30000,
+});
 ```
 
-This makes the ForexScreener consistent with the MetalsCards component.
+## How It Works
 
-## File Changes
+| Batch | Range | Rows Fetched |
+|-------|-------|--------------|
+| 1 | 0-999 | 1000 pairs |
+| 2 | 1000-1999 | 222 pairs |
+| **Total** | | **1,222 pairs** |
 
-### `src/components/ForexScreener.tsx`
+## Expected Result
 
-#### Change 1: Update Metals Query (Lines 39-43)
-```typescript
-// Before
-.in('base_currency', ['XAU', 'XAG', 'XPT', 'XPD']);
+- **Metals Tab**: 2 pairs (XAUUSD, XAGUSD) ✅ Already working
+- **Major Tab**: ~7 pairs ✅ Already working  
+- **All Tab**: **1,222 pairs** ✅ Will now show all pairs
 
-// After
-.in('pair', ['XAUUSD', 'XAGUSD']);
-```
+## Why This Works
 
-#### Change 2: Add Limit to All Pairs Query (Lines 56-60)
-```typescript
-// Before
-.order('pair', { ascending: true });
-
-// After
-.order('pair', { ascending: true })
-.limit(2000);
-```
-
-#### Change 3: Clean up OANDA_PAIRS Constant (Lines 27)
-Remove XPTUSD and XPDUSD since we removed those metals:
-```typescript
-// Before
-'XAUUSD', 'XAGUSD', 'XPTUSD', 'XPDUSD'
-
-// After
-'XAUUSD', 'XAGUSD'
-```
-
-## Expected Results
-
-| Tab | Before | After |
-|-----|--------|-------|
-| Metals | 33 pairs (all XAU/XAG crosses) | 2 pairs (XAUUSD, XAGUSD) |
-| Major | Working correctly | No change |
-| All | ~1000 pairs (limited) | All 1222+ pairs |
-
-## Technical Details
-
-- The `forex_cards` table has 1,222 active pairs
-- Supabase's default row limit is 1000
-- Using `.limit(2000)` ensures we fetch all pairs with room for growth
-- Changing from `base_currency` to `pair` filter aligns with MetalsCards cleanup
-
+The `.range(offset, offset + PAGE_SIZE - 1)` method:
+1. Fetches rows in chunks that stay under the 1000-row server limit
+2. Loops until all data is retrieved
+3. Combines all batches into one array for the component
